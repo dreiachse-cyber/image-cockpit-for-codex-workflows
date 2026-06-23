@@ -62,6 +62,7 @@ npm run release:audit
 - release auditで、4大workflowの中核UIラベルと初期言語判定が言語切替の対象になっていることを確認。
 - Browser QAで、簡素化UIの画像生成画面に `Create Codex Job` / `Import Latest` / `Import File` がdesktop 1280x720とmobile 390x844の初期viewport内に収まることを確認。
 - Browser QAで、スプライトシート生成画面の主操作が `Import File` / `Import Latest` の2つに整理され、`Import File` が重複しないことを確認。
+- Browser QAで、Codex runner unavailable後にoutboxへ返却画像を置き、`Import Latest` で `manual-handoff-qa-return.png` をLocal Inboxから取り込めることを確認。
 - Chrome headlessでimage-edit desktop、sprite-edit desktop、sprite-edit mobileを確認し、sprite-edit mobileに横あふれがないことを確認。
 - `.github/workflows/ci.yml` でdoctor、typecheck、test、build、smoke、release auditを走らせるCI導線を追加。
 
@@ -90,6 +91,7 @@ npm run release:audit
 - `docs/qa/simple-image-generate-import-latest-1280x720.png`
 - `docs/qa/simple-image-generate-import-latest-mobile-390x844.png`
 - `docs/qa/simple-sprite-generate-actions-1280x720.png`
+- `docs/qa/manual-handoff-import-latest-1280x720.png`
 - `docs/demo/mvp-demo.gif`
 - `design-qa.md`
 

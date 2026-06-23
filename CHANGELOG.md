@@ -17,6 +17,7 @@ Private release candidate for the first local Image Cockpit MVP.
 - Visible `Import Latest` action in the simplified workflow screen for manual handoff returns.
 - Simplified local-file workflows avoid duplicate `Import File` actions.
 - Desktop and mobile QA screenshots for the simplified image generation screen with `Import Latest` visible.
+- Manual handoff Browser QA screenshot showing an outbox return imported through `Import Latest`.
 - Smoke coverage for Local Inbox outbox listing and data URL import.
 - Canvas annotation tools for select, brush, rectangle, and arrow.
 - Grid split into sprite frames, frame timeline editing, frame size controls, anchor controls, chroma key cleanup, and PNG / ZIP / GIF / metadata exports.

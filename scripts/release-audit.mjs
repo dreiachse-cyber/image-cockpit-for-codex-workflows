@@ -28,7 +28,8 @@ const requiredFiles = [
   "docs/demo/mvp-demo.gif",
   "docs/qa/simple-image-generate-import-latest-1280x720.png",
   "docs/qa/simple-image-generate-import-latest-mobile-390x844.png",
-  "docs/qa/simple-sprite-generate-actions-1280x720.png"
+  "docs/qa/simple-sprite-generate-actions-1280x720.png",
+  "docs/qa/manual-handoff-import-latest-1280x720.png"
 ];
 
 const requiredEnvKeys = [
@@ -356,6 +357,7 @@ function checkReleaseDocs() {
     "Sprite sheet editing",
     "Local-first boundary",
     "Manual handoff fallback",
+    "manual-handoff-import-latest-1280x720.png",
     "Remaining Gates",
     "codex exec",
     "npm run smoke"
