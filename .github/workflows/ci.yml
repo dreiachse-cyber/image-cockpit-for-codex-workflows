@@ -31,6 +31,9 @@ jobs:
       - name: Typecheck
         run: npm run typecheck
 
+      - name: Doctor
+        run: npm run doctor
+
       - name: Test
         run: npm test
 

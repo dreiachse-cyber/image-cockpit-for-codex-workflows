@@ -33,6 +33,7 @@
 ## 検証済み
 
 ```powershell
+npm run doctor
 npm run typecheck
 npm test
 npm run build
@@ -43,12 +44,13 @@ npm run release:audit
 追加smoke:
 
 - `IMAGE_COCKPIT_CODEX_AUTORUN=0` でrunner state `disabled` を確認。
+- `npm run doctor` で必須ファイル、handoff folder書き込み、Codex command availabilityを確認。
 - 現在のWindows環境では `codex` 実行が `spawn EPERM` となり、runner state `unavailable` として記録されることを確認。
 - `/api/codex/jobs` smokeで、job JSONに `workflowMode=image-edit`、編集メモ、`annotationCount=1`、`selectedImage.assetPath` が入ることを確認。
 - `/api/codex/jobs` smokeで、`workflowMode=image-generate` のjobに選択画像asset、編集注釈、sprite contextが混入しないことを確認。
 - `/api/codex/results` smokeで、outbox画像の一覧表示、非画像除外、画像data URL取り込みを確認。
 - Chrome headlessでimage-edit desktop、sprite-edit desktop、sprite-edit mobileを確認し、sprite-edit mobileに横あふれがないことを確認。
-- `.github/workflows/ci.yml` でtypecheck、test、build、smoke、release auditを走らせるCI導線を追加。
+- `.github/workflows/ci.yml` でdoctor、typecheck、test、build、smoke、release auditを走らせるCI導線を追加。
 
 ## リリース候補資料
 

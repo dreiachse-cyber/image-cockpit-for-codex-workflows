@@ -15,6 +15,7 @@ const requiredFiles = [
   ".env.example",
   ".gitignore",
   ".github/workflows/ci.yml",
+  "scripts/doctor.mjs",
   "scripts/release-audit.mjs",
   "docs/review/mvp-review-report.md",
   "docs/roadmap/release-roadmap.md",
@@ -35,7 +36,7 @@ const requiredEnvKeys = [
 
 const requiredWorkflowIds = ["image-generate", "image-edit", "sprite-generate", "sprite-edit"];
 const requiredGitignorePatterns = ["node_modules/", "dist/", "coverage/", ".env", ".env.", "!.env.example", "codex-handoff/"];
-const requiredPackageScripts = ["typecheck", "test", "build", "smoke", "release:audit"];
+const requiredPackageScripts = ["doctor", "typecheck", "test", "build", "smoke", "release:audit"];
 const requiredReadmeLinks = [
   "CHANGELOG.md",
   "docs/release/v0.1.0-release-notes.md",
@@ -201,6 +202,7 @@ function checkCiWorkflow() {
     "actions/checkout@v4",
     "actions/setup-node@v4",
     "npm ci",
+    "npm run doctor",
     "npm run typecheck",
     "npm test",
     "npm run build",
@@ -248,6 +250,7 @@ function checkReleaseDocs() {
   });
 
   [
+    "npm run doctor",
     "Image generation",
     "Image editing",
     "Sprite sheet generation",

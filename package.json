@@ -8,6 +8,7 @@
     "dev": "vite --host 127.0.0.1",
     "dev:all": "node scripts/dev-all.mjs",
     "dev:server": "tsx server/index.ts",
+    "doctor": "node scripts/doctor.mjs",
     "build": "tsc -b && vite build",
     "lint": "tsc --noEmit",
     "release:audit": "node scripts/release-audit.mjs",

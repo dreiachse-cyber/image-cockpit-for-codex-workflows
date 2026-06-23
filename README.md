@@ -86,9 +86,18 @@ Runner preflight can be checked directly:
 Invoke-RestMethod http://127.0.0.1:8787/api/codex/runner
 ```
 
+For a local setup diagnosis without starting the UI:
+
+```powershell
+npm run doctor
+```
+
+`npm run doctor` verifies required files, handoff folder writability, and Codex command availability. If Codex cannot be launched but local handoff is usable, it reports a warning instead of failing.
+
 ## Verification
 
 ```powershell
+npm run doctor
 npm run typecheck
 npm test
 npm run build
