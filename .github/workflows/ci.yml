@@ -28,20 +28,5 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Typecheck
-        run: npm run typecheck
-
-      - name: Doctor
-        run: npm run doctor
-
-      - name: Test
-        run: npm test
-
-      - name: Build
-        run: npm run build
-
-      - name: Smoke
-        run: npm run smoke
-
-      - name: Release audit
-        run: npm run release:audit
+      - name: Verify
+        run: npm run verify

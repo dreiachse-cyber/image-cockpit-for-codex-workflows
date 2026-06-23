@@ -98,6 +98,14 @@ npm run doctor
 
 ## Verification
 
+One-command local review:
+
+```powershell
+npm run verify
+```
+
+This runs the same required checks as the release path:
+
 ```powershell
 npm run doctor
 npm run typecheck

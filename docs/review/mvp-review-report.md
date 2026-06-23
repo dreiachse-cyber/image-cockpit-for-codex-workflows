@@ -39,6 +39,12 @@
 ## 検証済み
 
 ```powershell
+npm run verify
+```
+
+展開される検証:
+
+```powershell
 npm run doctor
 npm run typecheck
 npm test
@@ -64,7 +70,7 @@ npm run release:audit
 - Browser QAで、スプライトシート生成画面の主操作が `Import File` / `Import Latest` の2つに整理され、`Import File` が重複しないことを確認。
 - Browser QAで、Codex runner unavailable後にoutboxへ返却画像を置き、`Import Latest` で `manual-handoff-qa-return.png` をLocal Inboxから取り込めることを確認。
 - Chrome headlessでimage-edit desktop、sprite-edit desktop、sprite-edit mobileを確認し、sprite-edit mobileに横あふれがないことを確認。
-- `.github/workflows/ci.yml` でdoctor、typecheck、test、build、smoke、release auditを走らせるCI導線を追加。
+- `.github/workflows/ci.yml` で `npm run verify` を走らせ、doctor、typecheck、test、build、smoke、release auditを同じ導線で確認する。
 
 ## リリース候補資料
 

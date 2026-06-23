@@ -43,7 +43,15 @@ const requiredEnvKeys = [
 
 const requiredWorkflowIds = ["image-generate", "image-edit", "sprite-generate", "sprite-edit"];
 const requiredGitignorePatterns = ["node_modules/", "dist/", "coverage/", ".env", ".env.", "!.env.example", "codex-handoff/"];
-const requiredPackageScripts = ["doctor", "typecheck", "test", "build", "smoke", "release:audit"];
+const requiredPackageScripts = ["doctor", "typecheck", "test", "build", "smoke", "release:audit", "verify"];
+const requiredVerifyCommands = [
+  "npm run doctor",
+  "npm run typecheck",
+  "npm test",
+  "npm run build",
+  "npm run smoke",
+  "npm run release:audit"
+];
 const requiredReadmeLinks = [
   "CHANGELOG.md",
   "docs/release/v0.1.0-release-notes.md",
@@ -102,6 +110,13 @@ function checkPackageJson() {
   requiredPackageScripts.forEach((scriptName) => {
     if (!packageJson.scripts?.[scriptName]) {
       failures.push(`Missing package script: ${scriptName}`);
+    }
+  });
+
+  const verifyScript = packageJson.scripts?.verify ?? "";
+  requiredVerifyCommands.forEach((command) => {
+    if (!verifyScript.includes(command)) {
+      failures.push(`verify script should include: ${command}`);
     }
   });
 
@@ -286,12 +301,7 @@ function checkCiWorkflow() {
     "actions/checkout@v4",
     "actions/setup-node@v4",
     "npm ci",
-    "npm run doctor",
-    "npm run typecheck",
-    "npm test",
-    "npm run build",
-    "npm run smoke",
-    "npm run release:audit"
+    "npm run verify"
   ].forEach((line) => {
     if (!workflow.includes(line)) {
       failures.push(`CI workflow is missing expected step: ${line}`);
@@ -337,6 +347,7 @@ function checkReleaseDocs() {
 
   [
     "npm run doctor",
+    "npm run verify",
     "Image generation",
     "Image editing",
     "Sprite sheet generation",
@@ -360,7 +371,8 @@ function checkReleaseDocs() {
     "manual-handoff-import-latest-1280x720.png",
     "Remaining Gates",
     "codex exec",
-    "npm run smoke"
+    "npm run smoke",
+    "npm run verify"
   ].forEach((line) => {
     if (!acceptanceEvidence.includes(line)) {
       failures.push(`Acceptance evidence is missing expected content: ${line}`);
