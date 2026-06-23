@@ -1,0 +1,1063 @@
+import {
+  AlertTriangle,
+  Archive,
+  ArrowLeft,
+  ArrowRight,
+  Brush,
+  CheckCircle2,
+  Cloud,
+  Download,
+  FileArchive,
+  FileImage,
+  FileJson,
+  Film,
+  FolderOpen,
+  Grid3X3,
+  ImagePlus,
+  Loader2,
+  MousePointer2,
+  MoveUpRight,
+  PanelRight,
+  Pipette,
+  Plug,
+  Plus,
+  RefreshCw,
+  Scissors,
+  Settings,
+  Square,
+  Trash2,
+  Upload
+} from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  createGifBlob,
+  exportFramesZip,
+  exportGif,
+  exportMetadata,
+  exportSpriteSheet
+} from "./lib/exporters";
+import { createId, downloadBlob, loadImage, readFileAsDataUrl } from "./lib/image";
+import { calculateGridCells, summarizeFrames } from "./lib/sprite";
+import { loadActions, loadFrames, loadHistory, saveActions, saveFrames, saveHistory } from "./lib/storage";
+import type {
+  Annotation,
+  GridSettings,
+  HistoryItem,
+  ProviderId,
+  ProviderStatus,
+  SpriteAction,
+  SpriteFrame,
+  ToolMode
+} from "./types";
+
+const SAMPLE_URL = "/samples/forest-mage-sheet.png";
+const CANVAS_WIDTH = 920;
+const CANVAS_HEIGHT = 520;
+
+const defaultActions: SpriteAction[] = [
+  { name: "idle", fps: 12, loop: true, frameIds: [], cell: { width: 128, height: 128 }, anchor: { x: 64, y: 118 } },
+  { name: "walk", fps: 12, loop: true, frameIds: [], cell: { width: 128, height: 128 }, anchor: { x: 64, y: 118 } },
+  { name: "cast", fps: 10, loop: false, frameIds: [], cell: { width: 128, height: 128 }, anchor: { x: 64, y: 118 } },
+  { name: "attack", fps: 10, loop: false, frameIds: [], cell: { width: 128, height: 128 }, anchor: { x: 64, y: 118 } }
+];
+
+const fallbackProviders: ProviderStatus[] = [
+  { id: "local-file", label: "Local File", enabled: true, message: "Use images from this machine" },
+  { id: "openai-images", label: "OpenAI Images", enabled: false, message: "Set OPENAI_API_KEY and run the local API server" },
+  { id: "optional-adapter", label: "Optional Adapter", enabled: false, message: "No adapter configured" }
+];
+
+function App() {
+  const [history, setHistory] = useState<HistoryItem[]>(() => loadHistory());
+  const [frames, setFrames] = useState<SpriteFrame[]>(() => loadFrames());
+  const [actions, setActions] = useState<SpriteAction[]>(() => loadActions(defaultActions));
+  const [selectedId, setSelectedId] = useState<string>("");
+  const [activeActionName, setActiveActionName] = useState("idle");
+  const [providerId, setProviderId] = useState<ProviderId>("local-file");
+  const [providers, setProviders] = useState<ProviderStatus[]>(fallbackProviders);
+  const [prompt, setPrompt] = useState("Pixel art forest mage, transparent background, 8 directions");
+  const [negativePrompt, setNegativePrompt] = useState("blur, text, watermark, cropped feet");
+  const [seed, setSeed] = useState("24682");
+  const [size, setSize] = useState("1024x1024");
+  const [count, setCount] = useState(1);
+  const [quality, setQuality] = useState("auto");
+  const [grid, setGrid] = useState<GridSettings>({ columns: 8, rows: 4, gutter: 0 });
+  const [showGrid, setShowGrid] = useState(true);
+  const [showCenter, setShowCenter] = useState(true);
+  const [tool, setTool] = useState<ToolMode>("select");
+  const [annotationColor, setAnnotationColor] = useState("#1ba978");
+  const [annotationsByItem, setAnnotationsByItem] = useState<Record<string, Annotation[]>>({});
+  const [draftAnnotation, setDraftAnnotation] = useState<Annotation | null>(null);
+  const [selectedFrameId, setSelectedFrameId] = useState("");
+  const [chromaTolerance, setChromaTolerance] = useState(32);
+  const [status, setStatus] = useState("All changes saved locally");
+  const [isBusy, setIsBusy] = useState(false);
+  const [gifPreviewUrl, setGifPreviewUrl] = useState("");
+
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  const selected = useMemo(
+    () => history.find((item) => item.id === selectedId) ?? history[0],
+    [history, selectedId]
+  );
+
+  const activeAction = useMemo(
+    () => actions.find((action) => action.name === activeActionName) ?? actions[0],
+    [actions, activeActionName]
+  );
+
+  const actionFrames = useMemo(
+    () =>
+      activeAction.frameIds
+        .map((frameId) => frames.find((frame) => frame.id === frameId))
+        .filter((frame): frame is SpriteFrame => Boolean(frame)),
+    [activeAction.frameIds, frames]
+  );
+
+  const selectedFrame = useMemo(
+    () => frames.find((frame) => frame.id === selectedFrameId) ?? actionFrames[0],
+    [actionFrames, frames, selectedFrameId]
+  );
+
+  const qc = useMemo(
+    () => summarizeFrames(actionFrames, activeAction.cell.width, activeAction.cell.height),
+    [actionFrames, activeAction.cell.height, activeAction.cell.width]
+  );
+
+  useEffect(() => saveHistory(history), [history]);
+  useEffect(() => saveFrames(frames), [frames]);
+  useEffect(() => saveActions(actions), [actions]);
+
+  useEffect(() => {
+    fetch("/api/providers")
+      .then((response) => response.json())
+      .then((data: { providers: ProviderStatus[] }) => setProviders(data.providers))
+      .catch(() => setProviders(fallbackProviders));
+  }, []);
+
+  useEffect(() => {
+    if (history.length > 0) {
+      setSelectedId((current) => current || history[0].id);
+      return;
+    }
+
+    void seedSampleWorkspace();
+  }, [history.length]);
+
+  useEffect(() => {
+    drawWorkspaceCanvas();
+  }, [selected?.dataUrl, selectedFrame?.dataUrl, selectedId, annotationsByItem, draftAnnotation, showGrid, showCenter, grid, tool]);
+
+  useEffect(() => {
+    if (actionFrames.length === 0) {
+      setGifPreviewUrl("");
+      return;
+    }
+    let cancelled = false;
+    createGifBlob(frames, activeAction)
+      .then((blob) => {
+        if (cancelled) return;
+        if (gifPreviewUrl) URL.revokeObjectURL(gifPreviewUrl);
+        setGifPreviewUrl(URL.createObjectURL(blob));
+      })
+      .catch(() => setGifPreviewUrl(""));
+    return () => {
+      cancelled = true;
+    };
+  }, [activeAction, actionFrames.length, frames]);
+
+  async function seedSampleWorkspace() {
+    const image = await loadImage(SAMPLE_URL);
+    const item: HistoryItem = {
+      id: createId("hist"),
+      name: "forest-mage-sheet.png",
+      dataUrl: SAMPLE_URL,
+      provider: "local-file",
+      prompt: "Original sample sprite sheet for local workflow testing",
+      seed: "sample",
+      size: `${image.width}x${image.height}`,
+      createdAt: new Date().toISOString(),
+      adopted: true,
+      source: "sample"
+    };
+    setHistory([item]);
+    setSelectedId(item.id);
+    const sampleFrames = await splitImageIntoFrames(
+      SAMPLE_URL,
+      "forest_mage",
+      { columns: 8, rows: 4, gutter: 0 },
+      item.id,
+      { width: 128, height: 128 }
+    );
+    setFrames(sampleFrames);
+    setSelectedFrameId(sampleFrames[0]?.id ?? "");
+    setActions((current) =>
+      current.map((action, actionIndex) => {
+        const rowFrames = sampleFrames.slice(actionIndex * 8, actionIndex * 8 + 8).map((frame) => frame.id);
+        return { ...action, frameIds: rowFrames };
+      })
+    );
+  }
+
+  const drawWorkspaceCanvas = useCallback(async () => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const context = canvas.getContext("2d");
+    if (!context) return;
+    context.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+    drawCheckerboard(context, CANVAS_WIDTH, CANVAS_HEIGHT, 18);
+
+    if (!selected) {
+      drawEmptyCanvas(context);
+      return;
+    }
+
+    const displayingFrame = Boolean(selectedFrame?.sourceId && selectedFrame.sourceId === selected.id);
+    const image = await loadImage(displayingFrame && selectedFrame ? selectedFrame.dataUrl : selected.dataUrl);
+    const padding = 44;
+    const scale = Math.min((CANVAS_WIDTH - padding * 2) / image.width, (CANVAS_HEIGHT - padding * 2) / image.height);
+    const width = image.width * scale;
+    const height = image.height * scale;
+    const x = (CANVAS_WIDTH - width) / 2;
+    const y = (CANVAS_HEIGHT - height) / 2;
+    context.drawImage(image, x, y, width, height);
+
+    if (showGrid && !displayingFrame) drawGridOverlay(context, x, y, width, height, grid.columns, grid.rows);
+    if (showCenter) drawCenterOverlay(context, x, y, width, height);
+    const annotations = [...(annotationsByItem[selected.id] ?? []), ...(draftAnnotation ? [draftAnnotation] : [])];
+    annotations.forEach((annotation) => drawAnnotation(context, annotation));
+  }, [annotationsByItem, draftAnnotation, grid.columns, grid.rows, selected, selectedFrame, showCenter, showGrid]);
+
+  async function handleFiles(files: FileList | File[]) {
+    const entries = Array.from(files).filter((file) => file.type.startsWith("image/"));
+    if (entries.length === 0) return;
+    const imported: HistoryItem[] = [];
+    for (const file of entries) {
+      const dataUrl = await readFileAsDataUrl(file);
+      const image = await loadImage(dataUrl);
+      imported.push({
+        id: createId("hist"),
+        name: file.name,
+        dataUrl,
+        provider: "local-file",
+        prompt,
+        seed,
+        size: `${image.width}x${image.height}`,
+        createdAt: new Date().toISOString(),
+        adopted: false,
+        source: "import"
+      });
+    }
+    setHistory((current) => [...imported, ...current]);
+    setSelectedId(imported[0].id);
+    setStatus(`${imported.length} image${imported.length === 1 ? "" : "s"} imported`);
+  }
+
+  async function handleGenerate() {
+    if (providerId !== "openai-images") {
+      setStatus("Local File provider uses Import or drag and drop");
+      fileInputRef.current?.click();
+      return;
+    }
+    const openai = providers.find((provider) => provider.id === "openai-images");
+    if (!openai?.enabled) {
+      setStatus("OpenAI Images is disabled until OPENAI_API_KEY is set for the local API server");
+      return;
+    }
+    setIsBusy(true);
+    try {
+      const response = await fetch("/api/images/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt, negativePrompt, seed, size, count, quality })
+      });
+      if (!response.ok) throw new Error(await response.text());
+      const data = (await response.json()) as { images: string[]; model: string };
+      const generated = data.images.map<HistoryItem>((dataUrl, index) => ({
+        id: createId("hist"),
+        name: `openai_${Date.now()}_${index + 1}.png`,
+        dataUrl,
+        provider: "openai-images",
+        prompt,
+        seed,
+        size,
+        createdAt: new Date().toISOString(),
+        adopted: false,
+        source: "generate"
+      }));
+      setHistory((current) => [...generated, ...current]);
+      setSelectedId(generated[0]?.id ?? selectedId);
+      setStatus(`Generated with ${data.model}`);
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "Generation failed");
+    } finally {
+      setIsBusy(false);
+    }
+  }
+
+  async function splitSelectedToTimeline() {
+    if (!selected) return;
+    setIsBusy(true);
+    try {
+      const newFrames = await splitImageIntoFrames(
+        selected.dataUrl,
+        selected.name.replace(/\.[^.]+$/, ""),
+        grid,
+        selected.id,
+        activeAction.cell
+      );
+      setFrames((current) => [...current, ...newFrames]);
+      setActions((current) =>
+        current.map((action) =>
+          action.name === activeAction.name
+            ? { ...action, frameIds: [...action.frameIds, ...newFrames.map((frame) => frame.id)] }
+            : action
+        )
+      );
+      setSelectedFrameId(newFrames[0]?.id ?? selectedFrameId);
+      setStatus(`${newFrames.length} frames added to ${activeAction.name}`);
+    } finally {
+      setIsBusy(false);
+    }
+  }
+
+  async function addSelectedAsFrame() {
+    if (!selected) return;
+    const image = await loadImage(selected.dataUrl);
+    const canvas = document.createElement("canvas");
+    canvas.width = activeAction.cell.width;
+    canvas.height = activeAction.cell.height;
+    const context = canvas.getContext("2d");
+    if (!context) return;
+    context.clearRect(0, 0, canvas.width, canvas.height);
+    const scale = Math.min(canvas.width / image.width, canvas.height / image.height);
+    const width = image.width * scale;
+    const height = image.height * scale;
+    context.drawImage(image, (canvas.width - width) / 2, (canvas.height - height) / 2, width, height);
+    const frame: SpriteFrame = {
+      id: createId("frame"),
+      name: `${selected.name}_frame`,
+      dataUrl: canvas.toDataURL("image/png"),
+      width: canvas.width,
+      height: canvas.height,
+      sourceId: selected.id,
+      index: frames.length
+    };
+    setFrames((current) => [...current, frame]);
+    setActions((current) =>
+      current.map((action) =>
+        action.name === activeAction.name ? { ...action, frameIds: [...action.frameIds, frame.id] } : action
+      )
+    );
+    setSelectedFrameId(frame.id);
+    setStatus("Selected image added as a sprite frame");
+  }
+
+  function moveFrame(frameId: string, direction: -1 | 1) {
+    setActions((current) =>
+      current.map((action) => {
+        if (action.name !== activeAction.name) return action;
+        const index = action.frameIds.indexOf(frameId);
+        const nextIndex = index + direction;
+        if (index < 0 || nextIndex < 0 || nextIndex >= action.frameIds.length) return action;
+        const copy = [...action.frameIds];
+        [copy[index], copy[nextIndex]] = [copy[nextIndex], copy[index]];
+        return { ...action, frameIds: copy };
+      })
+    );
+  }
+
+  function removeFrame(frameId: string) {
+    setActions((current) =>
+      current.map((action) =>
+        action.name === activeAction.name
+          ? { ...action, frameIds: action.frameIds.filter((id) => id !== frameId) }
+          : action
+      )
+    );
+    setSelectedFrameId("");
+  }
+
+  async function applyChromaToSelectedFrame() {
+    if (!selectedFrame) return;
+    const image = await loadImage(selectedFrame.dataUrl);
+    const canvas = document.createElement("canvas");
+    canvas.width = image.width;
+    canvas.height = image.height;
+    const context = canvas.getContext("2d", { willReadFrequently: true });
+    if (!context) return;
+    context.drawImage(image, 0, 0);
+    const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
+    const key = hexToRgb(annotationColor);
+    const pixels = imageData.data;
+    for (let i = 0; i < pixels.length; i += 4) {
+      const dr = pixels[i] - key.r;
+      const dg = pixels[i + 1] - key.g;
+      const db = pixels[i + 2] - key.b;
+      if (Math.sqrt(dr * dr + dg * dg + db * db) <= chromaTolerance) {
+        pixels[i + 3] = 0;
+      }
+    }
+    context.putImageData(imageData, 0, 0);
+    const dataUrl = canvas.toDataURL("image/png");
+    setFrames((current) => current.map((frame) => (frame.id === selectedFrame.id ? { ...frame, dataUrl } : frame)));
+    setStatus("Chroma key applied to selected frame");
+  }
+
+  function updateActiveAction(patch: Partial<SpriteAction>) {
+    setActions((current) =>
+      current.map((action) => (action.name === activeAction.name ? { ...action, ...patch } : action))
+    );
+  }
+
+  function updateCell(width: number, height: number) {
+    updateActiveAction({ cell: { width, height } });
+  }
+
+  function handlePointerDown(event: React.PointerEvent<HTMLCanvasElement>) {
+    if (tool === "select" || !selected) return;
+    const point = canvasPoint(event);
+    setDraftAnnotation({
+      id: createId("anno"),
+      tool,
+      color: annotationColor,
+      width: tool === "brush" ? 4 : 3,
+      points: [point]
+    });
+  }
+
+  function handlePointerMove(event: React.PointerEvent<HTMLCanvasElement>) {
+    if (!draftAnnotation) return;
+    const point = canvasPoint(event);
+    setDraftAnnotation((current) => {
+      if (!current) return current;
+      if (current.tool === "brush") return { ...current, points: [...current.points, point] };
+      return { ...current, points: [current.points[0], point] };
+    });
+  }
+
+  function handlePointerUp() {
+    if (!draftAnnotation || !selected) return;
+    setAnnotationsByItem((current) => ({
+      ...current,
+      [selected.id]: [...(current[selected.id] ?? []), draftAnnotation]
+    }));
+    setDraftAnnotation(null);
+  }
+
+  async function exportAnnotatedPng() {
+    const canvas = canvasRef.current;
+    if (!canvas || !selected) return;
+    canvas.toBlob((blob) => {
+      if (!blob) return;
+      downloadBlob(blob, `${selected.name.replace(/\.[^.]+$/, "")}_annotated.png`);
+    }, "image/png");
+  }
+
+  async function adoptSelected() {
+    if (!selected) return;
+    setHistory((current) => current.map((item) => (item.id === selected.id ? { ...item, adopted: !item.adopted } : item)));
+  }
+
+  const openaiStatus = providers.find((provider) => provider.id === "openai-images");
+
+  return (
+    <div className="app-shell">
+      <header className="topbar">
+        <div className="brand">
+          <Grid3X3 size={18} aria-hidden="true" />
+          <strong>Image Cockpit for Codex Workflows</strong>
+          <span>Sprite Bench</span>
+          <small>v0.1.0</small>
+        </div>
+        <div className="project-strip">
+          <span>Project: Forest Mage</span>
+          <button className="icon-button" title="Open workspace">
+            <FolderOpen size={18} aria-hidden="true" />
+          </button>
+          <button className="icon-button" title="Settings">
+            <Settings size={18} aria-hidden="true" />
+          </button>
+        </div>
+      </header>
+
+      <main className="cockpit">
+        <aside className="panel source-panel">
+          <PanelTitle index="1" title="Source & Prompt" />
+          <div className="tabs">
+            <button className="tab active">Prompt</button>
+            <button className="tab" onClick={() => fileInputRef.current?.click()}>
+              Import
+            </button>
+          </div>
+          <label className="field">
+            <span>Prompt</span>
+            <textarea value={prompt} onChange={(event) => setPrompt(event.target.value)} maxLength={1200} />
+            <small>{prompt.length} / 1200</small>
+          </label>
+          <label className="field">
+            <span>Negative Prompt</span>
+            <textarea value={negativePrompt} onChange={(event) => setNegativePrompt(event.target.value)} rows={2} />
+          </label>
+
+          <div className="field-row">
+            <label className="field">
+              <span>Seed</span>
+              <input value={seed} onChange={(event) => setSeed(event.target.value)} />
+            </label>
+            <label className="field">
+              <span>Count</span>
+              <input
+                type="number"
+                min={1}
+                max={4}
+                value={count}
+                onChange={(event) => setCount(Number(event.target.value))}
+              />
+            </label>
+          </div>
+          <div className="field-row">
+            <label className="field">
+              <span>Size</span>
+              <select value={size} onChange={(event) => setSize(event.target.value)}>
+                <option>1024x1024</option>
+                <option>1536x1024</option>
+                <option>1024x1536</option>
+              </select>
+            </label>
+            <label className="field">
+              <span>Quality</span>
+              <select value={quality} onChange={(event) => setQuality(event.target.value)}>
+                <option>auto</option>
+                <option>low</option>
+                <option>medium</option>
+                <option>high</option>
+              </select>
+            </label>
+          </div>
+
+          <div className="button-row">
+            <button className="primary-button" onClick={() => void handleGenerate()} disabled={isBusy}>
+              {isBusy ? <Loader2 className="spin" size={17} aria-hidden="true" /> : <ImagePlus size={17} aria-hidden="true" />}
+              Generate
+            </button>
+            <button className="secondary-button" onClick={() => fileInputRef.current?.click()}>
+              <Upload size={17} aria-hidden="true" />
+              Import
+            </button>
+          </div>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            multiple
+            hidden
+            onChange={(event) => {
+              if (event.target.files) void handleFiles(event.target.files);
+              event.currentTarget.value = "";
+            }}
+          />
+
+          <SectionLabel title="Providers" />
+          <div className="provider-list">
+            {providers.map((provider) => (
+              <button
+                key={provider.id}
+                className={`provider ${providerId === provider.id ? "selected" : ""}`}
+                onClick={() => setProviderId(provider.id)}
+                disabled={!provider.enabled && provider.id !== "openai-images"}
+              >
+                {provider.id === "local-file" && <FolderOpen size={22} aria-hidden="true" />}
+                {provider.id === "openai-images" && <Cloud size={22} aria-hidden="true" />}
+                {provider.id === "optional-adapter" && <Plug size={22} aria-hidden="true" />}
+                <span>
+                  <strong>{provider.label}</strong>
+                  <small>{provider.message}</small>
+                </span>
+                {provider.enabled ? <CheckCircle2 size={16} aria-hidden="true" /> : <em>No Key</em>}
+              </button>
+            ))}
+          </div>
+
+          {!openaiStatus?.enabled && (
+            <div className="notice">
+              <AlertTriangle size={18} aria-hidden="true" />
+              <span>OpenAI Images is disabled until an API key is set in Environment.</span>
+            </div>
+          )}
+
+          <SectionLabel title="Canvas & Grid" />
+          <div className="field-row">
+            <NumberField label="Columns" value={grid.columns} onChange={(columns) => setGrid({ ...grid, columns })} />
+            <NumberField label="Rows" value={grid.rows} onChange={(rows) => setGrid({ ...grid, rows })} />
+          </div>
+          <div className="field-row">
+            <NumberField label="Frame W" value={activeAction.cell.width} onChange={(width) => updateCell(width, activeAction.cell.height)} />
+            <NumberField label="Frame H" value={activeAction.cell.height} onChange={(height) => updateCell(activeAction.cell.width, height)} />
+          </div>
+          <label className="check-row">
+            <input type="checkbox" checked={showGrid} onChange={(event) => setShowGrid(event.target.checked)} />
+            Show Grid
+          </label>
+          <label className="check-row">
+            <input type="checkbox" checked={showCenter} onChange={(event) => setShowCenter(event.target.checked)} />
+            Show Center
+          </label>
+
+          <SectionLabel title="Transparency Cleanup" />
+          <label className="field">
+            <span>Key Color</span>
+            <input type="color" value={annotationColor} onChange={(event) => setAnnotationColor(event.target.value)} />
+          </label>
+          <label className="field">
+            <span>Tolerance</span>
+            <input
+              type="range"
+              min={0}
+              max={120}
+              value={chromaTolerance}
+              onChange={(event) => setChromaTolerance(Number(event.target.value))}
+            />
+          </label>
+          <button className="secondary-button full" onClick={() => void applyChromaToSelectedFrame()} disabled={!selectedFrame}>
+            <Pipette size={16} aria-hidden="true" />
+            Apply Chroma Key
+          </button>
+        </aside>
+
+        <section className="workspace">
+          <div className="panel canvas-panel">
+            <PanelTitle index="2" title="Canvas & Annotation" />
+            <div className="toolbar">
+              <ToolButton active={tool === "select"} title="Select" onClick={() => setTool("select")} icon={<MousePointer2 size={18} />} />
+              <ToolButton active={tool === "brush"} title="Brush" onClick={() => setTool("brush")} icon={<Brush size={18} />} />
+              <ToolButton active={tool === "rect"} title="Rectangle" onClick={() => setTool("rect")} icon={<Square size={18} />} />
+              <ToolButton active={tool === "arrow"} title="Arrow" onClick={() => setTool("arrow")} icon={<MoveUpRight size={18} />} />
+              <span className="toolbar-separator" />
+              <button className="icon-text-button" title="Split grid into frames" onClick={() => void splitSelectedToTimeline()} disabled={!selected || isBusy}>
+                <Scissors size={17} aria-hidden="true" />
+                Split Grid
+              </button>
+              <button className="icon-text-button" title="Use selected image as a sprite frame" onClick={() => void addSelectedAsFrame()} disabled={!selected}>
+                <Plus size={17} aria-hidden="true" />
+                Use as Frame
+              </button>
+              <button className="icon-text-button" title="Export annotation PNG" onClick={() => void exportAnnotatedPng()} disabled={!selected}>
+                <Download size={17} aria-hidden="true" />
+                Annotated PNG
+              </button>
+            </div>
+            <div
+              className="canvas-stage"
+              onDragOver={(event) => event.preventDefault()}
+              onDrop={(event) => {
+                event.preventDefault();
+                void handleFiles(event.dataTransfer.files);
+              }}
+            >
+              <canvas
+                ref={canvasRef}
+                width={CANVAS_WIDTH}
+                height={CANVAS_HEIGHT}
+                onPointerDown={handlePointerDown}
+                onPointerMove={handlePointerMove}
+                onPointerUp={handlePointerUp}
+                onPointerLeave={handlePointerUp}
+              />
+              <div className="split-popover">
+                <strong>Split Grid</strong>
+                <NumberField label="Columns" value={grid.columns} onChange={(columns) => setGrid({ ...grid, columns })} />
+                <NumberField label="Rows" value={grid.rows} onChange={(rows) => setGrid({ ...grid, rows })} />
+                <NumberField label="Gutter" value={grid.gutter} onChange={(gutter) => setGrid({ ...grid, gutter })} />
+                <button onClick={() => void splitSelectedToTimeline()}>Apply to Sheet</button>
+              </div>
+            </div>
+            <div className="canvas-status">
+              <span>Frame: {selectedFrame ? selectedFrame.index : "-"}</span>
+              <span>Size: {activeAction.cell.width}x{activeAction.cell.height}</span>
+              <span>Anchor: {activeAction.anchor.x}, {activeAction.anchor.y}</span>
+              <span>Zoom: fit</span>
+              <span className="swatch" style={{ background: annotationColor }} />
+            </div>
+          </div>
+        </section>
+
+        <aside className="panel history-panel">
+          <PanelTitle index="3" title="History & Adopted Assets" />
+          <div className="tabs">
+            <button className="tab active">History</button>
+            <button className="tab">Adopted ({history.filter((item) => item.adopted).length})</button>
+          </div>
+          <div className="history-list">
+            {history.map((item) => (
+              <button
+                key={item.id}
+                className={`history-item ${selected?.id === item.id ? "selected" : ""}`}
+                onClick={() => setSelectedId(item.id)}
+              >
+                <img src={item.dataUrl} alt="" />
+                <span>
+                  <strong>{item.name}</strong>
+                  <small>{formatTime(item.createdAt)} • {providerLabel(item.provider)}</small>
+                  <small>{item.size} • {item.source}</small>
+                </span>
+                {item.adopted && <em>Adopted</em>}
+              </button>
+            ))}
+          </div>
+          <div className="variant-box">
+            <div className="variant-title">
+              <strong>Variant Comparison</strong>
+              <button className="secondary-button mini" onClick={() => void adoptSelected()} disabled={!selected}>
+                Adopt
+              </button>
+            </div>
+            <div className="variant-strip">
+              {history.slice(0, 3).map((item) => (
+                <button
+                  key={item.id}
+                  className={selected?.id === item.id ? "variant selected" : "variant"}
+                  onClick={() => setSelectedId(item.id)}
+                >
+                  <img src={item.dataUrl} alt="" />
+                  <span>{item.adopted ? "Adopted" : "Candidate"}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        </aside>
+
+        <section className="panel sprite-bench">
+          <PanelTitle index="4" title="Sprite Bench (Animation & QC)" />
+          <div className="action-tabs">
+            {actions.map((action) => (
+              <button
+                key={action.name}
+                className={action.name === activeAction.name ? "active" : ""}
+                onClick={() => setActiveActionName(action.name)}
+              >
+                {action.name}
+              </button>
+            ))}
+            <button className="icon-button" title="Add action preset">
+              <Plus size={16} aria-hidden="true" />
+            </button>
+            <span className="spacer" />
+            <label>
+              FPS
+              <input
+                type="number"
+                min={1}
+                max={60}
+                value={activeAction.fps}
+                onChange={(event) => updateActiveAction({ fps: Number(event.target.value) })}
+              />
+            </label>
+            <label className="check-row inline">
+              <input
+                type="checkbox"
+                checked={activeAction.loop}
+                onChange={(event) => updateActiveAction({ loop: event.target.checked })}
+              />
+              Loop
+            </label>
+          </div>
+
+          <div className="bench-grid">
+            <div className="timeline">
+              {actionFrames.map((frame, index) => (
+                <button
+                  key={frame.id}
+                  className={`frame-tile ${selectedFrame?.id === frame.id ? "selected" : ""}`}
+                  onClick={() => setSelectedFrameId(frame.id)}
+                >
+                  <span>{index}</span>
+                  <img src={frame.dataUrl} alt="" />
+                  <small>{frame.width}x{frame.height}</small>
+                </button>
+              ))}
+              <button className="add-frame" onClick={() => void addSelectedAsFrame()} title="Add selected image as frame">
+                <Plus size={18} aria-hidden="true" />
+              </button>
+            </div>
+
+            <div className="frame-tools">
+              <button className="icon-button" title="Move frame left" disabled={!selectedFrame} onClick={() => selectedFrame && moveFrame(selectedFrame.id, -1)}>
+                <ArrowLeft size={16} aria-hidden="true" />
+              </button>
+              <button className="icon-button" title="Move frame right" disabled={!selectedFrame} onClick={() => selectedFrame && moveFrame(selectedFrame.id, 1)}>
+                <ArrowRight size={16} aria-hidden="true" />
+              </button>
+              <button className="icon-button danger" title="Remove frame" disabled={!selectedFrame} onClick={() => selectedFrame && removeFrame(selectedFrame.id)}>
+                <Trash2 size={16} aria-hidden="true" />
+              </button>
+            </div>
+
+            <div className="qc-panel">
+              <h3>QC Checks <em>{qc.sizeMismatchCount + qc.duplicateCount}</em></h3>
+              <QcLine ok={qc.sizeMismatchCount === 0} label="Frame Size Consistency" value={qc.sizeMismatchCount ? `${qc.sizeMismatchCount} mismatches` : "All frames match"} />
+              <QcLine ok={qc.transparentFrames === actionFrames.length && actionFrames.length > 0} label="Transparent PNG" value={`${qc.transparentFrames}/${actionFrames.length} frames`} />
+              <QcLine ok={qc.duplicateCount === 0} label="Duplicate Frame Check" value={qc.duplicateCount ? `${qc.duplicateCount} duplicates` : "No duplicates found"} />
+              <QcLine ok={activeAction.anchor.y >= activeAction.cell.height * 0.75} label="Anchor at Feet" value={`${activeAction.anchor.x}, ${activeAction.anchor.y}`} />
+              <button className="secondary-button mini">
+                <RefreshCw size={14} aria-hidden="true" />
+                Re-check
+              </button>
+            </div>
+
+            <div className="preview-panel">
+              <h3>Preview (GIF)</h3>
+              <div className="gif-preview">{gifPreviewUrl ? <img src={gifPreviewUrl} alt="" /> : <span>No frames</span>}</div>
+              <small>{activeAction.cell.width}x{activeAction.cell.height} • {activeAction.fps} FPS</small>
+            </div>
+
+            <div className="export-panel">
+              <h3>Export</h3>
+              <button onClick={() => void exportSpriteSheet(frames, activeAction)} disabled={actionFrames.length === 0}>
+                <FileImage size={18} aria-hidden="true" />
+                Export Sheet (PNG)
+              </button>
+              <button onClick={() => void exportFramesZip(frames, activeAction)} disabled={actionFrames.length === 0}>
+                <FileArchive size={18} aria-hidden="true" />
+                Export ZIP (Frames)
+              </button>
+              <button onClick={() => void exportGif(frames, activeAction)} disabled={actionFrames.length === 0}>
+                <Film size={18} aria-hidden="true" />
+                Export GIF
+              </button>
+              <button onClick={() => exportMetadata("forest_mage", actions, frames)}>
+                <FileJson size={18} aria-hidden="true" />
+                Export Metadata (JSON)
+              </button>
+            </div>
+
+            <div className="metadata-panel">
+              <h3>Metadata</h3>
+              <label>
+                Anchor X
+                <input
+                  type="number"
+                  value={activeAction.anchor.x}
+                  onChange={(event) => updateActiveAction({ anchor: { ...activeAction.anchor, x: Number(event.target.value) } })}
+                />
+              </label>
+              <label>
+                Anchor Y
+                <input
+                  type="number"
+                  value={activeAction.anchor.y}
+                  onChange={(event) => updateActiveAction({ anchor: { ...activeAction.anchor, y: Number(event.target.value) } })}
+                />
+              </label>
+            </div>
+          </div>
+        </section>
+      </main>
+
+      <footer className="statusbar">
+        <span className="live-dot" />
+        <span>{status}</span>
+        <span className="spacer" />
+        <Archive size={15} aria-hidden="true" />
+        <span>Local workspace • private pre-release</span>
+      </footer>
+    </div>
+  );
+
+  function canvasPoint(event: React.PointerEvent<HTMLCanvasElement>) {
+    const rect = event.currentTarget.getBoundingClientRect();
+    return {
+      x: ((event.clientX - rect.left) / rect.width) * CANVAS_WIDTH,
+      y: ((event.clientY - rect.top) / rect.height) * CANVAS_HEIGHT
+    };
+  }
+}
+
+function PanelTitle({ index, title }: { index: string; title: string }) {
+  return (
+    <div className="panel-title">
+      <strong>{index}. {title}</strong>
+    </div>
+  );
+}
+
+function SectionLabel({ title }: { title: string }) {
+  return <h2 className="section-label">{title}</h2>;
+}
+
+function NumberField({ label, value, onChange }: { label: string; value: number; onChange: (value: number) => void }) {
+  return (
+    <label className="field number-field">
+      <span>{label}</span>
+      <input type="number" value={value} onChange={(event) => onChange(Number(event.target.value))} />
+    </label>
+  );
+}
+
+function ToolButton({ active, icon, title, onClick }: { active: boolean; icon: React.ReactNode; title: string; onClick: () => void }) {
+  return (
+    <button className={`icon-button ${active ? "active" : ""}`} title={title} onClick={onClick}>
+      {icon}
+    </button>
+  );
+}
+
+function QcLine({ ok, label, value }: { ok: boolean; label: string; value: string }) {
+  return (
+    <div className="qc-line">
+      {ok ? <CheckCircle2 size={15} aria-hidden="true" /> : <AlertTriangle size={15} aria-hidden="true" />}
+      <span>{label}</span>
+      <small>{value}</small>
+    </div>
+  );
+}
+
+async function splitImageIntoFrames(
+  dataUrl: string,
+  baseName: string,
+  grid: GridSettings,
+  sourceId?: string,
+  targetCell?: { width: number; height: number }
+): Promise<SpriteFrame[]> {
+  const image = await loadImage(dataUrl);
+  const cells = calculateGridCells(image.width, image.height, grid);
+  const canvas = document.createElement("canvas");
+  const context = canvas.getContext("2d");
+  if (!context) return [];
+  return cells.map((cell) => {
+    const width = targetCell?.width ?? cell.width;
+    const height = targetCell?.height ?? cell.height;
+    canvas.width = width;
+    canvas.height = height;
+    context.clearRect(0, 0, width, height);
+    context.drawImage(image, cell.x, cell.y, cell.width, cell.height, 0, 0, width, height);
+    return {
+      id: createId("frame"),
+      name: `${baseName}_${String(cell.index).padStart(3, "0")}.png`,
+      dataUrl: canvas.toDataURL("image/png"),
+      width,
+      height,
+      sourceId,
+      index: cell.index
+    };
+  });
+}
+
+function drawCheckerboard(context: CanvasRenderingContext2D, width: number, height: number, size: number) {
+  context.fillStyle = "#f8faf8";
+  context.fillRect(0, 0, width, height);
+  for (let y = 0; y < height; y += size) {
+    for (let x = 0; x < width; x += size) {
+      context.fillStyle = (x / size + y / size) % 2 === 0 ? "#eef1ee" : "#ffffff";
+      context.fillRect(x, y, size, size);
+    }
+  }
+}
+
+function drawEmptyCanvas(context: CanvasRenderingContext2D) {
+  context.fillStyle = "#4b5b50";
+  context.font = "600 18px Inter, system-ui, sans-serif";
+  context.fillText("Import an image or generate one to start", 300, 250);
+}
+
+function drawGridOverlay(
+  context: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  columns: number,
+  rows: number
+) {
+  context.save();
+  context.strokeStyle = "rgba(20, 160, 150, 0.58)";
+  context.lineWidth = 1;
+  for (let column = 0; column <= columns; column += 1) {
+    const px = x + (width / columns) * column;
+    context.beginPath();
+    context.moveTo(px, y);
+    context.lineTo(px, y + height);
+    context.stroke();
+  }
+  for (let row = 0; row <= rows; row += 1) {
+    const py = y + (height / rows) * row;
+    context.beginPath();
+    context.moveTo(x, py);
+    context.lineTo(x + width, py);
+    context.stroke();
+  }
+  context.restore();
+}
+
+function drawCenterOverlay(context: CanvasRenderingContext2D, x: number, y: number, width: number, height: number) {
+  context.save();
+  context.strokeStyle = "rgba(31, 132, 118, 0.72)";
+  context.setLineDash([7, 7]);
+  context.beginPath();
+  context.moveTo(x + width / 2, y);
+  context.lineTo(x + width / 2, y + height);
+  context.moveTo(x, y + height / 2);
+  context.lineTo(x + width, y + height / 2);
+  context.stroke();
+  context.restore();
+}
+
+function drawAnnotation(context: CanvasRenderingContext2D, annotation: Annotation) {
+  const [start, end = start] = annotation.points;
+  context.save();
+  context.strokeStyle = annotation.color;
+  context.fillStyle = annotation.color;
+  context.lineWidth = annotation.width;
+  context.lineCap = "round";
+  context.lineJoin = "round";
+  if (annotation.tool === "brush") {
+    context.beginPath();
+    annotation.points.forEach((point, index) => {
+      if (index === 0) context.moveTo(point.x, point.y);
+      else context.lineTo(point.x, point.y);
+    });
+    context.stroke();
+  }
+  if (annotation.tool === "rect") {
+    context.strokeRect(start.x, start.y, end.x - start.x, end.y - start.y);
+  }
+  if (annotation.tool === "arrow") {
+    context.beginPath();
+    context.moveTo(start.x, start.y);
+    context.lineTo(end.x, end.y);
+    context.stroke();
+    const angle = Math.atan2(end.y - start.y, end.x - start.x);
+    const arrowSize = 14;
+    context.beginPath();
+    context.moveTo(end.x, end.y);
+    context.lineTo(end.x - arrowSize * Math.cos(angle - Math.PI / 6), end.y - arrowSize * Math.sin(angle - Math.PI / 6));
+    context.lineTo(end.x - arrowSize * Math.cos(angle + Math.PI / 6), end.y - arrowSize * Math.sin(angle + Math.PI / 6));
+    context.closePath();
+    context.fill();
+  }
+  context.restore();
+}
+
+function hexToRgb(hex: string) {
+  const normalized = hex.replace("#", "");
+  return {
+    r: Number.parseInt(normalized.slice(0, 2), 16),
+    g: Number.parseInt(normalized.slice(2, 4), 16),
+    b: Number.parseInt(normalized.slice(4, 6), 16)
+  };
+}
+
+function formatTime(value: string) {
+  return new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }).format(
+    new Date(value)
+  );
+}
+
+function providerLabel(provider: ProviderId) {
+  if (provider === "local-file") return "Local File";
+  if (provider === "openai-images") return "OpenAI Images";
+  return "Adapter";
+}
+
+export default App;
