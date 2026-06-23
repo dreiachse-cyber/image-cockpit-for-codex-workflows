@@ -124,7 +124,7 @@ try {
     preExerciseButtonChecks: [{ button: "Preset", expectedText: "Additional Prompt (optional)" }, { button: "Prompt", expectedText: "Motion Prompt" }],
     exerciseButton: "Generate Animation",
     expectedAfterExercise: "Animation generated",
-    expectedAfterExerciseText: ["Animation frames ready", "Animated WebP", "512x512", "Front", "Back", "Side", "GIF Preview", "WebP Preview"],
+    expectedAfterExerciseText: ["Animation frames ready", "Generated from", "Animated WebP", "512x512", "Front", "Back", "Side", "GIF Preview", "WebP Preview"],
     postExerciseButtons: ["Animated WebP", "Sprite Sheet"],
     expectedPreviewImages: 11,
     expectedDirectionPreviewCount: 5,
@@ -304,6 +304,11 @@ async function assertWorkflow({
     `${label} Preview toolbar visibility should be ${expectedAnnotationToolbarVisible}`
   );
   assert(!snapshot.spriteBenchVisible, `${label} should keep the Sprite Actions panel hidden for now`);
+  if (label === "Animation Generation") {
+    assert(snapshot.downloadPanelInWorkspace, "Animation Generation should place the download card under the preview workspace");
+    assert(!snapshot.downloadPanelInSource, "Animation Generation should not leave the download card in the left source panel");
+    assert(snapshot.animationPreviewImages === 0, "Animation Generation should not show stale download preview images before a selected animation result exists");
+  }
   buttons.forEach((button) => {
     assert(snapshot.buttons.includes(button), `${label} missing action button: ${button}`);
   });
@@ -347,6 +352,7 @@ async function assertWorkflow({
         directionSnapshot.directionPreviewRows === expectedDirectionPreviewCount,
         `${label} should render ${expectedDirectionPreviewCount} directional preview row(s), got ${directionSnapshot.directionPreviewRows}`
       );
+      assert(directionSnapshot.animationSourceStatus.includes("Generated from"), `${label} should show the generated-from source under the preview`);
     }
     if (expectedCanvasPreviewModeAfterExercise) {
       await waitForEval(
@@ -376,6 +382,7 @@ async function assertWorkflow({
       await waitForEval(() => `document.body.innerText.includes("Pixel Art Generation")`, `${label} reload returned to initial workspace`);
       await selectWorkflowTab(label);
       await waitForEval(() => `document.body.innerText.includes("Animation frames ready")`, `${label} persisted animation frames after reload`);
+      await waitForEval(() => `document.body.innerText.includes("Generated from")`, `${label} persisted generated-from source after reload`);
       await waitForEval(() => `document.body.innerText.includes("512x512")`, `${label} persisted 512x512 frame size after reload`);
       await assertNoBrowserErrors(`${label} reload persistence`);
     }
@@ -446,6 +453,9 @@ async function pageSnapshot() {
     resultPreviewLoaded: Boolean(document.querySelector(".result-preview-image")?.naturalWidth),
     resultPreviewFrameHeight: Math.round(document.querySelector(".result-preview-frame")?.getBoundingClientRect().height || 0),
     directionPreviewRows: document.querySelectorAll(".direction-preview-row").length,
+    downloadPanelInSource: Boolean(document.querySelector(".source-panel .animation-download-panel")),
+    downloadPanelInWorkspace: Boolean(document.querySelector(".workspace .animation-download-panel")),
+    animationSourceStatus: document.querySelector(".animation-source-status")?.innerText || "",
     annotationRegionRows: document.querySelectorAll(".annotation-region-row").length,
     annotationComments: Array.from(document.querySelectorAll(".annotation-comment-field")).map((field) => field.value),
     editCompareImages: document.querySelectorAll(".edit-compare-grid img").length,

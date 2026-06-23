@@ -13,6 +13,8 @@ export interface HistoryItem {
   createdAt: string;
   adopted: boolean;
   source: "sample" | "import" | "generate" | "annotated" | "inbox";
+  derivedFromId?: string;
+  derivedFromName?: string;
 }
 
 export interface SpriteFrame {

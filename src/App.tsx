@@ -276,6 +276,8 @@ const uiCopy = {
     previewWebP: "WebP Preview",
     previewSpriteSheet: "Sprite Sheet Preview",
     animationDownloadsLocked: "Generate animation frames before downloading.",
+    animationGeneratedFrom: "Generated from",
+    animationSourceUnknown: "Source image not recorded",
     uploadImageForEdit: "Upload Image",
     selectedEditSource: "Selected image",
     noEditSource: "No image selected yet",
@@ -415,6 +417,8 @@ const uiCopy = {
     previewWebP: "WebP Preview",
     previewSpriteSheet: "Sprite Sheet Preview",
     animationDownloadsLocked: "ダウンロード前にアニメーションを生成してください。",
+    animationGeneratedFrom: "生成元",
+    animationSourceUnknown: "生成元画像が記録されていません",
     uploadImageForEdit: "画像をアップロード",
     selectedEditSource: "選択中の画像",
     noEditSource: "まだ画像が選択されていません",
@@ -763,11 +767,40 @@ function App() {
     [activeAction.frameIds, frames]
   );
 
-  const animationExportReady = useMemo(
+  const selectedAnimationFrames = useMemo(
     () =>
-      actionFrames.length > 0 &&
-      actionFrames.some((frame) => history.some((item) => item.id === frame.sourceId && item.source === "generate")),
-    [actionFrames, history]
+      selected
+        ? frames
+            .filter((frame) => frame.sourceId === selected.id)
+            .slice()
+            .sort((left, right) => left.index - right.index)
+        : [],
+    [frames, selected]
+  );
+
+  const selectedAnimationAction = useMemo<SpriteAction>(() => {
+    const firstFrame = selectedAnimationFrames[0];
+    const baseName = selected?.name.replace(/\.[^.]+$/, "") || activeAction.name;
+    const cell = firstFrame ? { width: firstFrame.width, height: firstFrame.height } : activeAction.cell;
+    return {
+      ...activeAction,
+      name: `${baseName}_animation`,
+      frameIds: selectedAnimationFrames.map((frame) => frame.id),
+      cell,
+      anchor: firstFrame ? { x: Math.round(cell.width / 2), y: Math.round(cell.height * 0.92) } : activeAction.anchor
+    };
+  }, [activeAction, selected, selectedAnimationFrames]);
+
+  const selectedAnimationExportReady = Boolean(
+    selected && selected.source === "generate" && selectedAnimationFrames.length > 0
+  );
+
+  const selectedAnimationSource = useMemo(
+    () =>
+      selected?.derivedFromId
+        ? history.find((item) => item.id === selected.derivedFromId)
+        : undefined,
+    [history, selected]
   );
 
   const selectedFrame = useMemo(
@@ -879,7 +912,7 @@ function App() {
   ]);
 
   useEffect(() => {
-    if (actionFrames.length === 0) {
+    if (!selectedAnimationExportReady) {
       setGifPreviewUrl("");
       setWebpPreviewUrl("");
       setSpriteSheetPreviewUrl("");
@@ -888,7 +921,7 @@ function App() {
     }
     let cancelled = false;
     const objectUrls: string[] = [];
-    const directionActions = buildAnimationDirectionPreviewActions(activeAction, actionFrames);
+    const directionActions = buildAnimationDirectionPreviewActions(selectedAnimationAction, selectedAnimationFrames);
 
     Promise.all([
       Promise.all(
@@ -933,7 +966,7 @@ function App() {
       cancelled = true;
       objectUrls.forEach((url) => URL.revokeObjectURL(url));
     };
-  }, [activeAction, actionFrames, frames, language]);
+  }, [frames, language, selectedAnimationAction, selectedAnimationExportReady, selectedAnimationFrames]);
 
   useEffect(() => {
     const runningJobs = codexJobs.filter((job) => job.state === "running");
@@ -1202,8 +1235,8 @@ function App() {
       resultGrid: isAnimationJob ? spriteGrid : undefined,
       resultCell: isAnimationJob ? spriteCell : undefined,
       resultChromaKey: isAnimationJob ? chromaDecision.key.name : undefined,
-      resultSourceImageId: isImageEditJob ? sourceImageForJob?.id : undefined,
-      resultSourceImageName: isImageEditJob ? sourceImageForJob?.name : undefined
+      resultSourceImageId: isImageEditJob || isAnimationJob ? sourceImageForJob?.id : undefined,
+      resultSourceImageName: isImageEditJob || isAnimationJob ? sourceImageForJob?.name : undefined
     };
   }
 
@@ -1381,7 +1414,9 @@ function App() {
       size: `${animationAction.cell.width * ANIMATION_FRAME_COUNT}x${animationAction.cell.height}`,
       createdAt: new Date().toISOString(),
       adopted: false,
-      source: "generate"
+      source: "generate",
+      derivedFromId: source.id,
+      derivedFromName: source.name
     };
     const newFrames = await splitImageIntoFrames(sheetDataUrl, sheetName.replace(/\.[^.]+$/, ""), animationGrid, item.id, animationAction.cell);
 
@@ -1416,7 +1451,9 @@ function App() {
       size: `${image.width}x${image.height}`,
       createdAt: new Date().toISOString(),
       adopted: false,
-      source: "generate"
+      source: "generate",
+      derivedFromId: pendingJob.sourceImageId,
+      derivedFromName: pendingJob.sourceImageName
     };
     const newFrames = await splitImageIntoFrames(transparentSheetDataUrl, baseName, spriteGrid, item.id, spriteCell);
     if (newFrames.length === 0) throw new Error("Returned sprite sheet could not be split into frames.");
@@ -1527,13 +1564,13 @@ function App() {
   }
 
   async function exportDirectionalAnimations(format: "gif" | "webp") {
-    if (!animationExportReady) return;
-    const directionActions = buildAnimationDirectionPreviewActions(activeAction, actionFrames);
+    if (!selectedAnimationExportReady) return;
+    const directionActions = buildAnimationDirectionPreviewActions(selectedAnimationAction, selectedAnimationFrames);
     for (const { directionId, action } of directionActions) {
       const blob = format === "gif"
         ? await createGifBlob(frames, action)
         : await createAnimatedWebpBlob(frames, action);
-      downloadBlob(blob, `${activeAction.name}_${directionId.replace(/\s+/g, "-")}.${format}`);
+      downloadBlob(blob, `${selectedAnimationAction.name}_${directionId.replace(/\s+/g, "-")}.${format}`);
     }
   }
 
@@ -1838,6 +1875,7 @@ function App() {
   const previewSize = isPreviewingSelectedFrame && selectedFrameForPreview
     ? `${selectedFrameForPreview.width}x${selectedFrameForPreview.height}`
     : selected?.size ?? "-";
+  const animationDownloadTitle = copy.animationStepDownloadTitle.replace(/^4\.\s*/, "");
   const showFrameGridControls = SHOW_LOW_PRIORITY_CONTROLS || workflowMode === "sprite-edit";
   const showSpriteTuningControls = SHOW_LOW_PRIORITY_CONTROLS || workflowMode === "sprite-edit";
   const showAnnotationToolbar = isImageEditWorkflow;
@@ -1983,66 +2021,6 @@ function App() {
                   <PrimaryActionIcon providerId={providerId} isBusy={isBusy} />
                   {shouldQueueCodexJob ? codexQueueCopy.queueAction : copy.generateLocalSprite}
                 </button>
-              </section>
-
-              <section className={`animation-step ${animationExportReady ? "complete" : ""}`}>
-                <div className="step-heading">
-                  <strong>{copy.animationStepDownloadTitle}</strong>
-                  <span>{copy.animationStepDownloadBody}</span>
-                </div>
-                {animationExportReady && <small className="step-kicker">{copy.animationReady}</small>}
-                <div className="animation-preview-grid">
-                  <div className="animation-preview-card direction-preview-card">
-                    <strong>{(copy as Record<string, string>).directionalPreviews ?? "Directional Previews"}</strong>
-                    {animationExportReady && animationDirectionPreviews.length > 0 ? (
-                      <div className="direction-preview-list">
-                        {animationDirectionPreviews.map((preview) => (
-                          <div className="direction-preview-row" key={preview.id}>
-                            <span>{preview.label}</span>
-                            <div className="direction-preview-media">
-                              <div className="direction-preview-slot">
-                                <small>{(copy as Record<string, string>).previewGif ?? "GIF"}</small>
-                                <div className="animation-preview compact-animation-preview">
-                                  <img src={preview.gifUrl} alt="" />
-                                </div>
-                              </div>
-                              <div className="direction-preview-slot">
-                                <small>{(copy as Record<string, string>).previewWebP ?? "WebP"}</small>
-                                <div className="animation-preview compact-animation-preview">
-                                  <img src={preview.webpUrl} alt="" />
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <div className="animation-preview">
-                        <span>{copy.animationDownloadsLocked}</span>
-                      </div>
-                    )}
-                  </div>
-                  <div className="animation-preview-card">
-                    <strong>{(copy as Record<string, string>).previewSpriteSheet ?? "Sprite Sheet Preview"}</strong>
-                    <div className="animation-preview sheet-preview">
-                      {animationExportReady && spriteSheetPreviewUrl ? <img src={spriteSheetPreviewUrl} alt="" /> : <span>{copy.animationDownloadsLocked}</span>}
-                    </div>
-                  </div>
-                </div>
-                <div className="download-grid">
-                  <button onClick={() => void exportDirectionalAnimations("gif")} disabled={!animationExportReady}>
-                    <Film size={16} aria-hidden="true" />
-                    {copy.animatedGif}
-                  </button>
-                  <button onClick={() => void exportDirectionalAnimations("webp")} disabled={!animationExportReady}>
-                    <FileArchive size={16} aria-hidden="true" />
-                    {copy.animatedWebP}
-                  </button>
-                  <button onClick={() => void exportSpriteSheet(frames, activeAction, ANIMATION_FRAME_COUNT)} disabled={!animationExportReady}>
-                    <FileImage size={16} aria-hidden="true" />
-                    {copy.spriteSheetDownload}
-                  </button>
-                </div>
               </section>
             </div>
           ) : (
@@ -2308,7 +2286,7 @@ function App() {
           )}
         </aside>
 
-        <section className="workspace">
+        <section className={`workspace ${isAnimationWorkflow ? "with-animation-downloads" : ""}`}>
           <div className={`panel canvas-panel ${showAnnotationToolbar ? "" : "without-toolbar"}`}>
             <PanelTitle index="2" title={copy.canvasAnnotationTitle} />
             {showAnnotationToolbar && (
@@ -2360,12 +2338,81 @@ function App() {
             </div>
             <div className="canvas-status">
               <span>{previewStatus}</span>
+              {isAnimationWorkflow && selectedAnimationExportReady && (
+                <span className="animation-source-status">
+                  {copy.animationGeneratedFrom}: {selectedAnimationSource?.name ?? selected?.derivedFromName ?? copy.animationSourceUnknown}
+                </span>
+              )}
               <span>{copy.sizeLabel}: {previewSize}</span>
               <span>{copy.anchorLabel}: {activeAction.anchor.x}, {activeAction.anchor.y}</span>
               <span>{copy.zoomLabel}: {copy.zoomFit}</span>
               <span className="swatch" style={{ background: annotationColor }} />
             </div>
           </div>
+          {isAnimationWorkflow && (
+            <section className={`panel animation-download-panel ${selectedAnimationExportReady ? "complete" : ""}`}>
+              <PanelTitle index="4" title={animationDownloadTitle} />
+              <div className="animation-download-body">
+                <div className="step-heading">
+                  <strong>{selected?.name ?? copy.animationStepDownloadTitle}</strong>
+                  <span>{copy.animationStepDownloadBody}</span>
+                </div>
+                {selectedAnimationExportReady && <small className="step-kicker">{copy.animationReady}</small>}
+                <div className="animation-preview-grid">
+                  <div className="animation-preview-card direction-preview-card">
+                    <strong>{(copy as Record<string, string>).directionalPreviews ?? "Directional Previews"}</strong>
+                    {selectedAnimationExportReady && animationDirectionPreviews.length > 0 ? (
+                      <div className="direction-preview-list">
+                        {animationDirectionPreviews.map((preview) => (
+                          <div className="direction-preview-row" key={preview.id}>
+                            <span>{preview.label}</span>
+                            <div className="direction-preview-media">
+                              <div className="direction-preview-slot">
+                                <small>{(copy as Record<string, string>).previewGif ?? "GIF"}</small>
+                                <div className="animation-preview compact-animation-preview">
+                                  <img src={preview.gifUrl} alt="" />
+                                </div>
+                              </div>
+                              <div className="direction-preview-slot">
+                                <small>{(copy as Record<string, string>).previewWebP ?? "WebP"}</small>
+                                <div className="animation-preview compact-animation-preview">
+                                  <img src={preview.webpUrl} alt="" />
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="animation-preview">
+                        <span>{copy.animationDownloadsLocked}</span>
+                      </div>
+                    )}
+                  </div>
+                  <div className="animation-preview-card">
+                    <strong>{(copy as Record<string, string>).previewSpriteSheet ?? "Sprite Sheet Preview"}</strong>
+                    <div className="animation-preview sheet-preview">
+                      {selectedAnimationExportReady && spriteSheetPreviewUrl ? <img src={spriteSheetPreviewUrl} alt="" /> : <span>{copy.animationDownloadsLocked}</span>}
+                    </div>
+                  </div>
+                </div>
+                <div className="download-grid">
+                  <button onClick={() => void exportDirectionalAnimations("gif")} disabled={!selectedAnimationExportReady}>
+                    <Film size={16} aria-hidden="true" />
+                    {copy.animatedGif}
+                  </button>
+                  <button onClick={() => void exportDirectionalAnimations("webp")} disabled={!selectedAnimationExportReady}>
+                    <FileArchive size={16} aria-hidden="true" />
+                    {copy.animatedWebP}
+                  </button>
+                  <button onClick={() => void exportSpriteSheet(frames, selectedAnimationAction, ANIMATION_FRAME_COUNT)} disabled={!selectedAnimationExportReady}>
+                    <FileImage size={16} aria-hidden="true" />
+                    {copy.spriteSheetDownload}
+                  </button>
+                </div>
+              </div>
+            </section>
+          )}
         </section>
 
         <aside className="panel history-panel">

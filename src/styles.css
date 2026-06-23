@@ -273,6 +273,12 @@ button {
   min-height: 0;
 }
 
+.workspace.with-animation-downloads {
+  display: grid;
+  grid-template-rows: minmax(360px, 1fr) auto;
+  gap: 6px;
+}
+
 .canvas-panel {
   height: 100%;
   display: grid;
@@ -480,6 +486,34 @@ button {
 .animation-step.complete {
   border-color: #9fceb0;
   background: #fbfffc;
+}
+
+.animation-download-panel {
+  height: 228px;
+  display: grid;
+  grid-template-rows: 38px minmax(0, 1fr);
+}
+
+.animation-download-panel.complete {
+  border-color: #9fceb0;
+}
+
+.animation-download-body {
+  min-height: 0;
+  display: grid;
+  gap: 8px;
+  overflow: auto;
+  padding: 10px;
+}
+
+.animation-source-status {
+  min-width: 0;
+  max-width: 38%;
+  overflow: hidden;
+  color: #0f5d31;
+  font-weight: 800;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .step-heading {
@@ -761,6 +795,11 @@ button {
   gap: 8px;
 }
 
+.animation-download-panel .animation-preview-grid {
+  grid-template-columns: minmax(0, 2fr) minmax(210px, 0.85fr);
+  align-items: start;
+}
+
 .animation-preview-card {
   display: grid;
   gap: 5px;
@@ -780,6 +819,10 @@ button {
   gap: 8px;
 }
 
+.animation-download-panel .direction-preview-list {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
 .direction-preview-row {
   display: grid;
   gap: 5px;
@@ -795,6 +838,10 @@ button {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 6px;
+}
+
+.animation-download-panel .direction-preview-media {
+  grid-template-columns: 1fr;
 }
 
 .direction-preview-slot {
@@ -856,6 +903,10 @@ button {
 .download-grid {
   display: grid;
   gap: 7px;
+}
+
+.animation-download-panel .download-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
 .download-grid button {
@@ -1110,9 +1161,16 @@ button:disabled {
   display: none;
 }
 
+.canvas-stage.showing-result {
+  align-items: stretch;
+  justify-items: stretch;
+}
+
 .result-preview-frame {
-  width: 100%;
-  height: 100%;
+  position: absolute;
+  inset: 8px;
+  width: auto;
+  height: auto;
   min-height: 0;
   display: grid;
   place-items: center;
@@ -1800,6 +1858,19 @@ button:disabled {
     height: 560px;
   }
 
+  .workspace.with-animation-downloads {
+    grid-template-rows: auto auto;
+  }
+
+  .animation-download-panel {
+    height: auto;
+    max-height: none;
+  }
+
+  .animation-download-panel .animation-preview-grid {
+    grid-template-columns: 1fr;
+  }
+
   .sprite-bench {
     grid-template-rows: auto auto auto;
   }
@@ -1843,8 +1914,18 @@ button:disabled {
   .field-row,
   .button-row,
   .variant-strip,
-  .edit-compare-grid {
+  .edit-compare-grid,
+  .animation-download-panel .download-grid {
     grid-template-columns: 1fr;
+  }
+
+  .animation-download-panel .direction-preview-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .animation-source-status {
+    max-width: 100%;
+    flex-basis: 100%;
   }
 
   .annotation-region-row {
