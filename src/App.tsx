@@ -13,6 +13,7 @@ import {
   FolderOpen,
   Grid3X3,
   ImagePlus,
+  Languages,
   Loader2,
   MousePointer2,
   MoveUpRight,
@@ -53,6 +54,98 @@ import type {
 const SAMPLE_URL = "/samples/forest-mage-sheet.png";
 const CANVAS_WIDTH = 920;
 const CANVAS_HEIGHT = 520;
+const LANGUAGE_STORAGE_KEY = "image-cockpit.language";
+
+type Language = "ja" | "en";
+
+const languageOptions: Array<{ id: Language; label: string }> = [
+  { id: "ja", label: "日本語" },
+  { id: "en", label: "English" }
+];
+
+type WorkflowMode = "image-generate" | "image-edit" | "sprite-generate" | "sprite-edit";
+
+const uiCopy = {
+  en: {
+    language: "Language",
+    guidedStart: "Guided Start",
+    localCodexHandoff: "local Codex handoff",
+    project: "Project: Forest Mage",
+    openWorkspace: "Open workspace",
+    settings: "Settings",
+    localWorkspace: "Local workspace - private pre-release",
+    statusUsesImport: "uses Import or drag and drop",
+    statusCodexJobWritten: "Codex job written",
+    statusCodexJobError: "Could not create Codex handoff job",
+    guidedQuestion: "What do you want to do?",
+    guidedIntro: "Choose one workflow. The cockpit will open with the right tools and provider preselected.",
+    guidedNote:
+      "No direct OpenAI API calls. Jobs are written locally for Codex, and returned files are imported back into the cockpit."
+  },
+  ja: {
+    language: "言語",
+    guidedStart: "ガイド開始",
+    localCodexHandoff: "ローカルCodex受け渡し",
+    project: "プロジェクト: Forest Mage",
+    openWorkspace: "ワークスペースを開く",
+    settings: "設定",
+    localWorkspace: "ローカルワークスペース - private pre-release",
+    statusUsesImport: "はImportまたはドラッグ&ドロップを使います",
+    statusCodexJobWritten: "Codexジョブを書き込みました",
+    statusCodexJobError: "Codex handoffジョブを作成できませんでした",
+    guidedQuestion: "あなたがしたいのは次のうちどれですか？",
+    guidedIntro: "作業したい流れを選ぶと、必要なツールとproviderを選んだ状態でcockpitを開きます。",
+    guidedNote:
+      "このアプリはOpenAI APIを直接呼びません。ジョブはCodex向けにローカル保存し、戻ってきたファイルをcockpitへ取り込みます。"
+  }
+} satisfies Record<Language, Record<string, string>>;
+
+const workflowCopy: Record<Language, Record<WorkflowMode, { label: string; detail: string; status: string }>> = {
+  en: {
+    "image-generate": {
+      label: "1. Image Generation",
+      detail: "Write a local Codex job from a prompt, then import the returned image.",
+      status: "Create a Codex job, then import the returned image from the local outbox"
+    },
+    "image-edit": {
+      label: "2. Image Editing",
+      detail: "Annotate an image and hand the edit instruction to Codex.",
+      status: "Annotate the image, then create a Codex handoff job with the edit notes"
+    },
+    "sprite-generate": {
+      label: "3. Sprite Sheet Generation",
+      detail: "Start from an imported image or Codex result and split it into frames.",
+      status: "Import or select a sheet, then split the grid into timeline frames"
+    },
+    "sprite-edit": {
+      label: "4. Sprite Sheet Editing",
+      detail: "Tune timeline order, transparency, anchors, QC, and exports.",
+      status: "Review frames, anchors, QC, and export the sprite package"
+    }
+  },
+  ja: {
+    "image-generate": {
+      label: "1. 画像生成",
+      detail: "プロンプトからローカルCodexジョブを作り、返ってきた画像を取り込みます。",
+      status: "Codexジョブを作成し、local outboxから返却画像を取り込みます"
+    },
+    "image-edit": {
+      label: "2. 画像編集",
+      detail: "画像に注釈を入れて、編集指示をCodexへ受け渡します。",
+      status: "画像に注釈を入れてから、編集メモつきのCodex handoffジョブを作成します"
+    },
+    "sprite-generate": {
+      label: "3. スプライトシート生成",
+      detail: "取り込んだ画像やCodex結果から、フレーム分割を開始します。",
+      status: "シートを取り込むか選択して、グリッドからtimeline frameへ分割します"
+    },
+    "sprite-edit": {
+      label: "4. スプライトシート編集",
+      detail: "timeline順、透明化、anchor、QC、exportを調整します。",
+      status: "frames、anchors、QC、sprite package exportを確認します"
+    }
+  }
+};
 
 const defaultActions: SpriteAction[] = [
   { name: "idle", fps: 12, loop: true, frameIds: [], cell: { width: 128, height: 128 }, anchor: { x: 64, y: 118 } },
@@ -67,36 +160,24 @@ const fallbackProviders: ProviderStatus[] = [
   { id: "local-inbox", label: "Local Inbox", enabled: true, message: "Import results returned by Codex" }
 ];
 
-type WorkflowMode = "image-generate" | "image-edit" | "sprite-generate" | "sprite-edit";
-
 const workflowOptions: Array<{
   id: WorkflowMode;
-  label: string;
-  detail: string;
   provider: ProviderId;
 }> = [
   {
     id: "image-generate",
-    label: "1. Image Generation",
-    detail: "Write a local Codex job from a prompt, then import the returned image.",
     provider: "codex-handoff"
   },
   {
     id: "image-edit",
-    label: "2. Image Editing",
-    detail: "Annotate an image and hand the edit instruction to Codex.",
     provider: "codex-handoff"
   },
   {
     id: "sprite-generate",
-    label: "3. Sprite Sheet Generation",
-    detail: "Start from an imported image or Codex result and split it into frames.",
     provider: "local-file"
   },
   {
     id: "sprite-edit",
-    label: "4. Sprite Sheet Editing",
-    detail: "Tune timeline order, transparency, anchors, QC, and exports.",
     provider: "local-inbox"
   }
 ];
@@ -107,6 +188,7 @@ function App() {
   const [actions, setActions] = useState<SpriteAction[]>(() => loadActions(defaultActions));
   const [selectedId, setSelectedId] = useState<string>("");
   const [activeActionName, setActiveActionName] = useState("idle");
+  const [language, setLanguage] = useState<Language>(loadLanguage);
   const [workflowMode, setWorkflowMode] = useState<WorkflowMode | null>(null);
   const [providerId, setProviderId] = useState<ProviderId>("codex-handoff");
   const [providers, setProviders] = useState<ProviderStatus[]>(fallbackProviders);
@@ -131,6 +213,7 @@ function App() {
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const copy = uiCopy[language];
 
   const selected = useMemo(
     () => history.find((item) => item.id === selectedId) ?? history[0],
@@ -163,6 +246,7 @@ function App() {
   useEffect(() => saveHistory(history), [history]);
   useEffect(() => saveFrames(frames), [frames]);
   useEffect(() => saveActions(actions), [actions]);
+  useEffect(() => saveLanguage(language), [language]);
 
   useEffect(() => {
     fetch("/api/providers")
@@ -302,7 +386,7 @@ function App() {
 
   async function handleGenerate() {
     if (providerId === "local-file" || providerId === "local-inbox") {
-      setStatus(`${providerLabel(providerId)} uses Import or drag and drop`);
+      setStatus(`${providerLabel(providerId, language)} ${copy.statusUsesImport}`);
       fileInputRef.current?.click();
       return;
     }
@@ -327,9 +411,9 @@ function App() {
       });
       if (!response.ok) throw new Error(await response.text());
       const data = (await response.json()) as CodexJobResponse;
-      setStatus(`Codex job written: ${data.path}`);
+      setStatus(`${copy.statusCodexJobWritten}: ${data.path}`);
     } catch (error) {
-      setStatus(error instanceof Error ? error.message : "Could not create Codex handoff job");
+      setStatus(error instanceof Error ? error.message : copy.statusCodexJobError);
     } finally {
       setIsBusy(false);
     }
@@ -505,21 +589,13 @@ function App() {
     if (option) setProviderId(option.provider);
     if (mode === "image-edit") setTool("brush");
     if (mode === "sprite-edit") setActiveActionName("idle");
-    if (mode === "image-generate") {
-      setStatus("Create a Codex job, then import the returned image from the local outbox");
-    } else if (mode === "image-edit") {
-      setStatus("Annotate the image, then create a Codex handoff job with the edit notes");
-    } else if (mode === "sprite-generate") {
-      setStatus("Import or select a sheet, then split the grid into timeline frames");
-    } else {
-      setStatus("Review frames, anchors, QC, and export the sprite package");
-    }
+    setStatus(workflowCopy[language][mode].status);
   }
 
   const codexProvider = providers.find((provider) => provider.id === "codex-handoff");
 
   if (!workflowMode) {
-    return <GuidedStart onSelect={beginWorkflow} />;
+    return <GuidedStart language={language} onLanguageChange={setLanguage} onSelect={beginWorkflow} />;
   }
 
   return (
@@ -532,14 +608,15 @@ function App() {
           <small>v0.1.0</small>
         </div>
         <div className="project-strip">
+          <LanguageSelect language={language} label={copy.language} onChange={setLanguage} />
           <button className="guided-link" onClick={() => setWorkflowMode(null)}>
-            Guided Start
+            {copy.guidedStart}
           </button>
-          <span>Project: Forest Mage</span>
-          <button className="icon-button" title="Open workspace">
+          <span>{copy.project}</span>
+          <button className="icon-button" title={copy.openWorkspace}>
             <FolderOpen size={18} aria-hidden="true" />
           </button>
-          <button className="icon-button" title="Settings">
+          <button className="icon-button" title={copy.settings}>
             <Settings size={18} aria-hidden="true" />
           </button>
         </div>
@@ -635,8 +712,8 @@ function App() {
                 {provider.id === "codex-handoff" && <Plug size={22} aria-hidden="true" />}
                 {provider.id === "local-inbox" && <Archive size={22} aria-hidden="true" />}
                 <span>
-                  <strong>{provider.label}</strong>
-                  <small>{provider.message}</small>
+                  <strong>{providerLabel(provider.id, language)}</strong>
+                  <small>{providerMessage(provider, language)}</small>
                 </span>
                 {provider.enabled ? <CheckCircle2 size={16} aria-hidden="true" /> : <em>Off</em>}
               </button>
@@ -763,7 +840,7 @@ function App() {
                 <img src={item.dataUrl} alt="" />
                 <span>
                   <strong>{item.name}</strong>
-                  <small>{formatTime(item.createdAt)} • {providerLabel(item.provider)}</small>
+                  <small>{formatTime(item.createdAt)} • {providerLabel(item.provider, language)}</small>
                   <small>{item.size} • {item.source}</small>
                 </span>
                 {item.adopted && <em>Adopted</em>}
@@ -924,7 +1001,7 @@ function App() {
         <span>{status}</span>
         <span className="spacer" />
         <Archive size={15} aria-hidden="true" />
-        <span>Local workspace • private pre-release</span>
+        <span>{copy.localWorkspace}</span>
       </footer>
     </div>
   );
@@ -948,6 +1025,30 @@ function PanelTitle({ index, title }: { index: string; title: string }) {
 
 function SectionLabel({ title }: { title: string }) {
   return <h2 className="section-label">{title}</h2>;
+}
+
+function LanguageSelect({
+  language,
+  label,
+  onChange
+}: {
+  language: Language;
+  label: string;
+  onChange: (language: Language) => void;
+}) {
+  return (
+    <label className="language-control" title={label}>
+      <Languages size={15} aria-hidden="true" />
+      <span>{label}</span>
+      <select aria-label={label} value={language} onChange={(event) => onChange(event.target.value as Language)}>
+        {languageOptions.map((option) => (
+          <option key={option.id} value={option.id}>
+            {option.label}
+          </option>
+        ))}
+      </select>
+    </label>
+  );
 }
 
 function NumberField({ label, value, onChange }: { label: string; value: number; onChange: (value: number) => void }) {
@@ -977,40 +1078,55 @@ function QcLine({ ok, label, value }: { ok: boolean; label: string; value: strin
   );
 }
 
-function GuidedStart({ onSelect }: { onSelect: (mode: WorkflowMode) => void }) {
+function GuidedStart({
+  language,
+  onLanguageChange,
+  onSelect
+}: {
+  language: Language;
+  onLanguageChange: (language: Language) => void;
+  onSelect: (mode: WorkflowMode) => void;
+}) {
+  const copy = uiCopy[language];
   return (
     <div className="guided-shell">
       <header className="topbar">
         <div className="brand">
           <Grid3X3 size={18} aria-hidden="true" />
           <strong>Image Cockpit for Codex Workflows</strong>
-          <span>Guided Start</span>
-          <small>local Codex handoff</small>
+          <span>{copy.guidedStart}</span>
+          <small>{copy.localCodexHandoff}</small>
+        </div>
+        <div className="project-strip">
+          <LanguageSelect language={language} label={copy.language} onChange={onLanguageChange} />
         </div>
       </header>
 
       <main className="guided-main">
         <section className="guided-panel">
           <div className="guided-copy">
-            <strong>What do you want to do?</strong>
-            <span>Choose one workflow. The cockpit will open with the right tools and provider preselected.</span>
+            <strong>{copy.guidedQuestion}</strong>
+            <span>{copy.guidedIntro}</span>
           </div>
 
           <div className="guided-options">
-            {workflowOptions.map((option) => (
-              <button key={option.id} className="guided-option" onClick={() => onSelect(option.id)}>
-                <WorkflowIcon mode={option.id} />
-                <span>
-                  <strong>{option.label}</strong>
-                  <small>{option.detail}</small>
-                </span>
-              </button>
-            ))}
+            {workflowOptions.map((option) => {
+              const optionCopy = workflowCopy[language][option.id];
+              return (
+                <button key={option.id} className="guided-option" onClick={() => onSelect(option.id)}>
+                  <WorkflowIcon mode={option.id} />
+                  <span>
+                    <strong>{optionCopy.label}</strong>
+                    <small>{optionCopy.detail}</small>
+                  </span>
+                </button>
+              );
+            })}
           </div>
 
           <div className="guided-note">
             <AlertTriangle size={16} aria-hidden="true" />
-            <span>No direct OpenAI API calls. Jobs are written locally for Codex, and returned files are imported back into the cockpit.</span>
+            <span>{copy.guidedNote}</span>
           </div>
         </section>
       </main>
@@ -1166,10 +1282,41 @@ function formatTime(value: string) {
   );
 }
 
-function providerLabel(provider: ProviderId) {
+function loadLanguage(): Language {
+  try {
+    const stored = window.localStorage.getItem(LANGUAGE_STORAGE_KEY);
+    return stored === "ja" || stored === "en" ? stored : "en";
+  } catch {
+    return "en";
+  }
+}
+
+function saveLanguage(language: Language) {
+  try {
+    window.localStorage.setItem(LANGUAGE_STORAGE_KEY, language);
+  } catch {
+    // The selector still works for the current session if storage is unavailable.
+  }
+}
+
+function providerLabel(provider: ProviderId, language: Language) {
+  if (language === "ja") {
+    if (provider === "local-file") return "ローカルファイル";
+    if (provider === "codex-handoff") return "Codex受け渡し";
+    return "ローカル受信箱";
+  }
   if (provider === "local-file") return "Local File";
   if (provider === "codex-handoff") return "Codex Handoff";
   return "Local Inbox";
+}
+
+function providerMessage(provider: ProviderStatus, language: Language) {
+  if (language === "ja") {
+    if (provider.id === "local-file") return "このマシン上の画像を使います";
+    if (provider.id === "codex-handoff") return "Codexが拾うローカルジョブを書き込みます";
+    return "Codexから戻った結果を取り込みます";
+  }
+  return provider.message;
 }
 
 export default App;

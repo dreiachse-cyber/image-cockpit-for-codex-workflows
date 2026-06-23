@@ -906,6 +906,41 @@ button:disabled {
   cursor: pointer;
 }
 
+.language-control {
+  min-height: 28px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  background: #f8faf8;
+  padding: 0 7px;
+  color: #28342c;
+}
+
+.language-control svg {
+  color: var(--text-muted);
+}
+
+.language-control span {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.language-control select {
+  min-height: 26px;
+  border: 0;
+  background: transparent;
+  color: #17211b;
+  padding: 0 2px;
+  cursor: pointer;
+}
+
+.language-control select:focus-visible {
+  outline: 2px solid #8fd39d;
+  outline-offset: 2px;
+}
+
 .spin {
   animation: spin 0.8s linear infinite;
 }
@@ -1020,5 +1055,9 @@ button:disabled {
 
   .canvas-status {
     font-size: 11px;
+  }
+
+  .language-control span {
+    display: none;
   }
 }
