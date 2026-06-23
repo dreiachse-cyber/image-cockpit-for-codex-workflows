@@ -974,10 +974,12 @@ function App() {
                 {copy.importLatest}
               </button>
             )}
-            <button className="secondary-button" onClick={() => fileInputRef.current?.click()}>
-              <Upload size={17} aria-hidden="true" />
-              {copy.importFile}
-            </button>
+            {providerId !== "local-file" && (
+              <button className="secondary-button" onClick={() => fileInputRef.current?.click()}>
+                <Upload size={17} aria-hidden="true" />
+                {copy.importFile}
+              </button>
+            )}
           </div>
           <input
             ref={fileInputRef}

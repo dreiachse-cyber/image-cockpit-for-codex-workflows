@@ -26,7 +26,8 @@ const requiredFiles = [
   "docs/usage/manual-handoff.md",
   "docs/demo/mvp-demo.gif",
   "docs/qa/simple-image-generate-import-latest-1280x720.png",
-  "docs/qa/simple-image-generate-import-latest-mobile-390x844.png"
+  "docs/qa/simple-image-generate-import-latest-mobile-390x844.png",
+  "docs/qa/simple-sprite-generate-actions-1280x720.png"
 ];
 
 const requiredEnvKeys = [
@@ -218,6 +219,7 @@ function checkSimpleLocalInboxAction() {
 
   [
     'providerId !== "local-inbox"',
+    'providerId !== "local-file"',
     "importLatestOutboxResult()",
     "{copy.importLatest}"
   ].forEach((marker) => {

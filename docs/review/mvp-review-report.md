@@ -27,6 +27,7 @@
 - UIは低優先の細かい機能を既定非表示にし、主要操作を先に見せる。
 - Codex job作成後は、結果が戻るまで二重作成を防ぐ。
 - 簡素化UIでも `Import Latest` が見えるため、manual handoff後にprovider一覧を開かずLocal Inboxから取り込める。
+- スプライトシート生成の簡素UIでは `Import File` が重複せず、主操作と `Import Latest` が並ぶ。
 - handoff jobにworkflow種別、編集メモ、選択画像asset、注釈、grid、sprite contextが入る。
 - 画像生成jobはprompt中心にし、画像編集jobだけが選択画像assetと注釈を持つ。
 - local serverは `IMAGE_COCKPIT_CODEX_AUTORUN=1` のとき `codex exec` を起動する。
@@ -54,7 +55,9 @@ npm run release:audit
 - `/api/codex/jobs` smokeで、`workflowMode=sprite-generate` / `sprite-edit` のjobにgrid、action、frame countが入ることを確認。
 - `/api/codex/results` smokeで、outbox画像の一覧表示、非画像除外、画像data URL取り込みを確認。
 - release auditで、簡素化UIがLocal Inbox import actionを露出していることを確認。
+- release auditで、local-file起点の簡素UIが `Import File` actionを重複表示しない条件を確認。
 - Browser QAで、簡素化UIの画像生成画面に `Create Codex Job` / `Import Latest` / `Import File` がdesktop 1280x720とmobile 390x844の初期viewport内に収まることを確認。
+- Browser QAで、スプライトシート生成画面の主操作が `Import File` / `Import Latest` の2つに整理され、`Import File` が重複しないことを確認。
 - Chrome headlessでimage-edit desktop、sprite-edit desktop、sprite-edit mobileを確認し、sprite-edit mobileに横あふれがないことを確認。
 - `.github/workflows/ci.yml` でdoctor、typecheck、test、build、smoke、release auditを走らせるCI導線を追加。
 
@@ -82,6 +85,7 @@ npm run release:audit
 - `docs/qa/workflow-aware-image-generate-1440x1024.png`
 - `docs/qa/simple-image-generate-import-latest-1280x720.png`
 - `docs/qa/simple-image-generate-import-latest-mobile-390x844.png`
+- `docs/qa/simple-sprite-generate-actions-1280x720.png`
 - `docs/demo/mvp-demo.gif`
 - `design-qa.md`
 

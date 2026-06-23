@@ -14,6 +14,7 @@ Private release candidate for the first local Image Cockpit MVP.
 - Smoke coverage for sprite generation and sprite editing handoff payloads.
 - Local Inbox import for returned outbox images.
 - Visible `Import Latest` action in the simplified workflow screen for manual handoff returns.
+- Simplified local-file workflows avoid duplicate `Import File` actions.
 - Desktop and mobile QA screenshots for the simplified image generation screen with `Import Latest` visible.
 - Smoke coverage for Local Inbox outbox listing and data URL import.
 - Canvas annotation tools for select, brush, rectangle, and arrow.
