@@ -299,6 +299,8 @@ async function assertWorkflow({
         `${label} should use ${expectedCanvasPreviewModeAfterExercise} canvas preview mode, got ${previewSnapshot.canvasPreviewMode}`
       );
       assert(previewSnapshot.canvasPreviewName, `${label} should expose the selected result name on the preview canvas`);
+      assert(previewSnapshot.resultPreviewImages === 1, `${label} should render one selected result preview image, got ${previewSnapshot.resultPreviewImages}`);
+      assert(previewSnapshot.resultPreviewLoaded, `${label} should load the selected result preview image`);
     }
     for (const button of postExerciseButtons) {
       await clickButtonByText(button);
@@ -355,6 +357,8 @@ async function pageSnapshot() {
     canvasVisible: Boolean(document.querySelector("canvas")),
     canvasPreviewMode: document.querySelector("canvas")?.dataset.previewMode || "",
     canvasPreviewName: document.querySelector("canvas")?.dataset.previewName || "",
+    resultPreviewImages: document.querySelectorAll(".result-preview-image").length,
+    resultPreviewLoaded: Boolean(document.querySelector(".result-preview-image")?.naturalWidth),
     spriteBenchVisible: Boolean(document.querySelector(".sprite-bench")),
     codexJobRows: document.querySelectorAll(".codex-job-row").length,
     animationPreviewImages: document.querySelectorAll(".animation-preview img").length

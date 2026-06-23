@@ -361,6 +361,8 @@ function checkWorkflowIds() {
     "expectedCanvasPreviewModeAfterExercise",
     "canvasPreviewMode",
     "shows the selected result in the main preview",
+    "resultPreviewImages",
+    "resultPreviewLoaded",
     "Animation frames ready",
     "512x512",
     "persisted animation frames after reload",

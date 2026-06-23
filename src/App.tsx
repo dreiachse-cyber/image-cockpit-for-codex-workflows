@@ -2025,13 +2025,18 @@ function App() {
               </div>
             )}
             <div
-              className="canvas-stage"
+              className={`canvas-stage ${previewMode === "result" ? "showing-result" : ""}`}
               onDragOver={(event) => event.preventDefault()}
               onDrop={(event) => {
                 event.preventDefault();
                 void handleFiles(event.dataTransfer.files);
               }}
             >
+              {previewMode === "result" && selected && (
+                <div className="result-preview-frame">
+                  <img className="result-preview-image" src={selected.dataUrl} alt="" />
+                </div>
+              )}
               <canvas
                 ref={canvasRef}
                 width={CANVAS_WIDTH}
