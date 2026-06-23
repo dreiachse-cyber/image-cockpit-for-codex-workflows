@@ -55,6 +55,7 @@ npm run smoke
 - `SECURITY.md`
 - `CODE_OF_CONDUCT.md`
 - `docs/release/v0.1.0-checklist.md`
+- `docs/release/v0.1.0-runbook.md`
 
 ## QA証跡
 
