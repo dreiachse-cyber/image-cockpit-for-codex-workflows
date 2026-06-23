@@ -16,6 +16,7 @@ Private release candidate for the first local Image Cockpit MVP.
 - Grid split into sprite frames, frame timeline editing, frame size controls, anchor controls, chroma key cleanup, and PNG / ZIP / GIF / metadata exports.
 - Japanese / English language selector.
 - Desktop and mobile QA screenshots plus MVP review report.
+- MVP demo GIF linked from README.
 
 ### Notes
 

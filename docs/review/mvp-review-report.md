@@ -57,10 +57,10 @@ npm run smoke
 - `docs/qa/image-edit-handoff-1440x1024.png`
 - `docs/qa/sprite-edit-simple-1440x1024.png`
 - `docs/qa/sprite-edit-mobile-390x844.png`
+- `docs/demo/mvp-demo.gif`
 - `design-qa.md`
 
 ## 既知の制約
 
 - この環境ではCodex executableの直接起動が `spawn EPERM` になるため、自動画像生成の完走は未確認。
-- demo GIFは未収録。手順は `docs/demo/mvp-demo-capture.md` に残している。
 - repoは最初のリリース版までprivateのまま。main merge / public化はご主人確認後。

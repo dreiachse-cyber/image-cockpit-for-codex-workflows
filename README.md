@@ -4,6 +4,8 @@ Private pre-release MVP for a local image production cockpit.
 
 This project is unofficial and not affiliated with OpenAI. It is a local workspace for reviewing, annotating, comparing, correcting, and turning Codex-produced or locally imported images into production assets such as sprite sheets.
 
+![Image Cockpit MVP demo](docs/demo/mvp-demo.gif)
+
 ## Product Boundary
 
 Image Cockpit is designed to run on a local machine where Codex is installed. The app itself does not call OpenAI APIs and does not require an API key.
@@ -110,4 +112,4 @@ See `docs/roadmap/release-roadmap.md` for the path from the current private MVP 
 
 ## Demo
 
-The demo GIF is not committed yet. See `docs/demo/mvp-demo-capture.md` for the capture plan. Current QA screenshots live under `docs/qa/`.
+The current MVP demo GIF is `docs/demo/mvp-demo.gif`. See `docs/demo/mvp-demo-capture.md` for the capture plan. Current QA screenshots live under `docs/qa/`.

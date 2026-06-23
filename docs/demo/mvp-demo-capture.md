@@ -1,6 +1,8 @@
 # MVP Demo Capture Plan
 
-Record a short GIF after the MVP is reviewed:
+Current GIF: `docs/demo/mvp-demo.gif`
+
+Retake the short GIF after major UI changes:
 
 1. Start the API server with `npm run dev:server`.
 2. Start the Vite app with `npm run dev`.
@@ -14,4 +16,4 @@ Record a short GIF after the MVP is reviewed:
 10. In Sprite Edit, adjust frame size, anchor, and chroma key transparency.
 11. Export the sprite sheet, frame ZIP, GIF, and metadata JSON.
 
-Do not add a broken demo GIF link to the README until the final GIF exists.
+Do not replace the README GIF link unless the new file has been rendered and checked locally.
