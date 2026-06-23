@@ -67,6 +67,26 @@ export interface CodexJobResponse {
   path: string;
   inboxPath: string;
   createdAt: string;
+  runner?: CodexRunnerStatus;
+}
+
+export type CodexRunnerState = "running" | "completed" | "failed" | "unavailable" | "disabled" | "unknown";
+
+export interface CodexRunnerStatus {
+  jobId: string;
+  state: CodexRunnerState;
+  message: string;
+  command?: string;
+  startedAt?: string;
+  finishedAt?: string;
+  exitCode?: number | null;
+  signal?: string | null;
+  logPath?: string;
+  statusPath?: string;
+}
+
+export interface CodexJobStatusResponse {
+  status: CodexRunnerStatus;
 }
 
 export interface CodexOutboxResult {

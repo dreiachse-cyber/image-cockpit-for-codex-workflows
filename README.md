@@ -18,6 +18,8 @@ codex-handoff/
 
 Codex, the user, or another local workflow can read the inbox job, create or revise assets, and place results in the outbox. Results can then be imported through the Local Inbox / Import flow.
 
+When `IMAGE_COCKPIT_CODEX_AUTORUN=1`, the local handoff server will try to start `codex exec` after writing a job. The app still does not call OpenAI APIs directly; it only launches the locally installed Codex command. If Codex cannot be executed from the current Windows environment, the job remains in `codex-handoff/inbox/` for manual pickup and the UI unlocks instead of waiting forever.
+
 ## MVP Flow
 
 - Choose a starting workflow from Guided Start: image generation, image editing, sprite sheet generation, or sprite sheet editing.
@@ -45,7 +47,25 @@ Optional handoff location:
 ```powershell
 Copy-Item .env.example .env
 # Set IMAGE_COCKPIT_HANDOFF_DIR to a local folder if you want jobs written elsewhere.
+# Set IMAGE_COCKPIT_CODEX_COMMAND if Codex is installed under a custom executable path.
 npm run dev:server
+```
+
+Codex autorun settings:
+
+```text
+IMAGE_COCKPIT_CODEX_AUTORUN=1       # 0 disables autorun and keeps manual handoff only
+IMAGE_COCKPIT_CODEX_COMMAND=codex   # executable used for `codex exec`
+IMAGE_COCKPIT_CODEX_SANDBOX=workspace-write
+IMAGE_COCKPIT_CODEX_APPROVAL=never
+```
+
+Runner status and logs are written locally:
+
+```text
+codex-handoff/
+  status/  # runner state per job
+  logs/    # stdout/stderr from codex exec
 ```
 
 ## Verification

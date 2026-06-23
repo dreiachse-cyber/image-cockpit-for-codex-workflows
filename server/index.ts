@@ -1,12 +1,24 @@
+import { spawn } from "node:child_process";
+import { createWriteStream, existsSync, readFileSync } from "node:fs";
 import { mkdir, readFile, readdir, stat, writeFile } from "node:fs/promises";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { extname, join, resolve, sep } from "node:path";
+
+loadDotEnv(resolve(".env"));
 
 const port = Number(process.env.IMAGE_COCKPIT_API_PORT ?? 8787);
 const handoffRoot = resolve(process.env.IMAGE_COCKPIT_HANDOFF_DIR ?? "codex-handoff");
 const inboxDir = join(handoffRoot, "inbox");
 const outboxDir = join(handoffRoot, "outbox");
+const statusDir = join(handoffRoot, "status");
+const logsDir = join(handoffRoot, "logs");
+const codexAutoRun = process.env.IMAGE_COCKPIT_CODEX_AUTORUN !== "0";
+const codexCommand = process.env.IMAGE_COCKPIT_CODEX_COMMAND ?? "codex";
+const codexSandbox = process.env.IMAGE_COCKPIT_CODEX_SANDBOX ?? "workspace-write";
+const codexApproval = process.env.IMAGE_COCKPIT_CODEX_APPROVAL ?? "never";
 const resultRoutePrefix = "/api/codex/results/";
+
+const runnerStatuses = new Map<string, CodexRunnerStatus>();
 
 type CodexJobRequest = {
   prompt?: string;
@@ -20,6 +32,21 @@ type CodexJobRequest = {
   selectedImageSource?: string;
   action?: string;
   frames?: number;
+};
+
+type CodexRunnerState = "running" | "completed" | "failed" | "unavailable" | "disabled" | "unknown";
+
+type CodexRunnerStatus = {
+  jobId: string;
+  state: CodexRunnerState;
+  message: string;
+  command?: string;
+  startedAt?: string;
+  finishedAt?: string;
+  exitCode?: number | null;
+  signal?: NodeJS.Signals | null;
+  logPath?: string;
+  statusPath?: string;
 };
 
 const server = createServer(async (request, response) => {
@@ -47,7 +74,9 @@ const server = createServer(async (request, response) => {
             label: "Codex Handoff",
             enabled: true,
             path: inboxDir,
-            message: "Write local jobs for Codex to pick up"
+            message: codexAutoRun
+              ? `Write local jobs and start ${codexCommand} exec when available`
+              : "Write local jobs for manual Codex pickup"
           },
           {
             id: "local-inbox",
@@ -67,6 +96,17 @@ const server = createServer(async (request, response) => {
         inboxPath: inboxDir,
         jobs: files.filter((file) => file.endsWith(".json")).sort().reverse().slice(0, 20)
       });
+      return;
+    }
+
+    const jobStatusMatch = pathname.match(/^\/api\/codex\/jobs\/([^/]+)\/status$/);
+    if (request.method === "GET" && jobStatusMatch) {
+      const jobId = decodeURIComponent(jobStatusMatch[1]);
+      if (!isSafeJobId(jobId)) {
+        sendJson(response, 400, { error: "Unsupported or unsafe job id" });
+        return;
+      }
+      sendJson(response, 200, { status: await getRunnerStatus(jobId) });
       return;
     }
 
@@ -140,7 +180,8 @@ const server = createServer(async (request, response) => {
       };
       const path = join(inboxDir, `${id}.json`);
       await writeFile(path, JSON.stringify(job, null, 2), "utf8");
-      sendJson(response, 200, { id, path, inboxPath: inboxDir, createdAt });
+      const runner = await startCodexRunner({ id, createdAt, path });
+      sendJson(response, 200, { id, path, inboxPath: inboxDir, createdAt, runner });
       return;
     }
 
@@ -158,6 +199,157 @@ server.listen(port, "127.0.0.1", () => {
 async function ensureHandoffDirs() {
   await mkdir(inboxDir, { recursive: true });
   await mkdir(outboxDir, { recursive: true });
+  await mkdir(statusDir, { recursive: true });
+  await mkdir(logsDir, { recursive: true });
+}
+
+async function startCodexRunner(job: { id: string; createdAt: string; path: string }) {
+  const statusPath = join(statusDir, `${job.id}.json`);
+  const logPath = join(logsDir, `${job.id}.log`);
+
+  if (!codexAutoRun) {
+    const status: CodexRunnerStatus = {
+      jobId: job.id,
+      state: "disabled",
+      message: "Codex autorun is disabled. Run the job manually or set IMAGE_COCKPIT_CODEX_AUTORUN=1.",
+      statusPath,
+      logPath
+    };
+    await writeRunnerStatus(status);
+    return status;
+  }
+
+  const startedAt = new Date().toISOString();
+  const status: CodexRunnerStatus = {
+    jobId: job.id,
+    state: "running",
+    message: `Started ${codexCommand} exec for ${job.id}`,
+    command: codexCommand,
+    startedAt,
+    statusPath,
+    logPath
+  };
+  runnerStatuses.set(job.id, status);
+  await writeRunnerStatus(status);
+
+  const logStream = createWriteStream(logPath, { flags: "a" });
+  const prompt = buildCodexRunnerPrompt(job);
+  logStream.write(`[${startedAt}] Starting ${codexCommand} exec for ${job.id}\n`);
+  logStream.write(`Job path: ${job.path}\n`);
+  logStream.write(`Outbox: ${outboxDir}\n\n`);
+
+  let settled = false;
+  try {
+    const child = spawn(
+      codexCommand,
+      ["exec", "--sandbox", codexSandbox, "--ask-for-approval", codexApproval, "-"],
+      {
+        cwd: process.cwd(),
+        env: {
+          ...process.env,
+          IMAGE_COCKPIT_JOB_ID: job.id,
+          IMAGE_COCKPIT_JOB_PATH: job.path,
+          IMAGE_COCKPIT_OUTBOX_DIR: outboxDir
+        },
+        windowsHide: true
+      }
+    );
+
+    child.stdout.pipe(logStream, { end: false });
+    child.stderr.pipe(logStream, { end: false });
+    child.stdin.on("error", () => {
+      // Spawn errors are captured by the child error handler; avoid noisy EPIPE crashes.
+    });
+    child.stdin.end(prompt, "utf8");
+
+    child.on("error", (error: NodeJS.ErrnoException) => {
+      if (settled) return;
+      settled = true;
+      const finishedAt = new Date().toISOString();
+      const errorStatus: CodexRunnerStatus = {
+        ...status,
+        state: isRunnerUnavailableError(error) ? "unavailable" : "failed",
+        message: error.message,
+        finishedAt
+      };
+      void writeRunnerStatus(errorStatus);
+      logStream.write(`\n[${finishedAt}] Runner error: ${error.message}\n`);
+      logStream.end();
+    });
+
+    child.on("close", (exitCode, signal) => {
+      if (settled) return;
+      settled = true;
+      const finishedAt = new Date().toISOString();
+      const completedStatus: CodexRunnerStatus = {
+        ...status,
+        state: exitCode === 0 ? "completed" : "failed",
+        message: exitCode === 0 ? "Codex exec completed" : `Codex exec exited with code ${exitCode}`,
+        finishedAt,
+        exitCode,
+        signal
+      };
+      void writeRunnerStatus(completedStatus);
+      logStream.write(`\n[${finishedAt}] ${completedStatus.message}\n`);
+      logStream.end();
+    });
+  } catch (error) {
+    const finishedAt = new Date().toISOString();
+    const errorStatus: CodexRunnerStatus = {
+      ...status,
+      state: isRunnerUnavailableError(error) ? "unavailable" : "failed",
+      message: error instanceof Error ? error.message : "Could not start Codex exec",
+      finishedAt
+    };
+    await writeRunnerStatus(errorStatus);
+    logStream.write(`\n[${finishedAt}] ${errorStatus.message}\n`);
+    logStream.end();
+    return errorStatus;
+  }
+
+  return status;
+}
+
+function buildCodexRunnerPrompt(job: { id: string; path: string }) {
+  return [
+    "You are processing an Image Cockpit for Codex Workflows handoff job.",
+    "",
+    `Read this local JSON job file: ${job.path}`,
+    `Write final image result files only into this outbox directory: ${outboxDir}`,
+    `Use this filename prefix for returned assets: ${job.id}`,
+    "",
+    "Important constraints:",
+    "- The Image Cockpit app itself must not call OpenAI APIs directly.",
+    "- Do not modify project source files, package files, docs, git metadata, or configuration.",
+    "- Do not write API keys, access tokens, model weights, or license-unclear assets.",
+    "- If image generation or editing is unavailable in this Codex environment, write no placeholder image.",
+    "- Prefer PNG or WebP for still images. If you produce notes, write them as a small JSON or Markdown sidecar in the outbox.",
+    "",
+    "When finished, make sure at least one usable image file is present in the outbox if generation/editing succeeded."
+  ].join("\n");
+}
+
+async function writeRunnerStatus(status: CodexRunnerStatus) {
+  runnerStatuses.set(status.jobId, status);
+  const statusPath = status.statusPath ?? join(statusDir, `${status.jobId}.json`);
+  await writeFile(statusPath, JSON.stringify(status, null, 2), "utf8");
+}
+
+async function getRunnerStatus(jobId: string): Promise<CodexRunnerStatus> {
+  const liveStatus = runnerStatuses.get(jobId);
+  if (liveStatus) return liveStatus;
+
+  const statusPath = join(statusDir, `${jobId}.json`);
+  try {
+    return JSON.parse(await readFile(statusPath, "utf8")) as CodexRunnerStatus;
+  } catch {
+    return {
+      jobId,
+      state: "unknown",
+      message: "No runner status has been recorded for this job.",
+      statusPath
+    };
+  }
 }
 
 async function listOutboxResults() {
@@ -191,6 +383,16 @@ function resolveOutboxFile(name: string) {
   return filePath.startsWith(root) ? filePath : null;
 }
 
+function isSafeJobId(jobId: string) {
+  return /^codex-job-[A-Za-z0-9_-]+$/.test(jobId);
+}
+
+function isRunnerUnavailableError(error: unknown) {
+  if (!error || typeof error !== "object" || !("code" in error)) return false;
+  const code = (error as NodeJS.ErrnoException).code;
+  return code === "ENOENT" || code === "EACCES" || code === "EPERM";
+}
+
 function mimeTypeForImage(name: string) {
   const extension = extname(name).toLowerCase();
   if (extension === ".png") return "image/png";
@@ -219,4 +421,19 @@ function readJson(request: IncomingMessage) {
 function sendJson(response: ServerResponse, status: number, body: unknown) {
   response.writeHead(status, { "Content-Type": "application/json; charset=utf-8" });
   response.end(JSON.stringify(body));
+}
+
+function loadDotEnv(path: string) {
+  if (!existsSync(path)) return;
+  const lines = readFileSync(path, "utf8").split(/\r?\n/);
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith("#")) continue;
+    const separatorIndex = trimmed.indexOf("=");
+    if (separatorIndex <= 0) continue;
+    const key = trimmed.slice(0, separatorIndex).trim();
+    const rawValue = trimmed.slice(separatorIndex + 1).trim();
+    if (process.env[key] !== undefined) continue;
+    process.env[key] = rawValue.replace(/^["']|["']$/g, "");
+  }
 }

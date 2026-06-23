@@ -44,8 +44,10 @@ import type {
   GridSettings,
   HistoryItem,
   CodexJobResponse,
+  CodexJobStatusResponse,
   CodexOutboxImportResponse,
   CodexOutboxResult,
+  CodexRunnerStatus,
   ProviderId,
   ProviderStatus,
   SpriteAction,
@@ -97,6 +99,9 @@ const uiCopy = {
     statusInboxImported: "Imported from Local Inbox",
     statusInboxError: "Could not import from Local Inbox",
     statusCodexJobPending: "Waiting for Codex to return an image",
+    statusCodexRunnerUnavailable: "Codex runner is not available. The job was written for manual pickup",
+    statusCodexRunnerFailed: "Codex runner stopped before returning an image",
+    statusCodexRunnerCompletedNoImage: "Codex runner completed, but no returned image was found",
     createCodexJob: "Create Codex Job",
     waitingForCodexResult: "Waiting for Codex Result",
     importLatest: "Import Latest",
@@ -129,6 +134,9 @@ const uiCopy = {
     statusInboxImported: "Local Inboxから取り込みました",
     statusInboxError: "Local Inboxから取り込めませんでした",
     statusCodexJobPending: "Codexから画像が戻るのを待っています",
+    statusCodexRunnerUnavailable: "Codex runnerを起動できませんでした。ジョブは手動受け渡し用に作成済みです",
+    statusCodexRunnerFailed: "Codex runnerが画像を返す前に停止しました",
+    statusCodexRunnerCompletedNoImage: "Codex runnerは完了しましたが、戻り画像が見つかりません",
     createCodexJob: "Codexジョブ作成",
     waitingForCodexResult: "Codex結果待ち",
     importLatest: "最新を取り込み",
@@ -357,6 +365,17 @@ function App() {
         newerThan: pendingCodexJob.createdAt,
         quietEmpty: true
       });
+      if (cancelled || imported) return;
+
+      const runnerStatus = await loadCodexRunnerStatus(pendingCodexJob.id);
+      if (cancelled) return;
+
+      if (runnerStatus && !shouldWaitForCodexRunner(runnerStatus)) {
+        setPendingCodexJob(null);
+        setStatus(runnerStatusMessage(runnerStatus, copy));
+        return;
+      }
+
       if (!cancelled && !imported) {
         setStatus(`${copy.statusCodexJobPending}: ${pendingCodexJob.id}`);
       }
@@ -492,8 +511,12 @@ function App() {
       });
       if (!response.ok) throw new Error(await response.text());
       const data = (await response.json()) as CodexJobResponse;
-      setPendingCodexJob({ id: data.id, path: data.path, createdAt: data.createdAt });
-      setStatus(`${copy.statusCodexJobWritten}: ${data.path}. ${copy.statusCodexJobPending}.`);
+      if (shouldWaitForCodexRunner(data.runner)) {
+        setPendingCodexJob({ id: data.id, path: data.path, createdAt: data.createdAt });
+      } else {
+        setPendingCodexJob(null);
+      }
+      setStatus(`${copy.statusCodexJobWritten}: ${data.path}. ${runnerStatusMessage(data.runner, copy)}.`);
     } catch (error) {
       setStatus(error instanceof Error ? error.message : copy.statusCodexJobError);
     } finally {
@@ -1235,6 +1258,31 @@ function primaryActionLabel(providerId: ProviderId, copy: Record<string, string>
   if (providerId === "codex-handoff") return copy.createCodexJob;
   if (providerId === "local-inbox") return copy.importLatest;
   return copy.importFile;
+}
+
+async function loadCodexRunnerStatus(jobId: string) {
+  try {
+    const response = await fetch(`/api/codex/jobs/${encodeURIComponent(jobId)}/status`);
+    if (!response.ok) return null;
+    const data = (await response.json()) as CodexJobStatusResponse;
+    return data.status;
+  } catch {
+    return null;
+  }
+}
+
+function shouldWaitForCodexRunner(status?: CodexRunnerStatus) {
+  if (!status) return true;
+  return status.state === "running" || status.state === "unknown";
+}
+
+function runnerStatusMessage(status: CodexRunnerStatus | undefined, copy: Record<string, string>) {
+  if (!status || status.state === "running" || status.state === "unknown") return copy.statusCodexJobPending;
+  if (status.state === "disabled" || status.state === "unavailable") {
+    return `${copy.statusCodexRunnerUnavailable}: ${status.message}`;
+  }
+  if (status.state === "failed") return `${copy.statusCodexRunnerFailed}: ${status.message}`;
+  return copy.statusCodexRunnerCompletedNoImage;
 }
 
 function NumberField({ label, value, onChange }: { label: string; value: number; onChange: (value: number) => void }) {
