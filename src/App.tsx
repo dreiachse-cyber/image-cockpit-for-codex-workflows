@@ -1431,14 +1431,14 @@ async function loadCodexRunnerStatus(jobId: string) {
   }
 }
 
-function shouldWaitForCodexRunner(status?: CodexRunnerStatus) {
+export function shouldWaitForCodexRunner(status?: CodexRunnerStatus) {
   if (!status) return true;
-  return status.state === "running" || status.state === "unknown";
+  return status.state === "running";
 }
 
 function runnerStatusMessage(status: CodexRunnerStatus | undefined, copy: Record<string, string>) {
-  if (!status || status.state === "running" || status.state === "unknown") return copy.statusCodexJobPending;
-  if (status.state === "disabled" || status.state === "unavailable") {
+  if (!status || status.state === "running") return copy.statusCodexJobPending;
+  if (status.state === "disabled" || status.state === "unavailable" || status.state === "unknown") {
     return `${copy.statusCodexRunnerUnavailable}: ${status.message}`;
   }
   if (status.state === "failed") return `${copy.statusCodexRunnerFailed}: ${status.message}`;

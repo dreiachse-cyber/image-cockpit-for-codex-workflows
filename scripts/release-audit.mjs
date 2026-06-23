@@ -17,6 +17,7 @@ const requiredFiles = [
   ".github/workflows/ci.yml",
   "scripts/doctor.mjs",
   "scripts/release-audit.mjs",
+  "src/App.test.ts",
   "docs/review/mvp-review-report.md",
   "docs/roadmap/release-roadmap.md",
   "docs/release/v0.1.0-checklist.md",
@@ -62,8 +63,9 @@ checkEnvExample();
 checkGitignore();
 checkTrackedFiles();
 checkNoDirectOpenAiIntegration();
-checkWorkflowIds();
-checkSimpleLocalInboxAction();
+  checkWorkflowIds();
+  checkPendingJobCoverage();
+  checkSimpleLocalInboxAction();
 checkCiWorkflow();
 checkReleaseDocs();
 
@@ -209,6 +211,22 @@ function checkWorkflowIds() {
   ].forEach((marker) => {
     if (!smokeText.includes(marker)) {
       failures.push(`Smoke test should cover sprite handoff detail: ${marker}`);
+    }
+  });
+}
+
+function checkPendingJobCoverage() {
+  const appText = readText("src/App.tsx");
+  const appTestText = readText("src/App.test.ts");
+  if (!appText || !appTestText) return;
+
+  [
+    'status.state === "running"',
+    'status.state === "unknown"',
+    "shouldWaitForCodexRunner"
+  ].forEach((marker) => {
+    if (!appText.includes(marker) && !appTestText.includes(marker)) {
+      failures.push(`Pending job coverage is missing marker: ${marker}`);
     }
   });
 }

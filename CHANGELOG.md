@@ -10,6 +10,7 @@ Private release candidate for the first local Image Cockpit MVP.
 - Local-only Codex handoff through `codex-handoff/inbox/`, `assets/`, `outbox/`, `status/`, and `logs/`.
 - Optional `codex exec` runner launched by the local server when `IMAGE_COCKPIT_CODEX_AUTORUN=1`.
 - Pending-job lock so the Codex job button cannot create duplicate handoff jobs while waiting for a result.
+- Orphaned pending Codex jobs with missing runner status now unlock instead of waiting forever.
 - Handoff job context including workflow mode, edit notes, selected image asset, annotations, grid, and sprite context.
 - Smoke coverage for sprite generation and sprite editing handoff payloads.
 - Local Inbox import for returned outbox images.

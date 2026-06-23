@@ -32,6 +32,7 @@
 - 画像生成jobはprompt中心にし、画像編集jobだけが選択画像assetと注釈を持つ。
 - local serverは `IMAGE_COCKPIT_CODEX_AUTORUN=1` のとき `codex exec` を起動する。
 - runnerがdisabled / unavailable / failed / completedを記録し、UIのpendingを解除できる。
+- statusファイルが見つからない古いpending jobは `unknown` として解除し、ボタンが永久待機にならない。
 - sprite-editではframe size、anchor、chroma key透明化、PNG / ZIP / GIF / metadata exportを確認できる。
 
 ## 検証済み
@@ -54,6 +55,7 @@ npm run release:audit
 - `/api/codex/jobs` smokeで、`workflowMode=image-generate` のjobに選択画像asset、編集注釈、sprite contextが混入しないことを確認。
 - `/api/codex/jobs` smokeで、`workflowMode=sprite-generate` / `sprite-edit` のjobにgrid、action、frame countが入ることを確認。
 - `/api/codex/results` smokeで、outbox画像の一覧表示、非画像除外、画像data URL取り込みを確認。
+- `src/App.test.ts` で、runner `unknown` / disabled / unavailable / failed / completed が待機ロックを解除することを確認。
 - release auditで、簡素化UIがLocal Inbox import actionを露出していることを確認。
 - release auditで、local-file起点の簡素UIが `Import File` actionを重複表示しない条件を確認。
 - Browser QAで、簡素化UIの画像生成画面に `Create Codex Job` / `Import Latest` / `Import File` がdesktop 1280x720とmobile 390x844の初期viewport内に収まることを確認。
