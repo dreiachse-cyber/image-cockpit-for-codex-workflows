@@ -61,6 +61,13 @@ try {
   await cdp.send("Runtime.enable");
   await cdp.send("Page.addScriptToEvaluateOnNewDocument", {
     source: `
+      window.__uiSmokeErrors = [];
+      window.addEventListener("error", (event) => {
+        window.__uiSmokeErrors.push(event.message || "window error");
+      });
+      window.addEventListener("unhandledrejection", (event) => {
+        window.__uiSmokeErrors.push(String(event.reason?.message || event.reason || "unhandled rejection"));
+      });
       localStorage.setItem("image-cockpit.language", "en");
       localStorage.removeItem("image-cockpit.pendingCodexJob");
       localStorage.setItem("image-cockpit.v3.history", JSON.stringify([{
@@ -98,11 +105,12 @@ try {
     index: 1,
     label: "Animation Generation",
     route: "Route: Local Generator",
-    buttons: ["Generate Animation", "Import Latest", "Import File"],
-    requiredText: ["Animation Prompt", "Animation Notes", "Frame W", "Frame H", "Show Grid"],
-    exactButtonCounts: { "Import File": 1 },
+    buttons: ["Upload Pixel Art", "Generate Animation", "Animated GIF", "Animated WebP", "Sprite Sheet"],
+    requiredText: ["1. Upload Pixel Art", "2. Choose Motion", "3. Generate", "4. Download", "Motion Prompt"],
     exerciseButton: "Generate Animation",
-    expectedAfterExercise: "Animation generated"
+    expectedAfterExercise: "Animation generated",
+    expectedAfterExerciseText: ["Animation frames ready", "Animated WebP"],
+    postExerciseButtons: ["Animated WebP"]
   });
 
   console.log("UI smoke passed.");
@@ -162,11 +170,24 @@ async function assertPromptExamples() {
   await waitForEval(() => `document.querySelectorAll(".guided-option").length === 2`, "return to Guided Start after Prompt Examples");
 }
 
-async function assertWorkflow({ index, label, route, buttons, requiredText, exactButtonCounts = {}, exerciseButton, expectedAfterExercise }) {
+async function assertWorkflow({
+  index,
+  label,
+  route,
+  buttons,
+  requiredText,
+  exactButtonCounts = {},
+  exerciseButton,
+  expectedAfterExercise,
+  expectedAfterExerciseText = [],
+  postExerciseButtons = []
+}) {
   await clickGuidedOption(index);
   await waitForEval(() => `document.body.innerText.includes(${JSON.stringify(label)})`, label);
   const snapshot = await pageSnapshot();
   assert(snapshot.text.includes(label), `${label} should be visible after selection`);
+  assert(snapshot.buttons.includes("Pixel Art Generation"), `${label} should expose the Pixel Art Generation tab`);
+  assert(snapshot.buttons.includes("Animation Generation"), `${label} should expose the Animation Generation tab`);
   assert(snapshot.summary.includes(route), `${label} should select ${route}`);
   assert(snapshot.canvasVisible, `${label} should render the canvas`);
   buttons.forEach((button) => {
@@ -182,6 +203,14 @@ async function assertWorkflow({ index, label, route, buttons, requiredText, exac
   if (exerciseButton) {
     await clickButtonByText(exerciseButton);
     await waitForEval(() => `document.body.innerText.includes(${JSON.stringify(expectedAfterExercise)})`, `${label} generated result`);
+    for (const text of expectedAfterExerciseText) {
+      await waitForEval(() => `document.body.innerText.includes(${JSON.stringify(text)})`, `${label} shows ${text}`);
+    }
+    for (const button of postExerciseButtons) {
+      await clickButtonByText(button);
+    }
+    await delay(250);
+    await assertNoBrowserErrors(label);
   }
   await maybeCapture(label.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, ""));
   await evaluate(`document.querySelector(".guided-link")?.click()`);
@@ -198,6 +227,11 @@ async function clickButtonByText(label) {
     if (!button) throw new Error("Button not found: ${label}");
     button.click();
   })()`);
+}
+
+async function assertNoBrowserErrors(label) {
+  const errors = await evaluate(`window.__uiSmokeErrors || []`);
+  assert(errors.length === 0, `${label} browser errors: ${errors.join("; ")}`);
 }
 
 async function pageSnapshot() {

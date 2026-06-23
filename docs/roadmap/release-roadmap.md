@@ -8,6 +8,12 @@
 - Keep the page focused on two actions: copy a tuned pixel-art prompt, or load it directly into Pixel Art Generation.
 - Treat Prompt Examples as support for the primary quality question: whether complex pixel-art prompts can reliably return useful generated images through local Codex imagegen.
 
+## Readable Update: Animation Generation
+
+- Split the two primary workflows into Pixel Art Generation and Animation Generation tabs.
+- Make Animation Generation a four-step flow: upload pixel art, choose a motion preset or enter a motion prompt, generate, then download animated GIF, animated WebP, or sprite sheet.
+- Keep editing workflows and advanced sprite tuning secondary until the core generation loop is comfortable.
+
 ## いまの状態
 
 このプロジェクトは、v0.1.0初回公開後に、ピクセルアート生成とアニメーション生成へプロダクト軸を絞っている段階です。

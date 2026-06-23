@@ -32,6 +32,7 @@ import {
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   createGifBlob,
+  exportWebP,
   exportFramesZip,
   exportGif,
   exportMetadata,
@@ -151,6 +152,25 @@ const uiCopy = {
     promptCopied: "Prompt copied",
     promptCopyFailed: "Could not copy prompt",
     promptExampleApplied: "Prompt example loaded into Pixel Art Generation",
+    animationStepSourceTitle: "1. Upload Pixel Art",
+    animationStepSourceBody: "Use a pixel-art image you generated or imported as the animation source.",
+    animationStepMotionTitle: "2. Choose Motion",
+    animationStepMotionBody: "Pick a preset or describe the motion you want.",
+    animationStepGenerateTitle: "3. Generate",
+    animationStepGenerateBody: "Create an animation sheet and timeline frames from the uploaded source.",
+    animationStepDownloadTitle: "4. Download",
+    animationStepDownloadBody: "Export the generated result as an animated GIF, animated WebP, or sprite sheet.",
+    uploadPixelArt: "Upload Pixel Art",
+    selectedSource: "Selected source",
+    noAnimationSource: "No pixel-art source uploaded yet",
+    motionPrompt: "Motion Prompt",
+    motionPromptPlaceholder: "Example: idle breathing loop with gentle robe sway and staff glow",
+    motionPreset: "Preset",
+    animationReady: "Animation frames ready",
+    animatedGif: "Animated GIF",
+    animatedWebP: "Animated WebP",
+    spriteSheetDownload: "Sprite Sheet",
+    animationDownloadsLocked: "Generate animation frames before downloading.",
     statusUsesImport: "uses Import or drag and drop",
     statusCodexJobWritten: "Codex job written",
     statusCodexJobError: "Could not create Codex handoff job",
@@ -245,6 +265,25 @@ const uiCopy = {
     promptCopied: "プロンプトをコピーしました",
     promptCopyFailed: "プロンプトをコピーできませんでした",
     promptExampleApplied: "プロンプト例をピクセルアート生成へ入れました",
+    animationStepSourceTitle: "1. ピクセルアートをアップロード",
+    animationStepSourceBody: "生成または取り込んだピクセルアートをアニメーション元にします。",
+    animationStepMotionTitle: "2. 動きを選ぶ",
+    animationStepMotionBody: "プリセットを選ぶか、させたい動きをpromptで入力します。",
+    animationStepGenerateTitle: "3. 生成する",
+    animationStepGenerateBody: "アップロード画像からanimation sheetとtimeline framesを生成します。",
+    animationStepDownloadTitle: "4. ダウンロード",
+    animationStepDownloadBody: "生成結果をanimated GIF、animated WebP、sprite sheetで書き出します。",
+    uploadPixelArt: "ピクセルアートをアップロード",
+    selectedSource: "選択中の元画像",
+    noAnimationSource: "まだ元になるピクセルアートがありません",
+    motionPrompt: "動きのprompt",
+    motionPromptPlaceholder: "例: idle breathing loop with gentle robe sway and staff glow",
+    motionPreset: "プリセット",
+    animationReady: "アニメーションframes準備完了",
+    animatedGif: "アニメGIF",
+    animatedWebP: "アニメWebP",
+    spriteSheetDownload: "スプライトシート",
+    animationDownloadsLocked: "ダウンロード前にアニメーションを生成してください。",
     statusUsesImport: "はImportまたはドラッグ&ドロップを使います",
     statusCodexJobWritten: "Codexジョブを書き込みました",
     statusCodexJobError: "Codex handoffジョブを作成できませんでした",
@@ -488,6 +527,7 @@ function App() {
   const [workflowMode, setWorkflowMode] = useState<WorkflowMode | null>(null);
   const [showPromptExamples, setShowPromptExamples] = useState(false);
   const [providerId, setProviderId] = useState<ProviderId>("codex-handoff");
+  const [animationSourceId, setAnimationSourceId] = useState("");
   const [providers, setProviders] = useState<ProviderStatus[]>(fallbackProviders);
   const [runnerPreflight, setRunnerPreflight] = useState<CodexRunnerPreflight | null>(null);
   const [prompt, setPrompt] = useState("Pixel art forest mage, transparent background, 8 directions");
@@ -520,6 +560,11 @@ function App() {
     [history, selectedId]
   );
 
+  const animationSource = useMemo(
+    () => history.find((item) => item.id === animationSourceId) ?? (isAnimationSource(selected) ? selected : undefined),
+    [animationSourceId, history, selected]
+  );
+
   const activeAction = useMemo(
     () => actions.find((action) => action.name === activeActionName) ?? actions[0],
     [actions, activeActionName]
@@ -531,6 +576,13 @@ function App() {
         .map((frameId) => frames.find((frame) => frame.id === frameId))
         .filter((frame): frame is SpriteFrame => Boolean(frame)),
     [activeAction.frameIds, frames]
+  );
+
+  const animationExportReady = useMemo(
+    () =>
+      actionFrames.length > 0 &&
+      actionFrames.some((frame) => history.some((item) => item.id === frame.sourceId && item.source === "generate")),
+    [actionFrames, history]
   );
 
   const selectedFrame = useMemo(
@@ -740,6 +792,7 @@ function App() {
     }
     setHistory((current) => [...imported, ...current]);
     setSelectedId(imported[0].id);
+    if (workflowMode === "sprite-generate") setAnimationSourceId(imported[0].id);
     setStatus(formatImagesImportedStatus(imported.length, language));
   }
 
@@ -860,15 +913,16 @@ function App() {
   }
 
   async function generateAnimationFromSelectedPixelArt() {
-    if (!isAnimationSource(selected)) {
+    const source = animationSource;
+    if (!isAnimationSource(source)) {
       setStatus(copy.statusAnimationSourceRequired);
       fileInputRef.current?.click();
       return;
     }
 
     const animationGrid = { columns: ANIMATION_FRAME_COUNT, rows: 1, gutter: 0 };
-    const sheetDataUrl = await renderAnimationSheet(selected.dataUrl, activeAction.cell, activeAction.name);
-    const sheetName = `${selected.name.replace(/\.[^.]+$/, "")}_${activeAction.name}_animation_sheet.png`;
+    const sheetDataUrl = await renderAnimationSheet(source.dataUrl, activeAction.cell, activeAction.name);
+    const sheetName = `${source.name.replace(/\.[^.]+$/, "")}_${activeAction.name}_animation_sheet.png`;
     const item: HistoryItem = {
       id: createId("hist"),
       name: sheetName,
@@ -1115,6 +1169,9 @@ function App() {
       setActiveActionName("idle");
       setGrid({ columns: ANIMATION_FRAME_COUNT, rows: 1, gutter: 0 });
     }
+    if (mode === "sprite-generate") {
+      setAnimationSourceId(selected && isAnimationSource(selected) ? selected.id : "");
+    }
     if (mode === "sprite-generate" && !isAnimationSource(selected)) {
       setStatus(copy.statusAnimationSourceRequired);
       return;
@@ -1158,11 +1215,11 @@ function App() {
   const activeWorkflowCopy = workflowMode ? workflowCopy[language][workflowMode] : null;
   const activeWorkflowFormCopy = workflowMode ? workflowFormCopy[language][workflowMode] : null;
   const isWaitingForCodexResult = providerId === "codex-handoff" && Boolean(pendingCodexJob);
-  const animationSourceReady = workflowMode !== "sprite-generate" || isAnimationSource(selected);
+  const isAnimationWorkflow = workflowMode === "sprite-generate";
+  const animationSourceReady = !isAnimationWorkflow || isAnimationSource(animationSource);
   const primaryActionDisabled = isBusy || isWaitingForCodexResult || !animationSourceReady;
-  const showFrameGridControls = SHOW_LOW_PRIORITY_CONTROLS || workflowMode === "sprite-generate" || workflowMode === "sprite-edit";
+  const showFrameGridControls = SHOW_LOW_PRIORITY_CONTROLS || workflowMode === "sprite-edit";
   const showSpriteTuningControls = SHOW_LOW_PRIORITY_CONTROLS || workflowMode === "sprite-edit";
-  const showAnimationControls = workflowMode === "sprite-generate";
   const showAnnotationToolbar = SHOW_LOW_PRIORITY_CONTROLS || workflowMode === "image-edit";
 
   if (showPromptExamples) {
@@ -1197,6 +1254,7 @@ function App() {
           <span>{activeWorkflowCopy?.label}</span>
           <small>v0.1.0</small>
         </div>
+        {workflowMode && <WorkflowTabs language={language} activeMode={workflowMode} onSelect={beginWorkflow} />}
         <div className="project-strip">
           <LanguageSelect language={language} label={copy.language} onChange={setLanguage} />
           <button className="guided-link" onClick={() => setWorkflowMode(null)}>
@@ -1235,85 +1293,190 @@ function App() {
               </em>
             )}
           </div>
-          <label className="field">
-            <span>{activeWorkflowFormCopy?.promptLabel ?? "Prompt"}</span>
-            <textarea value={prompt} onChange={(event) => setPrompt(event.target.value)} maxLength={1200} />
-            <small>{prompt.length} / 1200</small>
-          </label>
-          <label className="field">
-            <span>{activeWorkflowFormCopy?.negativeLabel ?? "Negative Prompt"}</span>
-            <textarea value={negativePrompt} onChange={(event) => setNegativePrompt(event.target.value)} rows={2} />
-          </label>
-          <label className="field">
-            <span>{activeWorkflowFormCopy?.notesLabel ?? copy.jobNotes}</span>
-            <textarea
-              value={jobNotes}
-              onChange={(event) => setJobNotes(event.target.value)}
-              rows={3}
-              maxLength={1000}
-              placeholder={activeWorkflowFormCopy?.notesPlaceholder ?? copy.jobNotesPlaceholder}
-            />
-            <small>{jobNotes.length} / 1000</small>
-          </label>
 
-          {SHOW_LOW_PRIORITY_CONTROLS && (
-            <>
-              <div className="field-row">
-                <label className="field">
-                  <span>Seed</span>
-                  <input value={seed} onChange={(event) => setSeed(event.target.value)} />
-                </label>
-                <label className="field">
-                  <span>Count</span>
-                  <input
-                    type="number"
-                    min={1}
-                    max={4}
-                    value={count}
-                    onChange={(event) => setCount(Number(event.target.value))}
+          {isAnimationWorkflow ? (
+            <div className="animation-steps">
+              <section className={`animation-step ${animationSourceReady ? "complete" : ""}`}>
+                <div className="step-heading">
+                  <strong>{copy.animationStepSourceTitle}</strong>
+                  <span>{copy.animationStepSourceBody}</span>
+                </div>
+                <button className="secondary-button full" onClick={() => fileInputRef.current?.click()}>
+                  <Upload size={16} aria-hidden="true" />
+                  {copy.uploadPixelArt}
+                </button>
+                <div className="source-preview">
+                  {animationSourceReady && animationSource ? (
+                    <>
+                      <img src={animationSource.dataUrl} alt="" />
+                      <span>
+                        <small>{copy.selectedSource}</small>
+                        <strong>{animationSource.name}</strong>
+                        <em>{animationSource.size} / {animationSource.source}</em>
+                      </span>
+                    </>
+                  ) : (
+                    <span>{copy.noAnimationSource}</span>
+                  )}
+                </div>
+              </section>
+
+              <section className="animation-step">
+                <div className="step-heading">
+                  <strong>{copy.animationStepMotionTitle}</strong>
+                  <span>{copy.animationStepMotionBody}</span>
+                </div>
+                <small className="step-kicker">{copy.motionPreset}</small>
+                <div className="motion-presets">
+                  {actions.map((action) => (
+                    <button
+                      key={action.name}
+                      className={action.name === activeAction.name ? "active" : ""}
+                      onClick={() => {
+                        setActiveActionName(action.name);
+                        setGrid({ columns: ANIMATION_FRAME_COUNT, rows: 1, gutter: 0 });
+                      }}
+                    >
+                      {action.name}
+                    </button>
+                  ))}
+                </div>
+                <label className="field compact-field">
+                  <span>{copy.motionPrompt}</span>
+                  <textarea
+                    value={prompt}
+                    onChange={(event) => setPrompt(event.target.value)}
+                    maxLength={1200}
+                    placeholder={copy.motionPromptPlaceholder}
                   />
+                  <small>{prompt.length} / 1200</small>
                 </label>
-              </div>
-              <div className="field-row">
-                <label className="field">
-                  <span>Size</span>
-                  <select value={size} onChange={(event) => setSize(event.target.value)}>
-                    <option>1024x1024</option>
-                    <option>1536x1024</option>
-                    <option>1024x1536</option>
-                  </select>
-                </label>
-                <label className="field">
-                  <span>Quality</span>
-                  <select value={quality} onChange={(event) => setQuality(event.target.value)}>
-                    <option>auto</option>
-                    <option>low</option>
-                    <option>medium</option>
-                    <option>high</option>
-                  </select>
-                </label>
+              </section>
+
+              <section className="animation-step">
+                <div className="step-heading">
+                  <strong>{copy.animationStepGenerateTitle}</strong>
+                  <span>{copy.animationStepGenerateBody}</span>
+                </div>
+                <div className="field-row compact-row">
+                  <NumberField label={copy.frameWidth} value={activeAction.cell.width} onChange={(width) => updateCell(width, activeAction.cell.height)} />
+                  <NumberField label={copy.frameHeight} value={activeAction.cell.height} onChange={(height) => updateCell(activeAction.cell.width, height)} />
+                </div>
+                <button className="primary-button full" onClick={() => void handleGenerate()} disabled={primaryActionDisabled}>
+                  <PrimaryActionIcon providerId={providerId} isBusy={isBusy} />
+                  {copy.generateLocalSprite}
+                </button>
+              </section>
+
+              <section className={`animation-step ${animationExportReady ? "complete" : ""}`}>
+                <div className="step-heading">
+                  <strong>{copy.animationStepDownloadTitle}</strong>
+                  <span>{copy.animationStepDownloadBody}</span>
+                </div>
+                {animationExportReady && <small className="step-kicker">{copy.animationReady}</small>}
+                <div className="animation-preview">
+                  {animationExportReady && gifPreviewUrl ? <img src={gifPreviewUrl} alt="" /> : <span>{copy.animationDownloadsLocked}</span>}
+                </div>
+                <div className="download-grid">
+                  <button onClick={() => void exportGif(frames, activeAction)} disabled={!animationExportReady}>
+                    <Film size={16} aria-hidden="true" />
+                    {copy.animatedGif}
+                  </button>
+                  <button onClick={() => void exportWebP(frames, activeAction)} disabled={!animationExportReady}>
+                    <FileArchive size={16} aria-hidden="true" />
+                    {copy.animatedWebP}
+                  </button>
+                  <button onClick={() => void exportSpriteSheet(frames, activeAction)} disabled={!animationExportReady}>
+                    <FileImage size={16} aria-hidden="true" />
+                    {copy.spriteSheetDownload}
+                  </button>
+                </div>
+              </section>
+            </div>
+          ) : (
+            <>
+              <label className="field">
+                <span>{activeWorkflowFormCopy?.promptLabel ?? "Prompt"}</span>
+                <textarea value={prompt} onChange={(event) => setPrompt(event.target.value)} maxLength={1200} />
+                <small>{prompt.length} / 1200</small>
+              </label>
+              <label className="field">
+                <span>{activeWorkflowFormCopy?.negativeLabel ?? "Negative Prompt"}</span>
+                <textarea value={negativePrompt} onChange={(event) => setNegativePrompt(event.target.value)} rows={2} />
+              </label>
+              <label className="field">
+                <span>{activeWorkflowFormCopy?.notesLabel ?? copy.jobNotes}</span>
+                <textarea
+                  value={jobNotes}
+                  onChange={(event) => setJobNotes(event.target.value)}
+                  rows={3}
+                  maxLength={1000}
+                  placeholder={activeWorkflowFormCopy?.notesPlaceholder ?? copy.jobNotesPlaceholder}
+                />
+                <small>{jobNotes.length} / 1000</small>
+              </label>
+
+              {SHOW_LOW_PRIORITY_CONTROLS && (
+                <>
+                  <div className="field-row">
+                    <label className="field">
+                      <span>Seed</span>
+                      <input value={seed} onChange={(event) => setSeed(event.target.value)} />
+                    </label>
+                    <label className="field">
+                      <span>Count</span>
+                      <input
+                        type="number"
+                        min={1}
+                        max={4}
+                        value={count}
+                        onChange={(event) => setCount(Number(event.target.value))}
+                      />
+                    </label>
+                  </div>
+                  <div className="field-row">
+                    <label className="field">
+                      <span>Size</span>
+                      <select value={size} onChange={(event) => setSize(event.target.value)}>
+                        <option>1024x1024</option>
+                        <option>1536x1024</option>
+                        <option>1024x1536</option>
+                      </select>
+                    </label>
+                    <label className="field">
+                      <span>Quality</span>
+                      <select value={quality} onChange={(event) => setQuality(event.target.value)}>
+                        <option>auto</option>
+                        <option>low</option>
+                        <option>medium</option>
+                        <option>high</option>
+                      </select>
+                    </label>
+                  </div>
+                </>
+              )}
+
+              <div className="button-row">
+                <button className="primary-button" onClick={() => void handleGenerate()} disabled={primaryActionDisabled}>
+                  <PrimaryActionIcon providerId={providerId} isBusy={isBusy || isWaitingForCodexResult} />
+                  {primaryActionLabel(providerId, workflowMode, copy, isWaitingForCodexResult)}
+                </button>
+                {providerId !== "local-inbox" && (
+                  <button className="secondary-button" onClick={() => void importLatestOutboxResult()} disabled={isBusy}>
+                    <Archive size={17} aria-hidden="true" />
+                    {copy.importLatest}
+                  </button>
+                )}
+                {providerId !== "local-file" && (
+                  <button className="secondary-button" onClick={() => fileInputRef.current?.click()}>
+                    <Upload size={17} aria-hidden="true" />
+                    {copy.importFile}
+                  </button>
+                )}
               </div>
             </>
           )}
 
-          <div className="button-row">
-            <button className="primary-button" onClick={() => void handleGenerate()} disabled={primaryActionDisabled}>
-              <PrimaryActionIcon providerId={providerId} isBusy={isBusy || isWaitingForCodexResult} />
-              {primaryActionLabel(providerId, workflowMode, copy, isWaitingForCodexResult)}
-            </button>
-            {providerId !== "local-inbox" && (
-              <button className="secondary-button" onClick={() => void importLatestOutboxResult()} disabled={isBusy}>
-                <Archive size={17} aria-hidden="true" />
-                {copy.importLatest}
-              </button>
-            )}
-            {providerId !== "local-file" && (
-              <button className="secondary-button" onClick={() => fileInputRef.current?.click()}>
-                <Upload size={17} aria-hidden="true" />
-                {copy.importFile}
-              </button>
-            )}
-          </div>
           <input
             ref={fileInputRef}
             type="file"
@@ -1356,16 +1519,6 @@ function App() {
                   This app does not call OpenAI APIs directly. Codex jobs are written to the local inbox
                   {codexProvider?.path ? `: ${codexProvider.path}` : "."}
                 </span>
-              </div>
-            </>
-          )}
-
-          {showAnimationControls && (
-            <>
-              <SectionLabel title={copy.canvasGridTitle} />
-              <div className="field-row">
-                <NumberField label={copy.columns} value={grid.columns} onChange={(columns) => setGrid({ ...grid, columns })} />
-                <NumberField label={copy.rows} value={grid.rows} onChange={(rows) => setGrid({ ...grid, rows })} />
               </div>
             </>
           )}
@@ -1478,7 +1631,10 @@ function App() {
               <button
                 key={item.id}
                 className={`history-item ${selected?.id === item.id ? "selected" : ""}`}
-                onClick={() => setSelectedId(item.id)}
+                onClick={() => {
+                  setSelectedId(item.id);
+                  if (isAnimationWorkflow && isAnimationSource(item)) setAnimationSourceId(item.id);
+                }}
               >
                 <img src={item.dataUrl} alt="" />
                 <span>
@@ -1608,25 +1764,27 @@ function App() {
               </>
             )}
 
-            <div className="export-panel">
-              <h3>{copy.exportSprite}</h3>
-              <button onClick={() => void exportSpriteSheet(frames, activeAction)} disabled={actionFrames.length === 0}>
-                <FileImage size={18} aria-hidden="true" />
-                {copy.exportSheetPng}
-              </button>
-              <button onClick={() => void exportFramesZip(frames, activeAction)} disabled={actionFrames.length === 0}>
-                <FileArchive size={18} aria-hidden="true" />
-                {copy.exportZipFrames}
-              </button>
-              <button onClick={() => void exportGif(frames, activeAction)} disabled={actionFrames.length === 0}>
-                <Film size={18} aria-hidden="true" />
-                {copy.exportGifLabel}
-              </button>
-              <button onClick={() => exportMetadata("forest_mage", actions, frames)}>
-                <FileJson size={18} aria-hidden="true" />
-                {copy.exportMetadataJson}
-              </button>
-            </div>
+            {!isAnimationWorkflow && (
+              <div className="export-panel">
+                <h3>{copy.exportSprite}</h3>
+                <button onClick={() => void exportSpriteSheet(frames, activeAction)} disabled={actionFrames.length === 0}>
+                  <FileImage size={18} aria-hidden="true" />
+                  {copy.exportSheetPng}
+                </button>
+                <button onClick={() => void exportFramesZip(frames, activeAction)} disabled={actionFrames.length === 0}>
+                  <FileArchive size={18} aria-hidden="true" />
+                  {copy.exportZipFrames}
+                </button>
+                <button onClick={() => void exportGif(frames, activeAction)} disabled={actionFrames.length === 0}>
+                  <Film size={18} aria-hidden="true" />
+                  {copy.exportGifLabel}
+                </button>
+                <button onClick={() => exportMetadata("forest_mage", actions, frames)}>
+                  <FileJson size={18} aria-hidden="true" />
+                  {copy.exportMetadataJson}
+                </button>
+              </div>
+            )}
 
             {showSpriteTuningControls && (
               <div className="metadata-panel">
@@ -1730,7 +1888,7 @@ function primaryActionLabel(
   return copy.importFile;
 }
 
-function isAnimationSource(item?: HistoryItem) {
+function isAnimationSource(item?: HistoryItem): item is HistoryItem {
   return Boolean(item && item.source !== "sample");
 }
 
@@ -1905,6 +2063,34 @@ function QcLine({ ok, label, value }: { ok: boolean; label: string; value: strin
       <span>{label}</span>
       <small>{value}</small>
     </div>
+  );
+}
+
+function WorkflowTabs({
+  activeMode,
+  language,
+  onSelect
+}: {
+  activeMode: WorkflowMode;
+  language: Language;
+  onSelect: (mode: WorkflowMode) => void;
+}) {
+  return (
+    <nav className="workflow-tabs" aria-label="Primary workflows">
+      {workflowOptions.map((option) => {
+        const optionCopy = workflowCopy[language][option.id];
+        return (
+          <button
+            key={option.id}
+            className={activeMode === option.id ? "active" : ""}
+            onClick={() => onSelect(option.id)}
+          >
+            <WorkflowIcon mode={option.id} />
+            <span>{optionCopy.label}</span>
+          </button>
+        );
+      })}
+    </nav>
   );
 }
 

@@ -39,8 +39,9 @@ The prompt-only imagegen handoff smoke result is recorded in `docs/qa/imagegen-h
 - Choose one of two starting workflows: pixel art generation, or animation generation.
 - Open Prompt Examples from the header, copy tuned pixel-art prompts, or load one directly into Pixel Art Generation.
 - Generate pixel art from a prompt through local Codex imagegen handoff.
-- Upload or select a pixel-art source before generating animation.
-- Generate animation frames from that pixel-art source; a sprite sheet is produced as part of the process.
+- Switch between Pixel Art Generation and Animation Generation tabs.
+- In Animation Generation, follow four steps: upload a pixel-art source, choose a motion preset or motion prompt, generate frames, then download animated GIF, animated WebP, or a sprite sheet.
+- Generate animation frames from the uploaded pixel-art source; a sprite sheet is produced as part of the process.
 - Select history items and review them on the canvas.
 - Reorder frames in the timeline and review action metadata.
 - Run lightweight QC checks for size consistency, transparency, duplicates, and anchor placement.
@@ -135,7 +136,7 @@ Optional local browser review smoke:
 npm run ui:smoke
 ```
 
-`npm run ui:smoke` starts the local API and Vite app with a temporary handoff folder, opens a headless Chrome/Edge session, verifies the two-workflow start screen, verifies Prompt Examples can load a tuned prompt into Pixel Art Generation, clicks pixel art generation through `Codex Handoff`, clicks animation generation through the local animation route, and checks the expected UI state for both actions.
+`npm run ui:smoke` starts the local API and Vite app with a temporary handoff folder, opens a headless Chrome/Edge session, verifies the two-workflow start screen, verifies Prompt Examples can load a tuned prompt into Pixel Art Generation, checks the Pixel Art Generation / Animation Generation tabs, clicks pixel art generation through `Codex Handoff`, clicks animation generation through the four-step local animation route, and checks GIF / WebP / sprite sheet download actions.
 
 Optional real Codex runner smoke:
 

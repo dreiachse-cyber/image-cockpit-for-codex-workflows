@@ -265,7 +265,15 @@ function checkWorkflowIds() {
     "Copy Prompt",
     "Use Prompt",
     "Clockwork Mushroom Courier",
-    "Prompt example loaded into Pixel Art Generation"
+    "Prompt example loaded into Pixel Art Generation",
+    "1. Upload Pixel Art",
+    "2. Choose Motion",
+    "3. Generate",
+    "4. Download",
+    "Animated GIF",
+    "Animated WebP",
+    "Sprite Sheet",
+    "Animation frames ready"
   ].forEach((marker) => {
     if (!uiSmokeText.includes(marker)) {
       failures.push(`UI smoke should cover guided workflow review: ${marker}`);
@@ -409,7 +417,10 @@ function checkCoreLocalization() {
   [
     "resolveInitialLanguage",
     "copy.workflowPanelTitle",
-    "copy.canvasGridTitle",
+    "copy.animationStepSourceTitle",
+    "copy.animationStepMotionTitle",
+    "copy.animationStepGenerateTitle",
+    "copy.animationStepDownloadTitle",
     "copy.canvasAnnotationTitle",
     "copy.canvasEmpty",
     "copy.exportSheetPng",

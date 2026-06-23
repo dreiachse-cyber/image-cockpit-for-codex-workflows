@@ -100,6 +100,45 @@ button {
   margin-left: auto;
 }
 
+.workflow-tabs {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  background: #f8faf8;
+  padding: 3px;
+}
+
+.workflow-tabs button {
+  min-height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  padding: 0 9px;
+  color: #33443a;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.workflow-tabs button.active {
+  background: #ffffff;
+  color: #0f5d31;
+  box-shadow: 0 0 0 1px var(--line);
+}
+
+.workflow-tabs svg {
+  width: 15px;
+  height: 15px;
+  color: var(--green);
+}
+
 .cockpit {
   min-height: 0;
   display: grid;
@@ -315,6 +354,188 @@ button {
   border-color: #e1b5aa;
   background: #fff1ee;
   color: #8a2e1f;
+}
+
+.animation-steps {
+  display: grid;
+  gap: 10px;
+  padding: 0 10px 10px;
+}
+
+.animation-step {
+  display: grid;
+  gap: 8px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #fff;
+  padding: 10px;
+}
+
+.animation-step.complete {
+  border-color: #9fceb0;
+  background: #fbfffc;
+}
+
+.step-heading {
+  display: grid;
+  gap: 4px;
+}
+
+.step-heading strong {
+  color: #17211b;
+  font-size: 13px;
+}
+
+.step-heading span,
+.step-kicker {
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.source-preview {
+  min-height: 62px;
+  display: grid;
+  grid-template-columns: 58px minmax(0, 1fr);
+  align-items: center;
+  gap: 9px;
+  border: 1px dashed var(--line-strong);
+  border-radius: 5px;
+  background: #f8faf8;
+  padding: 7px;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.source-preview > span:only-child {
+  grid-column: 1 / -1;
+}
+
+.source-preview img {
+  width: 58px;
+  height: 46px;
+  object-fit: contain;
+  image-rendering: pixelated;
+  background:
+    linear-gradient(45deg, #ecefec 25%, transparent 25%),
+    linear-gradient(-45deg, #ecefec 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, #ecefec 75%),
+    linear-gradient(-45deg, transparent 75%, #ecefec 75%);
+  background-size: 12px 12px;
+  background-position:
+    0 0,
+    0 6px,
+    6px -6px,
+    -6px 0;
+}
+
+.source-preview span {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.source-preview strong {
+  overflow: hidden;
+  color: #17211b;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.source-preview small,
+.source-preview em {
+  color: var(--text-muted);
+  font-size: 11px;
+  font-style: normal;
+}
+
+.motion-presets {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.motion-presets button {
+  min-height: 30px;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  background: #f8faf8;
+  color: #28342c;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.motion-presets button.active {
+  border-color: var(--green);
+  background: var(--green-soft);
+  color: #0f5d31;
+}
+
+.compact-field {
+  padding: 0;
+}
+
+.compact-field textarea {
+  min-height: 72px;
+}
+
+.compact-row {
+  padding-right: 0;
+}
+
+.primary-button.full {
+  width: 100%;
+  min-height: 38px;
+}
+
+.animation-preview {
+  min-height: 112px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  background:
+    linear-gradient(45deg, #ecefec 25%, transparent 25%),
+    linear-gradient(-45deg, #ecefec 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, #ecefec 75%),
+    linear-gradient(-45deg, transparent 75%, #ecefec 75%);
+  background-size: 16px 16px;
+  background-position:
+    0 0,
+    0 8px,
+    8px -8px,
+    -8px 0;
+  color: var(--text-muted);
+  font-size: 12px;
+  text-align: center;
+  padding: 8px;
+}
+
+.animation-preview img {
+  max-width: 112px;
+  max-height: 96px;
+  image-rendering: pixelated;
+}
+
+.download-grid {
+  display: grid;
+  gap: 7px;
+}
+
+.download-grid button {
+  min-height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 7px;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  background: #f8faf8;
+  padding: 0 10px;
+  color: #28342c;
+  font-weight: 800;
+  cursor: pointer;
 }
 
 .button-row {
@@ -1230,6 +1451,16 @@ button:disabled {
 
   .project-strip {
     margin-left: 0;
+  }
+
+  .workflow-tabs {
+    order: 3;
+    width: 100%;
+  }
+
+  .workflow-tabs button {
+    flex: 1;
+    min-width: 0;
   }
 
   .cockpit {

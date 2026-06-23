@@ -86,8 +86,133 @@ export async function exportGif(frames: SpriteFrame[], action: SpriteAction) {
   downloadBlob(blob, `${action.name}.gif`);
 }
 
+export async function createAnimatedWebpBlob(frames: SpriteFrame[], action: SpriteAction) {
+  const ordered = action.frameIds
+    .map((frameId) => frames.find((frame) => frame.id === frameId))
+    .filter((frame): frame is SpriteFrame => Boolean(frame));
+  if (ordered.length === 0) throw new Error("No frames to export");
+
+  const width = action.cell.width;
+  const height = action.cell.height;
+  const canvas = document.createElement("canvas");
+  canvas.width = width;
+  canvas.height = height;
+  const context = canvas.getContext("2d");
+  if (!context) throw new Error("Canvas context unavailable");
+
+  const frameChunks: Uint8Array[] = [];
+  const delay = Math.max(20, Math.round(1000 / Math.max(1, action.fps)));
+
+  for (const frame of ordered) {
+    const image = await loadImage(frame.dataUrl);
+    context.clearRect(0, 0, width, height);
+    context.drawImage(image, 0, 0, width, height);
+    const webpBlob = await canvasToBlob(canvas, "image/webp");
+    const frameData = extractWebpFrameChunks(new Uint8Array(await webpBlob.arrayBuffer()));
+    const frameHeader = new Uint8Array(16);
+    writeUint24(frameHeader, 0, 0);
+    writeUint24(frameHeader, 3, 0);
+    writeUint24(frameHeader, 6, width - 1);
+    writeUint24(frameHeader, 9, height - 1);
+    writeUint24(frameHeader, 12, delay);
+    frameHeader[15] = 0x03;
+    frameChunks.push(makeChunk("ANMF", concatBytes([frameHeader, ...frameData])));
+  }
+
+  const vp8xPayload = new Uint8Array(10);
+  vp8xPayload[0] = 0x12;
+  writeUint24(vp8xPayload, 4, width - 1);
+  writeUint24(vp8xPayload, 7, height - 1);
+
+  const animPayload = new Uint8Array(6);
+  const animView = new DataView(animPayload.buffer);
+  animView.setUint32(0, 0, true);
+  animView.setUint16(4, action.loop ? 0 : 1, true);
+
+  return makeWebpRiff([makeChunk("VP8X", vp8xPayload), makeChunk("ANIM", animPayload), ...frameChunks]);
+}
+
+export async function exportWebP(frames: SpriteFrame[], action: SpriteAction) {
+  const blob = await createAnimatedWebpBlob(frames, action);
+  downloadBlob(blob, `${action.name}.webp`);
+}
+
 export function exportMetadata(spriteName: string, actions: SpriteAction[], frames: SpriteFrame[]) {
   const metadata = buildSpriteMetadata(spriteName, actions, frames);
   const blob = new Blob([JSON.stringify(metadata, null, 2)], { type: "application/json" });
   downloadBlob(blob, `${spriteName}.sprite.json`);
+}
+
+function extractWebpFrameChunks(bytes: Uint8Array) {
+  if (readFourCc(bytes, 0) !== "RIFF" || readFourCc(bytes, 8) !== "WEBP") {
+    throw new Error("Canvas did not return a WebP RIFF image.");
+  }
+
+  const chunks: Uint8Array[] = [];
+  let hasBitstream = false;
+  for (let offset = 12; offset + 8 <= bytes.length;) {
+    const type = readFourCc(bytes, offset);
+    const size = readUint32(bytes, offset + 4);
+    const end = offset + 8 + size + (size % 2);
+    if (end > bytes.length) break;
+    if (type === "ALPH" || type === "VP8 " || type === "VP8L") {
+      chunks.push(bytes.slice(offset, end));
+      if (type === "VP8 " || type === "VP8L") hasBitstream = true;
+    }
+    offset = end;
+  }
+
+  if (!hasBitstream) throw new Error("Canvas WebP output did not contain a VP8/VP8L bitstream.");
+  return chunks;
+}
+
+function makeWebpRiff(chunks: Uint8Array[]) {
+  const payload = concatBytes([asciiBytes("WEBP"), ...chunks]);
+  const bytes = new Uint8Array(8 + payload.length);
+  bytes.set(asciiBytes("RIFF"), 0);
+  new DataView(bytes.buffer).setUint32(4, payload.length, true);
+  bytes.set(payload, 8);
+  const arrayBuffer = new ArrayBuffer(bytes.byteLength);
+  new Uint8Array(arrayBuffer).set(bytes);
+  return new Blob([arrayBuffer], { type: "image/webp" });
+}
+
+function makeChunk(fourCc: string, payload: Uint8Array) {
+  const bytes = new Uint8Array(8 + payload.length + (payload.length % 2));
+  bytes.set(asciiBytes(fourCc), 0);
+  new DataView(bytes.buffer).setUint32(4, payload.length, true);
+  bytes.set(payload, 8);
+  return bytes;
+}
+
+function concatBytes(parts: Uint8Array[]) {
+  const length = parts.reduce((total, part) => total + part.length, 0);
+  const bytes = new Uint8Array(length);
+  let offset = 0;
+  for (const part of parts) {
+    bytes.set(part, offset);
+    offset += part.length;
+  }
+  return bytes;
+}
+
+function asciiBytes(value: string) {
+  const bytes = new Uint8Array(value.length);
+  for (let index = 0; index < value.length; index += 1) bytes[index] = value.charCodeAt(index);
+  return bytes;
+}
+
+function readFourCc(bytes: Uint8Array, offset: number) {
+  return String.fromCharCode(bytes[offset], bytes[offset + 1], bytes[offset + 2], bytes[offset + 3]);
+}
+
+function readUint32(bytes: Uint8Array, offset: number) {
+  return new DataView(bytes.buffer, bytes.byteOffset + offset, 4).getUint32(0, true);
+}
+
+function writeUint24(bytes: Uint8Array, offset: number, value: number) {
+  const safeValue = Math.max(0, Math.floor(value));
+  bytes[offset] = safeValue & 0xff;
+  bytes[offset + 1] = (safeValue >> 8) & 0xff;
+  bytes[offset + 2] = (safeValue >> 16) & 0xff;
 }
