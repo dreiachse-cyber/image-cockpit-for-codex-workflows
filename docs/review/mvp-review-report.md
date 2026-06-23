@@ -64,6 +64,7 @@ npm run release:audit
 - `/api/codex/jobs` smokeで、`workflowMode=sprite-generate` / `sprite-edit` のjobにgrid、action、frame countが入ることを確認。
 - `/api/codex/results` smokeで、outbox画像の一覧表示、非画像除外、画像data URL取り込みを確認。
 - mock autorun smokeで、runner preflight `ready`、job `running -> completed`、mock PNG outbox返却、Local Inbox endpoint取り込みを確認。
+- real Codex runner smokeで、AppData配下のCodex CLIが `codex exec -c approval_policy="never" --sandbox workspace-write -` として起動し、handoff jobを読み、outboxへMarkdown sidecarを書いて exit 0 になることを確認。
 - `src/App.test.ts` で、runner `unknown` / disabled / unavailable / failed / completed が待機ロックを解除することを確認。
 - release auditで、簡素化UIがLocal Inbox import actionを露出していることを確認。
 - release auditで、local-file起点の簡素UIが `Import File` actionを重複表示しない条件を確認。
@@ -111,7 +112,7 @@ npm run release:audit
 
 ## 既知の制約
 
-- この環境ではterminal-runnable Codex CLIの `--help` は成功するが、実際の `codex exec` job完走は未確認。
+- この環境ではterminal-runnable Codex CLIの `--help` に加え、no-imageの `codex exec` runner smoke完走を確認済み。画像生成/編集そのものの可否はCodex環境に依存する。
 - WindowsApps配下のCodex desktop shimはsubprocess起動できないため、AppData配下のCodex CLI自動検出または明示 `IMAGE_COCKPIT_CODEX_COMMAND` が必要。
 - mock autorun smokeはImage Cockpit側のrunner配線の検証であり、インストール済みCodex executable自体の完走確認ではない。
 - `docs/release/v0.1.0-owner-decision.md` の未チェック項目は、ご主人の明示承認まで未完了。

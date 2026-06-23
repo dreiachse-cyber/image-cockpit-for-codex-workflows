@@ -22,10 +22,10 @@ const codexApproval = process.env.IMAGE_COCKPIT_CODEX_APPROVAL ?? "never";
 const codexHelpArgs = parseJsonStringArray("IMAGE_COCKPIT_CODEX_HELP_ARGS_JSON", ["--help"]);
 const codexExecArgs = parseJsonStringArray("IMAGE_COCKPIT_CODEX_EXEC_ARGS_JSON", [
   "exec",
+  "-c",
+  `approval_policy=${JSON.stringify(codexApproval)}`,
   "--sandbox",
   codexSandbox,
-  "--ask-for-approval",
-  codexApproval,
   "-"
 ]);
 const resultRoutePrefix = "/api/codex/results/";

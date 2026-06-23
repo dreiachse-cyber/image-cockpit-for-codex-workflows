@@ -76,7 +76,7 @@ IMAGE_COCKPIT_CODEX_HELP_ARGS_JSON= # optional JSON array for wrapper preflight 
 IMAGE_COCKPIT_CODEX_EXEC_ARGS_JSON= # optional JSON array for wrapper exec args
 ```
 
-The default runner command is equivalent to `codex exec --sandbox <sandbox> --ask-for-approval <approval> -`. Advanced wrapper setups can set the two JSON arg arrays when the executable needs extra fixed arguments before the Image Cockpit prompt is piped on stdin.
+The default runner command is equivalent to `codex exec -c approval_policy="<approval>" --sandbox <sandbox> -`. Advanced wrapper setups can set the two JSON arg arrays when the executable needs extra fixed arguments before the Image Cockpit prompt is piped on stdin.
 
 Runner status and logs are written locally:
 

@@ -30,7 +30,8 @@ const requiredFiles = [
   "docs/qa/simple-image-generate-import-latest-1280x720.png",
   "docs/qa/simple-image-generate-import-latest-mobile-390x844.png",
   "docs/qa/simple-sprite-generate-actions-1280x720.png",
-  "docs/qa/manual-handoff-import-latest-1280x720.png"
+  "docs/qa/manual-handoff-import-latest-1280x720.png",
+  "docs/qa/real-codex-runner-smoke.md"
 ];
 
 const requiredEnvKeys = [
@@ -246,6 +247,7 @@ function checkWorkflowIds() {
     "selectCodexLaunchCommand",
     "knownCodexCliCandidates",
     "isLocalOpenAiCodexCliCommand",
+    "approval_policy=",
     "launchCommand",
     "resolvedCommandPaths",
     "WindowsApps Codex Desktop executable"
@@ -255,6 +257,13 @@ function checkWorkflowIds() {
       failures.push(`Server should support runner wrapper args: ${marker}`);
     }
   });
+
+  if (readText("server/index.ts")?.includes("--ask-for-approval")) {
+    failures.push("Server must not use the removed Codex CLI --ask-for-approval flag.");
+  }
+  if (smokeText.includes("--ask-for-approval")) {
+    failures.push("Smoke mock runner args must not use the removed Codex CLI --ask-for-approval flag.");
+  }
 
   [
     "resolved command path",
@@ -394,6 +403,8 @@ function checkReleaseDocs() {
     "The app itself does not call OpenAI APIs directly",
     "manual handoff",
     "terminal-runnable `%LOCALAPPDATA%\\OpenAI\\Codex\\bin\\...\\codex.exe` CLI",
+    "codex exec -c approval_policy",
+    "real no-image runner smoke",
     "npm run release:audit"
   ].forEach((line) => {
     if (!releaseNotes.includes(line)) {
@@ -410,7 +421,9 @@ function checkReleaseDocs() {
     "Manual handoff fallback",
     "Runner lifecycle wiring",
     "Codex command diagnostics",
+    "Real Codex runner smoke",
     "terminal-runnable Codex CLI",
+    "real-codex-runner-smoke.md",
     "manual-handoff-import-latest-1280x720.png",
     "docs/release/v0.1.0-owner-decision.md",
     "Remaining Gates",
@@ -430,9 +443,10 @@ function checkReleaseDocs() {
     "Approve merge into `main`",
     "Approve changing repository visibility from private to public",
     "Approve creating the `v0.1.0` tag and GitHub release",
-    "manual-handoff-first v0.1.0",
-    "Do not treat a successful Codex `--help` preflight as proof that automatic `codex exec` job completion works.",
-    "Do not treat mock autorun smoke as proof that the installed Codex executable itself can complete on every machine."
+    "automatic no-image `codex exec` completion has been verified",
+    "Do not treat a successful Codex `--help` preflight as proof that automatic `codex exec` job completion works",
+    "Do not treat mock autorun smoke as proof that the installed Codex executable itself can complete on every machine.",
+    "Do not treat the no-image runner smoke as proof that image generation or image editing is available in every Codex environment."
   ].forEach((line) => {
     if (!ownerDecision.includes(line)) {
       failures.push(`Owner decision record is missing expected content: ${line}`);

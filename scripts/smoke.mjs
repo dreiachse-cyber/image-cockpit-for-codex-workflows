@@ -159,10 +159,10 @@ async function runMockAutorunSmoke() {
       IMAGE_COCKPIT_CODEX_EXEC_ARGS_JSON: JSON.stringify([
         mockRunnerPath,
         "exec",
+        "-c",
+        'approval_policy="never"',
         "--sandbox",
         "workspace-write",
-        "--ask-for-approval",
-        "never",
         "-"
       ])
     }
