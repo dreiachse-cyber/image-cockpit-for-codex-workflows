@@ -28,6 +28,7 @@ import {
   X
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { UIEvent } from "react";
 import {
   createAnimatedWebpBlob,
   createGifBlob,
@@ -73,6 +74,9 @@ const ANIMATION_FRAME_COUNT = 8;
 const ANIMATION_DIRECTION_COUNT = 5;
 const MIN_ANIMATION_CELL_SIZE = 512;
 const MAX_ACTIVE_CODEX_JOBS = 2;
+export const INITIAL_HISTORY_RENDER_COUNT = 100;
+export const HISTORY_RENDER_BATCH_SIZE = 20;
+const HISTORY_SCROLL_LOAD_THRESHOLD_PX = 160;
 const ANIMATION_SHEET_GRID: GridSettings = { columns: ANIMATION_FRAME_COUNT, rows: ANIMATION_DIRECTION_COUNT, gutter: 0 };
 const ANIMATION_DIRECTIONS = ["front", "back", "back three-quarter", "front three-quarter", "side"];
 
@@ -784,8 +788,20 @@ function clampInteger(value: number, min: number, max: number) {
   return Math.max(min, Math.min(max, Math.round(value)));
 }
 
+export function getVisibleHistoryCount(historyLength: number, requestedLimit: number, selectedIndex = -1) {
+  if (historyLength <= 0) return 0;
+  const selectedLimit = selectedIndex >= 0 ? selectedIndex + 1 : 0;
+  const safeLimit = Math.max(INITIAL_HISTORY_RENDER_COUNT, requestedLimit, selectedLimit);
+  return Math.min(historyLength, safeLimit);
+}
+
+export function getNextHistoryRenderLimit(currentLimit: number, historyLength: number) {
+  return Math.min(historyLength, Math.max(0, currentLimit) + HISTORY_RENDER_BATCH_SIZE);
+}
+
 function App() {
   const [history, setHistory] = useState<HistoryItem[]>(() => loadHistory());
+  const [historyRenderLimit, setHistoryRenderLimit] = useState(INITIAL_HISTORY_RENDER_COUNT);
   const [frames, setFrames] = useState<SpriteFrame[]>(() => loadFrames());
   const [actions, setActions] = useState<SpriteAction[]>(() => normalizeAnimationActions(loadActions(defaultActions)));
   const [selectedId, setSelectedId] = useState<string>("");
@@ -836,6 +852,19 @@ function App() {
     () => history.find((item) => item.id === selectedId) ?? history[0],
     [history, selectedId]
   );
+  const selectedHistoryIndex = useMemo(
+    () => (selected?.id ? history.findIndex((item) => item.id === selected.id) : -1),
+    [history, selected?.id]
+  );
+  const visibleHistoryCount = useMemo(
+    () => getVisibleHistoryCount(history.length, historyRenderLimit, selectedHistoryIndex),
+    [history.length, historyRenderLimit, selectedHistoryIndex]
+  );
+  const visibleHistory = useMemo(
+    () => history.slice(0, visibleHistoryCount),
+    [history, visibleHistoryCount]
+  );
+  const hasMoreHistory = visibleHistoryCount < history.length;
 
   const animationSource = useMemo(
     () => history.find((item) => item.id === animationSourceId) ?? (isAnimationSource(selected) ? selected : undefined),
@@ -1775,6 +1804,19 @@ function App() {
     }
   }
 
+  const handleHistoryScroll = useCallback(
+    (event: UIEvent<HTMLDivElement>) => {
+      if (!hasMoreHistory) return;
+      const target = event.currentTarget;
+      const remaining = target.scrollHeight - target.scrollTop - target.clientHeight;
+      if (remaining > HISTORY_SCROLL_LOAD_THRESHOLD_PX) return;
+      setHistoryRenderLimit((current) =>
+        getNextHistoryRenderLimit(Math.max(current, visibleHistoryCount), history.length)
+      );
+    },
+    [hasMoreHistory, history.length, visibleHistoryCount]
+  );
+
   async function applyChromaToSelectedFrame() {
     if (!selectedFrame) return;
     const image = await loadImage(selectedFrame.dataUrl);
@@ -2586,17 +2628,22 @@ function App() {
               <button className="tab">Adopted ({history.filter((item) => item.adopted).length})</button>
             </div>
           )}
-          <div className="history-list">
+          <div
+            className="history-list"
+            data-visible-count={visibleHistoryCount}
+            data-total-count={history.length}
+            onScroll={handleHistoryScroll}
+          >
             {codexFailureNotices.map((notice) => (
               <CodexFailureCard key={notice.id} notice={notice} language={language} />
             ))}
-            {history.map((item) => (
+            {visibleHistory.map((item) => (
               <button
                 key={item.id}
                 className={`history-item ${selected?.id === item.id ? "selected" : ""}`}
                 onClick={() => selectHistoryResult(item)}
               >
-                <img src={item.dataUrl} alt="" />
+                <img src={item.dataUrl} alt="" loading="lazy" decoding="async" />
                 <span>
                   <strong>{item.name}</strong>
                   <small>{formatTime(item.createdAt)} • {providerLabel(item.provider, language)}</small>

@@ -366,6 +366,10 @@ function checkWorkflowIds() {
     "codex-failure-card",
     "Codex failure should not create a fake history image",
     "Codex failure should release the active job slot",
+    "assertHistoryIncrementalRendering",
+    "Results list renders the first 100 history items",
+    "Results list loads 20 more cards on scroll",
+    "historyVisibleCount",
     "Animation output",
     "Animation outputs are final artifacts",
     "Animation results should not expose the rectangle selection toolbar",
@@ -493,6 +497,18 @@ function checkWorkflowIds() {
   ].forEach((marker) => {
     if (!appText.includes(marker)) {
       failures.push(`App should preserve strict animation result preview/prompt handling: ${marker}`);
+    }
+  });
+
+  [
+    "INITIAL_HISTORY_RENDER_COUNT",
+    "HISTORY_RENDER_BATCH_SIZE",
+    "visibleHistory",
+    "data-visible-count",
+    "getVisibleHistoryCount"
+  ].forEach((marker) => {
+    if (!appText.includes(marker)) {
+      failures.push(`App should preserve incremental Results list rendering: ${marker}`);
     }
   });
 

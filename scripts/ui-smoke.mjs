@@ -76,20 +76,22 @@ try {
       });
       localStorage.setItem("image-cockpit.language", "en");
       localStorage.removeItem("image-cockpit.pendingCodexJob");
-      localStorage.setItem("image-cockpit.v3.history", JSON.stringify([{
-        id: "ui-smoke-source",
-        name: "ui-smoke-source.png",
-        dataUrl: ${JSON.stringify(tinyPng)},
-        provider: "local-file",
-        prompt: "UI smoke source pixel art",
-        seed: "ui-smoke",
-        size: "1x1",
-        createdAt: new Date().toISOString(),
-        adopted: false,
-        source: "import"
-      }]));
-      localStorage.removeItem("image-cockpit.v3.frames");
-      localStorage.removeItem("image-cockpit.v3.actions");
+      if (sessionStorage.getItem("image-cockpit.ui-smoke.skip-default-seed") !== "1") {
+        localStorage.setItem("image-cockpit.v3.history", JSON.stringify([{
+          id: "ui-smoke-source",
+          name: "ui-smoke-source.png",
+          dataUrl: ${JSON.stringify(tinyPng)},
+          provider: "local-file",
+          prompt: "UI smoke source pixel art",
+          seed: "ui-smoke",
+          size: "1x1",
+          createdAt: new Date().toISOString(),
+          adopted: false,
+          source: "import"
+        }]));
+        localStorage.removeItem("image-cockpit.v3.frames");
+        localStorage.removeItem("image-cockpit.v3.actions");
+      }
     `
   });
   await cdp.send("Page.navigate", { url: `http://127.0.0.1:${vitePort}/` });
@@ -133,6 +135,7 @@ try {
     reloadAfterExercise: true
   });
   await assertAnimationResultNotEditable();
+  await assertHistoryIncrementalRendering();
 
   console.log("UI smoke passed.");
 } finally {
@@ -340,6 +343,85 @@ async function assertAnimationResultNotEditable() {
   await assertNoBrowserErrors("Animation result is not editable");
   await maybeCapture("animation-result-not-editable");
   await selectWorkflowTab("Pixel Art Generation");
+}
+
+async function assertHistoryIncrementalRendering() {
+  const bulkHistory = Array.from({ length: 130 }, (_, index) => ({
+    id: `bulk-history-${index + 1}`,
+    name: `bulk-history-${String(index + 1).padStart(3, "0")}.png`,
+    dataUrl: tinyPng,
+    provider: "local-file",
+    prompt: `Bulk history ${index + 1}`,
+    seed: "ui-smoke",
+    size: "1x1",
+    createdAt: new Date(Date.now() - index * 1000).toISOString(),
+    adopted: false,
+    source: "import"
+  }));
+  await evaluate(`(() => {
+    sessionStorage.setItem("image-cockpit.ui-smoke.skip-default-seed", "1");
+    localStorage.setItem("image-cockpit.v3.history", ${JSON.stringify(JSON.stringify(bulkHistory))});
+    localStorage.removeItem("image-cockpit.v3.frames");
+    localStorage.removeItem("image-cockpit.v3.actions");
+  })()`);
+  await writeIndexedSmokeState("image-cockpit.v3.history", bulkHistory);
+  await writeIndexedSmokeState("image-cockpit.v3.frames", []);
+  await cdp.send("Page.navigate", { url: `http://127.0.0.1:${vitePort}/` });
+  await waitForEval(
+    () => `document.querySelector(".history-list")?.dataset.visibleCount === "100" && document.querySelector(".history-list")?.dataset.totalCount === "130"`,
+    "Results list renders the first 100 history items"
+  );
+  let snapshot = await pageSnapshot();
+  assert(snapshot.historyItems === 100, `Results list should initially render 100 cards, got ${snapshot.historyItems}`);
+  assert(snapshot.historyVisibleCount === "100", `Results list visible count should start at 100, got ${snapshot.historyVisibleCount}`);
+  assert(snapshot.historyTotalCount === "130", `Results list total count should stay 130, got ${snapshot.historyTotalCount}`);
+
+  await scrollHistoryListToBottom();
+  await waitForEval(
+    () => `document.querySelector(".history-list")?.dataset.visibleCount === "120"`,
+    "Results list loads 20 more cards on scroll"
+  );
+  snapshot = await pageSnapshot();
+  assert(snapshot.historyItems === 120, `Results list should render 120 cards after one scroll, got ${snapshot.historyItems}`);
+
+  await scrollHistoryListToBottom();
+  await waitForEval(
+    () => `document.querySelector(".history-list")?.dataset.visibleCount === "130"`,
+    "Results list caps at all available cards"
+  );
+  snapshot = await pageSnapshot();
+  assert(snapshot.historyItems === 130, `Results list should render all 130 cards after the final scroll, got ${snapshot.historyItems}`);
+  await assertNoBrowserErrors("Results incremental rendering");
+}
+
+async function scrollHistoryListToBottom() {
+  await evaluate(`(() => {
+    const list = document.querySelector(".history-list");
+    if (!list) throw new Error("History list not found");
+    list.scrollTop = list.scrollHeight;
+    list.dispatchEvent(new Event("scroll"));
+  })()`);
+}
+
+async function writeIndexedSmokeState(key, value) {
+  await evaluate(`(async () => {
+    const db = await new Promise((resolve, reject) => {
+      const request = indexedDB.open("image-cockpit-local-state", 1);
+      request.onupgradeneeded = () => {
+        const database = request.result;
+        if (!database.objectStoreNames.contains("state")) database.createObjectStore("state");
+      };
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error || new Error("Could not open smoke IndexedDB"));
+    });
+    await new Promise((resolve, reject) => {
+      const transaction = db.transaction("state", "readwrite");
+      transaction.objectStore("state").put(${JSON.stringify(value)}, ${JSON.stringify(key)});
+      transaction.oncomplete = () => resolve();
+      transaction.onerror = () => reject(transaction.error || new Error("Could not write smoke IndexedDB"));
+    });
+    db.close();
+  })()`);
 }
 
 async function assertWorkflow({
@@ -607,6 +689,8 @@ async function pageSnapshot() {
     editCompareVisible: Boolean(document.querySelector(".image-edit-compare")),
     editCompareImages: document.querySelectorAll(".edit-compare-grid img").length,
     historyItems: document.querySelectorAll(".history-item").length,
+    historyVisibleCount: document.querySelector(".history-list")?.dataset.visibleCount || "",
+    historyTotalCount: document.querySelector(".history-list")?.dataset.totalCount || "",
     codexFailureCards: document.querySelectorAll(".codex-failure-card").length,
     spriteBenchVisible: Boolean(document.querySelector(".sprite-bench")),
     codexJobRows: document.querySelectorAll(".codex-job-row").length,
