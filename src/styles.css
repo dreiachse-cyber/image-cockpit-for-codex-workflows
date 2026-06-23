@@ -282,11 +282,11 @@ button {
 .canvas-panel {
   height: 100%;
   display: grid;
-  grid-template-rows: 38px 44px minmax(0, 1fr) 34px;
+  grid-template-rows: 38px 44px minmax(0, 1fr) auto;
 }
 
 .canvas-panel.without-toolbar {
-  grid-template-rows: 38px minmax(0, 1fr) 34px;
+  grid-template-rows: 38px minmax(0, 1fr) auto;
 }
 
 .sprite-bench {
@@ -516,6 +516,61 @@ button {
   white-space: nowrap;
 }
 
+.image-edit-source-status {
+  min-width: 180px;
+  max-width: 42%;
+  display: inline-grid;
+  grid-template-columns: 30px minmax(0, 1fr);
+  align-items: center;
+  gap: 7px;
+  color: #0f5d31;
+}
+
+.image-edit-source-status img,
+.source-thumb-placeholder {
+  width: 30px;
+  height: 30px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  object-fit: contain;
+  image-rendering: pixelated;
+  background:
+    linear-gradient(45deg, #ecefec 25%, transparent 25%),
+    linear-gradient(-45deg, #ecefec 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, #ecefec 75%),
+    linear-gradient(-45deg, transparent 75%, #ecefec 75%);
+  background-size: 10px 10px;
+  background-position:
+    0 0,
+    0 5px,
+    5px -5px,
+    -5px 0;
+}
+
+.source-thumb-placeholder {
+  display: block;
+}
+
+.image-edit-source-status span {
+  min-width: 0;
+  display: grid;
+  gap: 1px;
+}
+
+.image-edit-source-status small {
+  color: var(--text-muted);
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.image-edit-source-status strong {
+  overflow: hidden;
+  font-size: 12px;
+  font-weight: 800;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .step-heading {
   display: grid;
   gap: 4px;
@@ -589,8 +644,7 @@ button {
   font-style: normal;
 }
 
-.image-edit-panel,
-.image-edit-compare {
+.image-edit-panel {
   display: grid;
   gap: 9px;
   margin: 10px;
@@ -689,58 +743,6 @@ button {
   color: #17211b;
   font-size: 12px;
   line-height: 1.35;
-}
-
-.edit-compare-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
-}
-
-.edit-compare-grid figure {
-  min-width: 0;
-  min-height: 130px;
-  display: grid;
-  grid-template-rows: 22px minmax(0, 1fr);
-  gap: 5px;
-  margin: 0;
-}
-
-.edit-compare-grid figcaption {
-  color: #26382d;
-  font-size: 11px;
-  font-weight: 800;
-}
-
-.edit-compare-grid img,
-.edit-compare-grid figure > span {
-  width: 100%;
-  min-height: 110px;
-  max-height: 150px;
-  border: 1px solid var(--line);
-  border-radius: 5px;
-  object-fit: contain;
-  image-rendering: pixelated;
-  background:
-    linear-gradient(45deg, #ecefec 25%, transparent 25%),
-    linear-gradient(-45deg, #ecefec 25%, transparent 25%),
-    linear-gradient(45deg, transparent 75%, #ecefec 75%),
-    linear-gradient(-45deg, transparent 75%, #ecefec 75%);
-  background-size: 14px 14px;
-  background-position:
-    0 0,
-    0 7px,
-    7px -7px,
-    -7px 0;
-}
-
-.edit-compare-grid figure > span {
-  display: grid;
-  place-items: center;
-  padding: 8px;
-  color: var(--text-muted);
-  font-size: 11px;
-  text-align: center;
 }
 
 .motion-presets {
@@ -1244,10 +1246,12 @@ button:disabled {
 .canvas-status {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 14px;
+  min-height: 34px;
   border-top: 1px solid var(--line);
   background: #fff;
-  padding: 0 10px;
+  padding: 2px 10px;
   color: var(--text-muted);
   font-size: 12px;
   min-width: 0;
@@ -1934,7 +1938,6 @@ button:disabled {
   .field-row,
   .button-row,
   .variant-strip,
-  .edit-compare-grid,
   .animation-download-panel .download-grid {
     grid-template-columns: 1fr;
   }
@@ -1943,7 +1946,8 @@ button:disabled {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .animation-source-status {
+  .animation-source-status,
+  .image-edit-source-status {
     max-width: 100%;
     flex-basis: 100%;
   }

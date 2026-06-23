@@ -278,6 +278,8 @@ const uiCopy = {
     animationDownloadsLocked: "Generate animation frames before downloading.",
     animationGeneratedFrom: "Generated from",
     animationSourceUnknown: "Source image not recorded",
+    imageEditGeneratedFrom: "Edited from",
+    imageEditSourceUnknown: "Edit source not recorded",
     uploadImageForEdit: "Upload Image",
     selectedEditSource: "Selected image",
     noEditSource: "No image selected yet",
@@ -291,10 +293,6 @@ const uiCopy = {
     removeRegion: "Remove region",
     clearRegions: "Clear regions",
     imageEditRegionAdded: "Edit region added",
-    imageEditComparisonTitle: "Before / After",
-    beforeEdit: "Before",
-    afterEdit: "After",
-    waitingForEditResult: "Waiting for the edited image from Codex.",
     editImage: "Edit Image",
     statusUsesImport: "uses Import or drag and drop",
     statusCodexJobWritten: "Codex job written",
@@ -422,6 +420,8 @@ const uiCopy = {
     animationDownloadsLocked: "ダウンロード前にアニメーションを生成してください。",
     animationGeneratedFrom: "生成元",
     animationSourceUnknown: "生成元画像が記録されていません",
+    imageEditGeneratedFrom: "編集元",
+    imageEditSourceUnknown: "編集元画像が記録されていません",
     uploadImageForEdit: "画像をアップロード",
     selectedEditSource: "選択中の画像",
     noEditSource: "まだ画像が選択されていません",
@@ -435,10 +435,6 @@ const uiCopy = {
     removeRegion: "範囲を削除",
     clearRegions: "範囲を全削除",
     imageEditRegionAdded: "編集範囲を追加しました",
-    imageEditComparisonTitle: "編集前 / 編集後",
-    beforeEdit: "編集前",
-    afterEdit: "編集後",
-    waitingForEditResult: "Codexから編集後画像が戻るのを待っています。",
     editImage: "画像編集",
     statusUsesImport: "はImportまたはドラッグ&ドロップを使います",
     statusCodexJobWritten: "Codexジョブを書き込みました",
@@ -808,6 +804,14 @@ function App() {
         ? history.find((item) => item.id === selected.derivedFromId)
         : undefined,
     [history, selected]
+  );
+
+  const selectedImageEditSource = useMemo(
+    () =>
+      selected?.derivedFromId && !selectedAnimationExportReady
+        ? history.find((item) => item.id === selected.derivedFromId)
+        : undefined,
+    [history, selected, selectedAnimationExportReady]
   );
 
   const selectedFrame = useMemo(
@@ -1514,6 +1518,13 @@ function App() {
       }
 
       const image = await loadImage(imported.dataUrl);
+      const isImageEditImport = pendingJob?.workflowMode === "image-edit" || (!pendingJob && workflowMode === "image-edit" && imageEditComparison?.before);
+      const imageEditBefore = isImageEditImport
+        ? history.find((historyItem) => historyItem.id === pendingJob?.sourceImageId) ??
+          imageEditComparison?.before ??
+          selected
+        : undefined;
+      const imageEditSourceName = imageEditBefore?.name ?? pendingJob?.sourceImageName ?? imageEditComparison?.before?.name;
       const item: HistoryItem = {
         id: createId("hist"),
         name: imported.name,
@@ -1524,19 +1535,13 @@ function App() {
         size: `${image.width}x${image.height}`,
         createdAt: new Date().toISOString(),
         adopted: false,
-        source: "inbox"
+        source: "inbox",
+        derivedFromId: isImageEditImport ? imageEditBefore?.id : undefined,
+        derivedFromName: isImageEditImport ? imageEditSourceName : undefined
       };
-      const isImageEditImport = pendingJob?.workflowMode === "image-edit" || (!pendingJob && workflowMode === "image-edit" && imageEditComparison?.before);
-      let imageEditBefore: HistoryItem | undefined;
-      if (isImageEditImport) {
-        imageEditBefore =
-          history.find((historyItem) => historyItem.id === pendingJob?.sourceImageId) ??
-          imageEditComparison?.before ??
-          selected;
-        if (imageEditBefore) setImageEditComparison({ before: imageEditBefore, after: item, jobId: pendingJob?.id ?? imageEditComparison?.jobId });
-      }
+      if (isImageEditImport && imageEditBefore) setImageEditComparison({ before: imageEditBefore, after: item, jobId: pendingJob?.id ?? imageEditComparison?.jobId });
       setHistory((current) => [item, ...current]);
-      setSelectedId(imageEditBefore?.id ?? item.id);
+      setSelectedId(item.id);
       setSelectedFrameId("");
       if (pendingJob) removeCodexJob(pendingJob.id);
       setStatus(`${copy.statusInboxImported}: ${imported.name}`);
@@ -1891,6 +1896,7 @@ function App() {
   const previewSize = isPreviewingSelectedFrame && selectedFrameForPreview
     ? `${selectedFrameForPreview.width}x${selectedFrameForPreview.height}`
     : selected?.size ?? "-";
+  const selectedImageEditSourceName = selectedImageEditSource?.name ?? (!selectedAnimationExportReady ? selected?.derivedFromName : undefined);
   const animationDownloadTitle = copy.animationStepDownloadTitle.replace(/^4\.\s*/, "");
   const showFrameGridControls = SHOW_LOW_PRIORITY_CONTROLS || workflowMode === "sprite-edit";
   const showSpriteTuningControls = SHOW_LOW_PRIORITY_CONTROLS || workflowMode === "sprite-edit";
@@ -2194,32 +2200,6 @@ function App() {
                   </button>
                 </div>
               )}
-              {isImageEditWorkflow && (
-                <section className="image-edit-compare">
-                  <div className="step-heading">
-                    <strong>{copy.imageEditComparisonTitle}</strong>
-                    <span>{imageEditComparison?.after ? copy.statusInboxImported : copy.waitingForEditResult}</span>
-                  </div>
-                  <div className="edit-compare-grid">
-                    <figure>
-                      <figcaption>{copy.beforeEdit}</figcaption>
-                      {(imageEditComparison?.before ?? selected) ? (
-                        <img src={(imageEditComparison?.before ?? selected)?.dataUrl} alt="" />
-                      ) : (
-                        <span>{copy.noEditSource}</span>
-                      )}
-                    </figure>
-                    <figure>
-                      <figcaption>{copy.afterEdit}</figcaption>
-                      {imageEditComparison?.after ? (
-                        <img src={imageEditComparison.after.dataUrl} alt="" />
-                      ) : (
-                        <span>{copy.waitingForEditResult}</span>
-                      )}
-                    </figure>
-                  </div>
-                </section>
-              )}
             </>
           )}
 
@@ -2366,6 +2346,15 @@ function App() {
               {isAnimationWorkflow && selectedAnimationExportReady && (
                 <span className="animation-source-status">
                   {copy.animationGeneratedFrom}: {selectedAnimationSource?.name ?? selected?.derivedFromName ?? copy.animationSourceUnknown}
+                </span>
+              )}
+              {selectedImageEditSourceName && (
+                <span className="image-edit-source-status">
+                  {selectedImageEditSource ? <img src={selectedImageEditSource.dataUrl} alt="" /> : <span className="source-thumb-placeholder" />}
+                  <span>
+                    <small>{copy.imageEditGeneratedFrom}</small>
+                    <strong>{selectedImageEditSourceName ?? copy.imageEditSourceUnknown}</strong>
+                  </span>
                 </span>
               )}
               <span>{copy.sizeLabel}: {previewSize}</span>

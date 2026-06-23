@@ -240,7 +240,7 @@ async function assertImageEditing() {
   assert(snapshot.annotationToolbarVisible, "Image Editing should show the rectangle selection toolbar");
   assert(snapshot.canvasPreviewMode === "edit", `Image Editing should use edit canvas mode, got ${snapshot.canvasPreviewMode}`);
   assert(snapshot.text.includes("Numbered edit regions"), "Image Editing should show numbered edit regions");
-  assert(snapshot.text.includes("Before / After"), "Image Editing should show Before / After compare");
+  assert(!snapshot.text.includes("Before / After"), "Image Editing should not show the old Before / After card in the source panel");
   assert(!snapshot.buttons.includes("Annotated PNG"), "Image Editing should hide the old annotation PNG button");
   assert(!snapshot.buttons.includes("Brush"), "Image Editing should hide the old brush tool");
   assert(!snapshot.buttons.includes("Arrow"), "Image Editing should hide the old arrow tool");
@@ -268,14 +268,16 @@ async function assertImageEditing() {
 
   await clickButtonByText("Edit Image");
   await waitForEval(() => `document.body.innerText.includes("Imported from Local Inbox")`, "Image Editing imported result", 18000);
-  await waitForEval(() => `document.querySelectorAll(".edit-compare-grid img").length >= 2`, "Image Editing before after preview");
+  await waitForEval(() => `document.querySelector(".image-edit-source-status img")?.naturalWidth > 0`, "Image Editing edit source preview");
   snapshot = await pageSnapshot();
-  assert(snapshot.annotationRegionRows === 1, "Image Editing should keep the numbered region visible after submit");
-  assert(snapshot.editCompareImages >= 2, `Image Editing should show before and after images, got ${snapshot.editCompareImages}`);
-  assert(snapshot.annotationComments.some((value) => value.includes("text X")), "Image Editing should keep region comments");
+  assert(snapshot.annotationRegionRows === 0, `Image Editing should move to the edited result without stale numbered rows, got ${snapshot.annotationRegionRows}`);
+  assert(snapshot.editCompareImages === 0, `Image Editing should remove the old Before / After card, got ${snapshot.editCompareImages} compare images`);
+  assert(!snapshot.editCompareVisible, "Image Editing should not render the old Before / After compare card");
+  assert(snapshot.imageEditSourceImages === 1, `Image Editing should show one edit source thumbnail under the preview, got ${snapshot.imageEditSourceImages}`);
+  assert(snapshot.imageEditSourceStatus.includes("Edited from"), "Image Editing should show the edit source under the preview");
   assert(snapshot.canvasPreviewMode === "edit", `Image Editing should keep edit canvas mode after import, got ${snapshot.canvasPreviewMode}`);
   await assertNoBrowserErrors("Image Editing");
-  await maybeCapture("image-editing-before-after");
+  await maybeCapture("image-editing-edit-source");
   await selectWorkflowTab("Pixel Art Generation");
 }
 
@@ -506,9 +508,12 @@ async function pageSnapshot() {
     downloadPanelInSource: Boolean(document.querySelector(".source-panel .animation-download-panel")),
     downloadPanelInWorkspace: Boolean(document.querySelector(".workspace .animation-download-panel")),
     animationSourceStatus: document.querySelector(".animation-source-status")?.innerText || "",
+    imageEditSourceStatus: document.querySelector(".image-edit-source-status")?.innerText || "",
+    imageEditSourceImages: document.querySelectorAll(".image-edit-source-status img").length,
     finalEditNoticeVisible: Boolean(document.querySelector(".edit-final-notice")),
     annotationRegionRows: document.querySelectorAll(".annotation-region-row").length,
     annotationComments: Array.from(document.querySelectorAll(".annotation-comment-field")).map((field) => field.value),
+    editCompareVisible: Boolean(document.querySelector(".image-edit-compare")),
     editCompareImages: document.querySelectorAll(".edit-compare-grid img").length,
     spriteBenchVisible: Boolean(document.querySelector(".sprite-bench")),
     codexJobRows: document.querySelectorAll(".codex-job-row").length,
