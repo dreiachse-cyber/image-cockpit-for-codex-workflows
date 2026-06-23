@@ -37,11 +37,17 @@ When `IMAGE_COCKPIT_CODEX_AUTORUN=1`, the local handoff server will try to start
 
 ```powershell
 npm install
+npm run dev:all
+```
+
+`npm run dev:all` starts both the local handoff API and the Vite app. If the default Vite port is busy, Vite will print the actual local URL.
+
+You can still run the two processes separately:
+
+```powershell
 npm run dev:server
 npm run dev
 ```
-
-If the default Vite port is busy, Vite will print the actual local URL.
 
 Optional handoff location:
 
@@ -75,11 +81,18 @@ codex-handoff/
 npm run typecheck
 npm test
 npm run build
+npm run smoke
 ```
 
 ## Review
 
 Use `docs/review/mvp-review-report.md` for the private MVP review path, QA evidence, and known constraints.
+
+## Release Candidate
+
+- Changelog: `CHANGELOG.md`
+- Release checklist: `docs/release/v0.1.0-checklist.md`
+- License: `LICENSE`
 
 ## Roadmap
 

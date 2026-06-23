@@ -10,8 +10,8 @@
 
 ## レビュー手順
 
-1. `npm run dev:server` を起動する。
-2. `npm run dev` を起動し、表示されたlocal URLを開く。
+1. `npm run dev:all` を起動する。
+2. 表示されたlocal URLを開く。
 3. Guided Startで4つの入口を確認する。
 4. `画像編集` を開き、prompt、編集メモ、注釈、選択画像がCodex handoff jobへ入ることを確認する。
 5. `スプライトシート生成` でgrid splitからtimelineへ入る流れを確認する。
@@ -35,6 +35,7 @@
 npm run typecheck
 npm test
 npm run build
+npm run smoke
 ```
 
 追加smoke:
@@ -43,6 +44,12 @@ npm run build
 - 現在のWindows環境では `codex` 実行が `spawn EPERM` となり、runner state `unavailable` として記録されることを確認。
 - `/api/codex/jobs` smokeで、job JSONに `workflowMode=image-edit`、編集メモ、`annotationCount=1`、`selectedImage.assetPath` が入ることを確認。
 - Chrome headlessでimage-edit desktop、sprite-edit desktop、sprite-edit mobileを確認し、sprite-edit mobileに横あふれがないことを確認。
+
+## リリース候補資料
+
+- `CHANGELOG.md`
+- `LICENSE`
+- `docs/release/v0.1.0-checklist.md`
 
 ## QA証跡
 

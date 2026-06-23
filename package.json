@@ -2,12 +2,15 @@
   "name": "image-cockpit-for-codex-workflows",
   "version": "0.1.0",
   "private": true,
+  "license": "MIT",
   "type": "module",
   "scripts": {
     "dev": "vite --host 127.0.0.1",
+    "dev:all": "node scripts/dev-all.mjs",
     "dev:server": "tsx server/index.ts",
     "build": "tsc -b && vite build",
     "lint": "tsc --noEmit",
+    "smoke": "node scripts/smoke.mjs",
     "typecheck": "tsc --noEmit",
     "test": "vitest run"
   },
@@ -29,4 +32,3 @@
     "vitest": "4.0.15"
   }
 }
-
