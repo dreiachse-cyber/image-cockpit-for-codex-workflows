@@ -48,6 +48,7 @@ npm run release:audit
 - `/api/codex/jobs` smokeで、`workflowMode=image-generate` のjobに選択画像asset、編集注釈、sprite contextが混入しないことを確認。
 - `/api/codex/results` smokeで、outbox画像の一覧表示、非画像除外、画像data URL取り込みを確認。
 - Chrome headlessでimage-edit desktop、sprite-edit desktop、sprite-edit mobileを確認し、sprite-edit mobileに横あふれがないことを確認。
+- `.github/workflows/ci.yml` でtypecheck、test、build、smoke、release auditを走らせるCI導線を追加。
 
 ## リリース候補資料
 
@@ -59,6 +60,7 @@ npm run release:audit
 - `docs/release/v0.1.0-checklist.md`
 - `docs/release/v0.1.0-runbook.md`
 - `docs/release/v0.1.0-release-notes.md`
+- `.github/workflows/ci.yml`
 
 ## QA証跡
 

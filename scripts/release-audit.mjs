@@ -14,6 +14,7 @@ const requiredFiles = [
   "CODE_OF_CONDUCT.md",
   ".env.example",
   ".gitignore",
+  ".github/workflows/ci.yml",
   "scripts/release-audit.mjs",
   "docs/review/mvp-review-report.md",
   "docs/roadmap/release-roadmap.md",
@@ -40,6 +41,7 @@ const requiredReadmeLinks = [
   "docs/release/v0.1.0-release-notes.md",
   "docs/release/v0.1.0-checklist.md",
   "docs/release/v0.1.0-runbook.md",
+  ".github/workflows/ci.yml",
   "LICENSE",
   "CONTRIBUTING.md",
   "SECURITY.md",
@@ -53,6 +55,7 @@ checkGitignore();
 checkTrackedFiles();
 checkNoDirectOpenAiIntegration();
 checkWorkflowIds();
+checkCiWorkflow();
 checkReleaseDocs();
 
 if (failures.length > 0) {
@@ -187,6 +190,30 @@ function checkWorkflowIds() {
 
   if (!smokeText.includes("/api/codex/results")) {
     failures.push("Smoke test should cover Local Inbox outbox result listing/import.");
+  }
+}
+
+function checkCiWorkflow() {
+  const workflow = readText(".github/workflows/ci.yml");
+  if (!workflow) return;
+
+  [
+    "actions/checkout@v4",
+    "actions/setup-node@v4",
+    "npm ci",
+    "npm run typecheck",
+    "npm test",
+    "npm run build",
+    "npm run smoke",
+    "npm run release:audit"
+  ].forEach((line) => {
+    if (!workflow.includes(line)) {
+      failures.push(`CI workflow is missing expected step: ${line}`);
+    }
+  });
+
+  if (!/contents:\s+read/.test(workflow)) {
+    failures.push("CI workflow should keep contents permission read-only.");
   }
 }
 
