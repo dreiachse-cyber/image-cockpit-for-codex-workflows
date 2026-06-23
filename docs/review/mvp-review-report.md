@@ -21,6 +21,7 @@
 
 受け入れ条件と証跡の対応表は `docs/release/v0.1.0-acceptance-evidence.md` を見る。
 短い確認入口だけ見たい場合は `docs/release/v0.1.0-owner-review.md` を見る。
+完成定義ごとの最終監査は `docs/release/v0.1.0-final-audit.md` を見る。
 
 ## 主要成果
 
@@ -90,6 +91,7 @@ npm run release:audit
 - `docs/release/v0.1.0-runbook.md`
 - `docs/release/v0.1.0-release-notes.md`
 - `docs/release/v0.1.0-owner-review.md`
+- `docs/release/v0.1.0-final-audit.md`
 - `docs/release/v0.1.0-acceptance-evidence.md`
 - `docs/release/v0.1.0-owner-decision.md`
 - `docs/usage/manual-handoff.md`

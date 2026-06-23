@@ -156,6 +156,7 @@ Use `docs/review/mvp-review-report.md` for the private MVP review path, QA evide
 - Changelog: `CHANGELOG.md`
 - Release notes draft: `docs/release/v0.1.0-release-notes.md`
 - Owner review guide: `docs/release/v0.1.0-owner-review.md`
+- Final audit: `docs/release/v0.1.0-final-audit.md`
 - Acceptance evidence: `docs/release/v0.1.0-acceptance-evidence.md`
 - Owner decision record: `docs/release/v0.1.0-owner-decision.md`
 - Release checklist: `docs/release/v0.1.0-checklist.md`
