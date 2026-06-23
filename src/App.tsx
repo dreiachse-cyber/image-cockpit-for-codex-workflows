@@ -50,6 +50,7 @@ import type {
   CodexRunnerPreflight,
   CodexRunnerPreflightResponse,
   CodexRunnerStatus,
+  LocalGenerationResponse,
   ProviderId,
   ProviderStatus,
   SpriteAction,
@@ -93,11 +94,11 @@ const uiCopy = {
     project: "Project: Forest Mage",
     openWorkspace: "Open workspace",
     settings: "Settings",
-    localWorkspace: "Local workspace - private pre-release",
+    localWorkspace: "Local workspace",
     workflowPanelTitle: "Workflow",
     canvasGridTitle: "Canvas & Grid",
     canvasAnnotationTitle: "Canvas & Annotation",
-    canvasEmpty: "Import an image or create a Codex handoff job to start",
+    canvasEmpty: "Import an image or generate one locally to start",
     columns: "Columns",
     rows: "Rows",
     frameWidth: "Frame W",
@@ -137,6 +138,8 @@ const uiCopy = {
     statusInboxEmpty: "No image files found in the Codex outbox",
     statusInboxImported: "Imported from Local Inbox",
     statusInboxError: "Could not import from Local Inbox",
+    statusLocalGenerated: "Generated locally",
+    statusLocalGenerateError: "Could not generate locally",
     statusCodexJobPending: "Waiting for Codex to return an image",
     statusCodexRunnerUnavailable: "Codex runner unavailable. Return an outbox image, then use Import Latest",
     statusCodexRunnerFailed: "Codex runner stopped before returning an image",
@@ -148,6 +151,8 @@ const uiCopy = {
     statusSelectedAsFrame: "Selected image added as a sprite frame",
     statusChromaApplied: "Chroma key applied to selected frame",
     createCodexJob: "Create Codex Job",
+    generateLocalImage: "Generate Image",
+    generateLocalSprite: "Generate Sprite Sheet",
     waitingForCodexResult: "Waiting for Codex Result",
     importLatest: "Import Latest",
     importFile: "Import File",
@@ -164,7 +169,7 @@ const uiCopy = {
     guidedQuestion: "What do you want to do?",
     guidedIntro: "Choose one workflow. The cockpit will open with the right tools and provider preselected.",
     guidedNote:
-      "No direct OpenAI API calls. Jobs are written locally for Codex, and returned files are imported back into the cockpit."
+      "No direct OpenAI API calls. Images can be generated locally, while Codex handoff jobs stay available for external processing."
   },
   ja: {
     language: "言語",
@@ -173,11 +178,11 @@ const uiCopy = {
     project: "プロジェクト: Forest Mage",
     openWorkspace: "ワークスペースを開く",
     settings: "設定",
-    localWorkspace: "ローカルワークスペース - 公開前private版",
+    localWorkspace: "ローカルワークスペース",
     workflowPanelTitle: "ワークフロー",
     canvasGridTitle: "キャンバスとグリッド",
     canvasAnnotationTitle: "キャンバスと注釈",
-    canvasEmpty: "画像を取り込むかCodexジョブを作成して開始",
+    canvasEmpty: "画像を取り込むかローカル生成して開始",
     columns: "列",
     rows: "行",
     frameWidth: "フレーム幅",
@@ -217,6 +222,8 @@ const uiCopy = {
     statusInboxEmpty: "Codex outboxに画像ファイルが見つかりません",
     statusInboxImported: "Local Inboxから取り込みました",
     statusInboxError: "Local Inboxから取り込めませんでした",
+    statusLocalGenerated: "ローカル生成しました",
+    statusLocalGenerateError: "ローカル生成できませんでした",
     statusCodexJobPending: "Codexから画像が戻るのを待っています",
     statusCodexRunnerUnavailable: "Codex runner起動不可。outboxへ画像を戻したらImport Latestを押してください",
     statusCodexRunnerFailed: "Codex runnerが画像を返す前に停止しました",
@@ -228,6 +235,8 @@ const uiCopy = {
     statusSelectedAsFrame: "選択画像をスプライトフレームに追加しました",
     statusChromaApplied: "選択フレームにクロマキーを適用しました",
     createCodexJob: "Codexジョブ作成",
+    generateLocalImage: "画像生成",
+    generateLocalSprite: "スプライトシート生成",
     waitingForCodexResult: "Codex結果待ち",
     importLatest: "最新を取り込み",
     importFile: "ファイル取り込み",
@@ -244,7 +253,7 @@ const uiCopy = {
     guidedQuestion: "あなたがしたいのは次のうちどれですか？",
     guidedIntro: "作業したい流れを選ぶと、必要なツールとproviderを選んだ状態でcockpitを開きます。",
     guidedNote:
-      "このアプリはOpenAI APIを直接呼びません。ジョブはCodex向けにローカル保存し、戻ってきたファイルをcockpitへ取り込みます。"
+      "このアプリはOpenAI APIを直接呼びません。画像はローカル生成でき、Codex受け渡しも外部処理用に残しています。"
   }
 } satisfies Record<Language, Record<string, string>>;
 
@@ -252,8 +261,8 @@ const workflowCopy: Record<Language, Record<WorkflowMode, { label: string; detai
   en: {
     "image-generate": {
       label: "1. Image Generation",
-      detail: "Write a local Codex job from a prompt, then import the returned image.",
-      status: "Create a Codex job, then import the returned image from the local outbox"
+      detail: "Generate a local PNG from a prompt and add it to the cockpit.",
+      status: "Generate a local PNG from the prompt"
     },
     "image-edit": {
       label: "2. Image Editing",
@@ -262,8 +271,8 @@ const workflowCopy: Record<Language, Record<WorkflowMode, { label: string; detai
     },
     "sprite-generate": {
       label: "3. Sprite Sheet Generation",
-      detail: "Start from an imported image or Codex result and split it into frames.",
-      status: "Import or select a sheet, then split the grid into timeline frames"
+      detail: "Generate a local sprite sheet and split it into timeline frames.",
+      status: "Generate a sprite sheet, then split the grid into timeline frames"
     },
     "sprite-edit": {
       label: "4. Sprite Sheet Editing",
@@ -274,8 +283,8 @@ const workflowCopy: Record<Language, Record<WorkflowMode, { label: string; detai
   ja: {
     "image-generate": {
       label: "1. 画像生成",
-      detail: "プロンプトからローカルCodexジョブを作り、返ってきた画像を取り込みます。",
-      status: "Codexジョブを作成し、ローカルoutboxから返却画像を取り込みます"
+      detail: "プロンプトからローカルPNGを生成し、cockpitへ追加します。",
+      status: "プロンプトからローカルPNGを生成します"
     },
     "image-edit": {
       label: "2. 画像編集",
@@ -284,8 +293,8 @@ const workflowCopy: Record<Language, Record<WorkflowMode, { label: string; detai
     },
     "sprite-generate": {
       label: "3. スプライトシート生成",
-      detail: "取り込んだ画像やCodex結果から、フレーム分割を開始します。",
-      status: "シートを取り込むか選択して、グリッドからタイムラインフレームへ分割します"
+      detail: "ローカルでスプライトシートを生成し、フレームへ分割します。",
+      status: "スプライトシートを生成して、グリッドからタイムラインフレームへ分割します"
     },
     "sprite-edit": {
       label: "4. スプライトシート編集",
@@ -362,6 +371,7 @@ const defaultActions: SpriteAction[] = [
 
 const fallbackProviders: ProviderStatus[] = [
   { id: "local-file", label: "Local File", enabled: true, message: "Use images from this machine" },
+  { id: "local-generator", label: "Local Generator", enabled: true, message: "Generate local PNG images" },
   { id: "codex-handoff", label: "Codex Handoff", enabled: true, message: "Write local jobs for Codex to pick up" },
   { id: "local-inbox", label: "Local Inbox", enabled: true, message: "Import results returned by Codex" }
 ];
@@ -372,7 +382,7 @@ const workflowOptions: Array<{
 }> = [
   {
     id: "image-generate",
-    provider: "codex-handoff"
+    provider: "local-generator"
   },
   {
     id: "image-edit",
@@ -380,7 +390,7 @@ const workflowOptions: Array<{
   },
   {
     id: "sprite-generate",
-    provider: "local-file"
+    provider: "local-generator"
   },
   {
     id: "sprite-edit",
@@ -666,6 +676,10 @@ function App() {
       await importLatestOutboxResult();
       return;
     }
+    if (providerId === "local-generator") {
+      await generateLocally();
+      return;
+    }
     setIsBusy(true);
     try {
       const includeSelectedImage = workflowUsesSelectedImage(workflowMode);
@@ -689,7 +703,8 @@ function App() {
           annotations: includeSelectedImage && selected ? annotationsByItem[selected.id] ?? [] : [],
           grid: includeSpriteContext ? grid : null,
           action: includeSpriteContext ? activeAction.name : "",
-          frames: includeSpriteContext ? actionFrames.length : 0
+          frames: includeSpriteContext ? actionFrames.length : 0,
+          cell: includeSpriteContext ? activeAction.cell : null
         })
       });
       if (!response.ok) throw new Error(await response.text());
@@ -702,6 +717,78 @@ function App() {
       setStatus(`${copy.statusCodexJobWritten}: ${data.path}. ${runnerStatusMessage(data.runner, copy)}.`);
     } catch (error) {
       setStatus(error instanceof Error ? error.message : copy.statusCodexJobError);
+    } finally {
+      setIsBusy(false);
+    }
+  }
+
+  async function generateLocally() {
+    setIsBusy(true);
+    try {
+      const response = await fetch("/api/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          workflowMode,
+          prompt,
+          negativePrompt,
+          jobNotes,
+          seed,
+          size,
+          count,
+          grid,
+          action: activeAction.name,
+          frames: grid.columns * grid.rows,
+          cell: activeAction.cell
+        })
+      });
+      if (!response.ok) throw new Error(await response.text());
+      const data = (await response.json()) as LocalGenerationResponse;
+      const imported: HistoryItem[] = [];
+      for (const result of data.results) {
+        const image = await loadImage(result.dataUrl);
+        imported.push({
+          id: createId("hist"),
+          name: result.name,
+          dataUrl: result.dataUrl,
+          provider: "local-generator",
+          prompt,
+          seed,
+          size: `${image.width}x${image.height}`,
+          createdAt: data.createdAt,
+          adopted: false,
+          source: "generate"
+        });
+      }
+      if (imported.length === 0) throw new Error("Local generator returned no images.");
+
+      setHistory((current) => [...imported, ...current]);
+      setSelectedId(imported[0].id);
+
+      if (workflowMode === "sprite-generate") {
+        const newFrames = await splitImageIntoFrames(
+          imported[0].dataUrl,
+          imported[0].name.replace(/\.[^.]+$/, ""),
+          grid,
+          imported[0].id,
+          activeAction.cell
+        );
+        setFrames((current) => [...current, ...newFrames]);
+        setActions((current) =>
+          current.map((action) =>
+            action.name === activeAction.name
+              ? { ...action, frameIds: [...action.frameIds, ...newFrames.map((frame) => frame.id)] }
+              : action
+          )
+        );
+        setSelectedFrameId(newFrames[0]?.id ?? selectedFrameId);
+        setStatus(`${copy.statusLocalGenerated}: ${imported[0].name}. ${formatFramesAddedStatus(newFrames.length, activeAction.name, language)}`);
+        return;
+      }
+
+      setStatus(`${copy.statusLocalGenerated}: ${imported.map((item) => item.name).join(", ")}`);
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : copy.statusLocalGenerateError);
     } finally {
       setIsBusy(false);
     }
@@ -1044,7 +1131,7 @@ function App() {
           <div className="button-row">
             <button className="primary-button" onClick={() => void handleGenerate()} disabled={primaryActionDisabled}>
               <PrimaryActionIcon providerId={providerId} isBusy={isBusy || isWaitingForCodexResult} />
-              {primaryActionLabel(providerId, copy, isWaitingForCodexResult)}
+              {primaryActionLabel(providerId, workflowMode, copy, isWaitingForCodexResult)}
             </button>
             {providerId !== "local-inbox" && (
               <button className="secondary-button" onClick={() => void importLatestOutboxResult()} disabled={isBusy}>
@@ -1083,6 +1170,7 @@ function App() {
                     disabled={!provider.enabled}
                   >
                     {provider.id === "local-file" && <FolderOpen size={22} aria-hidden="true" />}
+                    {provider.id === "local-generator" && <ImagePlus size={22} aria-hidden="true" />}
                     {provider.id === "codex-handoff" && <Plug size={22} aria-hidden="true" />}
                     {provider.id === "local-inbox" && <Archive size={22} aria-hidden="true" />}
                     <span>
@@ -1469,7 +1557,14 @@ function PrimaryActionIcon({ providerId, isBusy }: { providerId: ProviderId; isB
   return <ImagePlus size={17} aria-hidden="true" />;
 }
 
-function primaryActionLabel(providerId: ProviderId, copy: Record<string, string>, isWaitingForCodexResult = false) {
+function primaryActionLabel(
+  providerId: ProviderId,
+  workflowMode: WorkflowMode | null,
+  copy: Record<string, string>,
+  isWaitingForCodexResult = false
+) {
+  if (providerId === "local-generator" && workflowMode === "sprite-generate") return copy.generateLocalSprite;
+  if (providerId === "local-generator") return copy.generateLocalImage;
   if (providerId === "codex-handoff" && isWaitingForCodexResult) return copy.waitingForCodexResult;
   if (providerId === "codex-handoff") return copy.createCodexJob;
   if (providerId === "local-inbox") return copy.importLatest;
@@ -1813,10 +1908,12 @@ function savePendingCodexJob(job: PendingCodexJob | null) {
 function providerLabel(provider: ProviderId, language: Language) {
   if (language === "ja") {
     if (provider === "local-file") return "ローカルファイル";
+    if (provider === "local-generator") return "ローカル生成";
     if (provider === "codex-handoff") return "Codex受け渡し";
     return "ローカル受信箱";
   }
   if (provider === "local-file") return "Local File";
+  if (provider === "local-generator") return "Local Generator";
   if (provider === "codex-handoff") return "Codex Handoff";
   return "Local Inbox";
 }
@@ -1824,6 +1921,7 @@ function providerLabel(provider: ProviderId, language: Language) {
 function providerMessage(provider: ProviderStatus, language: Language) {
   if (language === "ja") {
     if (provider.id === "local-file") return "このマシン上の画像を使います";
+    if (provider.id === "local-generator") return "このマシン上でPNGを生成します";
     if (provider.id === "codex-handoff") return "Codexが拾うローカルジョブを書き込みます";
     return "Codex outboxの最新画像を取り込みます";
   }

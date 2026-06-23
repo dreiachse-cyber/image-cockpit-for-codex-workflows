@@ -71,9 +71,11 @@ try {
   await assertWorkflow({
     index: 0,
     label: "1. Image Generation",
-    route: "Route: Codex Handoff",
-    buttons: ["Create Codex Job", "Import Latest", "Import File"],
-    requiredText: ["Image Prompt", "Generation Notes", "Canvas & Grid"]
+    route: "Route: Local Generator",
+    buttons: ["Generate Image", "Import Latest", "Import File"],
+    requiredText: ["Image Prompt", "Generation Notes", "Canvas & Grid"],
+    exerciseButton: "Generate Image",
+    expectedAfterExercise: "Generated locally"
   });
   await assertWorkflow({
     index: 1,
@@ -85,10 +87,12 @@ try {
   await assertWorkflow({
     index: 2,
     label: "3. Sprite Sheet Generation",
-    route: "Route: Local File",
-    buttons: ["Import File", "Import Latest"],
+    route: "Route: Local Generator",
+    buttons: ["Generate Sprite Sheet", "Import Latest", "Import File"],
     requiredText: ["Sheet Prompt", "Sheet Notes", "Frame W", "Frame H", "Show Grid"],
-    exactButtonCounts: { "Import File": 1 }
+    exactButtonCounts: { "Import File": 1 },
+    exerciseButton: "Generate Sprite Sheet",
+    expectedAfterExercise: "Generated locally"
   });
   await assertWorkflow({
     index: 3,
@@ -132,7 +136,7 @@ async function assertLanguageSwitch() {
   await waitForEval(() => `document.body.innerText.includes("What do you want to do?")`, "English Guided Start copy");
 }
 
-async function assertWorkflow({ index, label, route, buttons, requiredText, exactButtonCounts = {} }) {
+async function assertWorkflow({ index, label, route, buttons, requiredText, exactButtonCounts = {}, exerciseButton, expectedAfterExercise }) {
   await clickGuidedOption(index);
   await waitForEval(() => `document.body.innerText.includes(${JSON.stringify(label)})`, label);
   const snapshot = await pageSnapshot();
@@ -149,6 +153,10 @@ async function assertWorkflow({ index, label, route, buttons, requiredText, exac
   requiredText.forEach((text) => {
     assert(snapshot.text.includes(text), `${label} missing workflow text: ${text}`);
   });
+  if (exerciseButton) {
+    await clickButtonByText(exerciseButton);
+    await waitForEval(() => `document.body.innerText.includes(${JSON.stringify(expectedAfterExercise)})`, `${label} generated result`);
+  }
   await maybeCapture(label.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, ""));
   await evaluate(`document.querySelector(".guided-link")?.click()`);
   await waitForEval(() => `document.querySelectorAll(".guided-option").length === 4`, "return to Guided Start");
@@ -156,6 +164,14 @@ async function assertWorkflow({ index, label, route, buttons, requiredText, exac
 
 async function clickGuidedOption(index) {
   await evaluate(`document.querySelectorAll(".guided-option")[${index}]?.click()`);
+}
+
+async function clickButtonByText(label) {
+  await evaluate(`(() => {
+    const button = Array.from(document.querySelectorAll("button")).find((item) => item.innerText.replace(/\\s+/g, " ").trim() === ${JSON.stringify(label)});
+    if (!button) throw new Error("Button not found: ${label}");
+    button.click();
+  })()`);
 }
 
 async function pageSnapshot() {

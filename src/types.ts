@@ -1,4 +1,4 @@
-export type ProviderId = "local-file" | "codex-handoff" | "local-inbox";
+export type ProviderId = "local-file" | "local-generator" | "codex-handoff" | "local-inbox";
 
 export type ToolMode = "select" | "brush" | "rect" | "arrow";
 
@@ -116,4 +116,13 @@ export interface CodexOutboxResult {
 
 export interface CodexOutboxImportResponse extends CodexOutboxResult {
   dataUrl: string;
+}
+
+export interface LocalGenerationResult extends CodexOutboxImportResponse {}
+
+export interface LocalGenerationResponse {
+  id: string;
+  createdAt: string;
+  outboxPath: string;
+  results: LocalGenerationResult[];
 }

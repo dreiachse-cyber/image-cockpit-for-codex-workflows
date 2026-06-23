@@ -1,5 +1,17 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- Built-in local procedural PNG generator for the image generation workflow.
+- Built-in local procedural sprite sheet generator for the sprite sheet generation workflow, including immediate timeline frame splitting in the UI.
+- `POST /api/generate` local generation endpoint and smoke coverage that checks generated PNG dimensions.
+
+### Notes
+
+- The built-in generator is local and deterministic so the two generation workflows can run end-to-end without external services. It is not a dedicated AI image model.
+
 ## 0.1.0-rc.1 - 2026-06-23
 
 Private release candidate for the first local Image Cockpit MVP.

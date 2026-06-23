@@ -29,6 +29,7 @@ async function runManualHandoffSmoke() {
 
     const providers = await getJson(port, "/api/providers");
     assert(Array.isArray(providers.providers), "providers response should include providers");
+    assert(providers.providers.some((provider) => provider.id === "local-generator"), "local-generator provider missing");
     assert(providers.providers.some((provider) => provider.id === "codex-handoff"), "codex-handoff provider missing");
 
     const runnerPreflight = await getJson(port, "/api/codex/runner");
@@ -44,6 +45,37 @@ async function runManualHandoffSmoke() {
     const importedOutbox = await getJson(port, "/api/codex/results/manual-return.png");
     assert(importedOutbox.mimeType === "image/png", "outbox import should preserve image MIME type");
     assert(importedOutbox.dataUrl === tinyPng, "outbox import should return a data URL");
+
+    const localImages = await postJson(port, "/api/generate", {
+      workflowMode: "image-generate",
+      prompt: "Smoke test forest mage local image",
+      negativePrompt: "text",
+      jobNotes: "transparent background and centered subject",
+      seed: "smoke-image",
+      size: "512x512",
+      count: 2
+    });
+    assert(localImages.results.length === 2, "local image generation should return requested image count");
+    const firstLocalImage = localImages.results[0];
+    assert(firstLocalImage.mimeType === "image/png", "local image generation should return PNG");
+    assertPngDimensions(firstLocalImage.dataUrl, 512, 512, "local generated image dimensions");
+    await stat(firstLocalImage.path);
+
+    const localSpriteSheet = await postJson(port, "/api/generate", {
+      workflowMode: "sprite-generate",
+      prompt: "Smoke test local sprite sheet",
+      negativePrompt: "text",
+      jobNotes: "4x2 idle sheet",
+      seed: "smoke-sprite",
+      grid: { columns: 4, rows: 2, gutter: 0 },
+      cell: { width: 64, height: 48 },
+      action: "idle",
+      frames: 8
+    });
+    assert(localSpriteSheet.results.length === 1, "local sprite generation should return one sheet");
+    assert(localSpriteSheet.results[0].mimeType === "image/png", "local sprite generation should return PNG");
+    assertPngDimensions(localSpriteSheet.results[0].dataUrl, 256, 96, "local generated sprite sheet dimensions");
+    await stat(localSpriteSheet.results[0].path);
 
     const job = await postJson(port, "/api/codex/jobs", {
       workflowMode: "image-edit",
@@ -288,6 +320,13 @@ async function postJson(apiPort, path, body) {
 
 function assert(condition, message) {
   if (!condition) throw new Error(message);
+}
+
+function assertPngDimensions(dataUrl, width, height, label) {
+  const bytes = Buffer.from(dataUrl.split(",")[1], "base64");
+  assert(bytes.subarray(1, 4).toString("ascii") === "PNG", `${label} should be PNG data`);
+  assert(bytes.readUInt32BE(16) === width, `${label} expected width ${width}, got ${bytes.readUInt32BE(16)}`);
+  assert(bytes.readUInt32BE(20) === height, `${label} expected height ${height}, got ${bytes.readUInt32BE(20)}`);
 }
 
 function mockRunnerSource() {

@@ -255,7 +255,7 @@ function checkWorkflowIds() {
     "4. Sprite Sheet Editing",
     "Guided Start should show four workflow options",
     "Route: Codex Handoff",
-    "Route: Local File",
+    "Route: Local Generator",
     "Route: Local Inbox",
     "Transparency Cleanup",
     "Export Sprite"

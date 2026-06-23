@@ -1,6 +1,6 @@
 # Image Cockpit for Codex Workflows
 
-Private pre-release MVP for a local image production cockpit.
+Local image production cockpit for Codex-era workflows.
 
 This project is unofficial and not affiliated with OpenAI. It is a local workspace for reviewing, annotating, comparing, correcting, and turning Codex-produced or locally imported images into production assets such as sprite sheets.
 
@@ -9,6 +9,8 @@ This project is unofficial and not affiliated with OpenAI. It is a local workspa
 ## Product Boundary
 
 Image Cockpit is designed to run on a local machine where Codex is installed. The app itself does not call OpenAI APIs and does not require an API key.
+
+For the fastest local loop, the app also includes a built-in procedural PNG generator. It is local and deterministic, meant to make the image generation and sprite sheet generation workflows runnable end-to-end without external services. It is not a replacement for a dedicated AI image model.
 
 Instead, the cockpit writes local handoff jobs for Codex:
 
@@ -25,11 +27,15 @@ When `IMAGE_COCKPIT_CODEX_AUTORUN=1`, the local handoff server will try to start
 
 The local API also exposes `GET /api/codex/runner` so the UI can show whether the configured Codex command is ready, disabled for manual handoff, or unavailable before a job is created.
 
+The local generation endpoint is `POST /api/generate`. It writes generated PNGs to `codex-handoff/outbox/` and returns data URLs so the browser can add them to the history immediately.
+
 Manual handoff steps are documented in `docs/usage/manual-handoff.md`.
 
 ## MVP Flow
 
 - Choose a starting workflow from Guided Start: image generation, image editing, sprite sheet generation, or sprite sheet editing.
+- Generate a local PNG from the image generation workflow.
+- Generate a local sprite sheet PNG from the sprite sheet generation workflow and split it into timeline frames.
 - Import local images or use the included original sample sprite sheet.
 - Select history items and review them on the canvas.
 - Draw annotations with brush, rectangle, or arrow tools.
@@ -121,7 +127,7 @@ npm run release:audit
 
 GitHub Actions runs the same verification path through `.github/workflows/ci.yml`.
 
-`npm run smoke` covers manual handoff mode and a mock autorun runner that reaches `ready`, creates a job, records `completed`, writes a PNG to the outbox, and imports that PNG through the Local Inbox endpoint. This proves the runner lifecycle wiring without claiming that the installed Codex executable completed successfully on every machine.
+`npm run smoke` covers local image generation, local sprite sheet generation, manual handoff mode, and a mock autorun runner that reaches `ready`, creates a job, records `completed`, writes a PNG to the outbox, and imports that PNG through the Local Inbox endpoint. This proves the local workflow and runner lifecycle wiring without claiming that the installed Codex executable completed successfully on every machine.
 
 Optional local browser review smoke:
 

@@ -3,6 +3,7 @@ import { createWriteStream, existsSync, readFileSync, readdirSync } from "node:f
 import { copyFile, mkdir, readFile, readdir, stat, writeFile } from "node:fs/promises";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { delimiter, extname, join, resolve, sep } from "node:path";
+import { generateLocalImages, type LocalGenerationRequest } from "./local-generator.js";
 
 loadDotEnv(resolve(".env"));
 
@@ -50,6 +51,7 @@ type CodexJobRequest = {
   grid?: unknown;
   action?: string;
   frames?: number;
+  cell?: unknown;
 };
 
 type CodexWorkflowMode = "image-generate" | "image-edit" | "sprite-generate" | "sprite-edit";
@@ -105,6 +107,13 @@ const server = createServer(async (request, response) => {
         providers: [
           { id: "local-file", label: "Local File", enabled: true, message: "Use images from this machine" },
           {
+            id: "local-generator",
+            label: "Local Generator",
+            enabled: true,
+            path: outboxDir,
+            message: "Generate local PNG images without external services"
+          },
+          {
             id: "codex-handoff",
             label: "Codex Handoff",
             enabled: true,
@@ -122,6 +131,30 @@ const server = createServer(async (request, response) => {
           }
         ]
       });
+      return;
+    }
+
+    if (request.method === "POST" && pathname === "/api/generate") {
+      const body = (await readJson(request)) as LocalGenerationRequest;
+      if (!body.prompt?.trim()) {
+        sendJson(response, 400, { error: "Prompt is required for local generation" });
+        return;
+      }
+      const createdAt = new Date().toISOString();
+      const id = `local-gen-${createdAt.replace(/[:.]/g, "-")}`;
+      const results = await generateLocalImages(body, outboxDir, id);
+      const responseResults = await Promise.all(
+        results.map(async (result) => {
+          const [bytes, fileStat] = await Promise.all([readFile(result.path), stat(result.path)]);
+          return {
+            ...result,
+            size: fileStat.size,
+            modifiedAt: fileStat.mtime.toISOString(),
+            dataUrl: `data:${result.mimeType};base64,${bytes.toString("base64")}`
+          };
+        })
+      );
+      sendJson(response, 200, { id, createdAt, outboxPath: outboxDir, results: responseResults });
       return;
     }
 
