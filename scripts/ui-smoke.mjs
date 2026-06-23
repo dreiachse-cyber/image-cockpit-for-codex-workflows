@@ -98,6 +98,7 @@ try {
     route: "Route: Codex Handoff",
     buttons: ["Generate Pixel Art"],
     hiddenButtons: ["Import Latest", "Import File"],
+    hiddenText: ["Sprite Actions", "Export Sprite"],
     requiredText: ["Pixel Art Prompt", "Generation Notes", "Preview", "Generation can take a few minutes."],
     exerciseButton: "Generate Pixel Art",
     expectedAfterExercise: "Codex job written"
@@ -108,6 +109,7 @@ try {
     route: "Route: Local Generator",
     buttons: ["Upload Pixel Art", "Generate Animation", "Animated GIF", "Animated WebP", "Sprite Sheet"],
     hiddenButtons: ["Import Latest", "Import File"],
+    hiddenText: ["Sprite Actions", "Export Sprite"],
     requiredText: ["1. Upload Pixel Art", "2. Choose Motion", "3. Generate", "4. Download", "Motion Prompt", "Prompt", "Preset"],
     preExerciseButtonChecks: [{ button: "Preset", expectedText: "Additional Prompt (optional)" }, { button: "Prompt", expectedText: "Motion Prompt" }],
     exerciseButton: "Generate Animation",
@@ -190,6 +192,7 @@ async function assertWorkflow({
   route,
   buttons,
   hiddenButtons = [],
+  hiddenText = [],
   requiredText,
   preExerciseButtonChecks = [],
   exactButtonCounts = {},
@@ -209,11 +212,15 @@ async function assertWorkflow({
   assert(!snapshot.workflowTabsInTopbar, `${label} should not place workflow tabs in the global header`);
   assert(snapshot.summary.includes(route), `${label} should select ${route}`);
   assert(snapshot.canvasVisible, `${label} should render the canvas`);
+  assert(!snapshot.spriteBenchVisible, `${label} should keep the Sprite Actions panel hidden for now`);
   buttons.forEach((button) => {
     assert(snapshot.buttons.includes(button), `${label} missing action button: ${button}`);
   });
   hiddenButtons.forEach((button) => {
     assert(!snapshot.buttons.includes(button), `${label} should hide action button for now: ${button}`);
+  });
+  hiddenText.forEach((text) => {
+    assert(!snapshot.text.includes(text), `${label} should hide workflow text for now: ${text}`);
   });
   Object.entries(exactButtonCounts).forEach(([button, count]) => {
     const actual = snapshot.buttons.filter((value) => value === button).length;
@@ -277,7 +284,8 @@ async function pageSnapshot() {
     buttons: Array.from(document.querySelectorAll("button")).map((button) => button.innerText.replace(/\\s+/g, " ").trim()).filter(Boolean),
     workflowTabsInsidePanel: Boolean(document.querySelector(".source-panel > .workflow-tabs")),
     workflowTabsInTopbar: Boolean(document.querySelector(".topbar .workflow-tabs")),
-    canvasVisible: Boolean(document.querySelector("canvas"))
+    canvasVisible: Boolean(document.querySelector("canvas")),
+    spriteBenchVisible: Boolean(document.querySelector(".sprite-bench"))
   }))()`);
 }
 

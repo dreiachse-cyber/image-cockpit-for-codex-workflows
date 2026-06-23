@@ -327,6 +327,11 @@ function checkWorkflowIds() {
     "Prompt example loaded into Pixel Art Generation",
     "Generation can take a few minutes.",
     "hiddenButtons",
+    "hiddenText",
+    "Sprite Actions",
+    "Export Sprite",
+    "spriteBenchVisible",
+    "should keep the Sprite Actions panel hidden for now",
     "workflowTabsInsidePanel",
     "workflowTabsInTopbar",
     "1. Upload Pixel Art",
@@ -345,6 +350,12 @@ function checkWorkflowIds() {
   ].forEach((marker) => {
     if (!uiSmokeText.includes(marker)) {
       failures.push(`UI smoke should cover guided workflow review: ${marker}`);
+    }
+  });
+
+  ["SHOW_SPRITE_ACTIONS_PANEL", "without-sprite-actions"].forEach((marker) => {
+    if (!appText.includes(marker)) {
+      failures.push(`App should keep Sprite Actions panel behind the temporary visibility flag: ${marker}`);
     }
   });
 

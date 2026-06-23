@@ -212,6 +212,16 @@ button {
   grid-template-rows: 38px 40px minmax(0, 1fr);
 }
 
+.cockpit.without-sprite-actions {
+  grid-template-rows: minmax(0, 1fr);
+}
+
+.without-sprite-actions .source-panel,
+.without-sprite-actions .workspace,
+.without-sprite-actions .history-panel {
+  grid-row: 1;
+}
+
 .panel-title {
   min-height: 38px;
   display: flex;

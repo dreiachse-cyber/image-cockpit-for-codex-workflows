@@ -67,6 +67,7 @@ const CANVAS_HEIGHT = 520;
 const LANGUAGE_STORAGE_KEY = "image-cockpit.language";
 const PENDING_CODEX_JOB_STORAGE_KEY = "image-cockpit.pendingCodexJob";
 const SHOW_LOW_PRIORITY_CONTROLS = false;
+const SHOW_SPRITE_ACTIONS_PANEL = false;
 const ANIMATION_FRAME_COUNT = 8;
 const MIN_ANIMATION_CELL_SIZE = 512;
 
@@ -1300,6 +1301,7 @@ function App() {
   const showFrameGridControls = SHOW_LOW_PRIORITY_CONTROLS || workflowMode === "sprite-edit";
   const showSpriteTuningControls = SHOW_LOW_PRIORITY_CONTROLS || workflowMode === "sprite-edit";
   const showAnnotationToolbar = SHOW_LOW_PRIORITY_CONTROLS || workflowMode === "image-edit";
+  const showSpriteActionsPanel = SHOW_SPRITE_ACTIONS_PANEL;
 
   if (!workflowMode) {
     return (
@@ -1339,7 +1341,7 @@ function App() {
         </div>
       </header>
 
-      <main className={`cockpit ${SHOW_LOW_PRIORITY_CONTROLS ? "" : "simple-cockpit"}`}>
+      <main className={`cockpit ${SHOW_LOW_PRIORITY_CONTROLS ? "" : "simple-cockpit"} ${showSpriteActionsPanel ? "" : "without-sprite-actions"}`}>
         <aside className="panel source-panel">
           <PanelTitle index="1" title={copy.workflowPanelTitle} />
           <div className="workflow-summary">
@@ -1760,6 +1762,7 @@ function App() {
           )}
         </aside>
 
+        {showSpriteActionsPanel && (
         <section className="panel sprite-bench">
           <PanelTitle index="4" title={copy.spriteActions} />
           <div className="action-tabs">
@@ -1899,6 +1902,7 @@ function App() {
             )}
           </div>
         </section>
+        )}
       </main>
 
       <footer className="statusbar">
