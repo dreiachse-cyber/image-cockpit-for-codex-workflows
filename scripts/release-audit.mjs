@@ -360,6 +360,12 @@ function checkWorkflowIds() {
     "Initial workspace should place the image download card under the preview workspace",
     "imageDownloadPanelComplete",
     "PNG",
+    "policy_or_safety",
+    "Generation failed",
+    "生成できませんでした",
+    "codex-failure-card",
+    "Codex failure should not create a fake history image",
+    "Codex failure should release the active job slot",
     "Animation output",
     "Animation outputs are final artifacts",
     "Animation results should not expose the rectangle selection toolbar",
@@ -482,10 +488,25 @@ function checkWorkflowIds() {
     "Preparing animation previews",
     "exactly one full-body character",
     "Do not let body parts cross cell borders",
-    "Quality gate before returning"
+    "Quality gate before returning",
+    "codexFailurePolicyMessage"
   ].forEach((marker) => {
     if (!appText.includes(marker)) {
       failures.push(`App should preserve strict animation result preview/prompt handling: ${marker}`);
+    }
+  });
+
+  [
+    "type CodexFailureKind",
+    "type CodexJobDiagnostic",
+    "getJobDiagnostic",
+    "reasonKind",
+    '"status": "blocked"',
+    "Do not include hidden policy text",
+    "no_image_returned"
+  ].forEach((marker) => {
+    if (!serverText?.includes(marker)) {
+      failures.push(`Server should preserve Codex imagegen failure diagnostic handling: ${marker}`);
     }
   });
 

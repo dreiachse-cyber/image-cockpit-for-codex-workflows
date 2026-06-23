@@ -43,6 +43,8 @@ import { calculateGridCells, summarizeFrames } from "./lib/sprite";
 import { loadActions, loadFrames, loadHistory, loadPersistedState, saveActions, saveFrames, saveHistory } from "./lib/storage";
 import type {
   Annotation,
+  CodexFailureKind,
+  CodexJobDiagnostic,
   GridSettings,
   HistoryItem,
   CodexJobResponse,
@@ -191,6 +193,15 @@ interface ImageEditComparison {
   jobId?: string;
 }
 
+interface CodexFailureNotice {
+  id: string;
+  jobId: string;
+  label: string;
+  createdAt: string;
+  workflowMode?: WorkflowMode;
+  diagnostic: CodexJobDiagnostic;
+}
+
 const uiCopy = {
   en: {
     language: "Language",
@@ -317,6 +328,21 @@ const uiCopy = {
     statusCodexRunnerUnavailable: "Codex runner unavailable. Return an outbox image, then use Import Latest",
     statusCodexRunnerFailed: "Codex runner stopped before returning an image",
     statusCodexRunnerCompletedNoImage: "Codex runner completed, but no returned image was found",
+    codexFailureTitle: "Generation failed",
+    codexFailurePolicyMessage: "The image could not be generated. It may have been blocked by safety or usage-policy checks.",
+    codexFailurePolicySuggestion: "Revise the prompt to remove sensitive, explicit, or disallowed details, then try again.",
+    codexFailureImagegenUnavailableTitle: "Image generation unavailable",
+    codexFailureImagegenUnavailableMessage: "Image generation is not available in this Codex environment.",
+    codexFailureImagegenUnavailableSuggestion: "Use manual handoff or another provider, then return an image to the outbox.",
+    codexFailureRunnerFailedTitle: "Codex runner failed",
+    codexFailureRunnerFailedMessage: "Codex runner failed before returning an image.",
+    codexFailureRunnerFailedSuggestion: "Check the runner setup or retry with a simpler prompt.",
+    codexFailureNoImageTitle: "No image returned",
+    codexFailureNoImageMessage: "Codex runner completed, but no returned image was found.",
+    codexFailureNoImageSuggestion: "Retry the job, or place a returned image with the job id prefix in the outbox.",
+    codexFailureUnknownMessage: "The image could not be generated, and no specific reason was returned.",
+    codexFailureUnknownSuggestion: "Retry with a simpler prompt or use manual handoff.",
+    codexFailureRetryHint: "Retry suggestion",
     runnerChecking: "Codex runner: checking",
     runnerReady: "Codex runner: ready",
     runnerDisabled: "Codex runner: manual handoff",
@@ -465,6 +491,21 @@ const uiCopy = {
     statusCodexRunnerUnavailable: "Codex runner起動不可。outboxへ画像を戻したらImport Latestを押してください",
     statusCodexRunnerFailed: "Codex runnerが画像を返す前に停止しました",
     statusCodexRunnerCompletedNoImage: "Codex runnerは完了しましたが、戻り画像が見つかりません",
+    codexFailureTitle: "生成できませんでした",
+    codexFailurePolicyMessage: "安全または利用ポリシーの確認により、この画像は生成できなかった可能性があります。",
+    codexFailurePolicySuggestion: "センシティブ、露骨、または許可されない可能性のある表現を避けてpromptを調整し、再試行してください。",
+    codexFailureImagegenUnavailableTitle: "imagegenを利用できません",
+    codexFailureImagegenUnavailableMessage: "このCodex環境ではimagegenを利用できません。",
+    codexFailureImagegenUnavailableSuggestion: "手動handoffまたは別providerを使い、outboxへ画像を戻してください。",
+    codexFailureRunnerFailedTitle: "Codex runnerが失敗しました",
+    codexFailureRunnerFailedMessage: "Codex runnerが画像を返す前に失敗しました。",
+    codexFailureRunnerFailedSuggestion: "runner設定を確認するか、promptを簡単にして再試行してください。",
+    codexFailureNoImageTitle: "戻り画像が見つかりません",
+    codexFailureNoImageMessage: "Codex runnerは完了しましたが、戻り画像が見つかりませんでした。",
+    codexFailureNoImageSuggestion: "ジョブを再試行するか、job id prefix付きの画像をoutboxへ置いてください。",
+    codexFailureUnknownMessage: "画像を生成できませんでしたが、具体的な理由は返されませんでした。",
+    codexFailureUnknownSuggestion: "promptを簡単にして再試行するか、手動handoffを使ってください。",
+    codexFailureRetryHint: "再試行ヒント",
     runnerChecking: "Codex runner: 確認中",
     runnerReady: "Codex runner: 使用可能",
     runnerDisabled: "Codex runner: 手動受け渡し",
@@ -783,6 +824,7 @@ function App() {
   const [animationDirectionPreviews, setAnimationDirectionPreviews] = useState<AnimationDirectionPreview[]>([]);
   const [animationChromaKey, setAnimationChromaKey] = useState<AnimationChromaKeyName>("green");
   const [imageEditComparison, setImageEditComparison] = useState<ImageEditComparison | null>(null);
+  const [codexFailureNotices, setCodexFailureNotices] = useState<CodexFailureNotice[]>([]);
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -1048,6 +1090,7 @@ function App() {
           if (cancelled) return "cancelled";
 
           if (runnerStatus && !shouldWaitForCodexRunner(runnerStatus)) {
+            recordCodexFailure(job, runnerStatus);
             removeCodexJob(job.id);
             setStatus(`${runnerStatusMessage(runnerStatus, copy)}: ${job.id}`);
             return "terminal";
@@ -1398,6 +1441,23 @@ function App() {
 
   function removeCodexJob(jobId: string) {
     setCodexJobs((current) => current.filter((job) => job.id !== jobId));
+  }
+
+  function recordCodexFailure(job: CodexJobQueueItem, runnerStatus: CodexRunnerStatus) {
+    if (!runnerStatus.diagnostic) return;
+    const notice: CodexFailureNotice = {
+      id: `${runnerStatus.jobId}-failure`,
+      jobId: runnerStatus.jobId,
+      label: job.label,
+      createdAt: runnerStatus.finishedAt ?? new Date().toISOString(),
+      workflowMode: job.workflowMode,
+      diagnostic: runnerStatus.diagnostic
+    };
+    setCodexFailureNotices((current) =>
+      current.some((item) => item.jobId === notice.jobId)
+        ? current.map((item) => (item.jobId === notice.jobId ? notice : item))
+        : [notice, ...current].slice(0, 12)
+    );
   }
 
   async function generateLocally() {
@@ -2527,6 +2587,9 @@ function App() {
             </div>
           )}
           <div className="history-list">
+            {codexFailureNotices.map((notice) => (
+              <CodexFailureCard key={notice.id} notice={notice} language={language} />
+            ))}
             {history.map((item) => (
               <button
                 key={item.id}
@@ -2805,6 +2868,67 @@ function CodexJobShelf({
       </div>
     </section>
   );
+}
+
+function CodexFailureCard({
+  notice,
+  language
+}: {
+  notice: CodexFailureNotice;
+  language: Language;
+}) {
+  const copy = uiCopy[language];
+  const failure = codexFailureDisplay(notice.diagnostic.kind, copy);
+  return (
+    <article className={`codex-failure-card ${notice.diagnostic.kind}`}>
+      <div className="codex-failure-icon">
+        <AlertTriangle size={17} aria-hidden="true" />
+      </div>
+      <span>
+        <strong>{failure.title}</strong>
+        <small>{formatTime(notice.createdAt)} • {notice.jobId}</small>
+        <small>{notice.label}</small>
+        <em>{failure.message}</em>
+        <small>{copy.codexFailureRetryHint}: {failure.suggestion}</small>
+      </span>
+    </article>
+  );
+}
+
+function codexFailureDisplay(kind: CodexFailureKind, copy: Record<string, string>) {
+  if (kind === "policy_or_safety") {
+    return {
+      title: copy.codexFailureTitle,
+      message: copy.codexFailurePolicyMessage,
+      suggestion: copy.codexFailurePolicySuggestion
+    };
+  }
+  if (kind === "imagegen_unavailable") {
+    return {
+      title: copy.codexFailureImagegenUnavailableTitle,
+      message: copy.codexFailureImagegenUnavailableMessage,
+      suggestion: copy.codexFailureImagegenUnavailableSuggestion
+    };
+  }
+  if (kind === "runner_failed") {
+    return {
+      title: copy.codexFailureRunnerFailedTitle,
+      message: copy.codexFailureRunnerFailedMessage,
+      suggestion: copy.codexFailureRunnerFailedSuggestion
+    };
+  }
+  if (kind === "no_image_returned") {
+    return {
+      title: copy.codexFailureNoImageTitle,
+      message: copy.codexFailureNoImageMessage,
+      suggestion: copy.codexFailureNoImageSuggestion
+    };
+  }
+  return {
+    title: copy.codexFailureTitle,
+    message: copy.codexFailureUnknownMessage,
+    suggestion: copy.codexFailureUnknownSuggestion
+  };
 }
 
 function PrimaryActionIcon({ providerId, isBusy }: { providerId: ProviderId; isBusy: boolean }) {
@@ -3355,6 +3479,10 @@ export function shouldWaitForCodexRunner(status?: CodexRunnerStatus) {
 
 function runnerStatusMessage(status: CodexRunnerStatus | undefined, copy: Record<string, string>) {
   if (!status || status.state === "running") return copy.statusCodexJobPending;
+  if (status.diagnostic) {
+    const failure = codexFailureDisplay(status.diagnostic.kind, copy);
+    return `${failure.title}: ${failure.message}`;
+  }
   if (status.state === "disabled" || status.state === "unavailable" || status.state === "unknown") {
     return `${copy.statusCodexRunnerUnavailable}: ${status.message}`;
   }

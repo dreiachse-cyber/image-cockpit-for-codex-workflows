@@ -1361,6 +1361,64 @@ button:disabled {
     -8px 0;
 }
 
+.codex-failure-card {
+  min-height: 86px;
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr);
+  align-items: start;
+  gap: 9px;
+  border: 1px solid #e4c4a8;
+  border-radius: 6px;
+  background: #fff8f2;
+  padding: 9px;
+  color: #342820;
+}
+
+.codex-failure-card.policy_or_safety {
+  border-color: #e2b2ad;
+  background: #fff6f5;
+}
+
+.codex-failure-icon {
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  border: 1px solid #e2b2ad;
+  border-radius: 5px;
+  background: #fff;
+  color: #9a3d32;
+}
+
+.codex-failure-card span {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.codex-failure-card strong {
+  overflow: hidden;
+  color: #321c18;
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.codex-failure-card small {
+  overflow: hidden;
+  color: var(--text-muted);
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.codex-failure-card em {
+  color: #654034;
+  font-size: 12px;
+  font-style: normal;
+  line-height: 1.35;
+}
+
 .history-item span {
   display: grid;
   gap: 4px;

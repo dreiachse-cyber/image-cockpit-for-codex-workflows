@@ -76,6 +76,21 @@ export interface CodexJobResponse {
 
 export type CodexRunnerState = "running" | "completed" | "failed" | "unavailable" | "disabled" | "unknown";
 export type CodexRunnerPreflightState = "ready" | "disabled" | "unavailable";
+export type CodexFailureKind =
+  | "policy_or_safety"
+  | "imagegen_unavailable"
+  | "runner_failed"
+  | "no_image_returned"
+  | "unknown";
+
+export interface CodexJobDiagnostic {
+  kind: CodexFailureKind;
+  title: string;
+  userMessage: string;
+  suggestion?: string;
+  sidecarPath?: string;
+  logPath?: string;
+}
 
 export interface CodexRunnerStatus {
   jobId: string;
@@ -88,6 +103,7 @@ export interface CodexRunnerStatus {
   signal?: string | null;
   logPath?: string;
   statusPath?: string;
+  diagnostic?: CodexJobDiagnostic;
 }
 
 export interface CodexRunnerPreflight {

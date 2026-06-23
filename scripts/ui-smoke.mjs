@@ -101,6 +101,7 @@ try {
   await assertInitialWorkspace();
   await assertLanguageSwitch();
   await assertPromptExamples();
+  await assertCodexFailureNotice();
   await assertCodexQueue();
   await assertImageEditing();
   await assertWorkflow({
@@ -228,6 +229,43 @@ async function assertCodexQueue() {
 
   await waitForEval(() => `document.querySelectorAll(".codex-job-row").length === 0`, "Codex queue drains after results return", 18000);
   await assertNoBrowserErrors("Codex queue");
+  await selectWorkflowTab("Pixel Art Generation");
+}
+
+async function assertCodexFailureNotice() {
+  await selectWorkflowTab("Pixel Art Generation");
+  await waitForEval(() => `document.body.innerText.includes("Pixel Art Generation")`, "Pixel Art Generation for Codex failure");
+  const historyCountBefore = await evaluate(`document.querySelectorAll(".history-item").length`);
+  await setPromptValue("policy blocked ui smoke");
+
+  await clickButtonByText("Generate Pixel Art");
+  await waitForEval(() => `document.querySelector(".codex-failure-card")?.innerText.includes("Generation failed")`, "Codex failure notice", 20000);
+  let snapshot = await pageSnapshot();
+  assert(snapshot.codexFailureCards === 1, `Codex failure should leave one failure card, got ${snapshot.codexFailureCards}`);
+  assert(snapshot.text.includes("safety or usage-policy checks"), "Codex failure should show policy/safety diagnostic copy");
+  assert(snapshot.historyItems === historyCountBefore, "Codex failure should not create a fake history image");
+  assert(snapshot.codexJobRows === 0, "Codex failure should release the active job slot");
+  await evaluate(`(() => {
+    const select = document.querySelector(".language-control select");
+    select.value = "ja";
+    select.dispatchEvent(new Event("change", { bubbles: true }));
+  })()`);
+  await waitForEval(() => `document.body.innerText.includes("生成できませんでした")`, "Japanese Codex failure notice");
+  await evaluate(`(() => {
+    const select = document.querySelector(".language-control select");
+    select.value = "en";
+    select.dispatchEvent(new Event("change", { bubbles: true }));
+  })()`);
+  await waitForEval(() => `document.body.innerText.includes("Generation failed")`, "English Codex failure notice restored");
+
+  await setPromptValue("normal generation after failure");
+  await clickButtonByText("Generate Pixel Art");
+  await waitForEval(() => `document.body.innerText.includes("Imported from Local Inbox")`, "Codex queue continues after failure", 18000);
+  snapshot = await pageSnapshot();
+  assert(snapshot.historyItems > historyCountBefore, "Codex should import a real image after a previous failure");
+  assert(snapshot.codexFailureCards === 1, "Codex failure notice should remain visible after later success");
+  await assertNoBrowserErrors("Codex failure notice");
+  await maybeCapture("codex-failure-notice");
   await selectWorkflowTab("Pixel Art Generation");
 }
 
@@ -466,6 +504,21 @@ async function selectWorkflowTab(label) {
   await waitForEval(() => `document.body.innerText.includes(${JSON.stringify(label)})`, `${label} workflow tab`);
 }
 
+async function setPromptValue(value) {
+  await evaluate(`(() => {
+    const textarea = document.querySelector(".source-panel textarea");
+    if (!textarea) throw new Error("Prompt textarea not found");
+    const setter = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value").set;
+    setter.call(textarea, ${JSON.stringify(value)});
+    textarea.dispatchEvent(new Event("input", { bubbles: true }));
+    textarea.dispatchEvent(new Event("change", { bubbles: true }));
+  })()`);
+  await waitForEval(
+    () => `document.querySelector(".source-panel textarea")?.value === ${JSON.stringify(value)}`,
+    "prompt textarea value update"
+  );
+}
+
 async function dragCanvasRegion() {
   const drag = await evaluate(`(() => {
     const canvas = document.querySelector("canvas");
@@ -553,6 +606,8 @@ async function pageSnapshot() {
     annotationComments: Array.from(document.querySelectorAll(".annotation-comment-field")).map((field) => field.value),
     editCompareVisible: Boolean(document.querySelector(".image-edit-compare")),
     editCompareImages: document.querySelectorAll(".edit-compare-grid img").length,
+    historyItems: document.querySelectorAll(".history-item").length,
+    codexFailureCards: document.querySelectorAll(".codex-failure-card").length,
     spriteBenchVisible: Boolean(document.querySelector(".sprite-bench")),
     codexJobRows: document.querySelectorAll(".codex-job-row").length,
     animationPreviewImages: document.querySelectorAll(".animation-preview img").length,
@@ -682,6 +737,17 @@ const job = JSON.parse(await readFile(jobPath, "utf8"));
 const delayMs = Number(process.env.IMAGE_COCKPIT_MOCK_RUNNER_DELAY_MS || 0);
 if (delayMs > 0) {
   await new Promise((resolve) => setTimeout(resolve, delayMs));
+}
+
+if (job.prompt.includes("policy blocked ui smoke")) {
+  await writeFile(join(outboxDir, \`\${jobId}-blocked.json\`), JSON.stringify({
+    status: "blocked",
+    reasonKind: "policy_or_safety",
+    userMessage: "The image could not be generated.",
+    suggestion: "Revise the prompt and try again."
+  }, null, 2), "utf8");
+  console.log(\`mock blocked sidecar \${jobId}\`);
+  process.exit(0);
 }
 
 if (job.workflowMode === "image-edit") {

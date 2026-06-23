@@ -257,6 +257,50 @@ async function runMockAutorunSmoke() {
     assert(outboxList.results.some((result) => result.name === resultName), "mock autorun result image should be listed");
     const importedResult = await getJson(port, `/api/codex/results/${encodeURIComponent(resultName)}`);
     assert(importedResult.dataUrl === tinyPng, "mock autorun result should import as expected PNG data URL");
+
+    const blockedJob = await postJson(port, "/api/codex/jobs", {
+      workflowMode: "image-generate",
+      prompt: "Smoke test policy blocked sidecar",
+      negativePrompt: "text",
+      jobNotes: "Trigger policy_or_safety diagnostic.",
+      annotations: [],
+      grid: { columns: 1, rows: 1, gutter: 0 },
+      action: "",
+      frames: 0
+    });
+    const blockedStatus = await waitForJobDiagnostic(port, blockedJob.id, "policy_or_safety");
+    assert(blockedStatus.status.state === "completed", "policy sidecar job should complete without a placeholder image");
+    assert(blockedStatus.status.diagnostic?.kind === "policy_or_safety", "blocked sidecar should return policy_or_safety diagnostic");
+    const blockedOutbox = await getJson(port, "/api/codex/results");
+    assert(!blockedOutbox.results.some((result) => result.name.startsWith(`${blockedJob.id}-`)), "blocked sidecar should not create a fake image");
+
+    const failedJob = await postJson(port, "/api/codex/jobs", {
+      workflowMode: "image-generate",
+      prompt: "Smoke test policy runner failed",
+      negativePrompt: "text",
+      jobNotes: "Trigger failed runner diagnostic.",
+      annotations: [],
+      grid: { columns: 1, rows: 1, gutter: 0 },
+      action: "",
+      frames: 0
+    });
+    const failedStatus = await waitForJobDiagnostic(port, failedJob.id, "policy_or_safety");
+    assert(failedStatus.status.state === "failed", "policy stderr job should fail runner");
+    assert(failedStatus.status.diagnostic?.kind === "policy_or_safety", "policy stderr should return policy_or_safety diagnostic");
+
+    const noImageJob = await postJson(port, "/api/codex/jobs", {
+      workflowMode: "image-generate",
+      prompt: "Smoke test no image returned",
+      negativePrompt: "text",
+      jobNotes: "Trigger no_image_returned diagnostic.",
+      annotations: [],
+      grid: { columns: 1, rows: 1, gutter: 0 },
+      action: "",
+      frames: 0
+    });
+    const noImageStatus = await waitForJobDiagnostic(port, noImageJob.id, "no_image_returned");
+    assert(noImageStatus.status.state === "completed", "no-image job should complete");
+    assert(noImageStatus.status.diagnostic?.kind === "no_image_returned", "no-image job should return no_image_returned diagnostic");
   } finally {
     await stopServer(server);
     await rm(handoffDir, { recursive: true, force: true });
@@ -342,6 +386,17 @@ function assert(condition, message) {
   if (!condition) throw new Error(message);
 }
 
+async function waitForJobDiagnostic(apiPort, jobId, expectedKind) {
+  const deadline = Date.now() + 8000;
+  let lastStatus;
+  while (Date.now() < deadline) {
+    lastStatus = await getJson(apiPort, `/api/codex/jobs/${encodeURIComponent(jobId)}/status`);
+    if (lastStatus.status?.diagnostic?.kind === expectedKind) return lastStatus;
+    await new Promise((resolve) => setTimeout(resolve, 150));
+  }
+  throw new Error(`Job ${jobId} did not return diagnostic ${expectedKind}. Last status: ${JSON.stringify(lastStatus)}`);
+}
+
 function assertPngDimensions(dataUrl, width, height, label) {
   const bytes = Buffer.from(dataUrl.split(",")[1], "base64");
   assert(bytes.subarray(1, 4).toString("ascii") === "PNG", `${label} should be PNG data`);
@@ -388,6 +443,27 @@ const job = JSON.parse(await readFile(jobPath, "utf8"));
 if (job.id !== jobId) {
   console.error("job id mismatch");
   process.exit(4);
+}
+
+if (job.prompt.includes("policy blocked sidecar")) {
+  await writeFile(join(outboxDir, \`\${jobId}-blocked.json\`), JSON.stringify({
+    status: "blocked",
+    reasonKind: "policy_or_safety",
+    userMessage: "The image could not be generated.",
+    suggestion: "Revise the prompt and try again."
+  }, null, 2), "utf8");
+  console.log(\`mock blocked sidecar \${jobId}\`);
+  process.exit(0);
+}
+
+if (job.prompt.includes("policy runner failed")) {
+  console.error("content policy safety blocked by image generation");
+  process.exit(12);
+}
+
+if (job.prompt.includes("no image returned")) {
+  console.log(\`mock completed without image \${jobId}\`);
+  process.exit(0);
 }
 
 await writeFile(join(outboxDir, \`\${jobId}-mock.png\`), Buffer.from(tinyPng.split(",")[1], "base64"));

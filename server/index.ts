@@ -59,6 +59,21 @@ type CodexJobRequest = {
 type CodexWorkflowMode = "image-generate" | "image-edit" | "sprite-generate" | "sprite-edit";
 type CodexRunnerState = "running" | "completed" | "failed" | "unavailable" | "disabled" | "unknown";
 type CodexRunnerPreflightState = "ready" | "disabled" | "unavailable";
+type CodexFailureKind =
+  | "policy_or_safety"
+  | "imagegen_unavailable"
+  | "runner_failed"
+  | "no_image_returned"
+  | "unknown";
+
+type CodexJobDiagnostic = {
+  kind: CodexFailureKind;
+  title: string;
+  userMessage: string;
+  suggestion?: string;
+  sidecarPath?: string;
+  logPath?: string;
+};
 
 type CodexRunnerStatus = {
   jobId: string;
@@ -72,6 +87,7 @@ type CodexRunnerStatus = {
   signal?: NodeJS.Signals | null;
   logPath?: string;
   statusPath?: string;
+  diagnostic?: CodexJobDiagnostic;
 };
 
 type CodexRunnerPreflight = {
@@ -364,13 +380,16 @@ function workflowIntent(mode: CodexWorkflowMode) {
 }
 
 function workflowNotes(mode: CodexWorkflowMode) {
+  const blockerSidecarNote =
+    "If image generation/editing is blocked by safety, policy, or unavailable imagegen capability, do not create a placeholder image. Write only a small JSON sidecar with status=blocked, reasonKind, userMessage, and suggestion.";
   if (mode === "image-edit") {
     return [
       "Use selectedImage.assetPath as the source image when present.",
       "Use imagegen / built-in image_gen editing when available so the result is a real edited raster image.",
       "Use annotationContext.annotations, numbered region comments, prompt, and jobNotes as the user's edit instructions.",
       "Preserve unrelated pixels when possible, and return the edited image as a real PNG or WebP with the job id filename prefix.",
-      "Do not create a placeholder, SVG, diagram, or text-only result."
+      "Do not create a placeholder, SVG, diagram, or text-only result.",
+      blockerSidecarNote
     ];
   }
   if (mode === "sprite-generate") {
@@ -384,7 +403,8 @@ function workflowNotes(mode: CodexWorkflowMode) {
       "Every cell must contain exactly one full-body character with head, hair, hands, equipment, and both feet visible, centered with at least 10% inner padding.",
       "Reject and retry the sprite sheet if any cell has a cropped head, missing feet, multiple heads, a head below the feet, inconsistent scale, body fragments, or a different character.",
       "Use the requested chroma-key background color as a flat simple background in every cell so Image Cockpit can remove it after import.",
-      "Avoid readable text, logos, watermarks, labels, UI words, numbers, scenery, and complex backgrounds."
+      "Avoid readable text, logos, watermarks, labels, UI words, numbers, scenery, and complex backgrounds.",
+      blockerSidecarNote
     ];
   }
   if (mode === "sprite-edit") {
@@ -400,6 +420,7 @@ function workflowNotes(mode: CodexWorkflowMode) {
     "Avoid readable text, logos, watermarks, labels, UI words, and numbers unless the user explicitly asks for them.",
     "If the first result contains unwanted text or numbers, retry once with stricter no-text/no-number constraints.",
     "Write the final image with the job id prefix, and write a short Markdown or JSON sidecar that states whether image_gen was used.",
+    blockerSidecarNote,
     "This is a text-to-image style generation job. Do not treat the current UI sample image as a source image unless selectedImage.assetPath is populated.",
     "Use prompt, negativePrompt, generationHints, and jobNotes as the generation brief."
   ];
@@ -741,32 +762,198 @@ function buildCodexRunnerPrompt(job: { id: string; path: string }) {
     "- Do not write API keys, access tokens, model weights, or license-unclear assets.",
     "- If image generation or editing is unavailable in this Codex environment, write no placeholder image.",
     "- Prefer PNG or WebP for still images. If you produce notes, write them as a small JSON or Markdown sidecar in the outbox.",
+    "- If image generation/editing is blocked by safety, policy, or unavailable imagegen capability, do not create a placeholder image.",
+    "- Write a small JSON blocker sidecar only, using this schema:",
+    '{ "status": "blocked", "reasonKind": "policy_or_safety" | "imagegen_unavailable" | "unknown", "userMessage": "A short user-safe reason.", "suggestion": "A short retry suggestion." }',
+    "- Do not include hidden policy text, internal traces, API keys, access tokens, local absolute paths, or the full prompt in the blocker sidecar.",
     "",
     "When finished, make sure at least one usable image file is present in the outbox if generation/editing succeeded."
   ].join("\n");
 }
 
 async function writeRunnerStatus(status: CodexRunnerStatus) {
-  runnerStatuses.set(status.jobId, status);
-  const statusPath = status.statusPath ?? join(statusDir, `${status.jobId}.json`);
-  await writeFile(statusPath, JSON.stringify(status, null, 2), "utf8");
+  const enrichedStatus = await enrichRunnerStatus(status);
+  runnerStatuses.set(enrichedStatus.jobId, enrichedStatus);
+  const statusPath = enrichedStatus.statusPath ?? join(statusDir, `${enrichedStatus.jobId}.json`);
+  await writeFile(statusPath, JSON.stringify(enrichedStatus, null, 2), "utf8");
 }
 
 async function getRunnerStatus(jobId: string): Promise<CodexRunnerStatus> {
   const liveStatus = runnerStatuses.get(jobId);
-  if (liveStatus) return liveStatus;
+  if (liveStatus) return enrichRunnerStatus(liveStatus);
 
   const statusPath = join(statusDir, `${jobId}.json`);
   try {
-    return JSON.parse(await readFile(statusPath, "utf8")) as CodexRunnerStatus;
+    return enrichRunnerStatus(JSON.parse(await readFile(statusPath, "utf8")) as CodexRunnerStatus);
   } catch {
-    return {
+    return enrichRunnerStatus({
       jobId,
       state: "unknown",
       message: "No runner status has been recorded for this job.",
       statusPath
+    });
+  }
+}
+
+async function enrichRunnerStatus(status: CodexRunnerStatus): Promise<CodexRunnerStatus> {
+  if (!shouldBuildDiagnostic(status)) return status;
+  const diagnostic = await getJobDiagnostic(status);
+  if (diagnostic) return { ...status, diagnostic };
+  const statusWithoutDiagnostic = { ...status };
+  delete statusWithoutDiagnostic.diagnostic;
+  return statusWithoutDiagnostic;
+}
+
+function shouldBuildDiagnostic(status: CodexRunnerStatus) {
+  return status.state === "failed" || status.state === "unavailable" || status.state === "completed" || status.state === "unknown";
+}
+
+async function getJobDiagnostic(status: CodexRunnerStatus): Promise<CodexJobDiagnostic | null> {
+  const [sidecar, logText, hasReturnedImage] = await Promise.all([
+    findJobSidecar(status.jobId),
+    readShortFile(status.logPath),
+    hasOutboxImageForJob(status.jobId)
+  ]);
+  if (status.state === "completed" && hasReturnedImage) return null;
+
+  const sidecarKind = normalizeFailureKind(sidecar?.reasonKind);
+  const combinedText = [status.message, sidecar?.text, logText].filter(Boolean).join("\n").toLowerCase();
+  const kind = sidecarKind ?? classifyFailureKind(status, combinedText, hasReturnedImage);
+  if (!kind) return null;
+
+  return {
+    ...diagnosticForKind(kind),
+    sidecarPath: sidecar?.path,
+    logPath: status.logPath
+  };
+}
+
+function classifyFailureKind(status: CodexRunnerStatus, text: string, hasReturnedImage: boolean): CodexFailureKind | null {
+  if (matchesAny(text, ["policy", "safety", "content policy", "disallowed", "not allowed", "blocked", "moderation", "cannot comply", "can't help"])) {
+    return "policy_or_safety";
+  }
+  if (matchesAny(text, ["imagegen unavailable", "image generation unavailable", "built-in image_gen unavailable", "tool unavailable", "image_gen unavailable"])) {
+    return "imagegen_unavailable";
+  }
+  if (status.state === "completed" && !hasReturnedImage) return "no_image_returned";
+  if (status.state === "failed" || status.state === "unavailable") return "runner_failed";
+  if (status.state === "unknown") return "unknown";
+  return null;
+}
+
+function diagnosticForKind(kind: CodexFailureKind): Omit<CodexJobDiagnostic, "sidecarPath" | "logPath"> {
+  if (kind === "policy_or_safety") {
+    return {
+      kind,
+      title: "Generation failed",
+      userMessage: "The image could not be generated. It may have been blocked by safety or usage-policy checks.",
+      suggestion: "Revise the prompt to remove sensitive, explicit, or disallowed details, then try again."
     };
   }
+  if (kind === "imagegen_unavailable") {
+    return {
+      kind,
+      title: "Image generation unavailable",
+      userMessage: "Image generation is not available in this Codex environment.",
+      suggestion: "Use manual handoff or another local provider, then return an image to the outbox."
+    };
+  }
+  if (kind === "runner_failed") {
+    return {
+      kind,
+      title: "Codex runner failed",
+      userMessage: "Codex runner stopped before returning an image.",
+      suggestion: "Check the runner setup or retry the job after adjusting the prompt."
+    };
+  }
+  if (kind === "no_image_returned") {
+    return {
+      kind,
+      title: "No image returned",
+      userMessage: "Codex runner completed, but no returned image was found.",
+      suggestion: "Retry the job, or place a returned image with the job id prefix in the outbox."
+    };
+  }
+  return {
+    kind,
+    title: "Generation failed",
+    userMessage: "The image could not be generated, and no specific reason was returned.",
+    suggestion: "Retry with a simpler prompt or use manual handoff."
+  };
+}
+
+async function findJobSidecar(jobId: string) {
+  try {
+    const entries = await readdir(outboxDir, { withFileTypes: true });
+    const candidates = entries
+      .filter((entry) => entry.isFile())
+      .filter((entry) => entry.name.startsWith(`${jobId}-`) || entry.name.startsWith(`${jobId}.`))
+      .filter((entry) => [".json", ".md", ".txt"].includes(extname(entry.name).toLowerCase()))
+      .sort((left, right) => left.name.localeCompare(right.name));
+    for (const entry of candidates) {
+      const path = join(outboxDir, entry.name);
+      const text = await readShortFile(path);
+      if (!text) continue;
+      return {
+        path,
+        text,
+        reasonKind: readSidecarReasonKind(entry.name, text)
+      };
+    }
+  } catch {
+    // Missing or unreadable sidecars should not block runner status.
+  }
+  return null;
+}
+
+function readSidecarReasonKind(name: string, text: string) {
+  if (extname(name).toLowerCase() !== ".json") return undefined;
+  try {
+    const parsed = JSON.parse(text) as { reasonKind?: unknown; kind?: unknown };
+    return typeof parsed.reasonKind === "string" ? parsed.reasonKind : typeof parsed.kind === "string" ? parsed.kind : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+async function hasOutboxImageForJob(jobId: string) {
+  try {
+    const entries = await readdir(outboxDir, { withFileTypes: true });
+    return entries.some(
+      (entry) =>
+        entry.isFile() &&
+        entry.name.startsWith(`${jobId}-`) &&
+        Boolean(mimeTypeForImage(entry.name))
+    );
+  } catch {
+    return false;
+  }
+}
+
+async function readShortFile(path?: string) {
+  if (!path) return "";
+  try {
+    return (await readFile(path, "utf8")).slice(0, 32768);
+  } catch {
+    return "";
+  }
+}
+
+function normalizeFailureKind(value: unknown): CodexFailureKind | null {
+  if (
+    value === "policy_or_safety" ||
+    value === "imagegen_unavailable" ||
+    value === "runner_failed" ||
+    value === "no_image_returned" ||
+    value === "unknown"
+  ) {
+    return value;
+  }
+  return null;
+}
+
+function matchesAny(value: string, markers: string[]) {
+  return markers.some((marker) => value.includes(marker));
 }
 
 async function listOutboxResults() {
