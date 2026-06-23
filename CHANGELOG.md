@@ -10,6 +10,7 @@ Private release candidate for the first local Image Cockpit MVP.
 - Local-only Codex handoff through `codex-handoff/inbox/`, `assets/`, `outbox/`, `status/`, and `logs/`.
 - Optional `codex exec` runner launched by the local server when `IMAGE_COCKPIT_CODEX_AUTORUN=1`.
 - Optional JSON arg overrides for Codex runner wrappers and smoke coverage for a mock autorun runner reaching completed state.
+- Windows Codex command diagnostics and automatic preference for the terminal-runnable `%LOCALAPPDATA%\OpenAI\Codex\bin\...\codex.exe` CLI when the WindowsApps desktop shim is also present.
 - Pending-job lock so the Codex job button cannot create duplicate handoff jobs while waiting for a result.
 - Orphaned pending Codex jobs with missing runner status now unlock instead of waiting forever.
 - Handoff job context including workflow mode, edit notes, selected image asset, annotations, grid, and sprite context.
@@ -40,4 +41,4 @@ Private release candidate for the first local Image Cockpit MVP.
 
 - The app itself does not call OpenAI APIs directly and does not require an API key.
 - Repository visibility remains private until owner approval for the first public release.
-- In the current Windows test environment, launching the installed Codex executable returns `spawn EPERM`; the runner records this as `unavailable` and falls back to manual handoff.
+- In the current Windows test environment, the WindowsApps Codex desktop shim cannot be launched as a subprocess, while the terminal-runnable `%LOCALAPPDATA%\OpenAI\Codex\bin\...\codex.exe` path passes runner preflight. Automatic `codex exec` job completion remains a separate release gate.

@@ -21,7 +21,7 @@ codex-handoff/
 
 Codex, the user, or another local workflow can read the inbox job, create or revise assets, and place results in the outbox. Results can then be imported through the Local Inbox / Import flow.
 
-When `IMAGE_COCKPIT_CODEX_AUTORUN=1`, the local handoff server will try to start `codex exec` after writing a job. The app still does not call OpenAI APIs directly; it only launches the locally installed Codex command. If Codex cannot be executed from the current Windows environment, the job remains in `codex-handoff/inbox/` for manual pickup and the UI unlocks instead of waiting forever.
+When `IMAGE_COCKPIT_CODEX_AUTORUN=1`, the local handoff server will try to start `codex exec` after writing a job. The app still does not call OpenAI APIs directly; it only launches the locally installed Codex command. On Windows, the server prefers a terminal-runnable Codex CLI discovered under `%LOCALAPPDATA%\OpenAI\Codex\bin\...` over the WindowsApps desktop shim when `IMAGE_COCKPIT_CODEX_COMMAND=codex`. If no runnable Codex command is available, the job remains in `codex-handoff/inbox/` for manual pickup and the UI unlocks instead of waiting forever.
 
 The local API also exposes `GET /api/codex/runner` so the UI can show whether the configured Codex command is ready, disabled for manual handoff, or unavailable before a job is created.
 
@@ -98,7 +98,7 @@ For a local setup diagnosis without starting the UI:
 npm run doctor
 ```
 
-`npm run doctor` verifies required files, handoff folder writability, and Codex command availability. If Codex cannot be launched but local handoff is usable, it reports a warning instead of failing.
+`npm run doctor` verifies required files, handoff folder writability, and Codex command availability. It reports the requested `command`, the actual `launchCommand`, and resolved command paths. If Codex cannot be launched but local handoff is usable, it reports a warning instead of failing.
 
 ## Verification
 

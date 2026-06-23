@@ -57,7 +57,8 @@ npm run release:audit
 
 - `IMAGE_COCKPIT_CODEX_AUTORUN=0` でrunner state `disabled` を確認。
 - `npm run doctor` で必須ファイル、handoff folder書き込み、Codex command availabilityを確認。
-- 現在のWindows環境では `codex` 実行が `spawn EPERM` となり、runner state `unavailable` として記録されることを確認。
+- `npm run doctor` で requested `command=codex`、selected `launchCommand=%LOCALAPPDATA%\OpenAI\Codex\bin\...\codex.exe`、resolved command pathを確認し、terminal-runnable Codex CLIの `--help` が成功することを確認。
+- WindowsApps配下のCodex desktop shimはPowerShell / Node subprocessから起動できず、Access denied / `spawn EPERM` になることを確認。
 - `/api/codex/jobs` smokeで、job JSONに `workflowMode=image-edit`、編集メモ、`annotationCount=1`、`selectedImage.assetPath` が入ることを確認。
 - `/api/codex/jobs` smokeで、`workflowMode=image-generate` のjobに選択画像asset、編集注釈、sprite contextが混入しないことを確認。
 - `/api/codex/jobs` smokeで、`workflowMode=sprite-generate` / `sprite-edit` のjobにgrid、action、frame countが入ることを確認。
@@ -110,7 +111,8 @@ npm run release:audit
 
 ## 既知の制約
 
-- この環境ではCodex executableの直接起動が `spawn EPERM` になるため、自動画像生成の完走は未確認。
+- この環境ではterminal-runnable Codex CLIの `--help` は成功するが、実際の `codex exec` job完走は未確認。
+- WindowsApps配下のCodex desktop shimはsubprocess起動できないため、AppData配下のCodex CLI自動検出または明示 `IMAGE_COCKPIT_CODEX_COMMAND` が必要。
 - mock autorun smokeはImage Cockpit側のrunner配線の検証であり、インストール済みCodex executable自体の完走確認ではない。
 - `docs/release/v0.1.0-owner-decision.md` の未チェック項目は、ご主人の明示承認まで未完了。
 - repoは最初のリリース版までprivateのまま。main merge / public化はご主人確認後。

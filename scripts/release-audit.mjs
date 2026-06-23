@@ -242,11 +242,30 @@ function checkWorkflowIds() {
   [
     "IMAGE_COCKPIT_CODEX_HELP_ARGS_JSON",
     "IMAGE_COCKPIT_CODEX_EXEC_ARGS_JSON",
-    "parseJsonStringArray"
+    "parseJsonStringArray",
+    "selectCodexLaunchCommand",
+    "knownCodexCliCandidates",
+    "isLocalOpenAiCodexCliCommand",
+    "launchCommand",
+    "resolvedCommandPaths",
+    "WindowsApps Codex Desktop executable"
   ].forEach((marker) => {
     const serverText = readText("server/index.ts");
     if (!serverText.includes(marker)) {
       failures.push(`Server should support runner wrapper args: ${marker}`);
+    }
+  });
+
+  [
+    "resolved command path",
+    "launchCommand",
+    "WindowsApps Codex Desktop executable",
+    "terminal-runnable Codex CLI",
+    "resolveCommandCandidates"
+  ].forEach((marker) => {
+    const doctorText = readText("scripts/doctor.mjs");
+    if (!doctorText.includes(marker)) {
+      failures.push(`Doctor should report Codex command diagnostics: ${marker}`);
     }
   });
 }
@@ -374,6 +393,7 @@ function checkReleaseDocs() {
     "Sprite sheet editing",
     "The app itself does not call OpenAI APIs directly",
     "manual handoff",
+    "terminal-runnable `%LOCALAPPDATA%\\OpenAI\\Codex\\bin\\...\\codex.exe` CLI",
     "npm run release:audit"
   ].forEach((line) => {
     if (!releaseNotes.includes(line)) {
@@ -389,6 +409,8 @@ function checkReleaseDocs() {
     "Local-first boundary",
     "Manual handoff fallback",
     "Runner lifecycle wiring",
+    "Codex command diagnostics",
+    "terminal-runnable Codex CLI",
     "manual-handoff-import-latest-1280x720.png",
     "docs/release/v0.1.0-owner-decision.md",
     "Remaining Gates",
@@ -409,7 +431,7 @@ function checkReleaseDocs() {
     "Approve changing repository visibility from private to public",
     "Approve creating the `v0.1.0` tag and GitHub release",
     "manual-handoff-first v0.1.0",
-    "Do not treat the current `spawn EPERM` environment as proof that automatic `codex exec` completion works.",
+    "Do not treat a successful Codex `--help` preflight as proof that automatic `codex exec` job completion works.",
     "Do not treat mock autorun smoke as proof that the installed Codex executable itself can complete on every machine."
   ].forEach((line) => {
     if (!ownerDecision.includes(line)) {

@@ -1,8 +1,8 @@
 import { spawn } from "node:child_process";
-import { createWriteStream, existsSync, readFileSync } from "node:fs";
+import { createWriteStream, existsSync, readFileSync, readdirSync } from "node:fs";
 import { copyFile, mkdir, readFile, readdir, stat, writeFile } from "node:fs/promises";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
-import { extname, join, resolve, sep } from "node:path";
+import { delimiter, extname, join, resolve, sep } from "node:path";
 
 loadDotEnv(resolve(".env"));
 
@@ -15,6 +15,8 @@ const statusDir = join(handoffRoot, "status");
 const logsDir = join(handoffRoot, "logs");
 const codexAutoRun = process.env.IMAGE_COCKPIT_CODEX_AUTORUN !== "0";
 const codexCommand = process.env.IMAGE_COCKPIT_CODEX_COMMAND ?? "codex";
+const codexCommandCandidates = resolveCommandCandidates(codexCommand);
+const codexLaunchCommand = selectCodexLaunchCommand(codexCommand, codexCommandCandidates);
 const codexSandbox = process.env.IMAGE_COCKPIT_CODEX_SANDBOX ?? "workspace-write";
 const codexApproval = process.env.IMAGE_COCKPIT_CODEX_APPROVAL ?? "never";
 const codexHelpArgs = parseJsonStringArray("IMAGE_COCKPIT_CODEX_HELP_ARGS_JSON", ["--help"]);
@@ -59,6 +61,7 @@ type CodexRunnerStatus = {
   state: CodexRunnerState;
   message: string;
   command?: string;
+  requestedCommand?: string;
   startedAt?: string;
   finishedAt?: string;
   exitCode?: number | null;
@@ -71,10 +74,12 @@ type CodexRunnerPreflight = {
   state: CodexRunnerPreflightState;
   message: string;
   command: string;
+  launchCommand: string;
   checkedAt: string;
   autorun: boolean;
   sandbox: string;
   approval: string;
+  resolvedCommandPaths: string[];
   errorCode?: string;
   setupHint?: string;
 };
@@ -359,7 +364,8 @@ async function startCodexRunner(job: { id: string; createdAt: string; path: stri
     jobId: job.id,
     state: "running",
     message: `Started ${codexCommand} exec for ${job.id}`,
-    command: codexCommand,
+    command: codexLaunchCommand,
+    requestedCommand: codexCommand,
     startedAt,
     statusPath,
     logPath
@@ -369,14 +375,14 @@ async function startCodexRunner(job: { id: string; createdAt: string; path: stri
 
   const logStream = createWriteStream(logPath, { flags: "a" });
   const prompt = buildCodexRunnerPrompt(job);
-  logStream.write(`[${startedAt}] Starting ${codexCommand} exec for ${job.id}\n`);
+  logStream.write(`[${startedAt}] Starting ${codexLaunchCommand} exec for ${job.id}\n`);
   logStream.write(`Job path: ${job.path}\n`);
   logStream.write(`Outbox: ${outboxDir}\n\n`);
 
   let settled = false;
   try {
     const child = spawn(
-      codexCommand,
+      codexLaunchCommand,
       codexExecArgs,
       {
         cwd: process.cwd(),
@@ -479,7 +485,7 @@ async function checkCodexRunnerPreflight(): Promise<CodexRunnerPreflight> {
     }, runnerPreflightTimeoutMs);
 
     try {
-      child = spawn(codexCommand, codexHelpArgs, {
+      child = spawn(codexLaunchCommand, codexHelpArgs, {
         cwd: process.cwd(),
         stdio: ["ignore", "ignore", "pipe"],
         windowsHide: true
@@ -502,14 +508,14 @@ async function checkCodexRunnerPreflight(): Promise<CodexRunnerPreflight> {
         if (exitCode === 0) {
           finish({
             state: "ready",
-            message: `${codexCommand} is executable from the local handoff server.`
+            message: `${codexLaunchCommand} is executable from the local handoff server.`
           });
           return;
         }
 
         finish({
           state: "unavailable",
-          message: stderrText.trim() || `${codexCommand} ${codexHelpArgs.join(" ")} exited with code ${exitCode}`,
+          message: stderrText.trim() || `${codexLaunchCommand} ${codexHelpArgs.join(" ")} exited with code ${exitCode}`,
           errorCode: exitCode === null ? undefined : String(exitCode),
           setupHint: codexRunnerSetupHint()
         });
@@ -530,10 +536,12 @@ function createRunnerPreflightBase() {
     state: "unavailable" as CodexRunnerPreflightState,
     message: "",
     command: codexCommand,
+    launchCommand: codexLaunchCommand,
     checkedAt: new Date().toISOString(),
     autorun: codexAutoRun,
     sandbox: codexSandbox,
-    approval: codexApproval
+    approval: codexApproval,
+    resolvedCommandPaths: codexCommandCandidates.slice(0, 8)
   };
 }
 
@@ -558,11 +566,94 @@ function codexRunnerSetupHint(error?: unknown) {
       return "Install Codex CLI or set IMAGE_COCKPIT_CODEX_COMMAND to the full executable path.";
     }
     if (code === "EACCES" || code === "EPERM") {
+      if (isWindowsAppsLaunchLikely()) {
+        return "The resolved Codex command is the WindowsApps Codex Desktop executable, which may be blocked from subprocess launch. Use manual handoff, or set IMAGE_COCKPIT_CODEX_COMMAND to a terminal-runnable Codex CLI or wrapper.";
+      }
       return "Check that the configured Codex command can run from this shell, or set IMAGE_COCKPIT_CODEX_COMMAND to a runnable executable path.";
     }
   }
 
   return "Set IMAGE_COCKPIT_CODEX_COMMAND to a runnable Codex CLI path, or set IMAGE_COCKPIT_CODEX_AUTORUN=0 for manual handoff.";
+}
+
+function resolveCommandCandidates(command: string) {
+  const hasPathSeparator = command.includes("/") || command.includes("\\");
+  const commandNames = commandHasExtension(command) ? [command] : commandExtensions().map((extension) => `${command}${extension}`);
+  const dirs = hasPathSeparator ? [""] : (process.env.PATH ?? "").split(delimiter).filter(Boolean);
+  const candidates: string[] = [];
+
+  dirs.forEach((dir) => {
+    commandNames.forEach((name) => {
+      const candidate = hasPathSeparator ? resolve(name) : join(dir, name);
+      if (existsSync(candidate)) candidates.push(candidate);
+    });
+  });
+
+  return Array.from(new Set([...candidates, ...knownCodexCliCandidates(command)]));
+}
+
+function selectCodexLaunchCommand(command: string, candidates: string[]) {
+  if (command.includes("/") || command.includes("\\") || !isCodexCommandName(command)) return command;
+  return candidates.find(isLocalOpenAiCodexCliCommand) ?? candidates.find((candidate) => !isWindowsAppsCodexCommand(candidate)) ?? command;
+}
+
+function knownCodexCliCandidates(command: string) {
+  if (!isCodexCommandName(command)) return [];
+  const roots = [process.env.LOCALAPPDATA, process.env.USERPROFILE ? join(process.env.USERPROFILE, "AppData", "Local") : ""]
+    .filter(Boolean)
+    .map((root) => join(root as string, "OpenAI", "Codex", "bin"));
+  const candidates: string[] = [];
+
+  roots.forEach((root) => {
+    if (!existsSync(root)) return;
+    try {
+      readdirSync(root, { withFileTypes: true })
+        .filter((entry) => entry.isDirectory())
+        .forEach((entry) => {
+          ["codex.exe", "codex"].forEach((file) => {
+            const candidate = join(root, entry.name, file);
+            if (existsSync(candidate)) candidates.push(candidate);
+          });
+        });
+    } catch {
+      // Ignore discovery failures; explicit IMAGE_COCKPIT_CODEX_COMMAND remains available.
+    }
+  });
+
+  return candidates;
+}
+
+function commandExtensions() {
+  if (process.platform !== "win32") return [""];
+  const pathExt = process.env.PATHEXT?.split(";").filter(Boolean) ?? [".COM", ".EXE", ".BAT", ".CMD"];
+  return ["", ...pathExt.map((extension) => extension.toLowerCase())];
+}
+
+function commandHasExtension(command: string) {
+  return Boolean(extname(command));
+}
+
+function isCodexCommandName(command: string) {
+  return /^codex(?:\.exe)?$/i.test(command);
+}
+
+function isLocalOpenAiCodexCliCommand(candidate: string) {
+  return /[\\/]AppData[\\/]Local[\\/]OpenAI[\\/]Codex[\\/]bin[\\/][^\\/]+[\\/]codex(?:\.exe)?$/i.test(candidate);
+}
+
+function isWindowsAppsCodexCommand(candidate: string) {
+  return /[\\/]WindowsApps[\\/]OpenAI\.Codex_/i.test(candidate) && /[\\/]codex(?:\.exe)?$/i.test(candidate);
+}
+
+function hasWindowsAppsCodexCandidate() {
+  return codexCommandCandidates.some(isWindowsAppsCodexCommand);
+}
+
+function isWindowsAppsLaunchLikely() {
+  const explicitLaunchCommandIsWindowsApps = isWindowsAppsCodexCommand(codexLaunchCommand);
+  const bareCommandWouldResolveThroughWindowsApps =
+    isCodexCommandName(codexLaunchCommand) && hasWindowsAppsCodexCandidate() && !codexCommandCandidates.some(isLocalOpenAiCodexCliCommand);
+  return explicitLaunchCommandIsWindowsApps || bareCommandWouldResolveThroughWindowsApps;
 }
 
 function buildCodexRunnerPrompt(job: { id: string; path: string }) {

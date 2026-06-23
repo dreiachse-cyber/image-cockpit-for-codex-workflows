@@ -1,7 +1,7 @@
 import { spawn } from "node:child_process";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { mkdir, rm, writeFile } from "node:fs/promises";
-import { join, resolve } from "node:path";
+import { delimiter, extname, join, resolve } from "node:path";
 
 loadDotEnv(resolve(".env"));
 
@@ -21,6 +21,8 @@ const handoffRoot = resolve(process.env.IMAGE_COCKPIT_HANDOFF_DIR ?? "codex-hand
 const handoffDirs = ["inbox", "outbox", "assets", "status", "logs"];
 const codexAutoRun = process.env.IMAGE_COCKPIT_CODEX_AUTORUN !== "0";
 const codexCommand = process.env.IMAGE_COCKPIT_CODEX_COMMAND ?? "codex";
+const codexCommandCandidates = resolveCommandCandidates(codexCommand);
+const codexLaunchCommand = selectCodexLaunchCommand(codexCommand, codexCommandCandidates);
 const codexSandbox = process.env.IMAGE_COCKPIT_CODEX_SANDBOX ?? "workspace-write";
 const codexApproval = process.env.IMAGE_COCKPIT_CODEX_APPROVAL ?? "never";
 const codexHelpArgs = parseJsonStringArray("IMAGE_COCKPIT_CODEX_HELP_ARGS_JSON", ["--help"]);
@@ -87,6 +89,12 @@ async function checkCodexCommand() {
   section("Codex runner");
   note(`autorun=${codexAutoRun}`);
   note(`command=${codexCommand}`);
+  note(`launchCommand=${codexLaunchCommand}`);
+  if (codexCommandCandidates.length > 0) {
+    note(`resolved command path=${codexCommandCandidates[0]}`);
+  } else {
+    note("resolved command path=<not found on PATH>");
+  }
   note(`sandbox=${codexSandbox}`);
   note(`approval=${codexApproval}`);
 
@@ -95,14 +103,18 @@ async function checkCodexCommand() {
     return;
   }
 
-  const result = await tryRun(codexCommand, codexHelpArgs, runnerTimeoutMs);
+  const result = await tryRun(codexLaunchCommand, codexHelpArgs, runnerTimeoutMs);
   if (result.ok) {
-    ok(`${codexCommand} ${codexHelpArgs.join(" ")} completed`);
+    ok(`${codexLaunchCommand} ${codexHelpArgs.join(" ")} completed`);
     return;
   }
 
-  warn(`${codexCommand} is not executable from this environment: ${result.message}`);
+  warn(`${codexLaunchCommand} is not executable from this environment: ${result.message}`);
   if (result.code) warn(`runner error code: ${result.code}`);
+  if ((result.code === "EPERM" || result.code === "EACCES") && isWindowsAppsLaunchLikely()) {
+    note("The resolved Codex command is the WindowsApps Codex Desktop executable, which this environment cannot launch as a subprocess.");
+    note("Use manual handoff, or set IMAGE_COCKPIT_CODEX_COMMAND to a terminal-runnable Codex CLI or wrapper when one is available.");
+  }
   note("Jobs can still be written to codex-handoff/inbox and completed through manual handoff.");
   note("Set IMAGE_COCKPIT_CODEX_AUTORUN=0 to make manual handoff explicit.");
   note("Set IMAGE_COCKPIT_CODEX_COMMAND to a runnable Codex executable path when autorun is available.");
@@ -226,4 +238,84 @@ function parseJsonStringArray(envKey, fallback) {
     // Invalid optional wrapper args fall back to Codex CLI defaults.
   }
   return fallback;
+}
+
+function resolveCommandCandidates(command) {
+  const hasPathSeparator = command.includes("/") || command.includes("\\");
+  const commandNames = commandHasExtension(command) ? [command] : commandExtensions().map((extension) => `${command}${extension}`);
+  const dirs = hasPathSeparator ? [""] : (process.env.PATH ?? "").split(delimiter).filter(Boolean);
+  const candidates = [];
+
+  dirs.forEach((dir) => {
+    commandNames.forEach((name) => {
+      const candidate = hasPathSeparator ? resolve(name) : join(dir, name);
+      if (existsSync(candidate)) candidates.push(candidate);
+    });
+  });
+
+  return Array.from(new Set([...candidates, ...knownCodexCliCandidates(command)]));
+}
+
+function selectCodexLaunchCommand(command, candidates) {
+  if (command.includes("/") || command.includes("\\") || !isCodexCommandName(command)) return command;
+  return candidates.find(isLocalOpenAiCodexCliCommand) ?? candidates.find((candidate) => !isWindowsAppsCodexCommand(candidate)) ?? command;
+}
+
+function knownCodexCliCandidates(command) {
+  if (!isCodexCommandName(command)) return [];
+  const roots = [process.env.LOCALAPPDATA, process.env.USERPROFILE ? join(process.env.USERPROFILE, "AppData", "Local") : ""]
+    .filter(Boolean)
+    .map((root) => join(root, "OpenAI", "Codex", "bin"));
+  const candidates = [];
+
+  roots.forEach((root) => {
+    if (!existsSync(root)) return;
+    try {
+      readdirSync(root, { withFileTypes: true })
+        .filter((entry) => entry.isDirectory())
+        .forEach((entry) => {
+          ["codex.exe", "codex"].forEach((file) => {
+            const candidate = join(root, entry.name, file);
+            if (existsSync(candidate)) candidates.push(candidate);
+          });
+        });
+    } catch {
+      // Ignore discovery failures; explicit IMAGE_COCKPIT_CODEX_COMMAND remains available.
+    }
+  });
+
+  return candidates;
+}
+
+function commandExtensions() {
+  if (process.platform !== "win32") return [""];
+  const pathExt = process.env.PATHEXT?.split(";").filter(Boolean) ?? [".COM", ".EXE", ".BAT", ".CMD"];
+  return ["", ...pathExt.map((extension) => extension.toLowerCase())];
+}
+
+function commandHasExtension(command) {
+  return Boolean(extname(command));
+}
+
+function isCodexCommandName(command) {
+  return /^codex(?:\.exe)?$/i.test(command);
+}
+
+function isLocalOpenAiCodexCliCommand(candidate) {
+  return /[\\/]AppData[\\/]Local[\\/]OpenAI[\\/]Codex[\\/]bin[\\/][^\\/]+[\\/]codex(?:\.exe)?$/i.test(candidate);
+}
+
+function isWindowsAppsCodexCommand(candidate) {
+  return /[\\/]WindowsApps[\\/]OpenAI\.Codex_/i.test(candidate) && /[\\/]codex(?:\.exe)?$/i.test(candidate);
+}
+
+function hasWindowsAppsCodexCandidate() {
+  return codexCommandCandidates.some(isWindowsAppsCodexCommand);
+}
+
+function isWindowsAppsLaunchLikely() {
+  const explicitLaunchCommandIsWindowsApps = isWindowsAppsCodexCommand(codexLaunchCommand);
+  const bareCommandWouldResolveThroughWindowsApps =
+    isCodexCommandName(codexLaunchCommand) && hasWindowsAppsCodexCandidate() && !codexCommandCandidates.some(isLocalOpenAiCodexCliCommand);
+  return explicitLaunchCommandIsWindowsApps || bareCommandWouldResolveThroughWindowsApps;
 }

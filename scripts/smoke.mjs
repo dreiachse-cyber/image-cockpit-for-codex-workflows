@@ -174,6 +174,10 @@ async function runMockAutorunSmoke() {
     const runnerPreflight = await getJson(port, "/api/codex/runner");
     assert(runnerPreflight.runner?.state === "ready", "mock autorun preflight should report ready");
     assert(runnerPreflight.runner?.autorun === true, "mock autorun preflight should include autorun=true");
+    assert(
+      runnerPreflight.runner?.resolvedCommandPaths?.some((path) => path === nodeCommand),
+      "mock autorun preflight should expose resolved command path"
+    );
 
     const job = await postJson(port, "/api/codex/jobs", {
       workflowMode: "image-generate",
