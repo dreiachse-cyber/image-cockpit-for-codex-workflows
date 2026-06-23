@@ -13,6 +13,7 @@
     "codex:smoke": "node scripts/real-codex-runner-smoke.mjs",
     "lint": "tsc --noEmit",
     "release:audit": "node scripts/release-audit.mjs",
+    "review:local": "npm run verify && npm run ui:smoke && npm run codex:smoke",
     "smoke": "node scripts/smoke.mjs",
     "typecheck": "tsc --noEmit",
     "ui:smoke": "node scripts/ui-smoke.mjs",

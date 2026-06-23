@@ -14,6 +14,7 @@ Private release candidate for the first local Image Cockpit MVP.
 - Current Codex CLI runner args using `-c approval_policy="<approval>"` instead of the removed `--ask-for-approval` flag.
 - Real no-image `codex exec` runner smoke confirming the installed Codex CLI can complete a local handoff job and write a Markdown sidecar to outbox.
 - Re-runnable real Codex runner smoke through `npm run codex:smoke`.
+- Owner-review local sweep through `npm run review:local`, running verify, browser UI smoke, and real no-image Codex runner smoke in sequence.
 - Pending-job lock so the Codex job button cannot create duplicate handoff jobs while waiting for a result.
 - Orphaned pending Codex jobs with missing runner status now unlock instead of waiting forever.
 - Handoff job context including workflow mode, edit notes, selected image asset, annotations, grid, and sprite context.

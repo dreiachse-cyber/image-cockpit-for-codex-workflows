@@ -49,7 +49,18 @@ const requiredEnvKeys = [
 
 const requiredWorkflowIds = ["image-generate", "image-edit", "sprite-generate", "sprite-edit"];
 const requiredGitignorePatterns = ["node_modules/", "dist/", "coverage/", ".env", ".env.", "!.env.example", "codex-handoff/"];
-const requiredPackageScripts = ["doctor", "typecheck", "test", "build", "smoke", "ui:smoke", "codex:smoke", "release:audit", "verify"];
+const requiredPackageScripts = [
+  "doctor",
+  "typecheck",
+  "test",
+  "build",
+  "smoke",
+  "ui:smoke",
+  "codex:smoke",
+  "release:audit",
+  "verify",
+  "review:local"
+];
 const requiredVerifyCommands = [
   "npm run doctor",
   "npm run typecheck",
@@ -58,6 +69,7 @@ const requiredVerifyCommands = [
   "npm run smoke",
   "npm run release:audit"
 ];
+const requiredReviewLocalCommands = ["npm run verify", "npm run ui:smoke", "npm run codex:smoke"];
 const requiredReadmeLinks = [
   "CHANGELOG.md",
   "docs/release/v0.1.0-release-notes.md",
@@ -124,6 +136,13 @@ function checkPackageJson() {
   requiredVerifyCommands.forEach((command) => {
     if (!verifyScript.includes(command)) {
       failures.push(`verify script should include: ${command}`);
+    }
+  });
+
+  const reviewLocalScript = packageJson.scripts?.["review:local"] ?? "";
+  requiredReviewLocalCommands.forEach((command) => {
+    if (!reviewLocalScript.includes(command)) {
+      failures.push(`review:local script should include: ${command}`);
     }
   });
 
@@ -430,6 +449,7 @@ function checkReleaseDocs() {
   [
     "npm run doctor",
     "npm run verify",
+    "npm run review:local",
     "npm run ui:smoke",
     "npm run codex:smoke",
     "Image generation",
@@ -467,7 +487,8 @@ function checkReleaseDocs() {
     "codex exec",
     "npm run ui:smoke",
     "npm run smoke",
-    "npm run verify"
+    "npm run verify",
+    "npm run review:local"
   ].forEach((line) => {
     if (!acceptanceEvidence.includes(line)) {
       failures.push(`Acceptance evidence is missing expected content: ${line}`);
@@ -481,6 +502,7 @@ function checkReleaseDocs() {
     "Approve merge into `main`",
     "Approve changing repository visibility from private to public",
     "Approve creating the `v0.1.0` tag and GitHub release",
+    "Owner-review sweep: `npm run review:local` on Codex-installed review machines",
     "automatic no-image `codex exec` completion has been verified",
     "Do not treat a successful Codex `--help` preflight as proof that automatic `codex exec` job completion works",
     "Do not treat mock autorun smoke as proof that the installed Codex executable itself can complete on every machine.",

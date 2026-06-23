@@ -55,6 +55,7 @@ npm run release:audit
 
 追加smoke:
 
+- `npm run review:local` で、`npm run verify`、`npm run ui:smoke`、`npm run codex:smoke` を一括実行できることを確認。
 - `IMAGE_COCKPIT_CODEX_AUTORUN=0` でrunner state `disabled` を確認。
 - `npm run doctor` で必須ファイル、handoff folder書き込み、Codex command availabilityを確認。
 - `npm run doctor` で requested `command=codex`、selected `launchCommand=%LOCALAPPDATA%\OpenAI\Codex\bin\...\codex.exe`、resolved command pathを確認し、terminal-runnable Codex CLIの `--help` が成功することを確認。

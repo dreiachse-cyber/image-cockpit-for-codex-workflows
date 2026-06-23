@@ -139,6 +139,14 @@ npm run codex:smoke
 
 `npm run codex:smoke` starts the local API with a temporary handoff folder and asks the installed Codex CLI to complete a no-image handoff job by writing a Markdown sidecar into outbox. It is intentionally not part of CI because it requires a runnable local Codex installation.
 
+Owner-review local sweep:
+
+```powershell
+npm run review:local
+```
+
+`npm run review:local` runs `npm run verify`, `npm run ui:smoke`, and `npm run codex:smoke` in sequence. Use it on the Codex-installed review machine before approving the private MVP direction.
+
 ## Review
 
 Use `docs/review/mvp-review-report.md` for the private MVP review path, QA evidence, and known constraints.
