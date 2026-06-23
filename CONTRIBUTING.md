@@ -36,6 +36,7 @@ npm run typecheck
 npm test
 npm run build
 npm run smoke
+npm run release:audit
 ```
 
 ## Pull Request Checklist

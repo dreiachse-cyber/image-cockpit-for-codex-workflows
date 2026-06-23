@@ -10,6 +10,7 @@
     "dev:server": "tsx server/index.ts",
     "build": "tsc -b && vite build",
     "lint": "tsc --noEmit",
+    "release:audit": "node scripts/release-audit.mjs",
     "smoke": "node scripts/smoke.mjs",
     "typecheck": "tsc --noEmit",
     "test": "vitest run"

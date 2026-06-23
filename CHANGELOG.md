@@ -17,6 +17,7 @@ Private release candidate for the first local Image Cockpit MVP.
 - Japanese / English language selector.
 - Desktop and mobile QA screenshots plus MVP review report.
 - MVP demo GIF linked from README.
+- Release audit script for local-first boundaries, required docs, workflow IDs, and tracked-file safety checks.
 
 ### Notes
 

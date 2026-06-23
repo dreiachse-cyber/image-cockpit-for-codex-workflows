@@ -37,6 +37,7 @@ npm run typecheck
 npm test
 npm run build
 npm run smoke
+npm run release:audit
 ```
 
 追加smoke:
