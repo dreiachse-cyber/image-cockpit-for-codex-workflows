@@ -38,7 +38,7 @@ import {
   exportMetadata,
   exportSpriteSheet
 } from "./lib/exporters";
-import { createId, downloadBlob, loadImage, readFileAsDataUrl } from "./lib/image";
+import { createId, dataUrlToBlob, downloadBlob, loadImage, readFileAsDataUrl } from "./lib/image";
 import { calculateGridCells, summarizeFrames } from "./lib/sprite";
 import { loadActions, loadFrames, loadHistory, loadPersistedState, saveActions, saveFrames, saveHistory } from "./lib/storage";
 import type {
@@ -102,6 +102,8 @@ interface PromptExample {
   id: string;
   category: Record<Language, string>;
   title: Record<Language, string>;
+  previewImage: string;
+  summary: Record<Language, string>;
   prompt: string;
   negativePrompt: string;
   notes: string;
@@ -236,7 +238,7 @@ const uiCopy = {
     noFrames: "No frames",
     promptExamples: "Prompt Examples",
     promptExamplesTitle: "Prompt Examples",
-    promptExamplesIntro: "Pixel-art prompts tuned for Codex imagegen.",
+    promptExamplesIntro: "Pick by preview image, then copy or load the tuned prompt.",
     copyPrompt: "Copy Prompt",
     usePrompt: "Use Prompt",
     closePromptExamples: "Close",
@@ -281,6 +283,11 @@ const uiCopy = {
     animationSourceUnknown: "Source image not recorded",
     imageEditGeneratedFrom: "Edited from",
     imageEditSourceUnknown: "Edit source not recorded",
+    imageDownloadTitle: "Download",
+    imageDownloadBody: "Export the image currently shown in the preview.",
+    imageDownloadReady: "Selected image ready",
+    imageDownloadLocked: "Select or generate an image before downloading.",
+    downloadPng: "PNG",
     uploadImageForEdit: "Upload Image",
     selectedEditSource: "Selected image",
     noEditSource: "No image selected yet",
@@ -379,7 +386,7 @@ const uiCopy = {
     noFrames: "フレームなし",
     promptExamples: "プロンプト例",
     promptExamplesTitle: "プロンプト例",
-    promptExamplesIntro: "Codex imagegen向けのピクセルアートprompt例です。",
+    promptExamplesIntro: "仕上がり例を見て選び、調整済みpromptをコピーまたは入力できます。",
     copyPrompt: "プロンプトをコピー",
     usePrompt: "この例を使う",
     closePromptExamples: "閉じる",
@@ -424,6 +431,11 @@ const uiCopy = {
     animationSourceUnknown: "生成元画像が記録されていません",
     imageEditGeneratedFrom: "編集元",
     imageEditSourceUnknown: "編集元画像が記録されていません",
+    imageDownloadTitle: "ダウンロード",
+    imageDownloadBody: "プレビューに表示している画像を書き出します。",
+    imageDownloadReady: "選択中の画像を書き出せます",
+    imageDownloadLocked: "画像を生成または選択するとダウンロードできます。",
+    downloadPng: "PNG",
     uploadImageForEdit: "画像をアップロード",
     selectedEditSource: "選択中の画像",
     noEditSource: "まだ画像が選択されていません",
@@ -620,54 +632,84 @@ const promptExamples: PromptExample[] = [
     id: "clockwork-mushroom-courier",
     category: { en: "Character", ja: "キャラクター" },
     title: { en: "Clockwork Mushroom Courier", ja: "ぜんまい茸の配達人" },
+    previewImage: "/prompt-examples/clockwork-mushroom-courier.png",
+    summary: {
+      en: "Isolated full-body character asset with transparent output in mind.",
+      ja: "背景なしで使う前提の全身キャラクター素材です。"
+    },
     prompt:
-      "Create one original pixel-art game asset concept image: a tiny clockwork mushroom courier carrying a glowing blue delivery satchel, isolated full body on a simple flat chroma-key green background, crisp readable silhouette, 16-bit pixel-art inspired rendering, transparent-game-asset feel, warm amber satchel glow, no scenery, no readable text, no logo, no watermark, no numbers.",
-    negativePrompt: "text, logo, watermark, numbers, photorealistic face, blurry silhouette, placeholder geometric-only output, busy background, detailed scenery",
-    notes: "Prompt-only image generation. Use a simple chroma-key background so the character can be separated for animation."
+      "Create one original pixel-art game asset concept image: a tiny clockwork mushroom courier carrying a glowing blue delivery satchel, isolated full body, transparent background preferred, crisp readable silhouette, 16-bit pixel-art inspired rendering, transparent-game-asset feel, warm amber satchel glow, no scenery, no readable text, no logo, no watermark, no numbers. If transparency is unavailable, use a perfectly flat solid #00ff00 chroma-key background with no shadows, gradients, texture, floor plane, or lighting variation.",
+    negativePrompt: "text, logo, watermark, numbers, photorealistic face, blurry silhouette, placeholder geometric-only output, busy background, detailed scenery, floor plane, cast shadow, gradient background",
+    notes: "Prompt-only image generation. Prefer no background so the character can become an animation source; use flat chroma-key only as a fallback."
   },
   {
     id: "forest-mage-idle",
     category: { en: "Character", ja: "キャラクター" },
     title: { en: "Forest Mage Idle Sprite", ja: "森の魔法使いアイドル" },
+    previewImage: "/prompt-examples/forest-mage-idle.png",
+    summary: {
+      en: "Neutral stance character designed to be uploaded into animation generation.",
+      ja: "アニメーション生成へ渡しやすいニュートラル立ち絵です。"
+    },
     prompt:
-      "Create a single full-body pixel-art character asset: a small forest mage with a leaf hood, carved wooden staff, soft green cloak, amber charm, friendly confident pose, idle-animation ready stance, clear feet contact, centered subject, simple flat chroma-key green background, 32-bit fantasy RPG palette, crisp silhouette, no scenery, no readable text, no logo, no watermark.",
-    negativePrompt: "cropped feet, extra arms, text, logo, watermark, blurry edges, realistic skin, busy background, gradient background",
-    notes: "Character should be easy to cut out and animate later. Keep pose neutral, balanced, readable, and on a simple background."
+      "Create a single full-body pixel-art character asset: a small forest mage with a leaf hood, carved wooden staff, soft green cloak, amber charm, friendly confident pose, idle-animation ready stance, clear feet contact, centered subject, transparent background preferred, 32-bit fantasy RPG palette, crisp silhouette, no scenery, no readable text, no logo, no watermark. If transparency is unavailable, use a perfectly flat solid #ff00ff chroma-key background because the character uses green clothing; no shadows, gradients, texture, floor plane, or lighting variation.",
+    negativePrompt: "cropped feet, extra arms, text, logo, watermark, blurry edges, realistic skin, busy background, gradient background, floor plane, cast shadow",
+    notes: "Character should be easy to cut out and animate later. Keep pose neutral, balanced, readable, and background-free when possible."
   },
   {
     id: "ember-slime-companion",
     category: { en: "Creature", ja: "クリーチャー" },
     title: { en: "Ember Slime Companion", ja: "火種スライム" },
+    previewImage: "/prompt-examples/ember-slime-companion.png",
+    summary: {
+      en: "Simple creature silhouette for idle, hop, and attack variants.",
+      ja: "アイドル、跳ね、攻撃へ展開しやすい小型クリーチャーです。"
+    },
     prompt:
-      "Create a cute pixel-art creature asset: a small ember slime companion with a warm orange core, tiny charcoal feet, two expressive glowing eyes, faint heat shimmer, simple rounded body, readable silhouette, isolated on a simple flat chroma-key blue background, collectible monster game style, clean 16-bit pixel-art inspired rendering, no scenery, no text, no logo, no watermark.",
-    negativePrompt: "scary horror, text, logo, watermark, photorealistic fire, over-detailed smoke, cropped body, complex background",
-    notes: "Creature design should be simple enough for idle, hop, and attack animation variants, with a plain background for cleanup."
+      "Create a cute pixel-art creature asset: a small ember slime companion with a warm orange core, tiny charcoal feet, two expressive glowing eyes, faint heat shimmer, simple rounded body, readable silhouette, transparent background preferred, collectible monster game style, clean 16-bit pixel-art inspired rendering, no scenery, no text, no logo, no watermark. If transparency is unavailable, use a perfectly flat solid #00ff00 chroma-key background with no shadows, gradients, texture, floor plane, or lighting variation.",
+    negativePrompt: "scary horror, text, logo, watermark, photorealistic fire, over-detailed smoke, cropped body, complex background, floor plane, cast shadow, gradient background",
+    notes: "Creature design should be simple enough for idle, hop, and attack animation variants, with no background when possible."
   },
   {
     id: "crystal-export-station",
     category: { en: "Prop", ja: "小物" },
     title: { en: "Crystal Export Station", ja: "水晶の書き出し台" },
+    previewImage: "/prompt-examples/crystal-export-station.png",
+    summary: {
+      en: "Readable prop asset that can be separated cleanly from the canvas.",
+      ja: "画面から切り出しやすい読みやすい小物素材です。"
+    },
     prompt:
-      "Create a pixel-art game prop asset: a compact crystal export station made of mossy stone and brass rails, three amber crystals glowing above small sockets, teal interface sparks, isometric-front readable angle, isolated prop on a simple flat chroma-key green background, crisp edge clusters, no scenery, no readable text, no logo, no watermark, no numbers.",
-    negativePrompt: "letters, labels, UI words, logo, watermark, photorealism, cluttered background, broken perspective, detailed room",
+      "Create a pixel-art game prop asset: a compact crystal export station made of mossy stone and brass rails, three amber crystals glowing above small sockets, teal interface sparks, isometric-front readable angle, isolated prop, transparent background preferred, crisp edge clusters, no scenery, no readable text, no logo, no watermark, no numbers. If transparency is unavailable, use a perfectly flat solid #00ff00 chroma-key background with no shadows, gradients, texture, floor plane, or lighting variation.",
+    negativePrompt: "letters, labels, UI words, logo, watermark, photorealism, cluttered background, broken perspective, detailed room, floor plane, cast shadow",
     notes: "Prop should read clearly as a small interactive workstation and stay easy to separate from the background."
   },
   {
     id: "rainy-neon-forest-tile",
     category: { en: "Environment", ja: "背景" },
     title: { en: "Rainy Neon Forest Tile", ja: "雨のネオン森タイル" },
+    previewImage: "/prompt-examples/rainy-neon-forest-tile.png",
+    summary: {
+      en: "An isolated tile example; scenery stays inside the tile footprint.",
+      ja: "風景要素をタイル内だけに収めた孤立タイル例です。"
+    },
     prompt:
-      "Create a pixel-art environment tile concept: a small isolated rainy neon forest ground tile with wet stone path, cyan puddle reflections, small purple mushrooms, dark green leaves, top-down three-quarter RPG perspective, tile edges clearly visible, simple flat chroma-key green background outside the tile footprint, no characters, no readable text, no logo, no watermark.",
-    negativePrompt: "characters, text, logo, watermark, photorealistic rain, unreadable clutter, full landscape, complex surrounding background",
-    notes: "Keep it tile-friendly, isolated, and surrounded by a simple background so the tile can be extracted."
+      "Create a pixel-art environment tile concept: a small isolated rainy neon forest ground tile with wet stone path, cyan puddle reflections, small purple mushrooms, dark green leaves, top-down three-quarter RPG perspective, tile edges clearly visible, transparent background outside the tile footprint preferred, no characters, no readable text, no logo, no watermark. If transparency is unavailable, use a perfectly flat solid #00ff00 chroma-key background outside the tile footprint only.",
+    negativePrompt: "characters, text, logo, watermark, photorealistic rain, unreadable clutter, full landscape, complex surrounding background, gradient background",
+    notes: "Keep it tile-friendly, isolated, and surrounded by transparency or a flat removable background."
   },
   {
     id: "sprite-sheet-workbench",
     category: { en: "Scene", ja: "シーン" },
     title: { en: "Sprite-Sheet Workbench", ja: "スプライト作業台" },
+    previewImage: "/prompt-examples/sprite-sheet-workbench.png",
+    summary: {
+      en: "Complex production-tool concept kept as one clean isolated object.",
+      ja: "複雑な制作ツール案を単体オブジェクトとしてまとめた例です。"
+    },
     prompt:
-      "Create a pixel-art inspired production-tool prop: a compact fantasy sprite-sheet workbench with glowing teal grid panels, tiny frame thumbnails, amber export crystals, pinned annotation marks, wooden desk silhouette, isolated object on a simple flat chroma-key green background, crisp readable composition, no scenery wall, no readable text, no logo, no watermark, no numbers.",
-    negativePrompt: "readable UI text, letters, numbers, logo, watermark, photorealistic monitor, blurry composition, complex room background",
+      "Create a pixel-art inspired production-tool prop: a compact fantasy sprite-sheet workbench with glowing teal grid panels, tiny frame thumbnails as abstract blocks, amber export crystals, pinned annotation marks, wooden desk silhouette, isolated object, transparent background preferred, crisp readable composition, no scenery wall, no readable text, no logo, no watermark, no numbers. If transparency is unavailable, use a perfectly flat solid #00ff00 chroma-key background with no shadows, gradients, texture, floor plane, or lighting variation.",
+    negativePrompt: "readable UI text, letters, numbers, logo, watermark, photorealistic monitor, blurry composition, complex room background, floor plane, cast shadow",
     notes: "Use this when testing whether complex production-tool concepts survive the imagegen prompt while still remaining easy to cut out."
   }
 ];
@@ -1598,6 +1640,15 @@ function App() {
     }
   }
 
+  function downloadSelectedImage() {
+    if (!selected || selectedIsAnimationResult) return;
+    const blob = dataUrlToBlob(selected.dataUrl);
+    const extension = blob.type.includes("webp") ? "webp" : blob.type.includes("jpeg") ? "jpg" : "png";
+    const baseName = selected.name.replace(/\.[^.]+$/, "") || "image-cockpit-result";
+    const safeName = baseName.replace(/[<>:"/\\|?*\x00-\x1F]+/g, "-");
+    downloadBlob(blob, `${safeName}.${extension}`);
+  }
+
   async function addSelectedAsFrame() {
     if (!selected) return;
     const image = await loadImage(selected.dataUrl);
@@ -1911,6 +1962,8 @@ function App() {
   const showAnnotationToolbar = isImageEditWorkflow && !selectedIsAnimationResult;
   const showSpriteActionsPanel = SHOW_SPRITE_ACTIONS_PANEL;
   const hideMainPreviewForAnimationResult = isAnimationWorkflow && selectedAnimationExportReady;
+  const showImageDownloadPanel = !isAnimationWorkflow;
+  const selectedImageDownloadReady = Boolean(selected && !selectedIsAnimationResult);
 
   return (
     <div className="app-shell">
@@ -2300,7 +2353,7 @@ function App() {
           )}
         </aside>
 
-        <section className={`workspace ${isAnimationWorkflow ? "with-animation-downloads" : ""} ${hideMainPreviewForAnimationResult ? "animation-result-selected" : ""}`}>
+        <section className={`workspace ${isAnimationWorkflow ? "with-animation-downloads" : ""} ${showImageDownloadPanel ? "with-image-downloads" : ""} ${hideMainPreviewForAnimationResult ? "animation-result-selected" : ""}`}>
           {!hideMainPreviewForAnimationResult && (
           <div className={`panel canvas-panel ${showAnnotationToolbar ? "" : "without-toolbar"}`}>
             <PanelTitle index="2" title={copy.canvasAnnotationTitle} />
@@ -2373,6 +2426,26 @@ function App() {
               <span className="swatch" style={{ background: annotationColor }} />
             </div>
           </div>
+          )}
+          {showImageDownloadPanel && (
+            <section className={`panel image-download-panel ${selectedImageDownloadReady ? "complete" : ""}`}>
+              <PanelTitle index="4" title={copy.imageDownloadTitle} />
+              <div className="image-download-body">
+                <div className="step-heading">
+                  <strong>{selected?.name ?? copy.imageDownloadTitle}</strong>
+                  <span>{copy.imageDownloadBody}</span>
+                </div>
+                <small className="step-kicker">
+                  {selectedImageDownloadReady ? copy.imageDownloadReady : copy.imageDownloadLocked}
+                </small>
+                <div className="download-grid image-download-grid">
+                  <button onClick={downloadSelectedImage} disabled={!selectedImageDownloadReady}>
+                    <FileImage size={16} aria-hidden="true" />
+                    {copy.downloadPng}
+                  </button>
+                </div>
+              </div>
+            </section>
           )}
           {isAnimationWorkflow && (
             <section className={`panel animation-download-panel ${selectedAnimationExportReady ? "complete" : ""}`}>
@@ -3380,13 +3453,14 @@ function PromptExamplesModal({
         <div className="prompt-grid">
           {promptExamples.map((example) => (
             <article key={example.id} className="prompt-card">
+              <div className="prompt-card-preview">
+                <img src={example.previewImage} alt={`${example.title[language]} example`} />
+              </div>
               <div className="prompt-card-meta">
                 <small>{example.category[language]}</small>
               </div>
               <h2>{example.title[language]}</h2>
-              <p className="prompt-card-text">{example.prompt}</p>
-              <p className="prompt-card-negative">{example.negativePrompt}</p>
-              <small className="prompt-card-note">{example.notes}</small>
+              <small className="prompt-card-note">{example.summary[language]}</small>
               <div className="prompt-actions">
                 <button onClick={() => void onCopy(example)}>
                   <Copy size={15} aria-hidden="true" />

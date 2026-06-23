@@ -279,6 +279,12 @@ button {
   gap: 6px;
 }
 
+.workspace.with-image-downloads {
+  display: grid;
+  grid-template-rows: minmax(360px, 1fr) auto;
+  gap: 6px;
+}
+
 .workspace.with-animation-downloads.animation-result-selected {
   grid-template-rows: minmax(0, 1fr);
 }
@@ -506,12 +512,46 @@ button {
   border-color: #9fceb0;
 }
 
+.image-download-panel {
+  min-height: 116px;
+  display: grid;
+  grid-template-rows: 38px minmax(0, 1fr);
+}
+
+.image-download-panel.complete {
+  border-color: #9fceb0;
+}
+
 .animation-download-body {
   min-height: 0;
   display: grid;
   gap: 8px;
   overflow: auto;
   padding: 10px;
+}
+
+.image-download-body {
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(150px, 210px);
+  align-items: end;
+  gap: 10px;
+  overflow: auto;
+  padding: 10px;
+}
+
+.image-download-body .step-heading {
+  min-width: 0;
+}
+
+.image-download-body .step-kicker {
+  grid-column: 1;
+  color: #0f5d31;
+}
+
+.image-download-grid {
+  grid-column: 2;
+  grid-row: 1 / span 2;
 }
 
 .animation-source-status {
@@ -1715,6 +1755,35 @@ button:disabled {
   padding: 12px;
 }
 
+.prompt-card-preview {
+  aspect-ratio: 1 / 1;
+  min-height: 0;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  background:
+    linear-gradient(45deg, #ecefec 25%, transparent 25%),
+    linear-gradient(-45deg, #ecefec 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, #ecefec 75%),
+    linear-gradient(-45deg, transparent 75%, #ecefec 75%);
+  background-size: 16px 16px;
+  background-position:
+    0 0,
+    0 8px,
+    8px -8px,
+    -8px 0;
+  padding: 10px;
+}
+
+.prompt-card-preview img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  image-rendering: pixelated;
+}
+
 .prompt-card-meta {
   display: flex;
   justify-content: space-between;
@@ -1734,26 +1803,6 @@ button:disabled {
   color: #17211b;
   font-size: 15px;
   line-height: 1.25;
-}
-
-.prompt-card-text,
-.prompt-card-negative {
-  margin: 0;
-  color: #28342c;
-  font-size: 12px;
-  line-height: 1.45;
-  overflow-wrap: anywhere;
-}
-
-.prompt-card-text {
-  min-height: 120px;
-}
-
-.prompt-card-negative {
-  border-left: 3px solid #f0cd8e;
-  background: var(--amber-soft);
-  color: #62430f;
-  padding: 7px 8px;
 }
 
 .prompt-card-note {
@@ -1904,6 +1953,10 @@ button:disabled {
     grid-template-rows: auto auto;
   }
 
+  .workspace.with-image-downloads {
+    grid-template-rows: auto auto;
+  }
+
   .animation-download-panel {
     height: auto;
     max-height: none;
@@ -1956,8 +2009,14 @@ button:disabled {
   .field-row,
   .button-row,
   .variant-strip,
-  .animation-download-panel .download-grid {
+  .animation-download-panel .download-grid,
+  .image-download-body {
     grid-template-columns: 1fr;
+  }
+
+  .image-download-grid {
+    grid-column: 1;
+    grid-row: auto;
   }
 
   .animation-download-panel .direction-preview-list {
@@ -1996,10 +2055,6 @@ button:disabled {
 
   .prompt-grid {
     grid-template-columns: 1fr;
-  }
-
-  .prompt-card-text {
-    min-height: 0;
   }
 
   .prompt-actions {

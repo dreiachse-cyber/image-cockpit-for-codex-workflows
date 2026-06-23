@@ -106,7 +106,7 @@ try {
   await assertWorkflow({
     label: "Pixel Art Generation",
     route: "Route: Codex Handoff",
-    buttons: ["Generate Pixel Art"],
+    buttons: ["Generate Pixel Art", "PNG"],
     hiddenButtons: ["Import Latest", "Import File"],
     hiddenText: ["Sprite Actions", "Export Sprite"],
     requiredText: ["Pixel Art Prompt", "Generation Notes", "Preview", "Generation can take a few minutes."],
@@ -152,6 +152,7 @@ async function assertInitialWorkspace() {
   assert(snapshot.buttons.includes("Animation Generation"), "Initial workspace should expose Animation Generation tab");
   assert(snapshot.workflowTabsInsidePanel, "Initial workspace should place workflow tabs under 1. Workflow");
   assert(snapshot.canvasVisible, "Initial workspace should render the preview canvas immediately");
+  assert(snapshot.imageDownloadPanelInWorkspace, "Initial workspace should place the image download card under the preview workspace");
   await maybeCapture("initial-workspace");
 }
 
@@ -182,11 +183,14 @@ async function assertPromptExamples() {
   await clickButtonByText("Prompt Examples");
   await waitForEval(() => `document.querySelector(".prompt-modal")?.innerText.includes("Clockwork Mushroom Courier")`, "Prompt Examples modal");
   const snapshot = await pageSnapshot();
-  assert(snapshot.text.includes("Pixel-art prompts tuned for Codex imagegen."), "Prompt Examples intro should be visible");
+  assert(snapshot.text.includes("Pick by preview image"), "Prompt Examples intro should be visible");
   assert(snapshot.buttons.includes("Copy Prompt"), "Prompt Examples should expose copy buttons");
   assert(snapshot.buttons.includes("Use Prompt"), "Prompt Examples should expose use buttons");
-  const examplePrompt = await evaluate(`document.querySelector(".prompt-card-text")?.textContent || ""`);
-  assert(examplePrompt.includes("clockwork mushroom courier"), "Prompt example text should be available for copy");
+  assert(snapshot.promptPreviewImages >= 6, `Prompt Examples should show image previews, got ${snapshot.promptPreviewImages}`);
+  assert(snapshot.promptRawTextBlocks === 0, `Prompt Examples should hide raw prompt text, got ${snapshot.promptRawTextBlocks} raw blocks`);
+  const firstPreviewLoaded = await evaluate(`Boolean(document.querySelector(".prompt-card-preview img")?.naturalWidth)`);
+  assert(firstPreviewLoaded, "Prompt Examples preview images should load");
+  assert(!snapshot.text.includes("Create one original pixel-art game asset"), "Prompt Examples should not display raw prompt contents");
   await maybeCapture("prompt-examples-modal");
 
   await clickButtonByText("Use Prompt");
@@ -237,6 +241,8 @@ async function assertImageEditing() {
   assert(snapshot.buttons.includes("Pixel Art Generation"), "Image Editing should expose Pixel Art Generation tab");
   assert(snapshot.buttons.includes("Image Editing"), "Image Editing should expose Image Editing tab");
   assert(snapshot.buttons.includes("Animation Generation"), "Image Editing should expose Animation Generation tab");
+  assert(snapshot.buttons.includes("PNG"), "Image Editing should expose the image PNG download action");
+  assert(snapshot.imageDownloadPanelInWorkspace, "Image Editing should place the image download card under the preview workspace");
   assert(snapshot.annotationToolbarVisible, "Image Editing should show the rectangle selection toolbar");
   assert(snapshot.canvasPreviewMode === "edit", `Image Editing should use edit canvas mode, got ${snapshot.canvasPreviewMode}`);
   assert(snapshot.text.includes("Numbered edit regions"), "Image Editing should show numbered edit regions");
@@ -275,6 +281,8 @@ async function assertImageEditing() {
   assert(!snapshot.editCompareVisible, "Image Editing should not render the old Before / After compare card");
   assert(snapshot.imageEditSourceImages === 1, `Image Editing should show one edit source thumbnail under the preview, got ${snapshot.imageEditSourceImages}`);
   assert(snapshot.imageEditSourceStatus.includes("Edited from"), "Image Editing should show the edit source under the preview");
+  assert(snapshot.imageDownloadPanelInWorkspace, "Image Editing should keep the image download card under the preview after edit");
+  assert(snapshot.imageDownloadPanelComplete, "Image Editing should mark the selected edited image as downloadable");
   assert(snapshot.canvasPreviewMode === "edit", `Image Editing should keep edit canvas mode after import, got ${snapshot.canvasPreviewMode}`);
   await assertNoBrowserErrors("Image Editing");
   await maybeCapture("image-editing-edit-source");
@@ -336,6 +344,9 @@ async function assertWorkflow({
     assert(snapshot.downloadPanelInWorkspace, "Animation Generation should place the download card under the preview workspace");
     assert(!snapshot.downloadPanelInSource, "Animation Generation should not leave the download card in the left source panel");
     assert(snapshot.animationPreviewImages === 0, "Animation Generation should not show stale download preview images before a selected animation result exists");
+  } else {
+    assert(snapshot.imageDownloadPanelInWorkspace, `${label} should place the image download card under the preview workspace`);
+    assert(!snapshot.downloadPanelInSource, `${label} should not put download cards in the left source panel`);
   }
   buttons.forEach((button) => {
     assert(snapshot.buttons.includes(button), `${label} missing action button: ${button}`);
@@ -413,6 +424,7 @@ async function assertWorkflow({
         assert(previewSnapshot.resultPreviewImages === 1, `${label} should render one selected result preview image, got ${previewSnapshot.resultPreviewImages}`);
         assert(previewSnapshot.resultPreviewLoaded, `${label} should load the selected result preview image`);
         assert(previewSnapshot.resultPreviewFrameHeight >= 240, `${label} result preview frame should be tall enough to inspect, got ${previewSnapshot.resultPreviewFrameHeight}`);
+        assert(previewSnapshot.imageDownloadPanelComplete, `${label} should mark the selected image as downloadable`);
       }
     }
     for (const button of postExerciseButtons) {
@@ -531,6 +543,8 @@ async function pageSnapshot() {
     directionPreviewRows: document.querySelectorAll(".direction-preview-row").length,
     downloadPanelInSource: Boolean(document.querySelector(".source-panel .animation-download-panel")),
     downloadPanelInWorkspace: Boolean(document.querySelector(".workspace .animation-download-panel")),
+    imageDownloadPanelInWorkspace: Boolean(document.querySelector(".workspace .image-download-panel")),
+    imageDownloadPanelComplete: Boolean(document.querySelector(".workspace .image-download-panel.complete")),
     animationSourceStatus: document.querySelector(".animation-download-source-status, .animation-source-status")?.innerText || "",
     imageEditSourceStatus: document.querySelector(".image-edit-source-status")?.innerText || "",
     imageEditSourceImages: document.querySelectorAll(".image-edit-source-status img").length,
@@ -541,7 +555,9 @@ async function pageSnapshot() {
     editCompareImages: document.querySelectorAll(".edit-compare-grid img").length,
     spriteBenchVisible: Boolean(document.querySelector(".sprite-bench")),
     codexJobRows: document.querySelectorAll(".codex-job-row").length,
-    animationPreviewImages: document.querySelectorAll(".animation-preview img").length
+    animationPreviewImages: document.querySelectorAll(".animation-preview img").length,
+    promptPreviewImages: document.querySelectorAll(".prompt-card-preview img").length,
+    promptRawTextBlocks: document.querySelectorAll(".prompt-card-text, .prompt-card-negative").length
   }))()`);
 }
 
