@@ -118,13 +118,14 @@ try {
     buttons: ["Upload Pixel Art", "Generate Animation", "Animated GIF", "Animated WebP", "Sprite Sheet"],
     hiddenButtons: ["Import Latest", "Import File"],
     hiddenText: ["Sprite Actions", "Export Sprite"],
-    requiredText: ["1. Upload Pixel Art", "2. Choose Motion", "3. Generate", "4. Download", "Motion Prompt", "Prompt", "Preset", "5-direction chroma-key sprite sheet", "GIF Preview", "WebP Preview", "Sprite Sheet Preview"],
+    requiredText: ["1. Upload Pixel Art", "2. Choose Motion", "3. Generate", "4. Download", "Motion Prompt", "Prompt", "Preset", "5-direction chroma-key sprite sheet", "Directional Previews", "Sprite Sheet Preview"],
     preExerciseButtonChecks: [{ button: "Preset", expectedText: "Additional Prompt (optional)" }, { button: "Prompt", expectedText: "Motion Prompt" }],
     exerciseButton: "Generate Animation",
     expectedAfterExercise: "Animation generated",
-    expectedAfterExerciseText: ["Animation frames ready", "Animated WebP", "512x512"],
+    expectedAfterExerciseText: ["Animation frames ready", "Animated WebP", "512x512", "Front", "Back", "Side", "GIF Preview", "WebP Preview"],
     postExerciseButtons: ["Animated WebP", "Sprite Sheet"],
-    expectedPreviewImages: 3,
+    expectedPreviewImages: 11,
+    expectedDirectionPreviewCount: 5,
     expectedCanvasPreviewModeAfterExercise: "result",
     reloadAfterExercise: true
   });
@@ -237,6 +238,7 @@ async function assertWorkflow({
   expectedAfterExerciseText = [],
   postExerciseButtons = [],
   expectedPreviewImages = 0,
+  expectedDirectionPreviewCount = 0,
   expectedCanvasPreviewModeAfterExercise = "",
   reloadAfterExercise = false
 }) {
@@ -287,6 +289,13 @@ async function assertWorkflow({
       assert(
         postSnapshot.animationPreviewImages >= expectedPreviewImages,
         `${label} should render ${expectedPreviewImages} animation preview image(s), got ${postSnapshot.animationPreviewImages}`
+      );
+    }
+    if (expectedDirectionPreviewCount > 0) {
+      const directionSnapshot = await pageSnapshot();
+      assert(
+        directionSnapshot.directionPreviewRows === expectedDirectionPreviewCount,
+        `${label} should render ${expectedDirectionPreviewCount} directional preview row(s), got ${directionSnapshot.directionPreviewRows}`
       );
     }
     if (expectedCanvasPreviewModeAfterExercise) {
@@ -363,6 +372,7 @@ async function pageSnapshot() {
     resultPreviewImages: document.querySelectorAll(".result-preview-image").length,
     resultPreviewLoaded: Boolean(document.querySelector(".result-preview-image")?.naturalWidth),
     resultPreviewFrameHeight: Math.round(document.querySelector(".result-preview-frame")?.getBoundingClientRect().height || 0),
+    directionPreviewRows: document.querySelectorAll(".direction-preview-row").length,
     spriteBenchVisible: Boolean(document.querySelector(".sprite-bench")),
     codexJobRows: document.querySelectorAll(".codex-job-row").length,
     animationPreviewImages: document.querySelectorAll(".animation-preview img").length

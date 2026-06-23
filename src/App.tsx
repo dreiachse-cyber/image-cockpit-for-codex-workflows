@@ -172,6 +172,14 @@ interface ImportLatestOptions {
   job?: CodexJobQueueItem;
 }
 
+interface AnimationDirectionPreview {
+  id: string;
+  label: string;
+  gifUrl: string;
+  webpUrl: string;
+  frameCount: number;
+}
+
 const uiCopy = {
   en: {
     language: "Language",
@@ -251,6 +259,12 @@ const uiCopy = {
     animatedGif: "Animated GIF",
     animatedWebP: "Animated WebP",
     spriteSheetDownload: "Sprite Sheet",
+    directionalPreviews: "Directional Previews",
+    previewFront: "Front",
+    previewBack: "Back",
+    previewBackThreeQuarter: "Back 3/4",
+    previewFrontThreeQuarter: "Front 3/4",
+    previewSide: "Side",
     previewGif: "GIF Preview",
     previewWebP: "WebP Preview",
     previewSpriteSheet: "Sprite Sheet Preview",
@@ -374,6 +388,15 @@ const uiCopy = {
     animatedGif: "アニメGIF",
     animatedWebP: "アニメWebP",
     spriteSheetDownload: "スプライトシート",
+    directionalPreviews: "5方向プレビュー",
+    previewFront: "正面",
+    previewBack: "背面",
+    previewBackThreeQuarter: "斜め後ろ",
+    previewFrontThreeQuarter: "斜め前",
+    previewSide: "横",
+    previewGif: "GIF Preview",
+    previewWebP: "WebP Preview",
+    previewSpriteSheet: "Sprite Sheet Preview",
     animationDownloadsLocked: "ダウンロード前にアニメーションを生成してください。",
     statusUsesImport: "はImportまたはドラッグ&ドロップを使います",
     statusCodexJobWritten: "Codexジョブを書き込みました",
@@ -674,6 +697,7 @@ function App() {
   const [gifPreviewUrl, setGifPreviewUrl] = useState("");
   const [webpPreviewUrl, setWebpPreviewUrl] = useState("");
   const [spriteSheetPreviewUrl, setSpriteSheetPreviewUrl] = useState("");
+  const [animationDirectionPreviews, setAnimationDirectionPreviews] = useState<AnimationDirectionPreview[]>([]);
   const [animationChromaKey, setAnimationChromaKey] = useState<AnimationChromaKeyName>("green");
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -820,36 +844,57 @@ function App() {
       setGifPreviewUrl("");
       setWebpPreviewUrl("");
       setSpriteSheetPreviewUrl("");
+      setAnimationDirectionPreviews([]);
       return;
     }
     let cancelled = false;
     const objectUrls: string[] = [];
+    const directionActions = buildAnimationDirectionPreviewActions(activeAction, actionFrames);
 
     Promise.all([
-      createGifBlob(frames, activeAction),
-      createAnimatedWebpBlob(frames, activeAction),
+      Promise.all(
+        directionActions.map(async ({ directionId, action }) => ({
+          id: directionId,
+          label: animationDirectionLabel(directionId, language),
+          frameCount: action.frameIds.length,
+          gifBlob: await createGifBlob(frames, action),
+          webpBlob: await createAnimatedWebpBlob(frames, action)
+        }))
+      ),
       createSpriteSheetBlob(frames, activeAction, ANIMATION_FRAME_COUNT)
     ])
-      .then(([gifBlob, webpBlob, spriteSheetBlob]) => {
+      .then(([directionBlobs, spriteSheetBlob]) => {
         if (cancelled) return;
-        const gifUrl = URL.createObjectURL(gifBlob);
-        const webpUrl = URL.createObjectURL(webpBlob);
+        const directionPreviews = directionBlobs.map((preview) => {
+          const gifUrl = URL.createObjectURL(preview.gifBlob);
+          const webpUrl = URL.createObjectURL(preview.webpBlob);
+          objectUrls.push(gifUrl, webpUrl);
+          return {
+            id: preview.id,
+            label: preview.label,
+            frameCount: preview.frameCount,
+            gifUrl,
+            webpUrl
+          };
+        });
         const sheetUrl = URL.createObjectURL(spriteSheetBlob);
-        objectUrls.push(gifUrl, webpUrl, sheetUrl);
-        setGifPreviewUrl(gifUrl);
-        setWebpPreviewUrl(webpUrl);
+        objectUrls.push(sheetUrl);
+        setAnimationDirectionPreviews(directionPreviews);
+        setGifPreviewUrl(directionPreviews[0]?.gifUrl ?? "");
+        setWebpPreviewUrl(directionPreviews[0]?.webpUrl ?? "");
         setSpriteSheetPreviewUrl(sheetUrl);
       })
       .catch(() => {
         setGifPreviewUrl("");
         setWebpPreviewUrl("");
         setSpriteSheetPreviewUrl("");
+        setAnimationDirectionPreviews([]);
       });
     return () => {
       cancelled = true;
       objectUrls.forEach((url) => URL.revokeObjectURL(url));
     };
-  }, [activeAction, actionFrames.length, frames]);
+  }, [activeAction, actionFrames, frames, language]);
 
   useEffect(() => {
     const runningJobs = codexJobs.filter((job) => job.state === "running");
@@ -1409,6 +1454,17 @@ function App() {
     }
   }
 
+  async function exportDirectionalAnimations(format: "gif" | "webp") {
+    if (!animationExportReady) return;
+    const directionActions = buildAnimationDirectionPreviewActions(activeAction, actionFrames);
+    for (const { directionId, action } of directionActions) {
+      const blob = format === "gif"
+        ? await createGifBlob(frames, action)
+        : await createAnimatedWebpBlob(frames, action);
+      downloadBlob(blob, `${activeAction.name}_${directionId.replace(/\s+/g, "-")}.${format}`);
+    }
+  }
+
   async function addSelectedAsFrame() {
     if (!selected) return;
     const image = await loadImage(selected.dataUrl);
@@ -1796,17 +1852,35 @@ function App() {
                 </div>
                 {animationExportReady && <small className="step-kicker">{copy.animationReady}</small>}
                 <div className="animation-preview-grid">
-                  <div className="animation-preview-card">
-                    <strong>{(copy as Record<string, string>).previewGif ?? "GIF Preview"}</strong>
-                    <div className="animation-preview">
-                      {animationExportReady && gifPreviewUrl ? <img src={gifPreviewUrl} alt="" /> : <span>{copy.animationDownloadsLocked}</span>}
-                    </div>
-                  </div>
-                  <div className="animation-preview-card">
-                    <strong>{(copy as Record<string, string>).previewWebP ?? "WebP Preview"}</strong>
-                    <div className="animation-preview">
-                      {animationExportReady && webpPreviewUrl ? <img src={webpPreviewUrl} alt="" /> : <span>{copy.animationDownloadsLocked}</span>}
-                    </div>
+                  <div className="animation-preview-card direction-preview-card">
+                    <strong>{(copy as Record<string, string>).directionalPreviews ?? "Directional Previews"}</strong>
+                    {animationExportReady && animationDirectionPreviews.length > 0 ? (
+                      <div className="direction-preview-list">
+                        {animationDirectionPreviews.map((preview) => (
+                          <div className="direction-preview-row" key={preview.id}>
+                            <span>{preview.label}</span>
+                            <div className="direction-preview-media">
+                              <div className="direction-preview-slot">
+                                <small>{(copy as Record<string, string>).previewGif ?? "GIF"}</small>
+                                <div className="animation-preview compact-animation-preview">
+                                  <img src={preview.gifUrl} alt="" />
+                                </div>
+                              </div>
+                              <div className="direction-preview-slot">
+                                <small>{(copy as Record<string, string>).previewWebP ?? "WebP"}</small>
+                                <div className="animation-preview compact-animation-preview">
+                                  <img src={preview.webpUrl} alt="" />
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="animation-preview">
+                        <span>{copy.animationDownloadsLocked}</span>
+                      </div>
+                    )}
                   </div>
                   <div className="animation-preview-card">
                     <strong>{(copy as Record<string, string>).previewSpriteSheet ?? "Sprite Sheet Preview"}</strong>
@@ -1816,11 +1890,11 @@ function App() {
                   </div>
                 </div>
                 <div className="download-grid">
-                  <button onClick={() => void exportGif(frames, activeAction)} disabled={!animationExportReady}>
+                  <button onClick={() => void exportDirectionalAnimations("gif")} disabled={!animationExportReady}>
                     <Film size={16} aria-hidden="true" />
                     {copy.animatedGif}
                   </button>
-                  <button onClick={() => void exportWebP(frames, activeAction)} disabled={!animationExportReady}>
+                  <button onClick={() => void exportDirectionalAnimations("webp")} disabled={!animationExportReady}>
                     <FileArchive size={16} aria-hidden="true" />
                     {copy.animatedWebP}
                   </button>
@@ -2410,6 +2484,36 @@ function codexJobLabel(mode: WorkflowMode | null, prompt: string, actionName?: s
   if (mode === "image-edit") return shortPrompt ? `Image Edit: ${shortPrompt}` : "Image Edit";
   if (mode === "sprite-edit") return shortPrompt ? `Sprite Edit: ${shortPrompt}` : "Sprite Edit";
   return shortPrompt || "Codex Job";
+}
+
+function buildAnimationDirectionPreviewActions(action: SpriteAction, actionFrames: SpriteFrame[]) {
+  const directionCount =
+    actionFrames.length >= ANIMATION_FRAME_COUNT * ANIMATION_DIRECTION_COUNT
+      ? ANIMATION_DIRECTION_COUNT
+      : Math.max(1, Math.ceil(actionFrames.length / ANIMATION_FRAME_COUNT));
+
+  return Array.from({ length: directionCount }, (_, index) => {
+    const directionId = ANIMATION_DIRECTIONS[index] ?? `direction-${index + 1}`;
+    const rowFrames = actionFrames.slice(index * ANIMATION_FRAME_COUNT, (index + 1) * ANIMATION_FRAME_COUNT);
+    return {
+      directionId,
+      action: {
+        ...action,
+        name: `${action.name}_${directionId.replace(/\s+/g, "-")}`,
+        frameIds: rowFrames.map((frame) => frame.id)
+      }
+    };
+  }).filter((preview) => preview.action.frameIds.length > 0);
+}
+
+function animationDirectionLabel(directionId: string, language: Language) {
+  const labels = uiCopy[language] as Record<string, string>;
+  if (directionId === "front") return labels.previewFront;
+  if (directionId === "back") return labels.previewBack;
+  if (directionId === "back three-quarter") return labels.previewBackThreeQuarter;
+  if (directionId === "front three-quarter") return labels.previewFrontThreeQuarter;
+  if (directionId === "side") return labels.previewSide;
+  return directionId;
 }
 
 function isAnimationSource(item?: HistoryItem): item is HistoryItem {

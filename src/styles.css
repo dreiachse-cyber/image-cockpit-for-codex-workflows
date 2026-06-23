@@ -637,6 +637,44 @@ button {
   font-size: 12px;
 }
 
+.direction-preview-card {
+  gap: 7px;
+}
+
+.direction-preview-list {
+  display: grid;
+  gap: 8px;
+}
+
+.direction-preview-row {
+  display: grid;
+  gap: 5px;
+}
+
+.direction-preview-row > span {
+  color: #33443a;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.direction-preview-media {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+
+.direction-preview-slot {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.direction-preview-slot small {
+  color: var(--text-muted);
+  font-size: 10px;
+  font-weight: 800;
+}
+
 .animation-preview {
   min-height: 132px;
   display: grid;
@@ -664,6 +702,16 @@ button {
   max-width: min(100%, 170px);
   max-height: 124px;
   image-rendering: pixelated;
+}
+
+.compact-animation-preview {
+  min-height: 86px;
+  padding: 5px;
+}
+
+.compact-animation-preview img {
+  max-width: 100%;
+  max-height: 76px;
 }
 
 .animation-preview.sheet-preview img {
