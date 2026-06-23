@@ -46,6 +46,7 @@ npm run release:audit
 - 現在のWindows環境では `codex` 実行が `spawn EPERM` となり、runner state `unavailable` として記録されることを確認。
 - `/api/codex/jobs` smokeで、job JSONに `workflowMode=image-edit`、編集メモ、`annotationCount=1`、`selectedImage.assetPath` が入ることを確認。
 - `/api/codex/jobs` smokeで、`workflowMode=image-generate` のjobに選択画像asset、編集注釈、sprite contextが混入しないことを確認。
+- `/api/codex/results` smokeで、outbox画像の一覧表示、非画像除外、画像data URL取り込みを確認。
 - Chrome headlessでimage-edit desktop、sprite-edit desktop、sprite-edit mobileを確認し、sprite-edit mobileに横あふれがないことを確認。
 
 ## リリース候補資料

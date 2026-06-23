@@ -1,5 +1,5 @@
 import { spawn } from "node:child_process";
-import { mkdtemp, readFile, rm, stat } from "node:fs/promises";
+import { mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -39,6 +39,17 @@ try {
 
   const tinyPng =
     "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII=";
+  const tinyPngBytes = Buffer.from(tinyPng.split(",")[1], "base64");
+  await writeFile(join(handoffDir, "outbox", "manual-return.png"), tinyPngBytes);
+  await writeFile(join(handoffDir, "outbox", "manual-notes.txt"), "not an image", "utf8");
+
+  const outboxList = await getJson(port, "/api/codex/results");
+  assert(outboxList.results.some((result) => result.name === "manual-return.png"), "outbox image should be listed");
+  assert(!outboxList.results.some((result) => result.name === "manual-notes.txt"), "non-image outbox file should be ignored");
+  const importedOutbox = await getJson(port, "/api/codex/results/manual-return.png");
+  assert(importedOutbox.mimeType === "image/png", "outbox import should preserve image MIME type");
+  assert(importedOutbox.dataUrl === tinyPng, "outbox import should return a data URL");
+
   const job = await postJson(port, "/api/codex/jobs", {
     workflowMode: "image-edit",
     prompt: "Smoke test edit",

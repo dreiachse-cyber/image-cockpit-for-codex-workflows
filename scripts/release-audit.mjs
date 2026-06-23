@@ -182,6 +182,10 @@ function checkWorkflowIds() {
       failures.push(`Smoke test should cover Codex handoff workflow: ${workflowId}`);
     }
   });
+
+  if (!smokeText.includes("/api/codex/results")) {
+    failures.push("Smoke test should cover Local Inbox outbox result listing/import.");
+  }
 }
 
 function checkReleaseDocs() {

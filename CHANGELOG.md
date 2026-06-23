@@ -12,6 +12,7 @@ Private release candidate for the first local Image Cockpit MVP.
 - Pending-job lock so the Codex job button cannot create duplicate handoff jobs while waiting for a result.
 - Handoff job context including workflow mode, edit notes, selected image asset, annotations, grid, and sprite context.
 - Local Inbox import for returned outbox images.
+- Smoke coverage for Local Inbox outbox listing and data URL import.
 - Canvas annotation tools for select, brush, rectangle, and arrow.
 - Grid split into sprite frames, frame timeline editing, frame size controls, anchor controls, chroma key cleanup, and PNG / ZIP / GIF / metadata exports.
 - Japanese / English language selector.
