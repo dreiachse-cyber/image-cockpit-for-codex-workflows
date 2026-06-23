@@ -103,6 +103,7 @@ Use `docs/review/mvp-review-report.md` for the private MVP review path, QA evide
 ## Release Candidate
 
 - Changelog: `CHANGELOG.md`
+- Release notes draft: `docs/release/v0.1.0-release-notes.md`
 - Release checklist: `docs/release/v0.1.0-checklist.md`
 - Release runbook: `docs/release/v0.1.0-runbook.md`
 - License: `LICENSE`

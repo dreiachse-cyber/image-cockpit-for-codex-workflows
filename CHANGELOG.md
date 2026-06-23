@@ -19,6 +19,7 @@ Private release candidate for the first local Image Cockpit MVP.
 - Desktop and mobile QA screenshots plus MVP review report.
 - MVP demo GIF linked from README.
 - Release audit script for local-first boundaries, required docs, workflow IDs, and tracked-file safety checks.
+- v0.1.0 release notes draft for the first public release approval gate.
 
 ### Notes
 

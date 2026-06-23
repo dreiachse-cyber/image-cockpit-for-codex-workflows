@@ -19,6 +19,7 @@ const requiredFiles = [
   "docs/roadmap/release-roadmap.md",
   "docs/release/v0.1.0-checklist.md",
   "docs/release/v0.1.0-runbook.md",
+  "docs/release/v0.1.0-release-notes.md",
   "docs/demo/mvp-demo.gif"
 ];
 
@@ -36,6 +37,7 @@ const requiredGitignorePatterns = ["node_modules/", "dist/", "coverage/", ".env"
 const requiredPackageScripts = ["typecheck", "test", "build", "smoke", "release:audit"];
 const requiredReadmeLinks = [
   "CHANGELOG.md",
+  "docs/release/v0.1.0-release-notes.md",
   "docs/release/v0.1.0-checklist.md",
   "docs/release/v0.1.0-runbook.md",
   "LICENSE",
@@ -192,7 +194,8 @@ function checkReleaseDocs() {
   const readme = readText("README.md");
   const checklist = readText("docs/release/v0.1.0-checklist.md");
   const runbook = readText("docs/release/v0.1.0-runbook.md");
-  if (!readme || !checklist || !runbook) return;
+  const releaseNotes = readText("docs/release/v0.1.0-release-notes.md");
+  if (!readme || !checklist || !runbook || !releaseNotes) return;
 
   requiredReadmeLinks.forEach((link) => {
     if (!readme.includes(link)) {
@@ -214,6 +217,20 @@ function checkReleaseDocs() {
   ].forEach((line) => {
     if (!runbook.includes(line)) {
       failures.push(`Release runbook is missing safety line: ${line}`);
+    }
+  });
+
+  [
+    "Image generation",
+    "Image editing",
+    "Sprite sheet generation",
+    "Sprite sheet editing",
+    "The app itself does not call OpenAI APIs directly",
+    "manual handoff",
+    "npm run release:audit"
+  ].forEach((line) => {
+    if (!releaseNotes.includes(line)) {
+      failures.push(`Release notes draft is missing expected content: ${line}`);
     }
   });
 }

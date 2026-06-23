@@ -58,6 +58,7 @@ npm run release:audit
 - `CODE_OF_CONDUCT.md`
 - `docs/release/v0.1.0-checklist.md`
 - `docs/release/v0.1.0-runbook.md`
+- `docs/release/v0.1.0-release-notes.md`
 
 ## QA証跡
 
