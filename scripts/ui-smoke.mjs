@@ -128,7 +128,7 @@ try {
     postExerciseButtons: ["Animated WebP", "Sprite Sheet"],
     expectedPreviewImages: 11,
     expectedDirectionPreviewCount: 5,
-    expectedCanvasPreviewModeAfterExercise: "result",
+    expectedMainPreviewHiddenAfterExercise: true,
     reloadAfterExercise: true
   });
   await assertAnimationResultNotEditable();
@@ -312,6 +312,7 @@ async function assertWorkflow({
   expectedPreviewImages = 0,
   expectedDirectionPreviewCount = 0,
   expectedCanvasPreviewModeAfterExercise = "",
+  expectedMainPreviewHiddenAfterExercise = false,
   expectedAnnotationToolbarVisible = false,
   reloadAfterExercise = false
 }) {
@@ -381,6 +382,22 @@ async function assertWorkflow({
       );
       assert(directionSnapshot.animationSourceStatus.includes("Generated from"), `${label} should show the generated-from source under the preview`);
     }
+    if (expectedMainPreviewHiddenAfterExercise) {
+      await waitForEval(
+        () => `(() => {
+          const workspace = document.querySelector(".workspace.animation-result-selected");
+          return Boolean(workspace) &&
+            !workspace.querySelector(".canvas-panel") &&
+            !workspace.querySelector(".result-preview-image") &&
+            Boolean(workspace.querySelector(".animation-download-panel"));
+        })()`,
+        `${label} hides the main preview for selected animation results`
+      );
+      const hiddenPreviewSnapshot = await pageSnapshot();
+      assert(!hiddenPreviewSnapshot.canvasPanelVisible, `${label} should not render the main canvas panel for selected animation results`);
+      assert(hiddenPreviewSnapshot.resultPreviewImages === 0, `${label} should not render the selected sprite sheet in the main preview`);
+      assert(hiddenPreviewSnapshot.downloadPanelInWorkspace, `${label} should keep the download panel visible when the main preview is hidden`);
+    }
     if (expectedCanvasPreviewModeAfterExercise) {
       await waitForEval(
         () => `document.querySelector("canvas")?.dataset.previewMode === ${JSON.stringify(expectedCanvasPreviewModeAfterExercise)}`,
@@ -411,6 +428,12 @@ async function assertWorkflow({
       await waitForEval(() => `document.body.innerText.includes("Animation frames ready")`, `${label} persisted animation frames after reload`);
       await waitForEval(() => `document.body.innerText.includes("Generated from")`, `${label} persisted generated-from source after reload`);
       await waitForEval(() => `document.body.innerText.includes("512x512")`, `${label} persisted 512x512 frame size after reload`);
+      if (expectedPreviewImages > 0) {
+        await waitForEval(
+          () => `document.querySelectorAll(".animation-preview img").length >= ${expectedPreviewImages}`,
+          `${label} regenerated animation previews after reload`
+        );
+      }
       await assertNoBrowserErrors(`${label} reload persistence`);
     }
   }
@@ -498,6 +521,7 @@ async function pageSnapshot() {
     workflowTabsInsidePanel: Boolean(document.querySelector(".source-panel > .workflow-tabs")),
     workflowTabsInTopbar: Boolean(document.querySelector(".topbar .workflow-tabs")),
     canvasVisible: Boolean(document.querySelector("canvas")),
+    canvasPanelVisible: Boolean(document.querySelector(".canvas-panel")),
     annotationToolbarVisible: Boolean(document.querySelector(".canvas-panel .toolbar")),
     canvasPreviewMode: document.querySelector("canvas")?.dataset.previewMode || "",
     canvasPreviewName: document.querySelector("canvas")?.dataset.previewName || "",
@@ -507,7 +531,7 @@ async function pageSnapshot() {
     directionPreviewRows: document.querySelectorAll(".direction-preview-row").length,
     downloadPanelInSource: Boolean(document.querySelector(".source-panel .animation-download-panel")),
     downloadPanelInWorkspace: Boolean(document.querySelector(".workspace .animation-download-panel")),
-    animationSourceStatus: document.querySelector(".animation-source-status")?.innerText || "",
+    animationSourceStatus: document.querySelector(".animation-download-source-status, .animation-source-status")?.innerText || "",
     imageEditSourceStatus: document.querySelector(".image-edit-source-status")?.innerText || "",
     imageEditSourceImages: document.querySelectorAll(".image-edit-source-status img").length,
     finalEditNoticeVisible: Boolean(document.querySelector(".edit-final-notice")),

@@ -279,6 +279,10 @@ button {
   gap: 6px;
 }
 
+.workspace.with-animation-downloads.animation-result-selected {
+  grid-template-rows: minmax(0, 1fr);
+}
+
 .canvas-panel {
   height: 100%;
   display: grid;
@@ -494,6 +498,10 @@ button {
   grid-template-rows: 38px minmax(0, 1fr);
 }
 
+.workspace.animation-result-selected .animation-download-panel {
+  height: 100%;
+}
+
 .animation-download-panel.complete {
   border-color: #9fceb0;
 }
@@ -511,6 +519,16 @@ button {
   max-width: 38%;
   overflow: hidden;
   color: #0f5d31;
+  font-weight: 800;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.animation-download-source-status {
+  min-width: 0;
+  overflow: hidden;
+  color: #0f5d31;
+  font-size: 12px;
   font-weight: 800;
   text-overflow: ellipsis;
   white-space: nowrap;

@@ -385,6 +385,9 @@ function checkWorkflowIds() {
     "Sprite Sheet Preview",
     "expectedPreviewImages",
     "animationPreviewImages",
+    "expectedMainPreviewHiddenAfterExercise",
+    "hides the main preview for selected animation results",
+    "canvasPanelVisible",
     "expectedCanvasPreviewModeAfterExercise",
     "canvasPreviewMode",
     "annotationToolbarVisible",
@@ -397,6 +400,7 @@ function checkWorkflowIds() {
     "Generated from",
     "animationSourceStatus",
     "persisted generated-from source after reload",
+    "regenerated animation previews after reload",
     "512x512",
     "persisted animation frames after reload",
     "persisted 512x512 frame size after reload"
@@ -452,11 +456,27 @@ function checkWorkflowIds() {
     "workflowMode=sprite-generate",
     "spriteContext.chromaKey",
     "spriteContext.directions",
+    "no character pixels crossing cell borders",
+    "exactly one full-body character",
+    "duplicated heads",
     "If the first result contains unwanted text or numbers, retry once",
     "write a short Markdown or JSON sidecar"
   ].forEach((marker) => {
     if (!serverText?.includes(marker)) {
       failures.push(`Server should preserve imagegen handoff instructions: ${marker}`);
+    }
+  });
+
+  [
+    "createSpriteSheetBlob(frames, selectedAnimationAction",
+    "animation-result-selected",
+    "Preparing animation previews",
+    "exactly one full-body character",
+    "Do not let body parts cross cell borders",
+    "Quality gate before returning"
+  ].forEach((marker) => {
+    if (!appText.includes(marker)) {
+      failures.push(`App should preserve strict animation result preview/prompt handling: ${marker}`);
     }
   });
 

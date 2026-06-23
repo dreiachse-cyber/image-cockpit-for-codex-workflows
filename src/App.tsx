@@ -276,6 +276,7 @@ const uiCopy = {
     previewWebP: "WebP Preview",
     previewSpriteSheet: "Sprite Sheet Preview",
     animationDownloadsLocked: "Generate animation frames before downloading.",
+    animationPreviewsBuilding: "Preparing animation previews...",
     animationGeneratedFrom: "Generated from",
     animationSourceUnknown: "Source image not recorded",
     imageEditGeneratedFrom: "Edited from",
@@ -418,6 +419,7 @@ const uiCopy = {
     previewWebP: "WebP Preview",
     previewSpriteSheet: "Sprite Sheet Preview",
     animationDownloadsLocked: "ダウンロード前にアニメーションを生成してください。",
+    animationPreviewsBuilding: "アニメーションプレビューを準備中です...",
     animationGeneratedFrom: "生成元",
     animationSourceUnknown: "生成元画像が記録されていません",
     imageEditGeneratedFrom: "編集元",
@@ -932,6 +934,10 @@ function App() {
     }
     let cancelled = false;
     const objectUrls: string[] = [];
+    setGifPreviewUrl("");
+    setWebpPreviewUrl("");
+    setSpriteSheetPreviewUrl("");
+    setAnimationDirectionPreviews([]);
     const directionActions = buildAnimationDirectionPreviewActions(selectedAnimationAction, selectedAnimationFrames);
 
     Promise.all([
@@ -944,7 +950,7 @@ function App() {
           webpBlob: await createAnimatedWebpBlob(frames, action)
         }))
       ),
-      createSpriteSheetBlob(frames, activeAction, ANIMATION_FRAME_COUNT)
+      createSpriteSheetBlob(frames, selectedAnimationAction, ANIMATION_FRAME_COUNT)
     ])
       .then(([directionBlobs, spriteSheetBlob]) => {
         if (cancelled) return;
@@ -968,6 +974,7 @@ function App() {
         setSpriteSheetPreviewUrl(sheetUrl);
       })
       .catch(() => {
+        if (cancelled) return;
         setGifPreviewUrl("");
         setWebpPreviewUrl("");
         setSpriteSheetPreviewUrl("");
@@ -977,7 +984,7 @@ function App() {
       cancelled = true;
       objectUrls.forEach((url) => URL.revokeObjectURL(url));
     };
-  }, [frames, language, selectedAnimationAction, selectedAnimationExportReady, selectedAnimationFrames]);
+  }, [frames, language, selected?.id, selectedAnimationAction, selectedAnimationExportReady, selectedAnimationFrames]);
 
   useEffect(() => {
     const runningJobs = codexJobs.filter((job) => job.state === "running");
@@ -1898,10 +1905,12 @@ function App() {
     : selected?.size ?? "-";
   const selectedImageEditSourceName = selectedImageEditSource?.name ?? (!selectedAnimationExportReady ? selected?.derivedFromName : undefined);
   const animationDownloadTitle = copy.animationStepDownloadTitle.replace(/^4\.\s*/, "");
+  const animationPreviewPlaceholder = selectedAnimationExportReady ? copy.animationPreviewsBuilding : copy.animationDownloadsLocked;
   const showFrameGridControls = SHOW_LOW_PRIORITY_CONTROLS || workflowMode === "sprite-edit";
   const showSpriteTuningControls = SHOW_LOW_PRIORITY_CONTROLS || workflowMode === "sprite-edit";
   const showAnnotationToolbar = isImageEditWorkflow && !selectedIsAnimationResult;
   const showSpriteActionsPanel = SHOW_SPRITE_ACTIONS_PANEL;
+  const hideMainPreviewForAnimationResult = isAnimationWorkflow && selectedAnimationExportReady;
 
   return (
     <div className="app-shell">
@@ -2291,7 +2300,8 @@ function App() {
           )}
         </aside>
 
-        <section className={`workspace ${isAnimationWorkflow ? "with-animation-downloads" : ""}`}>
+        <section className={`workspace ${isAnimationWorkflow ? "with-animation-downloads" : ""} ${hideMainPreviewForAnimationResult ? "animation-result-selected" : ""}`}>
+          {!hideMainPreviewForAnimationResult && (
           <div className={`panel canvas-panel ${showAnnotationToolbar ? "" : "without-toolbar"}`}>
             <PanelTitle index="2" title={copy.canvasAnnotationTitle} />
             {showAnnotationToolbar && (
@@ -2363,6 +2373,7 @@ function App() {
               <span className="swatch" style={{ background: annotationColor }} />
             </div>
           </div>
+          )}
           {isAnimationWorkflow && (
             <section className={`panel animation-download-panel ${selectedAnimationExportReady ? "complete" : ""}`}>
               <PanelTitle index="4" title={animationDownloadTitle} />
@@ -2372,6 +2383,11 @@ function App() {
                   <span>{copy.animationStepDownloadBody}</span>
                 </div>
                 {selectedAnimationExportReady && <small className="step-kicker">{copy.animationReady}</small>}
+                {selectedAnimationExportReady && (
+                  <span className="animation-download-source-status">
+                    {copy.animationGeneratedFrom}: {selectedAnimationSource?.name ?? selected?.derivedFromName ?? copy.animationSourceUnknown}
+                  </span>
+                )}
                 <div className="animation-preview-grid">
                   <div className="animation-preview-card direction-preview-card">
                     <strong>{(copy as Record<string, string>).directionalPreviews ?? "Directional Previews"}</strong>
@@ -2399,14 +2415,14 @@ function App() {
                       </div>
                     ) : (
                       <div className="animation-preview">
-                        <span>{copy.animationDownloadsLocked}</span>
+                        <span>{animationPreviewPlaceholder}</span>
                       </div>
                     )}
                   </div>
                   <div className="animation-preview-card">
                     <strong>{(copy as Record<string, string>).previewSpriteSheet ?? "Sprite Sheet Preview"}</strong>
                     <div className="animation-preview sheet-preview">
-                      {selectedAnimationExportReady && spriteSheetPreviewUrl ? <img src={spriteSheetPreviewUrl} alt="" /> : <span>{copy.animationDownloadsLocked}</span>}
+                      {selectedAnimationExportReady && spriteSheetPreviewUrl ? <img src={spriteSheetPreviewUrl} alt="" /> : <span>{animationPreviewPlaceholder}</span>}
                     </div>
                   </div>
                 </div>
@@ -2926,12 +2942,18 @@ function buildAnimationCodexPrompt({
   const motion = motionPrompt.trim() || actionName;
   return [
     `Use the uploaded source image "${sourceName}" as the character reference.`,
-    `Extract only the character and create a pixel-art sprite sheet of that character ${motion}.`,
-    `Create exactly ${ANIMATION_DIRECTION_COUNT} direction rows in this order: ${ANIMATION_DIRECTIONS.join(", ")}.`,
-    `Each direction row must contain exactly ${ANIMATION_FRAME_COUNT} animation frames, for ${ANIMATION_FRAME_COUNT * ANIMATION_DIRECTION_COUNT} total cells.`,
-    `Target each cell as ${cell.width}x${cell.height} pixels, arranged as ${ANIMATION_FRAME_COUNT} columns by ${ANIMATION_DIRECTION_COUNT} rows.`,
+    `Extract only the single character and create a strict pixel-art sprite sheet of that same character ${motion}.`,
+    `Canvas and grid are strict: ${ANIMATION_FRAME_COUNT} columns by ${ANIMATION_DIRECTION_COUNT} rows, no gutters, no extra outer margin, exactly ${ANIMATION_FRAME_COUNT * ANIMATION_DIRECTION_COUNT} cells total.`,
+    `Create exactly ${ANIMATION_DIRECTION_COUNT} direction rows in this order from top to bottom: ${ANIMATION_DIRECTIONS.join(", ")}.`,
+    `Each direction row must contain exactly ${ANIMATION_FRAME_COUNT} animation frames from left to right.`,
+    `Each cell must be exactly ${cell.width}x${cell.height} pixels; the full sheet target is ${cell.width * ANIMATION_FRAME_COUNT}x${cell.height * ANIMATION_DIRECTION_COUNT} pixels.`,
+    "Every cell must contain exactly one full-body character, centered inside that cell, with the entire head, hair, hands, weapon, clothing, and both feet visible.",
+    "Keep at least 10% empty chroma-key padding inside every cell above the head, below the feet, and on both sides.",
+    "Do not crop the head, feet, hair, weapon, or effects. Do not let body parts cross cell borders. Do not place heads or body fragments under the feet.",
+    "Use consistent character scale, baseline, foot contact point, silhouette size, palette, outfit, and pixel density across all 40 cells.",
     `Use a flat ${chromaKey.label} background (${chromaKey.hex}) in every cell; do not use gradients, scenery, shadows, UI, text, logos, watermarks, letters, or numbers.`,
-    "Keep the character centered in every frame with consistent scale, readable full body, clear feet contact, and pixel-art edges.",
+    "Do not add drawn grid lines unless they are the exact chroma-key color and removable; the app will split the image by the strict cell grid.",
+    "Quality gate before returning: inspect all 40 cells and regenerate if any cell is cropped, has missing feet, has a cut-off head, contains multiple heads, has a head below the feet, has a different character, or uses a non-flat background.",
     "Return one complete raster sprite sheet PNG or WebP using the job id filename prefix."
   ].join(" ");
 }
@@ -2955,6 +2977,7 @@ function buildAnimationCodexNotes({
     `Chroma key decision: ${chromaKey.name} ${chromaKey.hex}. ${chromaReason}`,
     `Expected sheet layout: ${grid.columns} columns x ${grid.rows} rows, ${cell.width}x${cell.height} per cell.`,
     `Direction rows: ${ANIMATION_DIRECTIONS.join(", ")}.`,
+    "Cell QA is mandatory: one full-body character per cell, consistent baseline and scale, 10% inner padding, no cropping, no duplicated heads, no body fragments under feet, no character parts crossing cell borders.",
     "The generated sheet should keep the chroma key background simple and flat so the app can remove it reliably."
   ].filter(Boolean).join("\n");
 }

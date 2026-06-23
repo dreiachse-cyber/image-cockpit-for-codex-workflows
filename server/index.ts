@@ -379,7 +379,10 @@ function workflowNotes(mode: CodexWorkflowMode) {
       "Use imagegen / built-in image_gen when available to create a real raster sprite sheet from that source image; never create a procedural placeholder.",
       "Extract only the character from the source image, then generate the requested motion as a sprite sheet.",
       "Use spriteContext.grid, spriteContext.cell, spriteContext.action, spriteContext.frames, spriteContext.directions, and spriteContext.chromaKey exactly when they are populated.",
+      "Treat spriteContext.grid and spriteContext.cell as strict cut lines: no gutters, no extra sheet margin, no character pixels crossing cell borders.",
       "The default direction-row order is front, back, back three-quarter, front three-quarter, side.",
+      "Every cell must contain exactly one full-body character with head, hair, hands, equipment, and both feet visible, centered with at least 10% inner padding.",
+      "Reject and retry the sprite sheet if any cell has a cropped head, missing feet, multiple heads, a head below the feet, inconsistent scale, body fragments, or a different character.",
       "Use the requested chroma-key background color as a flat simple background in every cell so Image Cockpit can remove it after import.",
       "Avoid readable text, logos, watermarks, labels, UI words, numbers, scenery, and complex backgrounds."
     ];
@@ -726,7 +729,8 @@ function buildCodexRunnerPrompt(job: { id: string; path: string }) {
     "For workflowMode=image-generate, if image generation is unavailable, write only a small blocker sidecar into the outbox and do not create a fake image.",
     "For workflowMode=image-edit, inspect selectedImage.assetPath, use imagegen / built-in image_gen editing when available, follow numbered annotationContext region comments plus prompt/jobNotes, and return a real edited PNG or WebP with the job id filename prefix. Never create a procedural placeholder or SVG.",
     "For workflowMode=sprite-generate, inspect selectedImage.assetPath, then use imagegen / built-in image_gen when available to create one complete chroma-key sprite sheet from the source character image. Never create a procedural placeholder or SVG.",
-    "For workflowMode=sprite-generate, follow spriteContext.grid, spriteContext.cell, spriteContext.directions, and spriteContext.chromaKey. Return one usable PNG or WebP sprite sheet with the job id filename prefix.",
+    "For workflowMode=sprite-generate, follow spriteContext.grid, spriteContext.cell, spriteContext.directions, and spriteContext.chromaKey exactly. Keep one full-body character centered inside each strict cell with padding, no cropping, no duplicated heads, and no body parts crossing cells. Return one usable PNG or WebP sprite sheet with the job id filename prefix.",
+    "For workflowMode=sprite-generate, inspect all cells before writing the final file and retry if any head is cut off, feet are missing, a head appears below feet, scale changes wildly, or the background is not flat chroma key.",
     "Use jobNotes, annotationContext, and spriteContext only when those fields are populated for the workflow.",
     `Write final image result files only into this outbox directory: ${outboxDir}`,
     `Use this filename prefix for returned assets: ${job.id}`,
