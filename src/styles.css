@@ -149,6 +149,84 @@ button {
   min-width: 0;
 }
 
+.codex-job-shelf {
+  display: grid;
+  gap: 7px;
+  margin: 0 10px 10px;
+  border: 1px solid #cfdad0;
+  border-radius: 6px;
+  background: #fbfdfb;
+  padding: 8px;
+}
+
+.codex-job-shelf-heading,
+.codex-job-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 7px;
+}
+
+.codex-job-shelf-heading strong {
+  color: #17211b;
+  font-size: 12px;
+}
+
+.codex-job-shelf-heading span,
+.codex-job-row small {
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
+.codex-job-list {
+  display: grid;
+  gap: 5px;
+}
+
+.codex-job-row {
+  grid-template-columns: auto minmax(0, 1fr);
+  border-top: 1px solid #edf1ed;
+  padding-top: 6px;
+}
+
+.codex-job-row strong {
+  min-width: 0;
+  overflow: hidden;
+  color: #28342c;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.codex-job-row small {
+  grid-column: 2;
+}
+
+.codex-job-state {
+  width: 58px;
+  min-height: 22px;
+  display: inline-grid;
+  place-items: center;
+  border: 1px solid #c9d7ce;
+  border-radius: 999px;
+  background: #ffffff;
+  color: #33443a;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.codex-job-state.running {
+  border-color: #99c7a9;
+  background: #edf8f0;
+  color: #145f35;
+}
+
+.codex-job-state.queued {
+  border-color: #d6c7a6;
+  background: #fff8e8;
+  color: #6a4b0f;
+}
+
 .cockpit {
   min-height: 0;
   display: grid;

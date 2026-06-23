@@ -73,12 +73,14 @@ const SHOW_SPRITE_ACTIONS_PANEL = false;
 const ANIMATION_FRAME_COUNT = 8;
 const ANIMATION_DIRECTION_COUNT = 5;
 const MIN_ANIMATION_CELL_SIZE = 512;
+const MAX_ACTIVE_CODEX_JOBS = 2;
 const ANIMATION_SHEET_GRID: GridSettings = { columns: ANIMATION_FRAME_COUNT, rows: ANIMATION_DIRECTION_COUNT, gutter: 0 };
 const ANIMATION_DIRECTIONS = ["front", "back", "back three-quarter", "front three-quarter", "side"];
 
 type Language = "ja" | "en";
 type MotionInputMode = "prompt" | "preset";
 type AnimationChromaKeyName = "green" | "magenta";
+type CodexJobQueueState = "queued" | "running";
 
 interface AnimationChromaKey {
   name: AnimationChromaKeyName;
@@ -112,6 +114,50 @@ interface PendingCodexJob {
   id: string;
   path: string;
   createdAt: string;
+  label?: string;
+  workflowMode?: WorkflowMode;
+  actionName?: string;
+  grid?: GridSettings;
+  cell?: SpriteAction["cell"];
+  chromaKey?: AnimationChromaKeyName;
+}
+
+interface CodexJobDraft {
+  workflowMode: WorkflowMode | null;
+  prompt: string;
+  negativePrompt: string;
+  jobNotes: string;
+  seed: string;
+  size: string;
+  count: number;
+  quality: string;
+  selectedImageName: string;
+  selectedImageSize: string;
+  selectedImageSource: string;
+  selectedImageDataUrl: string;
+  annotations: Annotation[];
+  grid: GridSettings | null;
+  action: string;
+  frames: number;
+  cell: SpriteAction["cell"] | null;
+  chromaKey: AnimationChromaKeyName | "";
+  directions: string[];
+  label: string;
+  resultWorkflowMode?: WorkflowMode;
+  resultActionName?: string;
+  resultGrid?: GridSettings;
+  resultCell?: SpriteAction["cell"];
+  resultChromaKey?: AnimationChromaKeyName;
+}
+
+interface CodexJobQueueItem {
+  id: string;
+  state: CodexJobQueueState;
+  label: string;
+  createdAt: string;
+  path?: string;
+  request?: CodexJobDraft;
+  queuedAt?: string;
   workflowMode?: WorkflowMode;
   actionName?: string;
   grid?: GridSettings;
@@ -123,6 +169,7 @@ interface ImportLatestOptions {
   background?: boolean;
   newerThan?: string;
   quietEmpty?: boolean;
+  job?: CodexJobQueueItem;
 }
 
 const uiCopy = {
@@ -621,7 +668,7 @@ function App() {
   const [chromaTolerance, setChromaTolerance] = useState(32);
   const [status, setStatus] = useState("All changes saved locally");
   const [isBusy, setIsBusy] = useState(false);
-  const [pendingCodexJob, setPendingCodexJob] = useState<PendingCodexJob | null>(() => loadPendingCodexJob());
+  const [codexJobs, setCodexJobs] = useState<CodexJobQueueItem[]>(() => loadPendingCodexJobs());
   const [gifPreviewUrl, setGifPreviewUrl] = useState("");
   const [webpPreviewUrl, setWebpPreviewUrl] = useState("");
   const [spriteSheetPreviewUrl, setSpriteSheetPreviewUrl] = useState("");
@@ -629,6 +676,7 @@ function App() {
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const startingQueuedJobIdsRef = useRef<Set<string>>(new Set());
   const copy = uiCopy[language];
 
   const selected = useMemo(
@@ -699,7 +747,7 @@ function App() {
     if (storageHydrated) saveActions(actions);
   }, [actions, storageHydrated]);
   useEffect(() => saveLanguage(language), [language]);
-  useEffect(() => savePendingCodexJob(pendingCodexJob), [pendingCodexJob]);
+  useEffect(() => savePendingCodexJobs(codexJobs), [codexJobs]);
 
   useEffect(() => {
     fetch("/api/providers")
@@ -794,38 +842,64 @@ function App() {
   }, [activeAction, actionFrames.length, frames]);
 
   useEffect(() => {
-    if (!pendingCodexJob) return;
+    const runningJobs = codexJobs.filter((job) => job.state === "running");
+    if (runningJobs.length === 0) return;
     let cancelled = false;
 
-    const pollForReturnedImage = async () => {
-      const imported = await importLatestOutboxResult({
-        background: true,
-        newerThan: pendingCodexJob.createdAt,
-        quietEmpty: true
-      });
-      if (cancelled || imported) return;
+    const pollForReturnedImages = async () => {
+      const outcomes = await Promise.all(
+        runningJobs.map(async (job) => {
+          const imported = await importLatestOutboxResult({
+            background: true,
+            newerThan: job.createdAt,
+            quietEmpty: true,
+            job
+          });
+          if (cancelled || imported) return imported ? "imported" : "cancelled";
 
-      const runnerStatus = await loadCodexRunnerStatus(pendingCodexJob.id);
-      if (cancelled) return;
+          const runnerStatus = await loadCodexRunnerStatus(job.id);
+          if (cancelled) return "cancelled";
 
-      if (runnerStatus && !shouldWaitForCodexRunner(runnerStatus)) {
-        setPendingCodexJob(null);
-        setStatus(runnerStatusMessage(runnerStatus, copy));
-        return;
-      }
+          if (runnerStatus && !shouldWaitForCodexRunner(runnerStatus)) {
+            removeCodexJob(job.id);
+            setStatus(`${runnerStatusMessage(runnerStatus, copy)}: ${job.id}`);
+            return "terminal";
+          }
 
-      if (!cancelled && !imported) {
-        setStatus(`${copy.statusCodexJobPending}: ${pendingCodexJob.id}`);
+          return "pending";
+        })
+      );
+
+      if (!cancelled && outcomes.every((outcome) => outcome === "pending")) {
+        setStatus(`${copy.statusCodexJobPending}: ${runningJobs.map((job) => job.id).join(", ")}`);
       }
     };
 
-    void pollForReturnedImage();
-    const intervalId = window.setInterval(() => void pollForReturnedImage(), 5000);
+    void pollForReturnedImages();
+    const intervalId = window.setInterval(() => void pollForReturnedImages(), 5000);
     return () => {
       cancelled = true;
       window.clearInterval(intervalId);
     };
-  }, [pendingCodexJob?.id, pendingCodexJob?.createdAt, language]);
+  }, [codexJobs, language]);
+
+  useEffect(() => {
+    const runningCount = codexJobs.filter((job) => job.state === "running").length;
+    const openSlots = MAX_ACTIVE_CODEX_JOBS - runningCount - startingQueuedJobIdsRef.current.size;
+    if (openSlots <= 0) return;
+
+    const queuedJobs = codexJobs
+      .filter((job) => job.state === "queued" && job.request)
+      .slice(0, openSlots);
+
+    queuedJobs.forEach((job) => {
+      if (!job.request || startingQueuedJobIdsRef.current.has(job.id)) return;
+      startingQueuedJobIdsRef.current.add(job.id);
+      void submitCodexJobDraft(job.request, job.id).finally(() => {
+        startingQueuedJobIdsRef.current.delete(job.id);
+      });
+    });
+  }, [codexJobs]);
 
   async function seedSampleWorkspace() {
     const image = await loadImage(SAMPLE_URL);
@@ -916,10 +990,6 @@ function App() {
   }
 
   async function handleGenerate() {
-    if (providerId === "codex-handoff" && pendingCodexJob) {
-      setStatus(`${copy.statusCodexJobPending}: ${pendingCodexJob.id}`);
-      return;
-    }
     if (providerId === "local-file") {
       setStatus(`${providerLabel(providerId, language)} ${copy.statusUsesImport}`);
       fileInputRef.current?.click();
@@ -933,92 +1003,184 @@ function App() {
       await generateLocally();
       return;
     }
+
     setIsBusy(true);
     try {
-      const includeSelectedImage = workflowUsesSelectedImage(workflowMode);
-      const includeSpriteContext = workflowUsesSpriteContext(workflowMode);
-      const isAnimationJob = workflowMode === "sprite-generate";
-      const sourceImageForJob = isAnimationJob ? animationSource : selected;
-      const animationAction = normalizeAnimationAction(activeAction);
-      const spriteGrid = isAnimationJob ? ANIMATION_SHEET_GRID : grid;
-      const spriteCell = isAnimationJob ? animationAction.cell : activeAction.cell;
-      const spriteFrameCount = spriteGrid.columns * spriteGrid.rows;
-      const chromaDecision = isAnimationJob && sourceImageForJob
-        ? await chooseAnimationChromaKey(sourceImageForJob.dataUrl)
-        : { key: animationChromaKeys[animationChromaKey], reason: "" };
-      if (isAnimationJob) {
-        if (!isAnimationSource(sourceImageForJob)) {
-          setStatus(copy.statusAnimationSourceRequired);
-          fileInputRef.current?.click();
-          return;
-        }
-        setAnimationChromaKey(chromaDecision.key.name);
+      const draft = await buildCodexJobDraft();
+      if (!draft) return;
+
+      const activeCodexJobCount =
+        codexJobs.filter((job) => job.state === "running").length + startingQueuedJobIdsRef.current.size;
+      if (activeCodexJobCount >= MAX_ACTIVE_CODEX_JOBS) {
+        enqueueCodexJobDraft(draft);
+        return;
       }
-      const codexPrompt = isAnimationJob
-        ? buildAnimationCodexPrompt({
-            sourceName: sourceImageForJob?.name ?? "",
-            motionPrompt: prompt,
-            actionName: animationAction.name,
-            chromaKey: chromaDecision.key,
-            cell: spriteCell
-          })
-        : prompt;
-      const codexJobNotes = isAnimationJob
-        ? buildAnimationCodexNotes({
-            userNotes: jobNotes,
-            chromaKey: chromaDecision.key,
-            chromaReason: chromaDecision.reason,
-            grid: spriteGrid,
-            cell: spriteCell
-          })
-        : jobNotes;
-      const response = await fetch("/api/codex/jobs", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          workflowMode,
-          prompt: codexPrompt,
-          negativePrompt,
-          jobNotes: codexJobNotes,
-          seed,
-          size: isAnimationJob ? `${spriteCell.width * spriteGrid.columns}x${spriteCell.height * spriteGrid.rows}` : size,
-          count,
-          quality,
-          selectedImageName: includeSelectedImage ? sourceImageForJob?.name : "",
-          selectedImageSize: includeSelectedImage ? sourceImageForJob?.size : "",
-          selectedImageSource: includeSelectedImage ? sourceImageForJob?.source : "",
-          selectedImageDataUrl: includeSelectedImage ? sourceImageForJob?.dataUrl : "",
-          annotations: workflowMode === "image-edit" && selected ? annotationsByItem[selected.id] ?? [] : [],
-          grid: includeSpriteContext ? spriteGrid : null,
-          action: includeSpriteContext ? animationAction.name : "",
-          frames: includeSpriteContext ? spriteFrameCount : 0,
-          cell: includeSpriteContext ? spriteCell : null,
-          chromaKey: isAnimationJob ? chromaDecision.key.name : "",
-          directions: isAnimationJob ? ANIMATION_DIRECTIONS : []
-        })
-      });
-      if (!response.ok) throw new Error(await response.text());
-      const data = (await response.json()) as CodexJobResponse;
-      if (shouldWaitForCodexRunner(data.runner)) {
-        setPendingCodexJob({
-          id: data.id,
-          path: data.path,
-          createdAt: data.createdAt,
-          workflowMode: workflowMode ?? undefined,
-          actionName: isAnimationJob ? animationAction.name : undefined,
-          grid: isAnimationJob ? spriteGrid : undefined,
-          cell: isAnimationJob ? spriteCell : undefined,
-          chromaKey: isAnimationJob ? chromaDecision.key.name : undefined
-        });
-      } else {
-        setPendingCodexJob(null);
-      }
-      setStatus(`${copy.statusCodexJobWritten}: ${data.path}. ${runnerStatusMessage(data.runner, copy)}.`);
+
+      await submitCodexJobDraft(draft);
     } catch (error) {
       setStatus(error instanceof Error ? error.message : copy.statusCodexJobError);
     } finally {
       setIsBusy(false);
     }
+  }
+
+  async function buildCodexJobDraft(): Promise<CodexJobDraft | null> {
+    const includeSelectedImage = workflowUsesSelectedImage(workflowMode);
+    const includeSpriteContext = workflowUsesSpriteContext(workflowMode);
+    const isAnimationJob = workflowMode === "sprite-generate";
+    const sourceImageForJob = isAnimationJob ? animationSource : selected;
+    const animationAction = normalizeAnimationAction(activeAction);
+    const spriteGrid = isAnimationJob ? ANIMATION_SHEET_GRID : grid;
+    const spriteCell = isAnimationJob ? animationAction.cell : activeAction.cell;
+    const spriteFrameCount = spriteGrid.columns * spriteGrid.rows;
+
+    if (isAnimationJob && !isAnimationSource(sourceImageForJob)) {
+      setStatus(copy.statusAnimationSourceRequired);
+      fileInputRef.current?.click();
+      return null;
+    }
+
+    const chromaDecision = isAnimationJob && sourceImageForJob
+      ? await chooseAnimationChromaKey(sourceImageForJob.dataUrl)
+      : { key: animationChromaKeys[animationChromaKey], reason: "" };
+
+    if (isAnimationJob) {
+      setAnimationChromaKey(chromaDecision.key.name);
+    }
+
+    const codexPrompt = isAnimationJob
+      ? buildAnimationCodexPrompt({
+          sourceName: sourceImageForJob?.name ?? "",
+          motionPrompt: prompt,
+          actionName: animationAction.name,
+          chromaKey: chromaDecision.key,
+          cell: spriteCell
+        })
+      : prompt;
+    const codexJobNotes = isAnimationJob
+      ? buildAnimationCodexNotes({
+          userNotes: jobNotes,
+          chromaKey: chromaDecision.key,
+          chromaReason: chromaDecision.reason,
+          grid: spriteGrid,
+          cell: spriteCell
+        })
+      : jobNotes;
+
+    return {
+      workflowMode,
+      prompt: codexPrompt,
+      negativePrompt,
+      jobNotes: codexJobNotes,
+      seed,
+      size: isAnimationJob ? `${spriteCell.width * spriteGrid.columns}x${spriteCell.height * spriteGrid.rows}` : size,
+      count,
+      quality,
+      selectedImageName: includeSelectedImage ? sourceImageForJob?.name ?? "" : "",
+      selectedImageSize: includeSelectedImage ? sourceImageForJob?.size ?? "" : "",
+      selectedImageSource: includeSelectedImage ? sourceImageForJob?.source ?? "" : "",
+      selectedImageDataUrl: includeSelectedImage ? sourceImageForJob?.dataUrl ?? "" : "",
+      annotations: workflowMode === "image-edit" && selected ? annotationsByItem[selected.id] ?? [] : [],
+      grid: includeSpriteContext ? spriteGrid : null,
+      action: includeSpriteContext ? animationAction.name : "",
+      frames: includeSpriteContext ? spriteFrameCount : 0,
+      cell: includeSpriteContext ? spriteCell : null,
+      chromaKey: isAnimationJob ? chromaDecision.key.name : "",
+      directions: isAnimationJob ? ANIMATION_DIRECTIONS : [],
+      label: codexJobLabel(workflowMode, prompt, isAnimationJob ? animationAction.name : undefined),
+      resultWorkflowMode: workflowMode ?? undefined,
+      resultActionName: isAnimationJob ? animationAction.name : undefined,
+      resultGrid: isAnimationJob ? spriteGrid : undefined,
+      resultCell: isAnimationJob ? spriteCell : undefined,
+      resultChromaKey: isAnimationJob ? chromaDecision.key.name : undefined
+    };
+  }
+
+  function enqueueCodexJobDraft(draft: CodexJobDraft) {
+    const queuedAt = new Date().toISOString();
+    const labels = codexJobQueueLabels(language);
+    setCodexJobs((current) => [
+      ...current,
+      {
+        id: createId("queued"),
+        state: "queued",
+        label: draft.label,
+        createdAt: queuedAt,
+        queuedAt,
+        request: draft,
+        workflowMode: draft.resultWorkflowMode,
+        actionName: draft.resultActionName,
+        grid: draft.resultGrid,
+        cell: draft.resultCell,
+        chromaKey: draft.resultChromaKey
+      }
+    ]);
+    setStatus(`${labels.queuedStatus}: ${draft.label}`);
+  }
+
+  async function submitCodexJobDraft(draft: CodexJobDraft, queuedJobId?: string) {
+    setIsBusy(true);
+    try {
+      const response = await fetch("/api/codex/jobs", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          workflowMode: draft.workflowMode,
+          prompt: draft.prompt,
+          negativePrompt: draft.negativePrompt,
+          jobNotes: draft.jobNotes,
+          seed: draft.seed,
+          size: draft.size,
+          count: draft.count,
+          quality: draft.quality,
+          selectedImageName: draft.selectedImageName,
+          selectedImageSize: draft.selectedImageSize,
+          selectedImageSource: draft.selectedImageSource,
+          selectedImageDataUrl: draft.selectedImageDataUrl,
+          annotations: draft.annotations,
+          grid: draft.grid,
+          action: draft.action,
+          frames: draft.frames,
+          cell: draft.cell,
+          chromaKey: draft.chromaKey,
+          directions: draft.directions
+        })
+      });
+      if (!response.ok) throw new Error(await response.text());
+
+      const data = (await response.json()) as CodexJobResponse;
+      if (shouldWaitForCodexRunner(data.runner)) {
+        const runningJob: CodexJobQueueItem = {
+          id: data.id,
+          path: data.path,
+          state: "running",
+          label: draft.label,
+          createdAt: data.createdAt,
+          workflowMode: draft.resultWorkflowMode,
+          actionName: draft.resultActionName,
+          grid: draft.resultGrid,
+          cell: draft.resultCell,
+          chromaKey: draft.resultChromaKey
+        };
+        setCodexJobs((current) => {
+          const withoutQueued = queuedJobId ? current.filter((job) => job.id !== queuedJobId) : current;
+          return [...withoutQueued, runningJob];
+        });
+      } else if (queuedJobId) {
+        removeCodexJob(queuedJobId);
+      }
+
+      setStatus(`${copy.statusCodexJobWritten}: ${data.path}. ${runnerStatusMessage(data.runner, copy)}.`);
+    } catch (error) {
+      if (queuedJobId) removeCodexJob(queuedJobId);
+      setStatus(error instanceof Error ? error.message : copy.statusCodexJobError);
+    } finally {
+      setIsBusy(false);
+    }
+  }
+
+  function removeCodexJob(jobId: string) {
+    setCodexJobs((current) => current.filter((job) => job.id !== jobId));
   }
 
   async function generateLocally() {
@@ -1116,7 +1278,7 @@ function App() {
     setStatus(`${copy.statusAnimationGenerated}: ${sheetName}. ${formatFramesAddedStatus(newFrames.length, animationAction.name, language)}`);
   }
 
-  async function importAnimationSheetResult(imported: CodexOutboxImportResponse, pendingJob: PendingCodexJob) {
+  async function importAnimationSheetResult(imported: CodexOutboxImportResponse, pendingJob: CodexJobQueueItem) {
     const actionName = pendingJob.actionName ?? activeAction.name;
     const spriteGrid = pendingJob.grid ?? ANIMATION_SHEET_GRID;
     const spriteCell = pendingJob.cell ?? normalizeAnimationAction(activeAction).cell;
@@ -1159,12 +1321,15 @@ function App() {
   async function importLatestOutboxResult(options: ImportLatestOptions = {}) {
     if (!options.background) setIsBusy(true);
     try {
-      const pendingJob = pendingCodexJob;
+      const pendingJob = options.job;
       const listResponse = await fetch("/api/codex/results");
       if (!listResponse.ok) throw new Error(await listResponse.text());
       const listData = (await listResponse.json()) as { outboxPath: string; results: CodexOutboxResult[] };
       const newerThanTime = options.newerThan ? Date.parse(options.newerThan) : Number.NEGATIVE_INFINITY;
-      const latest = listData.results.find((result) => Date.parse(result.modifiedAt) >= newerThanTime);
+      const latest = listData.results.find((result) => {
+        if (Date.parse(result.modifiedAt) < newerThanTime) return false;
+        return pendingJob ? result.name.startsWith(`${pendingJob.id}-`) : true;
+      });
       if (!latest) {
         if (!options.quietEmpty) setStatus(`${copy.statusInboxEmpty}: ${listData.outboxPath}`);
         return false;
@@ -1175,9 +1340,7 @@ function App() {
       const imported = (await importResponse.json()) as CodexOutboxImportResponse;
       if (pendingJob?.workflowMode === "sprite-generate") {
         await importAnimationSheetResult(imported, pendingJob);
-        if (Date.parse(latest.modifiedAt) >= Date.parse(pendingJob.createdAt)) {
-          setPendingCodexJob(null);
-        }
+        removeCodexJob(pendingJob.id);
         return true;
       }
 
@@ -1196,9 +1359,7 @@ function App() {
       };
       setHistory((current) => [item, ...current]);
       setSelectedId(item.id);
-      if (pendingJob && Date.parse(latest.modifiedAt) >= Date.parse(pendingJob.createdAt)) {
-        setPendingCodexJob(null);
-      }
+      if (pendingJob) removeCodexJob(pendingJob.id);
       setStatus(`${copy.statusInboxImported}: ${imported.name}`);
       return true;
     } catch (error) {
@@ -1436,10 +1597,12 @@ function App() {
   const codexProvider = providers.find((provider) => provider.id === "codex-handoff");
   const activeWorkflowCopy = workflowMode ? workflowCopy[language][workflowMode] : null;
   const activeWorkflowFormCopy = workflowMode ? workflowFormCopy[language][workflowMode] : null;
-  const isWaitingForCodexResult = providerId === "codex-handoff" && Boolean(pendingCodexJob);
+  const codexQueueCopy = codexJobQueueLabels(language);
+  const runningCodexJobCount = codexJobs.filter((job) => job.state === "running").length;
+  const shouldQueueCodexJob = providerId === "codex-handoff" && runningCodexJobCount >= MAX_ACTIVE_CODEX_JOBS;
   const isAnimationWorkflow = workflowMode === "sprite-generate";
   const animationSourceReady = !isAnimationWorkflow || isAnimationSource(animationSource);
-  const primaryActionDisabled = isBusy || isWaitingForCodexResult || !animationSourceReady;
+  const primaryActionDisabled = isBusy || !animationSourceReady;
   const showFrameGridControls = SHOW_LOW_PRIORITY_CONTROLS || workflowMode === "sprite-edit";
   const showSpriteTuningControls = SHOW_LOW_PRIORITY_CONTROLS || workflowMode === "sprite-edit";
   const showAnnotationToolbar = SHOW_LOW_PRIORITY_CONTROLS || workflowMode === "image-edit";
@@ -1499,6 +1662,9 @@ function App() {
             )}
           </div>
           {workflowMode && <WorkflowTabs language={language} activeMode={workflowMode} onSelect={beginWorkflow} />}
+          {providerId === "codex-handoff" && codexJobs.length > 0 && (
+            <CodexJobShelf jobs={codexJobs} maxActive={MAX_ACTIVE_CODEX_JOBS} language={language} />
+          )}
 
           {isAnimationWorkflow ? (
             <div className="animation-steps">
@@ -1593,7 +1759,7 @@ function App() {
                 </div>
                 <button className="primary-button full" onClick={() => void handleGenerate()} disabled={primaryActionDisabled}>
                   <PrimaryActionIcon providerId={providerId} isBusy={isBusy} />
-                  {copy.generateLocalSprite}
+                  {shouldQueueCodexJob ? codexQueueCopy.queueAction : copy.generateLocalSprite}
                 </button>
               </section>
 
@@ -1655,8 +1821,8 @@ function App() {
               {workflowMode === "image-generate" && (
                 <div className="button-row primary-action-row">
                   <button className="primary-button" onClick={() => void handleGenerate()} disabled={primaryActionDisabled}>
-                    <PrimaryActionIcon providerId={providerId} isBusy={isBusy || isWaitingForCodexResult} />
-                    {primaryActionLabel(providerId, workflowMode, copy, isWaitingForCodexResult)}
+                    <PrimaryActionIcon providerId={providerId} isBusy={isBusy} />
+                    {shouldQueueCodexJob ? codexQueueCopy.queueAction : primaryActionLabel(providerId, workflowMode, copy)}
                   </button>
                   <p className="action-note">{copy.generationMayTakeMinutes}</p>
                 </div>
@@ -1720,8 +1886,8 @@ function App() {
               {workflowMode !== "image-generate" && (
                 <div className="button-row primary-action-row">
                   <button className="primary-button" onClick={() => void handleGenerate()} disabled={primaryActionDisabled}>
-                    <PrimaryActionIcon providerId={providerId} isBusy={isBusy || isWaitingForCodexResult} />
-                    {primaryActionLabel(providerId, workflowMode, copy, isWaitingForCodexResult)}
+                    <PrimaryActionIcon providerId={providerId} isBusy={isBusy} />
+                    {shouldQueueCodexJob ? codexQueueCopy.queueAction : primaryActionLabel(providerId, workflowMode, copy)}
                   </button>
                 </div>
               )}
@@ -2128,6 +2294,39 @@ function LanguageSelect({
   );
 }
 
+function CodexJobShelf({
+  jobs,
+  maxActive,
+  language
+}: {
+  jobs: CodexJobQueueItem[];
+  maxActive: number;
+  language: Language;
+}) {
+  const labels = codexJobQueueLabels(language);
+  const runningCount = jobs.filter((job) => job.state === "running").length;
+
+  return (
+    <section className="codex-job-shelf" aria-label={labels.title}>
+      <div className="codex-job-shelf-heading">
+        <strong>{labels.title}</strong>
+        <span>{labels.activeSlots} {runningCount}/{maxActive}</span>
+      </div>
+      <div className="codex-job-list">
+        {jobs.map((job) => (
+          <div className="codex-job-row" key={job.id}>
+            <span className={`codex-job-state ${job.state}`}>
+              {job.state === "running" ? labels.running : labels.queued}
+            </span>
+            <strong>{job.label}</strong>
+            <small>{job.state === "running" ? job.id : labels.waitingForSlot}</small>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 function PrimaryActionIcon({ providerId, isBusy }: { providerId: ProviderId; isBusy: boolean }) {
   if (isBusy) return <Loader2 className="spin" size={17} aria-hidden="true" />;
   if (providerId === "local-file") return <Upload size={17} aria-hidden="true" />;
@@ -2148,6 +2347,39 @@ function primaryActionLabel(
   if (providerId === "codex-handoff") return copy.createCodexJob;
   if (providerId === "local-inbox") return copy.importLatest;
   return copy.importFile;
+}
+
+function codexJobQueueLabels(language: Language) {
+  if (language === "ja") {
+    return {
+      title: "Codexジョブ",
+      activeSlots: "実行枠",
+      running: "実行中",
+      queued: "待機中",
+      waitingForSlot: "空き枠待ち",
+      queueAction: "キューに追加",
+      queuedStatus: "Codexキューに追加しました"
+    };
+  }
+
+  return {
+    title: "Codex Jobs",
+    activeSlots: "Active",
+    running: "Running",
+    queued: "Queued",
+    waitingForSlot: "Waiting for an open slot",
+    queueAction: "Queue Codex Job",
+    queuedStatus: "Codex job queued"
+  };
+}
+
+function codexJobLabel(mode: WorkflowMode | null, prompt: string, actionName?: string) {
+  const shortPrompt = prompt.trim().replace(/\s+/g, " ").slice(0, 54);
+  if (mode === "sprite-generate") return `Animation: ${actionName ?? "motion"}${shortPrompt ? ` / ${shortPrompt}` : ""}`;
+  if (mode === "image-generate") return shortPrompt ? `Pixel Art: ${shortPrompt}` : "Pixel Art Generation";
+  if (mode === "image-edit") return shortPrompt ? `Image Edit: ${shortPrompt}` : "Image Edit";
+  if (mode === "sprite-edit") return shortPrompt ? `Sprite Edit: ${shortPrompt}` : "Sprite Edit";
+  return shortPrompt || "Codex Job";
 }
 
 function isAnimationSource(item?: HistoryItem): item is HistoryItem {
@@ -2903,27 +3135,53 @@ function saveLanguage(language: Language) {
   }
 }
 
-function loadPendingCodexJob(): PendingCodexJob | null {
+function loadPendingCodexJobs(): CodexJobQueueItem[] {
   try {
     const stored = window.localStorage.getItem(PENDING_CODEX_JOB_STORAGE_KEY);
-    if (!stored) return null;
-    const job = JSON.parse(stored) as PendingCodexJob;
-    return job?.id && job.path && job.createdAt ? job : null;
+    if (!stored) return [];
+    const parsed: unknown = JSON.parse(stored);
+    const jobs = Array.isArray(parsed) ? parsed : [parsed];
+    return jobs
+      .filter(isStoredPendingCodexJob)
+      .map((job) => ({
+        ...job,
+        state: "running" as const,
+        label: job.label ?? codexJobLabel(job.workflowMode ?? null, "", job.actionName)
+      }));
   } catch {
-    return null;
+    return [];
   }
 }
 
-function savePendingCodexJob(job: PendingCodexJob | null) {
+function savePendingCodexJobs(jobs: CodexJobQueueItem[]) {
   try {
-    if (job) {
-      window.localStorage.setItem(PENDING_CODEX_JOB_STORAGE_KEY, JSON.stringify(job));
+    const runningJobs: PendingCodexJob[] = jobs
+      .filter((job) => job.state === "running" && Boolean(job.path))
+      .map((job) => ({
+        id: job.id,
+        path: job.path ?? "",
+        createdAt: job.createdAt,
+        label: job.label,
+        workflowMode: job.workflowMode,
+        actionName: job.actionName,
+        grid: job.grid,
+        cell: job.cell,
+        chromaKey: job.chromaKey
+      }));
+    if (runningJobs.length > 0) {
+      window.localStorage.setItem(PENDING_CODEX_JOB_STORAGE_KEY, JSON.stringify(runningJobs));
       return;
     }
     window.localStorage.removeItem(PENDING_CODEX_JOB_STORAGE_KEY);
   } catch {
-    // Pending state is best-effort; the current session still keeps the button locked.
+    // Pending state is best-effort; the current session still tracks active jobs.
   }
+}
+
+function isStoredPendingCodexJob(value: unknown): value is PendingCodexJob {
+  if (!value || typeof value !== "object") return false;
+  const job = value as Partial<PendingCodexJob>;
+  return typeof job.id === "string" && typeof job.path === "string" && typeof job.createdAt === "string";
 }
 
 function providerLabel(provider: ProviderId, language: Language) {

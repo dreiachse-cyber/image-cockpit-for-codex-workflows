@@ -37,7 +37,8 @@ try {
     IMAGE_COCKPIT_CODEX_AUTORUN: "1",
     IMAGE_COCKPIT_CODEX_COMMAND: nodeCommand,
     IMAGE_COCKPIT_CODEX_HELP_ARGS_JSON: JSON.stringify([mockRunnerPath, "--help"]),
-    IMAGE_COCKPIT_CODEX_EXEC_ARGS_JSON: JSON.stringify([mockRunnerPath])
+    IMAGE_COCKPIT_CODEX_EXEC_ARGS_JSON: JSON.stringify([mockRunnerPath]),
+    IMAGE_COCKPIT_MOCK_RUNNER_DELAY_MS: "1200"
   });
   await waitForHttp(`http://127.0.0.1:${apiPort}/api/providers`, "local API");
 
@@ -97,6 +98,7 @@ try {
   await assertGuidedStart();
   await assertLanguageSwitch();
   await assertPromptExamples();
+  await assertCodexQueue();
   await assertWorkflow({
     index: 0,
     label: "Pixel Art Generation",
@@ -190,6 +192,32 @@ async function assertPromptExamples() {
 
   await evaluate(`document.querySelector(".guided-link")?.click()`);
   await waitForEval(() => `document.querySelectorAll(".guided-option").length === 2`, "return to Guided Start after Prompt Examples");
+}
+
+async function assertCodexQueue() {
+  await clickGuidedOption(0);
+  await waitForEval(() => `document.body.innerText.includes("Pixel Art Generation")`, "Pixel Art Generation for Codex queue");
+  await evaluate(`document.querySelector("textarea").value = "queue smoke pixel hero"; document.querySelector("textarea").dispatchEvent(new Event("input", { bubbles: true }))`);
+
+  await clickButtonByText("Generate Pixel Art");
+  await waitForEval(() => `document.body.innerText.includes("Codex Jobs") && document.body.innerText.includes("Active 1/2")`, "first Codex job running");
+  await waitForButtonEnabled("Generate Pixel Art");
+
+  await clickButtonByText("Generate Pixel Art");
+  await waitForEval(() => `document.body.innerText.includes("Active 2/2")`, "two Codex jobs running");
+  await waitForButtonEnabled("Queue Codex Job");
+
+  await clickButtonByText("Queue Codex Job");
+  await waitForEval(() => `document.body.innerText.includes("Queued") && document.body.innerText.includes("Waiting for an open slot")`, "third Codex job queued");
+  const snapshot = await pageSnapshot();
+  assert(snapshot.buttons.includes("Queue Codex Job"), "Codex queue should switch the primary action to Queue Codex Job at two active jobs");
+  assert(snapshot.text.includes("Codex job queued"), "Codex queue should report that the third job was queued");
+  assert(snapshot.codexJobRows === 3, `Codex queue should show 3 job rows, got ${snapshot.codexJobRows}`);
+
+  await waitForEval(() => `document.querySelectorAll(".codex-job-row").length === 0`, "Codex queue drains after results return", 18000);
+  await assertNoBrowserErrors("Codex queue");
+  await evaluate(`document.querySelector(".guided-link")?.click()`);
+  await waitForEval(() => `document.querySelectorAll(".guided-option").length === 2`, "return to Guided Start after Codex queue");
 }
 
 async function assertWorkflow({
@@ -289,6 +317,13 @@ async function clickButtonByText(label) {
   })()`);
 }
 
+async function waitForButtonEnabled(label) {
+  await waitForEval(
+    () => `Array.from(document.querySelectorAll("button")).some((button) => button.innerText.replace(/\\s+/g, " ").trim() === ${JSON.stringify(label)} && !button.disabled)`,
+    `${label} button enabled`
+  );
+}
+
 async function assertNoBrowserErrors(label) {
   const errors = await evaluate(`window.__uiSmokeErrors || []`);
   assert(errors.length === 0, `${label} browser errors: ${errors.join("; ")}`);
@@ -304,6 +339,7 @@ async function pageSnapshot() {
     workflowTabsInTopbar: Boolean(document.querySelector(".topbar .workflow-tabs")),
     canvasVisible: Boolean(document.querySelector("canvas")),
     spriteBenchVisible: Boolean(document.querySelector(".sprite-bench")),
+    codexJobRows: document.querySelectorAll(".codex-job-row").length,
     animationPreviewImages: document.querySelectorAll(".animation-preview img").length
   }))()`);
 }
@@ -326,8 +362,8 @@ async function evaluate(expression) {
   return result.result.value;
 }
 
-async function waitForEval(expressionFactory, label) {
-  const deadline = Date.now() + 10000;
+async function waitForEval(expressionFactory, label, timeoutMs = 10000) {
+  const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
     if (await evaluate(expressionFactory())) return;
     await delay(100);
@@ -426,6 +462,11 @@ if (!jobId || !jobPath || !outboxDir) {
 }
 
 const job = JSON.parse(await readFile(jobPath, "utf8"));
+const delayMs = Number(process.env.IMAGE_COCKPIT_MOCK_RUNNER_DELAY_MS || 0);
+if (delayMs > 0) {
+  await new Promise((resolve) => setTimeout(resolve, delayMs));
+}
+
 if (job.workflowMode !== "sprite-generate") {
   await writeFile(join(outboxDir, \`\${jobId}-mock-image.png\`), makeSpriteSheetPng(512, 512, 1, 1, 512, 512, [0, 255, 0, 255]));
   console.log(\`mock image completed \${jobId}\`);
