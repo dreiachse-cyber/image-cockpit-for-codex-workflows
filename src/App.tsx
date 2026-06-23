@@ -27,7 +27,8 @@ import {
   Settings,
   Square,
   Trash2,
-  Upload
+  Upload,
+  X
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -149,6 +150,7 @@ const uiCopy = {
     promptExamplesIntro: "Pixel-art prompts tuned for Codex imagegen.",
     copyPrompt: "Copy Prompt",
     usePrompt: "Use Prompt",
+    closePromptExamples: "Close",
     promptCopied: "Prompt copied",
     promptCopyFailed: "Could not copy prompt",
     promptExampleApplied: "Prompt example loaded into Pixel Art Generation",
@@ -262,6 +264,7 @@ const uiCopy = {
     promptExamplesIntro: "Codex imagegen向けのピクセルアートprompt例です。",
     copyPrompt: "プロンプトをコピー",
     usePrompt: "この例を使う",
+    closePromptExamples: "閉じる",
     promptCopied: "プロンプトをコピーしました",
     promptCopyFailed: "プロンプトをコピーできませんでした",
     promptExampleApplied: "プロンプト例をピクセルアート生成へ入れました",
@@ -1222,24 +1225,11 @@ function App() {
   const showSpriteTuningControls = SHOW_LOW_PRIORITY_CONTROLS || workflowMode === "sprite-edit";
   const showAnnotationToolbar = SHOW_LOW_PRIORITY_CONTROLS || workflowMode === "image-edit";
 
-  if (showPromptExamples) {
-    return (
-      <PromptExamplesPage
-        language={language}
-        onBack={() => setShowPromptExamples(false)}
-        onCopy={copyPromptExample}
-        onLanguageChange={setLanguage}
-        onUse={usePromptExample}
-      />
-    );
-  }
-
   if (!workflowMode) {
     return (
       <GuidedStart
         language={language}
         onLanguageChange={setLanguage}
-        onPromptExamples={() => setShowPromptExamples(true)}
         onSelect={beginWorkflow}
       />
     );
@@ -1259,10 +1249,6 @@ function App() {
           <LanguageSelect language={language} label={copy.language} onChange={setLanguage} />
           <button className="guided-link" onClick={() => setWorkflowMode(null)}>
             {copy.guidedStart}
-          </button>
-          <button className="guided-link" onClick={() => setShowPromptExamples(true)}>
-            <FileJson size={14} aria-hidden="true" />
-            {copy.promptExamples}
           </button>
           {SHOW_LOW_PRIORITY_CONTROLS && (
             <>
@@ -1400,6 +1386,12 @@ function App() {
                 <textarea value={prompt} onChange={(event) => setPrompt(event.target.value)} maxLength={1200} />
                 <small>{prompt.length} / 1200</small>
               </label>
+              {workflowMode === "image-generate" && (
+                <button className="prompt-example-trigger" onClick={() => setShowPromptExamples(true)}>
+                  <FileJson size={15} aria-hidden="true" />
+                  {copy.promptExamples}
+                </button>
+              )}
               <label className="field">
                 <span>{activeWorkflowFormCopy?.negativeLabel ?? "Negative Prompt"}</span>
                 <textarea value={negativePrompt} onChange={(event) => setNegativePrompt(event.target.value)} rows={2} />
@@ -1818,6 +1810,15 @@ function App() {
         <Archive size={15} aria-hidden="true" />
         <span>{copy.localWorkspace}</span>
       </footer>
+
+      {showPromptExamples && (
+        <PromptExamplesModal
+          language={language}
+          onClose={() => setShowPromptExamples(false)}
+          onCopy={copyPromptExample}
+          onUse={usePromptExample}
+        />
+      )}
     </div>
   );
 
@@ -2097,12 +2098,10 @@ function WorkflowTabs({
 function GuidedStart({
   language,
   onLanguageChange,
-  onPromptExamples,
   onSelect
 }: {
   language: Language;
   onLanguageChange: (language: Language) => void;
-  onPromptExamples: () => void;
   onSelect: (mode: WorkflowMode) => void;
 }) {
   const copy = uiCopy[language];
@@ -2117,10 +2116,6 @@ function GuidedStart({
         </div>
         <div className="project-strip">
           <LanguageSelect language={language} label={copy.language} onChange={onLanguageChange} />
-          <button className="guided-link" onClick={onPromptExamples}>
-            <FileJson size={14} aria-hidden="true" />
-            {copy.promptExamples}
-          </button>
         </div>
       </header>
 
@@ -2156,70 +2151,61 @@ function GuidedStart({
   );
 }
 
-function PromptExamplesPage({
+function PromptExamplesModal({
   language,
-  onBack,
+  onClose,
   onCopy,
-  onLanguageChange,
   onUse
 }: {
   language: Language;
-  onBack: () => void;
+  onClose: () => void;
   onCopy: (example: PromptExample) => Promise<void>;
-  onLanguageChange: (language: Language) => void;
   onUse: (example: PromptExample) => void;
 }) {
   const copy = uiCopy[language];
   return (
-    <div className="prompt-shell">
-      <header className="topbar">
-        <div className="brand">
-          <Grid3X3 size={18} aria-hidden="true" />
-          <strong>Image Cockpit for Codex Workflows</strong>
-          <span>{copy.promptExamples}</span>
-          <small>{copy.localCodexHandoff}</small>
-        </div>
-        <div className="project-strip">
-          <LanguageSelect language={language} label={copy.language} onChange={onLanguageChange} />
-          <button className="guided-link" onClick={onBack}>
-            <ArrowLeft size={14} aria-hidden="true" />
-            {copy.guidedStart}
-          </button>
-        </div>
-      </header>
-
-      <main className="prompt-main">
-        <section className="prompt-panel">
-          <div className="prompt-library-heading">
-            <strong>{copy.promptExamplesTitle}</strong>
+    <div className="prompt-modal-backdrop" role="presentation" onMouseDown={onClose}>
+      <section
+        className="prompt-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="prompt-examples-title"
+        onMouseDown={(event) => event.stopPropagation()}
+      >
+        <div className="prompt-library-heading">
+          <div>
+            <strong id="prompt-examples-title">{copy.promptExamplesTitle}</strong>
             <span>{copy.promptExamplesIntro}</span>
           </div>
+          <button className="icon-button" title={copy.closePromptExamples} aria-label={copy.closePromptExamples} onClick={onClose}>
+            <X size={18} aria-hidden="true" />
+          </button>
+        </div>
 
-          <div className="prompt-grid">
-            {promptExamples.map((example) => (
-              <article key={example.id} className="prompt-card">
-                <div className="prompt-card-meta">
-                  <small>{example.category[language]}</small>
-                </div>
-                <h2>{example.title[language]}</h2>
-                <p className="prompt-card-text">{example.prompt}</p>
-                <p className="prompt-card-negative">{example.negativePrompt}</p>
-                <small className="prompt-card-note">{example.notes}</small>
-                <div className="prompt-actions">
-                  <button onClick={() => void onCopy(example)}>
-                    <Copy size={15} aria-hidden="true" />
-                    {copy.copyPrompt}
-                  </button>
-                  <button className="primary-button" onClick={() => onUse(example)}>
-                    <ImagePlus size={15} aria-hidden="true" />
-                    {copy.usePrompt}
-                  </button>
-                </div>
-              </article>
-            ))}
-          </div>
-        </section>
-      </main>
+        <div className="prompt-grid">
+          {promptExamples.map((example) => (
+            <article key={example.id} className="prompt-card">
+              <div className="prompt-card-meta">
+                <small>{example.category[language]}</small>
+              </div>
+              <h2>{example.title[language]}</h2>
+              <p className="prompt-card-text">{example.prompt}</p>
+              <p className="prompt-card-negative">{example.negativePrompt}</p>
+              <small className="prompt-card-note">{example.notes}</small>
+              <div className="prompt-actions">
+                <button onClick={() => void onCopy(example)}>
+                  <Copy size={15} aria-hidden="true" />
+                  {copy.copyPrompt}
+                </button>
+                <button className="primary-button" onClick={() => onUse(example)}>
+                  <ImagePlus size={15} aria-hidden="true" />
+                  {copy.usePrompt}
+                </button>
+              </div>
+            </article>
+          ))}
+        </div>
+      </section>
     </div>
   );
 }

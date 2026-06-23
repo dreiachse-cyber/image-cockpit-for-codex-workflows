@@ -148,15 +148,23 @@ async function assertLanguageSwitch() {
 }
 
 async function assertPromptExamples() {
+  await clickGuidedOption(0);
+  await waitForEval(() => `document.body.innerText.includes("Pixel Art Generation")`, "Pixel Art Generation for prompt examples");
+  const triggerPlacement = await evaluate(`(() => {
+    const trigger = document.querySelector(".prompt-example-trigger");
+    const promptField = document.querySelector(".source-panel .field");
+    return Boolean(trigger && promptField && promptField.nextElementSibling === trigger);
+  })()`);
+  assert(triggerPlacement, "Prompt Examples trigger should sit directly below the prompt field");
   await clickButtonByText("Prompt Examples");
-  await waitForEval(() => `document.body.innerText.includes("Clockwork Mushroom Courier")`, "Prompt Examples page");
+  await waitForEval(() => `document.querySelector(".prompt-modal")?.innerText.includes("Clockwork Mushroom Courier")`, "Prompt Examples modal");
   const snapshot = await pageSnapshot();
   assert(snapshot.text.includes("Pixel-art prompts tuned for Codex imagegen."), "Prompt Examples intro should be visible");
   assert(snapshot.buttons.includes("Copy Prompt"), "Prompt Examples should expose copy buttons");
   assert(snapshot.buttons.includes("Use Prompt"), "Prompt Examples should expose use buttons");
   const examplePrompt = await evaluate(`document.querySelector(".prompt-card-text")?.textContent || ""`);
   assert(examplePrompt.includes("clockwork mushroom courier"), "Prompt example text should be available for copy");
-  await maybeCapture("prompt-examples");
+  await maybeCapture("prompt-examples-modal");
 
   await clickButtonByText("Use Prompt");
   await waitForEval(
@@ -165,6 +173,8 @@ async function assertPromptExamples() {
   );
   const loadedPrompt = await evaluate(`document.querySelector("textarea")?.value || ""`);
   assert(loadedPrompt.includes("clockwork mushroom courier"), "Use Prompt should load the example into the prompt field");
+  const modalClosed = await evaluate(`!document.querySelector(".prompt-modal")`);
+  assert(modalClosed, "Use Prompt should close the Prompt Examples modal");
 
   await evaluate(`document.querySelector(".guided-link")?.click()`);
   await waitForEval(() => `document.querySelectorAll(".guided-option").length === 2`, "return to Guided Start after Prompt Examples");

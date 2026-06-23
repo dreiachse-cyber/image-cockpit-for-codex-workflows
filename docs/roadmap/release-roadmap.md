@@ -4,8 +4,8 @@
 
 ## Readable Update: Prompt Examples
 
-- Add a separate Prompt Examples page before public release review.
-- Keep the page focused on two actions: copy a tuned pixel-art prompt, or load it directly into Pixel Art Generation.
+- Move Prompt Examples out of the global header/start route and place the button directly below the Pixel Art Prompt field.
+- Keep the modal focused on two actions: copy a tuned pixel-art prompt, or load it directly into Pixel Art Generation.
 - Treat Prompt Examples as support for the primary quality question: whether complex pixel-art prompts can reliably return useful generated images through local Codex imagegen.
 
 ## Readable Update: Animation Generation

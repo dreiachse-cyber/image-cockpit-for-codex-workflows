@@ -1236,33 +1236,59 @@ button:disabled {
   cursor: pointer;
 }
 
-.prompt-shell {
-  min-height: 100%;
+.prompt-example-trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 32px;
+  margin: -2px 10px 8px;
+  border: 1px solid #bfdcc8;
+  border-radius: 5px;
+  background: #edf8f0;
+  color: #0f5d31;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.prompt-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
   display: grid;
-  grid-template-rows: 38px minmax(0, 1fr);
-  background: #f4f6f4;
+  place-items: center;
+  background: rgb(23 33 27 / 48%);
+  padding: 18px;
 }
 
-.prompt-main {
-  min-height: 0;
+.prompt-modal {
+  width: min(1080px, 100%);
+  max-height: min(760px, calc(100vh - 36px));
   overflow: auto;
-  padding: 16px;
-}
-
-.prompt-panel {
-  width: min(1180px, 100%);
-  margin: 0 auto;
   display: grid;
   gap: 12px;
+  border: 1px solid #bfd0c3;
+  border-radius: 8px;
+  background: #f8faf8;
+  box-shadow: 0 22px 70px rgb(23 33 27 / 28%);
+  padding: 14px;
 }
 
 .prompt-library-heading {
-  display: grid;
-  gap: 5px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
   border: 1px solid var(--line);
   border-radius: 6px;
   background: var(--panel);
   padding: 14px 16px;
+}
+
+.prompt-library-heading > div {
+  display: grid;
+  gap: 5px;
 }
 
 .prompt-library-heading strong {
@@ -1425,12 +1451,13 @@ button:disabled {
     min-height: 100vh;
   }
 
-  .prompt-shell {
-    min-height: 100vh;
-    grid-template-rows: auto 1fr;
+  .prompt-modal-backdrop {
+    align-items: start;
+    padding: 12px;
   }
 
-  .prompt-main {
+  .prompt-modal {
+    max-height: calc(100vh - 24px);
     padding: 12px;
   }
 
