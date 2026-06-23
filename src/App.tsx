@@ -184,6 +184,7 @@ const uiCopy = {
     workflowPanelTitle: "Workflow",
     canvasGridTitle: "Animation Setup",
     canvasAnnotationTitle: "Preview",
+    previewLabel: "Preview",
     canvasEmpty: "Import an image or generate one locally to start",
     columns: "Columns",
     rows: "Rows",
@@ -306,6 +307,7 @@ const uiCopy = {
     workflowPanelTitle: "ワークフロー",
     canvasGridTitle: "アニメーション設定",
     canvasAnnotationTitle: "プレビュー",
+    previewLabel: "プレビュー",
     canvasEmpty: "画像を取り込むかローカル生成して開始",
     columns: "列",
     rows: "行",
@@ -714,6 +716,13 @@ function App() {
     [actionFrames, frames, selectedFrameId]
   );
 
+  const selectedFrameForPreview = useMemo(
+    () => (selectedFrameId ? frames.find((frame) => frame.id === selectedFrameId) : undefined),
+    [frames, selectedFrameId]
+  );
+
+  const isPreviewingSelectedFrame = Boolean(selectedFrameForPreview?.sourceId && selectedFrameForPreview.sourceId === selected?.id);
+
   const qc = useMemo(
     () => summarizeFrames(actionFrames, activeAction.cell.width, activeAction.cell.height),
     [actionFrames, activeAction.cell.height, activeAction.cell.width]
@@ -794,8 +803,9 @@ function App() {
     drawWorkspaceCanvas();
   }, [
     selected?.dataUrl,
-    selectedFrame?.dataUrl,
+    selectedFrameForPreview?.dataUrl,
     selectedId,
+    selectedFrameId,
     workflowMode,
     annotationsByItem,
     draftAnnotation,
@@ -925,7 +935,7 @@ function App() {
       { width: MIN_ANIMATION_CELL_SIZE, height: MIN_ANIMATION_CELL_SIZE }
     );
     setFrames(sampleFrames);
-    setSelectedFrameId(sampleFrames[0]?.id ?? "");
+    setSelectedFrameId("");
     setActions((current) =>
       current.map((action, actionIndex) => {
         const rowFrames = sampleFrames.slice(actionIndex * 8, actionIndex * 8 + 8).map((frame) => frame.id);
@@ -947,8 +957,8 @@ function App() {
       return;
     }
 
-    const displayingFrame = Boolean(selectedFrame?.sourceId && selectedFrame.sourceId === selected.id);
-    const image = await loadImage(displayingFrame && selectedFrame ? selectedFrame.dataUrl : selected.dataUrl);
+    const displayingFrame = Boolean(selectedFrameForPreview?.sourceId && selectedFrameForPreview.sourceId === selected.id);
+    const image = await loadImage(displayingFrame && selectedFrameForPreview ? selectedFrameForPreview.dataUrl : selected.dataUrl);
     const padding = 44;
     const scale = Math.min((CANVAS_WIDTH - padding * 2) / image.width, (CANVAS_HEIGHT - padding * 2) / image.height);
     const width = image.width * scale;
@@ -961,7 +971,7 @@ function App() {
     if (showCenter) drawCenterOverlay(context, x, y, width, height);
     const annotations = [...(annotationsByItem[selected.id] ?? []), ...(draftAnnotation ? [draftAnnotation] : [])];
     annotations.forEach((annotation) => drawAnnotation(context, annotation));
-  }, [annotationsByItem, copy.canvasEmpty, draftAnnotation, grid.columns, grid.rows, selected, selectedFrame, showCenter, showGrid]);
+  }, [annotationsByItem, copy.canvasEmpty, draftAnnotation, grid.columns, grid.rows, selected, selectedFrameForPreview, showCenter, showGrid]);
 
   async function handleFiles(files: FileList | File[]) {
     const entries = Array.from(files).filter((file) => file.type.startsWith("image/"));
@@ -985,6 +995,7 @@ function App() {
     }
     setHistory((current) => [...imported, ...current]);
     setSelectedId(imported[0].id);
+    setSelectedFrameId("");
     if (workflowMode === "sprite-generate") setAnimationSourceId(imported[0].id);
     setStatus(formatImagesImportedStatus(imported.length, language));
   }
@@ -1230,6 +1241,7 @@ function App() {
 
       setHistory((current) => [...imported, ...current]);
       setSelectedId(imported[0].id);
+      setSelectedFrameId("");
 
       setStatus(`${copy.statusLocalGenerated}: ${imported.map((item) => item.name).join(", ")}`);
     } catch (error) {
@@ -1274,7 +1286,7 @@ function App() {
         action.name === animationAction.name ? { ...animationAction, frameIds: newFrames.map((frame) => frame.id) } : action
       )
     );
-    setSelectedFrameId(newFrames[0]?.id ?? "");
+    setSelectedFrameId("");
     setStatus(`${copy.statusAnimationGenerated}: ${sheetName}. ${formatFramesAddedStatus(newFrames.length, animationAction.name, language)}`);
   }
 
@@ -1314,7 +1326,7 @@ function App() {
           : action
       )
     );
-    setSelectedFrameId(newFrames[0]?.id ?? "");
+    setSelectedFrameId("");
     setStatus(`${copy.statusAnimationGenerated}: ${item.name}. ${formatFramesAddedStatus(newFrames.length, actionName, language)}`);
   }
 
@@ -1359,6 +1371,7 @@ function App() {
       };
       setHistory((current) => [item, ...current]);
       setSelectedId(item.id);
+      setSelectedFrameId("");
       if (pendingJob) removeCodexJob(pendingJob.id);
       setStatus(`${copy.statusInboxImported}: ${imported.name}`);
       return true;
@@ -1451,6 +1464,12 @@ function App() {
       )
     );
     setSelectedFrameId("");
+  }
+
+  function selectHistoryResult(item: HistoryItem) {
+    setSelectedId(item.id);
+    setSelectedFrameId("");
+    if (isAnimationWorkflow && isAnimationSource(item)) setAnimationSourceId(item.id);
   }
 
   async function applyChromaToSelectedFrame() {
@@ -1603,6 +1622,13 @@ function App() {
   const isAnimationWorkflow = workflowMode === "sprite-generate";
   const animationSourceReady = !isAnimationWorkflow || isAnimationSource(animationSource);
   const primaryActionDisabled = isBusy || !animationSourceReady;
+  const previewMode = !selected ? "empty" : isPreviewingSelectedFrame ? "frame" : "result";
+  const previewStatus = isPreviewingSelectedFrame && selectedFrameForPreview
+    ? `${copy.frameLabel}: ${selectedFrameForPreview.index}`
+    : `${copy.previewLabel}: ${selected?.name ?? "-"}`;
+  const previewSize = isPreviewingSelectedFrame && selectedFrameForPreview
+    ? `${selectedFrameForPreview.width}x${selectedFrameForPreview.height}`
+    : selected?.size ?? "-";
   const showFrameGridControls = SHOW_LOW_PRIORITY_CONTROLS || workflowMode === "sprite-edit";
   const showSpriteTuningControls = SHOW_LOW_PRIORITY_CONTROLS || workflowMode === "sprite-edit";
   const showAnnotationToolbar = SHOW_LOW_PRIORITY_CONTROLS || workflowMode === "image-edit";
@@ -2010,6 +2036,8 @@ function App() {
                 ref={canvasRef}
                 width={CANVAS_WIDTH}
                 height={CANVAS_HEIGHT}
+                data-preview-mode={previewMode}
+                data-preview-name={selected?.name ?? ""}
                 onPointerDown={handlePointerDown}
                 onPointerMove={handlePointerMove}
                 onPointerUp={handlePointerUp}
@@ -2026,8 +2054,8 @@ function App() {
               )}
             </div>
             <div className="canvas-status">
-              <span>{copy.frameLabel}: {selectedFrame ? selectedFrame.index : "-"}</span>
-              <span>{copy.sizeLabel}: {activeAction.cell.width}x{activeAction.cell.height}</span>
+              <span>{previewStatus}</span>
+              <span>{copy.sizeLabel}: {previewSize}</span>
               <span>{copy.anchorLabel}: {activeAction.anchor.x}, {activeAction.anchor.y}</span>
               <span>{copy.zoomLabel}: {copy.zoomFit}</span>
               <span className="swatch" style={{ background: annotationColor }} />
@@ -2048,10 +2076,7 @@ function App() {
               <button
                 key={item.id}
                 className={`history-item ${selected?.id === item.id ? "selected" : ""}`}
-                onClick={() => {
-                  setSelectedId(item.id);
-                  if (isAnimationWorkflow && isAnimationSource(item)) setAnimationSourceId(item.id);
-                }}
+                onClick={() => selectHistoryResult(item)}
               >
                 <img src={item.dataUrl} alt="" />
                 <span>
@@ -2076,7 +2101,7 @@ function App() {
                   <button
                     key={item.id}
                     className={selected?.id === item.id ? "variant selected" : "variant"}
-                    onClick={() => setSelectedId(item.id)}
+                    onClick={() => selectHistoryResult(item)}
                   >
                     <img src={item.dataUrl} alt="" />
                     <span>{item.adopted ? "Adopted" : "Candidate"}</span>

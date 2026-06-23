@@ -108,7 +108,8 @@ try {
     hiddenText: ["Sprite Actions", "Export Sprite"],
     requiredText: ["Pixel Art Prompt", "Generation Notes", "Preview", "Generation can take a few minutes."],
     exerciseButton: "Generate Pixel Art",
-    expectedAfterExercise: "Imported from Local Inbox"
+    expectedAfterExercise: "Imported from Local Inbox",
+    expectedCanvasPreviewModeAfterExercise: "result"
   });
   await assertWorkflow({
     index: 1,
@@ -124,6 +125,7 @@ try {
     expectedAfterExerciseText: ["Animation frames ready", "Animated WebP", "512x512"],
     postExerciseButtons: ["Animated WebP", "Sprite Sheet"],
     expectedPreviewImages: 3,
+    expectedCanvasPreviewModeAfterExercise: "result",
     reloadAfterExercise: true
   });
 
@@ -235,6 +237,7 @@ async function assertWorkflow({
   expectedAfterExerciseText = [],
   postExerciseButtons = [],
   expectedPreviewImages = 0,
+  expectedCanvasPreviewModeAfterExercise = "",
   reloadAfterExercise = false
 }) {
   await clickGuidedOption(index);
@@ -284,6 +287,18 @@ async function assertWorkflow({
         postSnapshot.animationPreviewImages >= expectedPreviewImages,
         `${label} should render ${expectedPreviewImages} animation preview image(s), got ${postSnapshot.animationPreviewImages}`
       );
+    }
+    if (expectedCanvasPreviewModeAfterExercise) {
+      await waitForEval(
+        () => `document.querySelector("canvas")?.dataset.previewMode === ${JSON.stringify(expectedCanvasPreviewModeAfterExercise)}`,
+        `${label} shows the selected result in the main preview`
+      );
+      const previewSnapshot = await pageSnapshot();
+      assert(
+        previewSnapshot.canvasPreviewMode === expectedCanvasPreviewModeAfterExercise,
+        `${label} should use ${expectedCanvasPreviewModeAfterExercise} canvas preview mode, got ${previewSnapshot.canvasPreviewMode}`
+      );
+      assert(previewSnapshot.canvasPreviewName, `${label} should expose the selected result name on the preview canvas`);
     }
     for (const button of postExerciseButtons) {
       await clickButtonByText(button);
@@ -338,6 +353,8 @@ async function pageSnapshot() {
     workflowTabsInsidePanel: Boolean(document.querySelector(".source-panel > .workflow-tabs")),
     workflowTabsInTopbar: Boolean(document.querySelector(".topbar .workflow-tabs")),
     canvasVisible: Boolean(document.querySelector("canvas")),
+    canvasPreviewMode: document.querySelector("canvas")?.dataset.previewMode || "",
+    canvasPreviewName: document.querySelector("canvas")?.dataset.previewName || "",
     spriteBenchVisible: Boolean(document.querySelector(".sprite-bench")),
     codexJobRows: document.querySelectorAll(".codex-job-row").length,
     animationPreviewImages: document.querySelectorAll(".animation-preview img").length
