@@ -17,6 +17,7 @@ const requiredFiles = [
   ".github/workflows/ci.yml",
   "scripts/doctor.mjs",
   "scripts/release-audit.mjs",
+  "scripts/ui-smoke.mjs",
   "src/App.test.ts",
   "docs/review/mvp-review-report.md",
   "docs/roadmap/release-roadmap.md",
@@ -47,7 +48,7 @@ const requiredEnvKeys = [
 
 const requiredWorkflowIds = ["image-generate", "image-edit", "sprite-generate", "sprite-edit"];
 const requiredGitignorePatterns = ["node_modules/", "dist/", "coverage/", ".env", ".env.", "!.env.example", "codex-handoff/"];
-const requiredPackageScripts = ["doctor", "typecheck", "test", "build", "smoke", "release:audit", "verify"];
+const requiredPackageScripts = ["doctor", "typecheck", "test", "build", "smoke", "ui:smoke", "release:audit", "verify"];
 const requiredVerifyCommands = [
   "npm run doctor",
   "npm run typecheck",
@@ -207,7 +208,8 @@ function checkNoDirectOpenAiIntegration() {
 function checkWorkflowIds() {
   const appText = readText("src/App.tsx");
   const smokeText = readText("scripts/smoke.mjs");
-  if (!appText || !smokeText) return;
+  const uiSmokeText = readText("scripts/ui-smoke.mjs");
+  if (!appText || !smokeText || !uiSmokeText) return;
 
   requiredWorkflowIds.forEach((workflowId) => {
     if (!appText.includes(workflowId)) {
@@ -218,6 +220,23 @@ function checkWorkflowIds() {
   requiredWorkflowIds.forEach((workflowId) => {
     if (!smokeText.includes(workflowId)) {
       failures.push(`Smoke test should cover Codex handoff workflow: ${workflowId}`);
+    }
+  });
+
+  [
+    "1. Image Generation",
+    "2. Image Editing",
+    "3. Sprite Sheet Generation",
+    "4. Sprite Sheet Editing",
+    "Guided Start should show four workflow options",
+    "Route: Codex Handoff",
+    "Route: Local File",
+    "Route: Local Inbox",
+    "Transparency Cleanup",
+    "Export Sprite"
+  ].forEach((marker) => {
+    if (!uiSmokeText.includes(marker)) {
+      failures.push(`UI smoke should cover guided workflow review: ${marker}`);
     }
   });
 
@@ -396,6 +415,7 @@ function checkReleaseDocs() {
   [
     "npm run doctor",
     "npm run verify",
+    "npm run ui:smoke",
     "Image generation",
     "Image editing",
     "Sprite sheet generation",
@@ -428,6 +448,7 @@ function checkReleaseDocs() {
     "docs/release/v0.1.0-owner-decision.md",
     "Remaining Gates",
     "codex exec",
+    "npm run ui:smoke",
     "npm run smoke",
     "npm run verify"
   ].forEach((line) => {

@@ -123,6 +123,14 @@ GitHub Actions runs the same verification path through `.github/workflows/ci.yml
 
 `npm run smoke` covers manual handoff mode and a mock autorun runner that reaches `ready`, creates a job, records `completed`, writes a PNG to the outbox, and imports that PNG through the Local Inbox endpoint. This proves the runner lifecycle wiring without claiming that the installed Codex executable completed successfully on every machine.
 
+Optional local browser review smoke:
+
+```powershell
+npm run ui:smoke
+```
+
+`npm run ui:smoke` starts the local API and Vite app with a temporary handoff folder, opens a headless Chrome/Edge session, verifies Guided Start shows the four workflows, clicks through each workflow, and checks the expected route and primary actions.
+
 ## Review
 
 Use `docs/review/mvp-review-report.md` for the private MVP review path, QA evidence, and known constraints.

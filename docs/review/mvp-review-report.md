@@ -69,6 +69,7 @@ npm run release:audit
 - release auditで、簡素化UIがLocal Inbox import actionを露出していることを確認。
 - release auditで、local-file起点の簡素UIが `Import File` actionを重複表示しない条件を確認。
 - release auditで、4大workflowの中核UIラベルと初期言語判定が言語切替の対象になっていることを確認。
+- `npm run ui:smoke` で、Guided Startの4択、言語切替、4大workflowそれぞれのroute、主ボタン、sprite-editの中核controlがheadless browser上で見えることを確認。
 - Browser QAで、簡素化UIの画像生成画面に `Create Codex Job` / `Import Latest` / `Import File` がdesktop 1280x720とmobile 390x844の初期viewport内に収まることを確認。
 - Browser QAで、スプライトシート生成画面の主操作が `Import File` / `Import Latest` の2つに整理され、`Import File` が重複しないことを確認。
 - Browser QAで、Codex runner unavailable後にoutboxへ返却画像を置き、`Import Latest` で `manual-handoff-qa-return.png` をLocal Inboxから取り込めることを確認。
@@ -89,6 +90,7 @@ npm run release:audit
 - `docs/release/v0.1.0-owner-decision.md`
 - `docs/usage/manual-handoff.md`
 - `.github/workflows/ci.yml`
+- `scripts/ui-smoke.mjs`
 
 ## QA証跡
 

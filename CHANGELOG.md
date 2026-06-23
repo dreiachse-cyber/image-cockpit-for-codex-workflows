@@ -33,6 +33,7 @@ Private release candidate for the first local Image Cockpit MVP.
 - v0.1.0 release notes draft for the first public release approval gate.
 - GitHub Actions CI workflow for the same `npm run verify` release-check path.
 - One-command local verification through `npm run verify`.
+- Browser UI smoke through `npm run ui:smoke`, covering Guided Start, all four workflow routes, main actions, language switching, and core sprite-edit controls.
 - Local doctor script for required files, handoff folder writability, and Codex command availability.
 - Manual handoff guide for inbox / assets / outbox workflows when `codex exec` is unavailable.
 - Manual handoff status copy now points users back to `Import Latest` after returning an outbox image.
