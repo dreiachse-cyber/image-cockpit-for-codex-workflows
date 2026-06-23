@@ -17,6 +17,7 @@ const requiredFiles = [
   ".github/workflows/ci.yml",
   "scripts/doctor.mjs",
   "scripts/release-audit.mjs",
+  "scripts/real-codex-runner-smoke.mjs",
   "scripts/ui-smoke.mjs",
   "src/App.test.ts",
   "docs/review/mvp-review-report.md",
@@ -48,7 +49,7 @@ const requiredEnvKeys = [
 
 const requiredWorkflowIds = ["image-generate", "image-edit", "sprite-generate", "sprite-edit"];
 const requiredGitignorePatterns = ["node_modules/", "dist/", "coverage/", ".env", ".env.", "!.env.example", "codex-handoff/"];
-const requiredPackageScripts = ["doctor", "typecheck", "test", "build", "smoke", "ui:smoke", "release:audit", "verify"];
+const requiredPackageScripts = ["doctor", "typecheck", "test", "build", "smoke", "ui:smoke", "codex:smoke", "release:audit", "verify"];
 const requiredVerifyCommands = [
   "npm run doctor",
   "npm run typecheck",
@@ -209,7 +210,8 @@ function checkWorkflowIds() {
   const appText = readText("src/App.tsx");
   const smokeText = readText("scripts/smoke.mjs");
   const uiSmokeText = readText("scripts/ui-smoke.mjs");
-  if (!appText || !smokeText || !uiSmokeText) return;
+  const realCodexSmokeText = readText("scripts/real-codex-runner-smoke.mjs");
+  if (!appText || !smokeText || !uiSmokeText || !realCodexSmokeText) return;
 
   requiredWorkflowIds.forEach((workflowId) => {
     if (!appText.includes(workflowId)) {
@@ -243,6 +245,19 @@ function checkWorkflowIds() {
   if (!smokeText.includes("/api/codex/results")) {
     failures.push("Smoke test should cover Local Inbox outbox result listing/import.");
   }
+
+  [
+    "Real Codex runner smoke passed.",
+    "IMAGE_COCKPIT_REAL_CODEX_SMOKE_KEEP",
+    "runner smoke ok",
+    "IMAGE_COCKPIT_CODEX_AUTORUN",
+    "completed",
+    "exitCode"
+  ].forEach((marker) => {
+    if (!realCodexSmokeText.includes(marker)) {
+      failures.push(`Real Codex runner smoke should cover installed runner completion: ${marker}`);
+    }
+  });
 
   [
     "sprite generation job should include sprite frame count",
@@ -416,6 +431,7 @@ function checkReleaseDocs() {
     "npm run doctor",
     "npm run verify",
     "npm run ui:smoke",
+    "npm run codex:smoke",
     "Image generation",
     "Image editing",
     "Sprite sheet generation",
@@ -442,6 +458,7 @@ function checkReleaseDocs() {
     "Runner lifecycle wiring",
     "Codex command diagnostics",
     "Real Codex runner smoke",
+    "real-codex-runner-smoke.mjs",
     "terminal-runnable Codex CLI",
     "real-codex-runner-smoke.md",
     "manual-handoff-import-latest-1280x720.png",

@@ -131,6 +131,14 @@ npm run ui:smoke
 
 `npm run ui:smoke` starts the local API and Vite app with a temporary handoff folder, opens a headless Chrome/Edge session, verifies Guided Start shows the four workflows, clicks through each workflow, and checks the expected route and primary actions.
 
+Optional real Codex runner smoke:
+
+```powershell
+npm run codex:smoke
+```
+
+`npm run codex:smoke` starts the local API with a temporary handoff folder and asks the installed Codex CLI to complete a no-image handoff job by writing a Markdown sidecar into outbox. It is intentionally not part of CI because it requires a runnable local Codex installation.
+
 ## Review
 
 Use `docs/review/mvp-review-report.md` for the private MVP review path, QA evidence, and known constraints.

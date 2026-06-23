@@ -10,6 +10,7 @@
     "dev:server": "tsx server/index.ts",
     "doctor": "node scripts/doctor.mjs",
     "build": "tsc -b && vite build",
+    "codex:smoke": "node scripts/real-codex-runner-smoke.mjs",
     "lint": "tsc --noEmit",
     "release:audit": "node scripts/release-audit.mjs",
     "smoke": "node scripts/smoke.mjs",

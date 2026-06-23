@@ -13,6 +13,7 @@ Private release candidate for the first local Image Cockpit MVP.
 - Windows Codex command diagnostics and automatic preference for the terminal-runnable `%LOCALAPPDATA%\OpenAI\Codex\bin\...\codex.exe` CLI when the WindowsApps desktop shim is also present.
 - Current Codex CLI runner args using `-c approval_policy="<approval>"` instead of the removed `--ask-for-approval` flag.
 - Real no-image `codex exec` runner smoke confirming the installed Codex CLI can complete a local handoff job and write a Markdown sidecar to outbox.
+- Re-runnable real Codex runner smoke through `npm run codex:smoke`.
 - Pending-job lock so the Codex job button cannot create duplicate handoff jobs while waiting for a result.
 - Orphaned pending Codex jobs with missing runner status now unlock instead of waiting forever.
 - Handoff job context including workflow mode, edit notes, selected image asset, annotations, grid, and sprite context.
