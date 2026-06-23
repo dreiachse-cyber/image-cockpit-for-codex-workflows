@@ -1,4 +1,4 @@
-export type ProviderId = "local-file" | "openai-images" | "optional-adapter";
+export type ProviderId = "local-file" | "codex-handoff" | "local-inbox";
 
 export type ToolMode = "select" | "brush" | "rect" | "arrow";
 
@@ -59,6 +59,12 @@ export interface ProviderStatus {
   label: string;
   enabled: boolean;
   message?: string;
-  model?: string;
+  path?: string;
 }
 
+export interface CodexJobResponse {
+  id: string;
+  path: string;
+  inboxPath: string;
+  createdAt: string;
+}

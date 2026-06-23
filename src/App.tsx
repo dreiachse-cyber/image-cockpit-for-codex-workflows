@@ -5,7 +5,6 @@ import {
   ArrowRight,
   Brush,
   CheckCircle2,
-  Cloud,
   Download,
   FileArchive,
   FileImage,
@@ -43,6 +42,7 @@ import type {
   Annotation,
   GridSettings,
   HistoryItem,
+  CodexJobResponse,
   ProviderId,
   ProviderStatus,
   SpriteAction,
@@ -63,8 +63,42 @@ const defaultActions: SpriteAction[] = [
 
 const fallbackProviders: ProviderStatus[] = [
   { id: "local-file", label: "Local File", enabled: true, message: "Use images from this machine" },
-  { id: "openai-images", label: "OpenAI Images", enabled: false, message: "Set OPENAI_API_KEY and run the local API server" },
-  { id: "optional-adapter", label: "Optional Adapter", enabled: false, message: "No adapter configured" }
+  { id: "codex-handoff", label: "Codex Handoff", enabled: true, message: "Write local jobs for Codex to pick up" },
+  { id: "local-inbox", label: "Local Inbox", enabled: true, message: "Import results returned by Codex" }
+];
+
+type WorkflowMode = "image-generate" | "image-edit" | "sprite-generate" | "sprite-edit";
+
+const workflowOptions: Array<{
+  id: WorkflowMode;
+  label: string;
+  detail: string;
+  provider: ProviderId;
+}> = [
+  {
+    id: "image-generate",
+    label: "1. Image Generation",
+    detail: "Write a local Codex job from a prompt, then import the returned image.",
+    provider: "codex-handoff"
+  },
+  {
+    id: "image-edit",
+    label: "2. Image Editing",
+    detail: "Annotate an image and hand the edit instruction to Codex.",
+    provider: "codex-handoff"
+  },
+  {
+    id: "sprite-generate",
+    label: "3. Sprite Sheet Generation",
+    detail: "Start from an imported image or Codex result and split it into frames.",
+    provider: "local-file"
+  },
+  {
+    id: "sprite-edit",
+    label: "4. Sprite Sheet Editing",
+    detail: "Tune timeline order, transparency, anchors, QC, and exports.",
+    provider: "local-inbox"
+  }
 ];
 
 function App() {
@@ -73,7 +107,8 @@ function App() {
   const [actions, setActions] = useState<SpriteAction[]>(() => loadActions(defaultActions));
   const [selectedId, setSelectedId] = useState<string>("");
   const [activeActionName, setActiveActionName] = useState("idle");
-  const [providerId, setProviderId] = useState<ProviderId>("local-file");
+  const [workflowMode, setWorkflowMode] = useState<WorkflowMode | null>(null);
+  const [providerId, setProviderId] = useState<ProviderId>("codex-handoff");
   const [providers, setProviders] = useState<ProviderStatus[]>(fallbackProviders);
   const [prompt, setPrompt] = useState("Pixel art forest mage, transparent background, 8 directions");
   const [negativePrompt, setNegativePrompt] = useState("blur, text, watermark, cropped feet");
@@ -147,7 +182,18 @@ function App() {
 
   useEffect(() => {
     drawWorkspaceCanvas();
-  }, [selected?.dataUrl, selectedFrame?.dataUrl, selectedId, annotationsByItem, draftAnnotation, showGrid, showCenter, grid, tool]);
+  }, [
+    selected?.dataUrl,
+    selectedFrame?.dataUrl,
+    selectedId,
+    workflowMode,
+    annotationsByItem,
+    draftAnnotation,
+    showGrid,
+    showCenter,
+    grid,
+    tool
+  ]);
 
   useEffect(() => {
     if (actionFrames.length === 0) {
@@ -255,42 +301,35 @@ function App() {
   }
 
   async function handleGenerate() {
-    if (providerId !== "openai-images") {
-      setStatus("Local File provider uses Import or drag and drop");
+    if (providerId === "local-file" || providerId === "local-inbox") {
+      setStatus(`${providerLabel(providerId)} uses Import or drag and drop`);
       fileInputRef.current?.click();
-      return;
-    }
-    const openai = providers.find((provider) => provider.id === "openai-images");
-    if (!openai?.enabled) {
-      setStatus("OpenAI Images is disabled until OPENAI_API_KEY is set for the local API server");
       return;
     }
     setIsBusy(true);
     try {
-      const response = await fetch("/api/images/generate", {
+      const response = await fetch("/api/codex/jobs", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt, negativePrompt, seed, size, count, quality })
+        body: JSON.stringify({
+          prompt,
+          negativePrompt,
+          seed,
+          size,
+          count,
+          quality,
+          selectedImageName: selected?.name,
+          selectedImageSize: selected?.size,
+          selectedImageSource: selected?.source,
+          action: activeAction.name,
+          frames: actionFrames.length
+        })
       });
       if (!response.ok) throw new Error(await response.text());
-      const data = (await response.json()) as { images: string[]; model: string };
-      const generated = data.images.map<HistoryItem>((dataUrl, index) => ({
-        id: createId("hist"),
-        name: `openai_${Date.now()}_${index + 1}.png`,
-        dataUrl,
-        provider: "openai-images",
-        prompt,
-        seed,
-        size,
-        createdAt: new Date().toISOString(),
-        adopted: false,
-        source: "generate"
-      }));
-      setHistory((current) => [...generated, ...current]);
-      setSelectedId(generated[0]?.id ?? selectedId);
-      setStatus(`Generated with ${data.model}`);
+      const data = (await response.json()) as CodexJobResponse;
+      setStatus(`Codex job written: ${data.path}`);
     } catch (error) {
-      setStatus(error instanceof Error ? error.message : "Generation failed");
+      setStatus(error instanceof Error ? error.message : "Could not create Codex handoff job");
     } finally {
       setIsBusy(false);
     }
@@ -460,7 +499,28 @@ function App() {
     setHistory((current) => current.map((item) => (item.id === selected.id ? { ...item, adopted: !item.adopted } : item)));
   }
 
-  const openaiStatus = providers.find((provider) => provider.id === "openai-images");
+  function beginWorkflow(mode: WorkflowMode) {
+    const option = workflowOptions.find((item) => item.id === mode);
+    setWorkflowMode(mode);
+    if (option) setProviderId(option.provider);
+    if (mode === "image-edit") setTool("brush");
+    if (mode === "sprite-edit") setActiveActionName("idle");
+    if (mode === "image-generate") {
+      setStatus("Create a Codex job, then import the returned image from the local outbox");
+    } else if (mode === "image-edit") {
+      setStatus("Annotate the image, then create a Codex handoff job with the edit notes");
+    } else if (mode === "sprite-generate") {
+      setStatus("Import or select a sheet, then split the grid into timeline frames");
+    } else {
+      setStatus("Review frames, anchors, QC, and export the sprite package");
+    }
+  }
+
+  const codexProvider = providers.find((provider) => provider.id === "codex-handoff");
+
+  if (!workflowMode) {
+    return <GuidedStart onSelect={beginWorkflow} />;
+  }
 
   return (
     <div className="app-shell">
@@ -472,6 +532,9 @@ function App() {
           <small>v0.1.0</small>
         </div>
         <div className="project-strip">
+          <button className="guided-link" onClick={() => setWorkflowMode(null)}>
+            Guided Start
+          </button>
           <span>Project: Forest Mage</span>
           <button className="icon-button" title="Open workspace">
             <FolderOpen size={18} aria-hidden="true" />
@@ -540,7 +603,7 @@ function App() {
           <div className="button-row">
             <button className="primary-button" onClick={() => void handleGenerate()} disabled={isBusy}>
               {isBusy ? <Loader2 className="spin" size={17} aria-hidden="true" /> : <ImagePlus size={17} aria-hidden="true" />}
-              Generate
+              {providerId === "codex-handoff" ? "Create Codex Job" : "Import"}
             </button>
             <button className="secondary-button" onClick={() => fileInputRef.current?.click()}>
               <Upload size={17} aria-hidden="true" />
@@ -566,26 +629,27 @@ function App() {
                 key={provider.id}
                 className={`provider ${providerId === provider.id ? "selected" : ""}`}
                 onClick={() => setProviderId(provider.id)}
-                disabled={!provider.enabled && provider.id !== "openai-images"}
+                disabled={!provider.enabled}
               >
                 {provider.id === "local-file" && <FolderOpen size={22} aria-hidden="true" />}
-                {provider.id === "openai-images" && <Cloud size={22} aria-hidden="true" />}
-                {provider.id === "optional-adapter" && <Plug size={22} aria-hidden="true" />}
+                {provider.id === "codex-handoff" && <Plug size={22} aria-hidden="true" />}
+                {provider.id === "local-inbox" && <Archive size={22} aria-hidden="true" />}
                 <span>
                   <strong>{provider.label}</strong>
                   <small>{provider.message}</small>
                 </span>
-                {provider.enabled ? <CheckCircle2 size={16} aria-hidden="true" /> : <em>No Key</em>}
+                {provider.enabled ? <CheckCircle2 size={16} aria-hidden="true" /> : <em>Off</em>}
               </button>
             ))}
           </div>
 
-          {!openaiStatus?.enabled && (
-            <div className="notice">
-              <AlertTriangle size={18} aria-hidden="true" />
-              <span>OpenAI Images is disabled until an API key is set in Environment.</span>
-            </div>
-          )}
+          <div className="notice">
+            <AlertTriangle size={18} aria-hidden="true" />
+            <span>
+              This app does not call OpenAI APIs directly. Codex jobs are written to the local inbox
+              {codexProvider?.path ? `: ${codexProvider.path}` : "."}
+            </span>
+          </div>
 
           <SectionLabel title="Canvas & Grid" />
           <div className="field-row">
@@ -913,6 +977,54 @@ function QcLine({ ok, label, value }: { ok: boolean; label: string; value: strin
   );
 }
 
+function GuidedStart({ onSelect }: { onSelect: (mode: WorkflowMode) => void }) {
+  return (
+    <div className="guided-shell">
+      <header className="topbar">
+        <div className="brand">
+          <Grid3X3 size={18} aria-hidden="true" />
+          <strong>Image Cockpit for Codex Workflows</strong>
+          <span>Guided Start</span>
+          <small>local Codex handoff</small>
+        </div>
+      </header>
+
+      <main className="guided-main">
+        <section className="guided-panel">
+          <div className="guided-copy">
+            <strong>What do you want to do?</strong>
+            <span>Choose one workflow. The cockpit will open with the right tools and provider preselected.</span>
+          </div>
+
+          <div className="guided-options">
+            {workflowOptions.map((option) => (
+              <button key={option.id} className="guided-option" onClick={() => onSelect(option.id)}>
+                <WorkflowIcon mode={option.id} />
+                <span>
+                  <strong>{option.label}</strong>
+                  <small>{option.detail}</small>
+                </span>
+              </button>
+            ))}
+          </div>
+
+          <div className="guided-note">
+            <AlertTriangle size={16} aria-hidden="true" />
+            <span>No direct OpenAI API calls. Jobs are written locally for Codex, and returned files are imported back into the cockpit.</span>
+          </div>
+        </section>
+      </main>
+    </div>
+  );
+}
+
+function WorkflowIcon({ mode }: { mode: WorkflowMode }) {
+  if (mode === "image-generate") return <ImagePlus size={22} aria-hidden="true" />;
+  if (mode === "image-edit") return <Brush size={22} aria-hidden="true" />;
+  if (mode === "sprite-generate") return <Scissors size={22} aria-hidden="true" />;
+  return <Grid3X3 size={22} aria-hidden="true" />;
+}
+
 async function splitImageIntoFrames(
   dataUrl: string,
   baseName: string,
@@ -958,7 +1070,7 @@ function drawCheckerboard(context: CanvasRenderingContext2D, width: number, heig
 function drawEmptyCanvas(context: CanvasRenderingContext2D) {
   context.fillStyle = "#4b5b50";
   context.font = "600 18px Inter, system-ui, sans-serif";
-  context.fillText("Import an image or generate one to start", 300, 250);
+  context.fillText("Import an image or create a Codex handoff job to start", 250, 250);
 }
 
 function drawGridOverlay(
@@ -1056,8 +1168,8 @@ function formatTime(value: string) {
 
 function providerLabel(provider: ProviderId) {
   if (provider === "local-file") return "Local File";
-  if (provider === "openai-images") return "OpenAI Images";
-  return "Adapter";
+  if (provider === "codex-handoff") return "Codex Handoff";
+  return "Local Inbox";
 }
 
 export default App;

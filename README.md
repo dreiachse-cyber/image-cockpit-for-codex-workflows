@@ -2,29 +2,33 @@
 
 Private pre-release MVP for a local image production cockpit.
 
-This project is unofficial and not affiliated with OpenAI. It is a local workspace for reviewing, annotating, comparing, correcting, and turning generated or imported images into production assets such as sprite sheets.
+This project is unofficial and not affiliated with OpenAI. It is a local workspace for reviewing, annotating, comparing, correcting, and turning Codex-produced or locally imported images into production assets such as sprite sheets.
+
+## Product Boundary
+
+Image Cockpit is designed to run on a local machine where Codex is installed. The app itself does not call OpenAI APIs and does not require an API key.
+
+Instead, the cockpit writes local handoff jobs for Codex:
+
+```text
+codex-handoff/
+  inbox/   # JSON jobs created by Image Cockpit
+  outbox/  # images or metadata returned by Codex/user workflows
+```
+
+Codex, the user, or another local workflow can read the inbox job, create or revise assets, and place results in the outbox. Results can then be imported through the Local Inbox / Import flow.
 
 ## MVP Flow
 
+- Choose a starting workflow from Guided Start: image generation, image editing, sprite sheet generation, or sprite sheet editing.
 - Import local images or use the included original sample sprite sheet.
 - Select history items and review them on the canvas.
 - Draw annotations with brush, rectangle, or arrow tools.
+- Create a Codex handoff job from the prompt, selected image, and sprite context.
 - Split a sheet into sprite frames with grid controls.
 - Reorder frames in the timeline and edit action metadata.
 - Run lightweight QC checks for size consistency, transparency, duplicates, and anchor placement.
 - Export a PNG sprite sheet, frame ZIP, GIF, and sprite metadata JSON.
-
-## OpenAI Images Provider
-
-OpenAI Images is optional and disabled unless the local API server has `OPENAI_API_KEY`.
-
-The MVP uses the Images API generation endpoint through a local Node server and defaults to `gpt-image-2` via `OPENAI_IMAGE_MODEL`. The implementation was checked against the official OpenAI image generation guide and Images API reference on 2026-06-23:
-
-- https://developers.openai.com/api/docs/guides/image-generation
-- https://developers.openai.com/api/reference/resources/images/methods/generate/
-- https://developers.openai.com/api/docs/models/gpt-image-2
-
-Never commit API keys. Use environment variables only.
 
 ## Setup
 
@@ -36,11 +40,11 @@ npm run dev
 
 If the default Vite port is busy, Vite will print the actual local URL.
 
-For OpenAI generation:
+Optional handoff location:
 
 ```powershell
 Copy-Item .env.example .env
-# Set OPENAI_API_KEY in .env or in your shell environment.
+# Set IMAGE_COCKPIT_HANDOFF_DIR to a local folder if you want jobs written elsewhere.
 npm run dev:server
 ```
 
@@ -54,14 +58,14 @@ npm run build
 
 ## Assets And Data
 
-- Bring your own API key.
+- No API key is required by this app.
+- No direct OpenAI API requests are made by this app.
 - Optional adapters for local tools can be added later.
-- Generated outputs are user-controlled and exported from the browser.
+- Generated outputs are user-controlled and imported/exported from the browser.
 - Sample assets are original generated demo assets for this repository.
 - No model weights are included.
 - No API keys, tokens, or license-unclear sample assets should be committed.
 
 ## Demo
 
-The demo GIF is not committed yet. See `docs/demo/mvp-demo-capture.md` for the capture plan.
-
+The demo GIF is not committed yet. See `docs/demo/mvp-demo-capture.md` for the capture plan. Current QA screenshots live under `docs/qa/`.

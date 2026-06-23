@@ -1,20 +1,28 @@
+import { mkdir, readdir, writeFile } from "node:fs/promises";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
+import { join, resolve } from "node:path";
 
 const port = Number(process.env.IMAGE_COCKPIT_API_PORT ?? 8787);
-const apiKey = process.env.OPENAI_API_KEY;
-const imageModel = process.env.OPENAI_IMAGE_MODEL ?? "gpt-image-2";
+const handoffRoot = resolve(process.env.IMAGE_COCKPIT_HANDOFF_DIR ?? "codex-handoff");
+const inboxDir = join(handoffRoot, "inbox");
+const outboxDir = join(handoffRoot, "outbox");
 
-type GenerateRequest = {
+type CodexJobRequest = {
   prompt?: string;
   negativePrompt?: string;
   seed?: string;
   size?: string;
   count?: number;
   quality?: string;
+  selectedImageName?: string;
+  selectedImageSize?: string;
+  selectedImageSource?: string;
+  action?: string;
+  frames?: number;
 };
 
 const server = createServer(async (request, response) => {
-  response.setHeader("Access-Control-Allow-Origin", "http://127.0.0.1:5173");
+  response.setHeader("Access-Control-Allow-Origin", "*");
   response.setHeader("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
   response.setHeader("Access-Control-Allow-Headers", "Content-Type");
 
@@ -25,72 +33,83 @@ const server = createServer(async (request, response) => {
   }
 
   try {
+    await ensureHandoffDirs();
+
     if (request.method === "GET" && request.url === "/api/providers") {
       sendJson(response, 200, {
         providers: [
           { id: "local-file", label: "Local File", enabled: true, message: "Use images from this machine" },
           {
-            id: "openai-images",
-            label: "OpenAI Images",
-            enabled: Boolean(apiKey),
-            model: imageModel,
-            message: apiKey ? `Ready: ${imageModel}` : "Set OPENAI_API_KEY and restart this server"
+            id: "codex-handoff",
+            label: "Codex Handoff",
+            enabled: true,
+            path: inboxDir,
+            message: "Write local jobs for Codex to pick up"
           },
-          { id: "optional-adapter", label: "Optional Adapter", enabled: false, message: "No adapter configured" }
+          {
+            id: "local-inbox",
+            label: "Local Inbox",
+            enabled: true,
+            path: outboxDir,
+            message: "Import results returned by Codex"
+          }
         ]
       });
       return;
     }
 
-    if (request.method === "POST" && request.url === "/api/images/generate") {
-      if (!apiKey) {
-        sendJson(response, 409, { error: "OPENAI_API_KEY is not set for the local API server" });
-        return;
-      }
-
-      const body = (await readJson(request)) as GenerateRequest;
-      const prompt = [body.prompt, body.negativePrompt ? `Avoid: ${body.negativePrompt}` : "", body.seed ? `Seed note: ${body.seed}` : ""]
-        .filter(Boolean)
-        .join("\n");
-      if (!prompt.trim()) {
-        sendJson(response, 400, { error: "Prompt is required" });
-        return;
-      }
-
-      const upstream = await fetch("https://api.openai.com/v1/images/generations", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          model: imageModel,
-          prompt,
-          size: normalizeSize(body.size),
-          n: clamp(Math.floor(body.count ?? 1), 1, 4),
-          quality: normalizeQuality(body.quality),
-          output_format: "png"
-        })
-      });
-
-      const payload = (await upstream.json()) as {
-        data?: Array<{ b64_json?: string; url?: string }>;
-        error?: { message?: string };
-      };
-
-      if (!upstream.ok) {
-        sendJson(response, upstream.status, { error: payload.error?.message ?? "OpenAI image generation failed" });
-        return;
-      }
-
+    if (request.method === "GET" && request.url === "/api/codex/jobs") {
+      const files = await readdir(inboxDir);
       sendJson(response, 200, {
-        model: imageModel,
-        images:
-          payload.data
-            ?.map((item) => item.b64_json || item.url)
-            .filter((value): value is string => Boolean(value))
-            .map((value) => (value.startsWith("http") ? value : `data:image/png;base64,${value}`)) ?? []
+        inboxPath: inboxDir,
+        jobs: files.filter((file) => file.endsWith(".json")).sort().reverse().slice(0, 20)
       });
+      return;
+    }
+
+    if (request.method === "POST" && request.url === "/api/codex/jobs") {
+      const body = (await readJson(request)) as CodexJobRequest;
+      if (!body.prompt?.trim()) {
+        sendJson(response, 400, { error: "Prompt is required for a Codex handoff job" });
+        return;
+      }
+
+      const createdAt = new Date().toISOString();
+      const id = `codex-job-${createdAt.replace(/[:.]/g, "-")}`;
+      const job = {
+        id,
+        createdAt,
+        kind: "image-cockpit.codex-handoff",
+        intent: "Ask local Codex to create or revise image assets, then return files to the outbox.",
+        prompt: body.prompt,
+        negativePrompt: body.negativePrompt ?? "",
+        generationHints: {
+          seed: body.seed ?? "",
+          size: body.size ?? "1024x1024",
+          count: body.count ?? 1,
+          quality: body.quality ?? "auto"
+        },
+        selectedImage: {
+          name: body.selectedImageName ?? "",
+          size: body.selectedImageSize ?? "",
+          source: body.selectedImageSource ?? ""
+        },
+        spriteContext: {
+          action: body.action ?? "",
+          frames: body.frames ?? 0
+        },
+        returnTo: {
+          outboxDir,
+          expected: ["png", "webp", "gif", "json"]
+        },
+        notes: [
+          "This app does not call OpenAI APIs directly.",
+          "Codex or the user should perform generation/editing externally and place results in the outbox or import them through the UI."
+        ]
+      };
+      const path = join(inboxDir, `${id}.json`);
+      await writeFile(path, JSON.stringify(job, null, 2), "utf8");
+      sendJson(response, 200, { id, path, inboxPath: inboxDir, createdAt });
       return;
     }
 
@@ -101,8 +120,14 @@ const server = createServer(async (request, response) => {
 });
 
 server.listen(port, "127.0.0.1", () => {
-  console.log(`Image Cockpit API server listening on http://127.0.0.1:${port}`);
+  console.log(`Image Cockpit local handoff server listening on http://127.0.0.1:${port}`);
+  console.log(`Codex handoff inbox: ${inboxDir}`);
 });
+
+async function ensureHandoffDirs() {
+  await mkdir(inboxDir, { recursive: true });
+  await mkdir(outboxDir, { recursive: true });
+}
 
 function readJson(request: IncomingMessage) {
   return new Promise<unknown>((resolve, reject) => {
@@ -123,16 +148,4 @@ function readJson(request: IncomingMessage) {
 function sendJson(response: ServerResponse, status: number, body: unknown) {
   response.writeHead(status, { "Content-Type": "application/json; charset=utf-8" });
   response.end(JSON.stringify(body));
-}
-
-function normalizeSize(size = "1024x1024") {
-  return ["1024x1024", "1536x1024", "1024x1536"].includes(size) ? size : "1024x1024";
-}
-
-function normalizeQuality(quality = "auto") {
-  return ["auto", "low", "medium", "high"].includes(quality) ? quality : "auto";
-}
-
-function clamp(value: number, min: number, max: number) {
-  return Math.min(max, Math.max(min, value));
 }
