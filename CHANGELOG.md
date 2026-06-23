@@ -22,6 +22,7 @@ Private release candidate for the first local Image Cockpit MVP.
 - v0.1.0 release notes draft for the first public release approval gate.
 - GitHub Actions CI workflow for typecheck, test, build, smoke, and release audit.
 - Local doctor script for required files, handoff folder writability, and Codex command availability.
+- Manual handoff guide for inbox / assets / outbox workflows when `codex exec` is unavailable.
 
 ### Notes
 

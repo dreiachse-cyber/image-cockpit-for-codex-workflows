@@ -25,6 +25,8 @@ When `IMAGE_COCKPIT_CODEX_AUTORUN=1`, the local handoff server will try to start
 
 The local API also exposes `GET /api/codex/runner` so the UI can show whether the configured Codex command is ready, disabled for manual handoff, or unavailable before a job is created.
 
+Manual handoff steps are documented in `docs/usage/manual-handoff.md`.
+
 ## MVP Flow
 
 - Choose a starting workflow from Guided Start: image generation, image editing, sprite sheet generation, or sprite sheet editing.
@@ -117,6 +119,7 @@ Use `docs/review/mvp-review-report.md` for the private MVP review path, QA evide
 - Release notes draft: `docs/release/v0.1.0-release-notes.md`
 - Release checklist: `docs/release/v0.1.0-checklist.md`
 - Release runbook: `docs/release/v0.1.0-runbook.md`
+- Manual handoff guide: `docs/usage/manual-handoff.md`
 - CI workflow: `.github/workflows/ci.yml`
 - License: `LICENSE`
 - Contribution guide: `CONTRIBUTING.md`

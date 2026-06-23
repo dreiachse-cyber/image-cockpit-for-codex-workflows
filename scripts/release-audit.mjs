@@ -22,6 +22,7 @@ const requiredFiles = [
   "docs/release/v0.1.0-checklist.md",
   "docs/release/v0.1.0-runbook.md",
   "docs/release/v0.1.0-release-notes.md",
+  "docs/usage/manual-handoff.md",
   "docs/demo/mvp-demo.gif"
 ];
 
@@ -42,6 +43,7 @@ const requiredReadmeLinks = [
   "docs/release/v0.1.0-release-notes.md",
   "docs/release/v0.1.0-checklist.md",
   "docs/release/v0.1.0-runbook.md",
+  "docs/usage/manual-handoff.md",
   ".github/workflows/ci.yml",
   "LICENSE",
   "CONTRIBUTING.md",
@@ -224,7 +226,8 @@ function checkReleaseDocs() {
   const checklist = readText("docs/release/v0.1.0-checklist.md");
   const runbook = readText("docs/release/v0.1.0-runbook.md");
   const releaseNotes = readText("docs/release/v0.1.0-release-notes.md");
-  if (!readme || !checklist || !runbook || !releaseNotes) return;
+  const manualHandoff = readText("docs/usage/manual-handoff.md");
+  if (!readme || !checklist || !runbook || !releaseNotes || !manualHandoff) return;
 
   requiredReadmeLinks.forEach((link) => {
     if (!readme.includes(link)) {
@@ -261,6 +264,19 @@ function checkReleaseDocs() {
   ].forEach((line) => {
     if (!releaseNotes.includes(line)) {
       failures.push(`Release notes draft is missing expected content: ${line}`);
+    }
+  });
+
+  [
+    "codex-handoff/inbox/",
+    "codex-handoff/assets/",
+    "codex-handoff/outbox/",
+    "IMAGE_COCKPIT_CODEX_AUTORUN=0",
+    "Local Inbox",
+    "does not call OpenAI APIs directly"
+  ].forEach((line) => {
+    if (!manualHandoff.includes(line)) {
+      failures.push(`Manual handoff guide is missing expected content: ${line}`);
     }
   });
 }

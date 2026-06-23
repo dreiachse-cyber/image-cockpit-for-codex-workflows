@@ -17,7 +17,7 @@
 5. `スプライトシート生成` でgrid splitからtimelineへ入る流れを確認する。
 6. `スプライトシート編集` でframe size、anchor、chroma key透明化、exportを確認する。
 7. `codex-handoff/inbox/`、`codex-handoff/assets/`、`codex-handoff/status/`、`codex-handoff/logs/` を確認する。
-8. `codex exec` が実行できない環境では、画像を `codex-handoff/outbox/` に置いてLocal Inbox取り込みを確認する。
+8. `codex exec` が実行できない環境では、`docs/usage/manual-handoff.md` に沿って画像を `codex-handoff/outbox/` に置き、Local Inbox取り込みを確認する。
 
 ## 主要成果
 
@@ -62,6 +62,7 @@ npm run release:audit
 - `docs/release/v0.1.0-checklist.md`
 - `docs/release/v0.1.0-runbook.md`
 - `docs/release/v0.1.0-release-notes.md`
+- `docs/usage/manual-handoff.md`
 - `.github/workflows/ci.yml`
 
 ## QA証跡
