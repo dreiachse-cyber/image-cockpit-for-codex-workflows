@@ -54,6 +54,7 @@ npm run release:audit
 - `/api/codex/jobs` smokeで、`workflowMode=sprite-generate` / `sprite-edit` のjobにgrid、action、frame countが入ることを確認。
 - `/api/codex/results` smokeで、outbox画像の一覧表示、非画像除外、画像data URL取り込みを確認。
 - release auditで、簡素化UIがLocal Inbox import actionを露出していることを確認。
+- Browser QAで、簡素化UIの画像生成画面に `Create Codex Job` / `Import Latest` / `Import File` がdesktop 1280x720とmobile 390x844の初期viewport内に収まることを確認。
 - Chrome headlessでimage-edit desktop、sprite-edit desktop、sprite-edit mobileを確認し、sprite-edit mobileに横あふれがないことを確認。
 - `.github/workflows/ci.yml` でdoctor、typecheck、test、build、smoke、release auditを走らせるCI導線を追加。
 
@@ -79,6 +80,8 @@ npm run release:audit
 - `docs/qa/sprite-edit-mobile-390x844.png`
 - `docs/qa/runner-preflight-1440x1024.png`
 - `docs/qa/workflow-aware-image-generate-1440x1024.png`
+- `docs/qa/simple-image-generate-import-latest-1280x720.png`
+- `docs/qa/simple-image-generate-import-latest-mobile-390x844.png`
 - `docs/demo/mvp-demo.gif`
 - `design-qa.md`
 

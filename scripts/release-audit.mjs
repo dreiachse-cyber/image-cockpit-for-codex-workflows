@@ -24,7 +24,9 @@ const requiredFiles = [
   "docs/release/v0.1.0-release-notes.md",
   "docs/release/v0.1.0-acceptance-evidence.md",
   "docs/usage/manual-handoff.md",
-  "docs/demo/mvp-demo.gif"
+  "docs/demo/mvp-demo.gif",
+  "docs/qa/simple-image-generate-import-latest-1280x720.png",
+  "docs/qa/simple-image-generate-import-latest-mobile-390x844.png"
 ];
 
 const requiredEnvKeys = [

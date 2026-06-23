@@ -324,6 +324,15 @@ button {
   padding: 10px;
 }
 
+.source-panel > .button-row {
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+  border-top: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.96);
+  backdrop-filter: blur(8px);
+}
+
 .primary-button,
 .secondary-button,
 .icon-text-button,
@@ -1129,6 +1138,15 @@ button:disabled {
 @media (max-width: 620px) {
   .brand {
     flex-wrap: wrap;
+  }
+
+  .simple-cockpit .workflow-summary {
+    margin: 8px;
+    padding: 8px;
+  }
+
+  .simple-cockpit .field textarea {
+    min-height: 76px;
   }
 
   .field-row,
