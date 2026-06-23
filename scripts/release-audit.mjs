@@ -63,9 +63,10 @@ checkEnvExample();
 checkGitignore();
 checkTrackedFiles();
 checkNoDirectOpenAiIntegration();
-  checkWorkflowIds();
-  checkPendingJobCoverage();
-  checkSimpleLocalInboxAction();
+checkWorkflowIds();
+checkPendingJobCoverage();
+checkSimpleLocalInboxAction();
+checkCoreLocalization();
 checkCiWorkflow();
 checkReleaseDocs();
 
@@ -245,6 +246,35 @@ function checkSimpleLocalInboxAction() {
       failures.push(`Simplified UI should expose Local Inbox import action: ${marker}`);
     }
   });
+}
+
+function checkCoreLocalization() {
+  const appText = readText("src/App.tsx");
+  const appTestText = readText("src/App.test.ts");
+  if (!appText || !appTestText) return;
+
+  [
+    "resolveInitialLanguage",
+    "copy.workflowPanelTitle",
+    "copy.canvasGridTitle",
+    "copy.canvasAnnotationTitle",
+    "copy.canvasEmpty",
+    "copy.exportSheetPng",
+    "copy.exportMetadataJson",
+    "formatImagesImportedStatus",
+    "formatFramesAddedStatus",
+    "キャンバスと注釈",
+    "スプライト書き出し",
+    "スプライトパッケージ書き出し"
+  ].forEach((marker) => {
+    if (!appText.includes(marker)) {
+      failures.push(`Core localization marker is missing: ${marker}`);
+    }
+  });
+
+  if (!appTestText.includes("resolveInitialLanguage")) {
+    failures.push("App tests should cover initial language resolution.");
+  }
 }
 
 function checkCiWorkflow() {

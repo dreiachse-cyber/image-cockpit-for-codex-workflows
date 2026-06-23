@@ -20,7 +20,7 @@ Private release candidate for the first local Image Cockpit MVP.
 - Smoke coverage for Local Inbox outbox listing and data URL import.
 - Canvas annotation tools for select, brush, rectangle, and arrow.
 - Grid split into sprite frames, frame timeline editing, frame size controls, anchor controls, chroma key cleanup, and PNG / ZIP / GIF / metadata exports.
-- Japanese / English language selector.
+- Japanese / English language selector, with core workflow panel labels, canvas controls, sprite controls, and export actions following the selected language.
 - Desktop and mobile QA screenshots plus MVP review report.
 - MVP demo GIF linked from README.
 - Release audit script for local-first boundaries, required docs, workflow IDs, and tracked-file safety checks.

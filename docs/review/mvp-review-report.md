@@ -28,6 +28,7 @@
 - Codex job作成後は、結果が戻るまで二重作成を防ぐ。
 - 簡素化UIでも `Import Latest` が見えるため、manual handoff後にprovider一覧を開かずLocal Inboxから取り込める。
 - スプライトシート生成の簡素UIでは `Import File` が重複せず、主操作と `Import Latest` が並ぶ。
+- 日本語 / English の言語切替で、4大workflowのパネル、canvas/grid、sprite、export周辺の中核ラベルが追従する。
 - handoff jobにworkflow種別、編集メモ、選択画像asset、注釈、grid、sprite contextが入る。
 - 画像生成jobはprompt中心にし、画像編集jobだけが選択画像assetと注釈を持つ。
 - local serverは `IMAGE_COCKPIT_CODEX_AUTORUN=1` のとき `codex exec` を起動する。
@@ -58,6 +59,7 @@ npm run release:audit
 - `src/App.test.ts` で、runner `unknown` / disabled / unavailable / failed / completed が待機ロックを解除することを確認。
 - release auditで、簡素化UIがLocal Inbox import actionを露出していることを確認。
 - release auditで、local-file起点の簡素UIが `Import File` actionを重複表示しない条件を確認。
+- release auditで、4大workflowの中核UIラベルと初期言語判定が言語切替の対象になっていることを確認。
 - Browser QAで、簡素化UIの画像生成画面に `Create Codex Job` / `Import Latest` / `Import File` がdesktop 1280x720とmobile 390x844の初期viewport内に収まることを確認。
 - Browser QAで、スプライトシート生成画面の主操作が `Import File` / `Import Latest` の2つに整理され、`Import File` が重複しないことを確認。
 - Chrome headlessでimage-edit desktop、sprite-edit desktop、sprite-edit mobileを確認し、sprite-edit mobileに横あふれがないことを確認。

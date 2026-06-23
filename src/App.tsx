@@ -94,6 +94,43 @@ const uiCopy = {
     openWorkspace: "Open workspace",
     settings: "Settings",
     localWorkspace: "Local workspace - private pre-release",
+    workflowPanelTitle: "Workflow",
+    canvasGridTitle: "Canvas & Grid",
+    canvasAnnotationTitle: "Canvas & Annotation",
+    canvasEmpty: "Import an image or create a Codex handoff job to start",
+    columns: "Columns",
+    rows: "Rows",
+    frameWidth: "Frame W",
+    frameHeight: "Frame H",
+    showGrid: "Show Grid",
+    showCenter: "Show Center",
+    transparencyCleanup: "Transparency Cleanup",
+    keyColor: "Key Color",
+    tolerance: "Tolerance",
+    applyChromaKey: "Apply Chroma Key",
+    selectTool: "Select",
+    brushTool: "Brush",
+    rectangleTool: "Rectangle",
+    arrowTool: "Arrow",
+    exportAnnotationTitle: "Export annotation PNG",
+    splitGridTitle: "Split grid into frames",
+    useAsFrameTitle: "Use selected image as a sprite frame",
+    frameLabel: "Frame",
+    sizeLabel: "Size",
+    anchorLabel: "Anchor",
+    zoomLabel: "Zoom",
+    zoomFit: "fit",
+    exportSheetPng: "Export Sheet (PNG)",
+    exportZipFrames: "Export ZIP (Frames)",
+    exportGifLabel: "Export GIF",
+    exportMetadataJson: "Export Metadata (JSON)",
+    metadata: "Metadata",
+    anchorX: "Anchor X",
+    anchorY: "Anchor Y",
+    moveFrameLeft: "Move frame left",
+    moveFrameRight: "Move frame right",
+    removeFrame: "Remove frame",
+    noFrames: "No frames",
     statusUsesImport: "uses Import or drag and drop",
     statusCodexJobWritten: "Codex job written",
     statusCodexJobError: "Could not create Codex handoff job",
@@ -108,6 +145,8 @@ const uiCopy = {
     runnerReady: "Codex runner: ready",
     runnerDisabled: "Codex runner: manual handoff",
     runnerUnavailable: "Codex runner: unavailable",
+    statusSelectedAsFrame: "Selected image added as a sprite frame",
+    statusChromaApplied: "Chroma key applied to selected frame",
     createCodexJob: "Create Codex Job",
     waitingForCodexResult: "Waiting for Codex Result",
     importLatest: "Import Latest",
@@ -134,7 +173,44 @@ const uiCopy = {
     project: "プロジェクト: Forest Mage",
     openWorkspace: "ワークスペースを開く",
     settings: "設定",
-    localWorkspace: "ローカルワークスペース - private pre-release",
+    localWorkspace: "ローカルワークスペース - 公開前private版",
+    workflowPanelTitle: "ワークフロー",
+    canvasGridTitle: "キャンバスとグリッド",
+    canvasAnnotationTitle: "キャンバスと注釈",
+    canvasEmpty: "画像を取り込むかCodexジョブを作成して開始",
+    columns: "列",
+    rows: "行",
+    frameWidth: "フレーム幅",
+    frameHeight: "フレーム高",
+    showGrid: "グリッド表示",
+    showCenter: "中心線表示",
+    transparencyCleanup: "透過クリーンアップ",
+    keyColor: "キー色",
+    tolerance: "許容幅",
+    applyChromaKey: "クロマキー適用",
+    selectTool: "選択",
+    brushTool: "ブラシ",
+    rectangleTool: "矩形",
+    arrowTool: "矢印",
+    exportAnnotationTitle: "注釈PNGを書き出す",
+    splitGridTitle: "グリッドをフレームへ分割",
+    useAsFrameTitle: "選択画像をスプライトフレームに使う",
+    frameLabel: "フレーム",
+    sizeLabel: "サイズ",
+    anchorLabel: "アンカー",
+    zoomLabel: "ズーム",
+    zoomFit: "全体表示",
+    exportSheetPng: "シートPNGを書き出し",
+    exportZipFrames: "フレームZIPを書き出し",
+    exportGifLabel: "GIFを書き出し",
+    exportMetadataJson: "メタデータJSONを書き出し",
+    metadata: "メタデータ",
+    anchorX: "アンカーX",
+    anchorY: "アンカーY",
+    moveFrameLeft: "フレームを左へ移動",
+    moveFrameRight: "フレームを右へ移動",
+    removeFrame: "フレーム削除",
+    noFrames: "フレームなし",
     statusUsesImport: "はImportまたはドラッグ&ドロップを使います",
     statusCodexJobWritten: "Codexジョブを書き込みました",
     statusCodexJobError: "Codex handoffジョブを作成できませんでした",
@@ -149,6 +225,8 @@ const uiCopy = {
     runnerReady: "Codex runner: 使用可能",
     runnerDisabled: "Codex runner: 手動受け渡し",
     runnerUnavailable: "Codex runner: 起動不可",
+    statusSelectedAsFrame: "選択画像をスプライトフレームに追加しました",
+    statusChromaApplied: "選択フレームにクロマキーを適用しました",
     createCodexJob: "Codexジョブ作成",
     waitingForCodexResult: "Codex結果待ち",
     importLatest: "最新を取り込み",
@@ -197,22 +275,22 @@ const workflowCopy: Record<Language, Record<WorkflowMode, { label: string; detai
     "image-generate": {
       label: "1. 画像生成",
       detail: "プロンプトからローカルCodexジョブを作り、返ってきた画像を取り込みます。",
-      status: "Codexジョブを作成し、local outboxから返却画像を取り込みます"
+      status: "Codexジョブを作成し、ローカルoutboxから返却画像を取り込みます"
     },
     "image-edit": {
       label: "2. 画像編集",
       detail: "画像に注釈を入れて、編集指示をCodexへ受け渡します。",
-      status: "画像に注釈を入れてから、編集メモつきのCodex handoffジョブを作成します"
+      status: "画像に注釈を入れてから、編集メモつきのCodex受け渡しジョブを作成します"
     },
     "sprite-generate": {
       label: "3. スプライトシート生成",
       detail: "取り込んだ画像やCodex結果から、フレーム分割を開始します。",
-      status: "シートを取り込むか選択して、グリッドからtimeline frameへ分割します"
+      status: "シートを取り込むか選択して、グリッドからタイムラインフレームへ分割します"
     },
     "sprite-edit": {
       label: "4. スプライトシート編集",
-      detail: "timeline順、透明化、anchor、QC、exportを調整します。",
-      status: "frames、anchors、QC、sprite package exportを確認します"
+      detail: "タイムライン順、透明化、アンカー、QC、書き出しを調整します。",
+      status: "フレーム、アンカー、QC、スプライトパッケージ書き出しを確認します"
     }
   }
 };
@@ -529,7 +607,7 @@ function App() {
     drawCheckerboard(context, CANVAS_WIDTH, CANVAS_HEIGHT, 18);
 
     if (!selected) {
-      drawEmptyCanvas(context);
+      drawEmptyCanvas(context, copy.canvasEmpty);
       return;
     }
 
@@ -547,7 +625,7 @@ function App() {
     if (showCenter) drawCenterOverlay(context, x, y, width, height);
     const annotations = [...(annotationsByItem[selected.id] ?? []), ...(draftAnnotation ? [draftAnnotation] : [])];
     annotations.forEach((annotation) => drawAnnotation(context, annotation));
-  }, [annotationsByItem, draftAnnotation, grid.columns, grid.rows, selected, selectedFrame, showCenter, showGrid]);
+  }, [annotationsByItem, copy.canvasEmpty, draftAnnotation, grid.columns, grid.rows, selected, selectedFrame, showCenter, showGrid]);
 
   async function handleFiles(files: FileList | File[]) {
     const entries = Array.from(files).filter((file) => file.type.startsWith("image/"));
@@ -571,7 +649,7 @@ function App() {
     }
     setHistory((current) => [...imported, ...current]);
     setSelectedId(imported[0].id);
-    setStatus(`${imported.length} image${imported.length === 1 ? "" : "s"} imported`);
+    setStatus(formatImagesImportedStatus(imported.length, language));
   }
 
   async function handleGenerate() {
@@ -693,7 +771,7 @@ function App() {
         )
       );
       setSelectedFrameId(newFrames[0]?.id ?? selectedFrameId);
-      setStatus(`${newFrames.length} frames added to ${activeAction.name}`);
+      setStatus(formatFramesAddedStatus(newFrames.length, activeAction.name, language));
     } finally {
       setIsBusy(false);
     }
@@ -728,7 +806,7 @@ function App() {
       )
     );
     setSelectedFrameId(frame.id);
-    setStatus("Selected image added as a sprite frame");
+    setStatus(copy.statusSelectedAsFrame);
   }
 
   function moveFrame(frameId: string, direction: -1 | 1) {
@@ -779,7 +857,7 @@ function App() {
     context.putImageData(imageData, 0, 0);
     const dataUrl = canvas.toDataURL("image/png");
     setFrames((current) => current.map((frame) => (frame.id === selectedFrame.id ? { ...frame, dataUrl } : frame)));
-    setStatus("Chroma key applied to selected frame");
+    setStatus(copy.statusChromaApplied);
   }
 
   function updateActiveAction(patch: Partial<SpriteAction>) {
@@ -889,7 +967,7 @@ function App() {
 
       <main className={`cockpit ${SHOW_LOW_PRIORITY_CONTROLS ? "" : "simple-cockpit"}`}>
         <aside className="panel source-panel">
-          <PanelTitle index="1" title="Workflow" />
+          <PanelTitle index="1" title={copy.workflowPanelTitle} />
           <div className="workflow-summary">
             <small>{copy.currentWorkflow}</small>
             <strong>{activeWorkflowCopy?.label}</strong>
@@ -1026,10 +1104,10 @@ function App() {
             </>
           )}
 
-          <SectionLabel title="Canvas & Grid" />
+          <SectionLabel title={copy.canvasGridTitle} />
           <div className="field-row">
-            <NumberField label="Columns" value={grid.columns} onChange={(columns) => setGrid({ ...grid, columns })} />
-            <NumberField label="Rows" value={grid.rows} onChange={(rows) => setGrid({ ...grid, rows })} />
+            <NumberField label={copy.columns} value={grid.columns} onChange={(columns) => setGrid({ ...grid, columns })} />
+            <NumberField label={copy.rows} value={grid.rows} onChange={(rows) => setGrid({ ...grid, rows })} />
           </div>
           <button className="secondary-button full" onClick={() => void splitSelectedToTimeline()} disabled={!selected || isBusy}>
             <Scissors size={16} aria-hidden="true" />
@@ -1039,29 +1117,29 @@ function App() {
           {showFrameGridControls && (
             <>
               <div className="field-row">
-                <NumberField label="Frame W" value={activeAction.cell.width} onChange={(width) => updateCell(width, activeAction.cell.height)} />
-                <NumberField label="Frame H" value={activeAction.cell.height} onChange={(height) => updateCell(activeAction.cell.width, height)} />
+                <NumberField label={copy.frameWidth} value={activeAction.cell.width} onChange={(width) => updateCell(width, activeAction.cell.height)} />
+                <NumberField label={copy.frameHeight} value={activeAction.cell.height} onChange={(height) => updateCell(activeAction.cell.width, height)} />
               </div>
               <label className="check-row">
                 <input type="checkbox" checked={showGrid} onChange={(event) => setShowGrid(event.target.checked)} />
-                Show Grid
+                {copy.showGrid}
               </label>
               <label className="check-row">
                 <input type="checkbox" checked={showCenter} onChange={(event) => setShowCenter(event.target.checked)} />
-                Show Center
+                {copy.showCenter}
               </label>
             </>
           )}
 
           {showSpriteTuningControls && (
             <>
-              <SectionLabel title="Transparency Cleanup" />
+              <SectionLabel title={copy.transparencyCleanup} />
               <label className="field">
-                <span>Key Color</span>
+                <span>{copy.keyColor}</span>
                 <input type="color" value={annotationColor} onChange={(event) => setAnnotationColor(event.target.value)} />
               </label>
               <label className="field">
-                <span>Tolerance</span>
+                <span>{copy.tolerance}</span>
                 <input
                   type="range"
                   min={0}
@@ -1072,7 +1150,7 @@ function App() {
               </label>
               <button className="secondary-button full" onClick={() => void applyChromaToSelectedFrame()} disabled={!selectedFrame}>
                 <Pipette size={16} aria-hidden="true" />
-                Apply Chroma Key
+                {copy.applyChromaKey}
               </button>
             </>
           )}
@@ -1080,24 +1158,24 @@ function App() {
 
         <section className="workspace">
           <div className="panel canvas-panel">
-            <PanelTitle index="2" title="Canvas & Annotation" />
+            <PanelTitle index="2" title={copy.canvasAnnotationTitle} />
             <div className="toolbar">
-              <ToolButton active={tool === "select"} title="Select" onClick={() => setTool("select")} icon={<MousePointer2 size={18} />} />
-              <ToolButton active={tool === "brush"} title="Brush" onClick={() => setTool("brush")} icon={<Brush size={18} />} />
-              <ToolButton active={tool === "rect"} title="Rectangle" onClick={() => setTool("rect")} icon={<Square size={18} />} />
-              <ToolButton active={tool === "arrow"} title="Arrow" onClick={() => setTool("arrow")} icon={<MoveUpRight size={18} />} />
+              <ToolButton active={tool === "select"} title={copy.selectTool} onClick={() => setTool("select")} icon={<MousePointer2 size={18} />} />
+              <ToolButton active={tool === "brush"} title={copy.brushTool} onClick={() => setTool("brush")} icon={<Brush size={18} />} />
+              <ToolButton active={tool === "rect"} title={copy.rectangleTool} onClick={() => setTool("rect")} icon={<Square size={18} />} />
+              <ToolButton active={tool === "arrow"} title={copy.arrowTool} onClick={() => setTool("arrow")} icon={<MoveUpRight size={18} />} />
               <span className="toolbar-separator" />
-              <button className="icon-text-button" title="Export annotation PNG" onClick={() => void exportAnnotatedPng()} disabled={!selected}>
+              <button className="icon-text-button" title={copy.exportAnnotationTitle} onClick={() => void exportAnnotatedPng()} disabled={!selected}>
                 <Download size={17} aria-hidden="true" />
                 {copy.annotatedPng}
               </button>
               {SHOW_LOW_PRIORITY_CONTROLS && (
                 <>
-                  <button className="icon-text-button" title="Split grid into frames" onClick={() => void splitSelectedToTimeline()} disabled={!selected || isBusy}>
+                  <button className="icon-text-button" title={copy.splitGridTitle} onClick={() => void splitSelectedToTimeline()} disabled={!selected || isBusy}>
                     <Scissors size={17} aria-hidden="true" />
                     Split Grid
                   </button>
-                  <button className="icon-text-button" title="Use selected image as a sprite frame" onClick={() => void addSelectedAsFrame()} disabled={!selected}>
+                  <button className="icon-text-button" title={copy.useAsFrameTitle} onClick={() => void addSelectedAsFrame()} disabled={!selected}>
                     <Plus size={17} aria-hidden="true" />
                     Use as Frame
                   </button>
@@ -1132,10 +1210,10 @@ function App() {
               )}
             </div>
             <div className="canvas-status">
-              <span>Frame: {selectedFrame ? selectedFrame.index : "-"}</span>
-              <span>Size: {activeAction.cell.width}x{activeAction.cell.height}</span>
-              <span>Anchor: {activeAction.anchor.x}, {activeAction.anchor.y}</span>
-              <span>Zoom: fit</span>
+              <span>{copy.frameLabel}: {selectedFrame ? selectedFrame.index : "-"}</span>
+              <span>{copy.sizeLabel}: {activeAction.cell.width}x{activeAction.cell.height}</span>
+              <span>{copy.anchorLabel}: {activeAction.anchor.x}, {activeAction.anchor.y}</span>
+              <span>{copy.zoomLabel}: {copy.zoomFit}</span>
               <span className="swatch" style={{ background: annotationColor }} />
             </div>
           </div>
@@ -1251,13 +1329,13 @@ function App() {
             </div>
 
             <div className="frame-tools">
-              <button className="icon-button" title="Move frame left" disabled={!selectedFrame} onClick={() => selectedFrame && moveFrame(selectedFrame.id, -1)}>
+              <button className="icon-button" title={copy.moveFrameLeft} disabled={!selectedFrame} onClick={() => selectedFrame && moveFrame(selectedFrame.id, -1)}>
                 <ArrowLeft size={16} aria-hidden="true" />
               </button>
-              <button className="icon-button" title="Move frame right" disabled={!selectedFrame} onClick={() => selectedFrame && moveFrame(selectedFrame.id, 1)}>
+              <button className="icon-button" title={copy.moveFrameRight} disabled={!selectedFrame} onClick={() => selectedFrame && moveFrame(selectedFrame.id, 1)}>
                 <ArrowRight size={16} aria-hidden="true" />
               </button>
-              <button className="icon-button danger" title="Remove frame" disabled={!selectedFrame} onClick={() => selectedFrame && removeFrame(selectedFrame.id)}>
+              <button className="icon-button danger" title={copy.removeFrame} disabled={!selectedFrame} onClick={() => selectedFrame && removeFrame(selectedFrame.id)}>
                 <Trash2 size={16} aria-hidden="true" />
               </button>
             </div>
@@ -1278,7 +1356,7 @@ function App() {
 
                 <div className="preview-panel">
                   <h3>Preview (GIF)</h3>
-                  <div className="gif-preview">{gifPreviewUrl ? <img src={gifPreviewUrl} alt="" /> : <span>No frames</span>}</div>
+                  <div className="gif-preview">{gifPreviewUrl ? <img src={gifPreviewUrl} alt="" /> : <span>{copy.noFrames}</span>}</div>
                   <small>{activeAction.cell.width}x{activeAction.cell.height} • {activeAction.fps} FPS</small>
                 </div>
               </>
@@ -1288,27 +1366,27 @@ function App() {
               <h3>{copy.exportSprite}</h3>
               <button onClick={() => void exportSpriteSheet(frames, activeAction)} disabled={actionFrames.length === 0}>
                 <FileImage size={18} aria-hidden="true" />
-                Export Sheet (PNG)
+                {copy.exportSheetPng}
               </button>
               <button onClick={() => void exportFramesZip(frames, activeAction)} disabled={actionFrames.length === 0}>
                 <FileArchive size={18} aria-hidden="true" />
-                Export ZIP (Frames)
+                {copy.exportZipFrames}
               </button>
               <button onClick={() => void exportGif(frames, activeAction)} disabled={actionFrames.length === 0}>
                 <Film size={18} aria-hidden="true" />
-                Export GIF
+                {copy.exportGifLabel}
               </button>
               <button onClick={() => exportMetadata("forest_mage", actions, frames)}>
                 <FileJson size={18} aria-hidden="true" />
-                Export Metadata (JSON)
+                {copy.exportMetadataJson}
               </button>
             </div>
 
             {showSpriteTuningControls && (
               <div className="metadata-panel">
-                <h3>Metadata</h3>
+                <h3>{copy.metadata}</h3>
                 <label>
-                  Anchor X
+                  {copy.anchorX}
                   <input
                     type="number"
                     value={activeAction.anchor.x}
@@ -1316,7 +1394,7 @@ function App() {
                   />
                 </label>
                 <label>
-                  Anchor Y
+                  {copy.anchorY}
                   <input
                     type="number"
                     value={activeAction.anchor.y}
@@ -1577,10 +1655,10 @@ function drawCheckerboard(context: CanvasRenderingContext2D, width: number, heig
   }
 }
 
-function drawEmptyCanvas(context: CanvasRenderingContext2D) {
+function drawEmptyCanvas(context: CanvasRenderingContext2D, message: string) {
   context.fillStyle = "#4b5b50";
   context.font = "600 18px Inter, system-ui, sans-serif";
-  context.fillText("Import an image or create a Codex handoff job to start", 250, 250);
+  context.fillText(message, 250, 250);
 }
 
 function drawGridOverlay(
@@ -1676,13 +1754,29 @@ function formatTime(value: string) {
   );
 }
 
+export function resolveInitialLanguage(stored: string | null, browserLanguages: readonly string[] = []): Language {
+  if (stored === "ja" || stored === "en") return stored;
+  return browserLanguages.some((language) => language.toLowerCase().startsWith("ja")) ? "ja" : "en";
+}
+
 function loadLanguage(): Language {
   try {
     const stored = window.localStorage.getItem(LANGUAGE_STORAGE_KEY);
-    return stored === "ja" || stored === "en" ? stored : "en";
+    const browserLanguages = window.navigator.languages?.length ? window.navigator.languages : [window.navigator.language];
+    return resolveInitialLanguage(stored, browserLanguages.filter(Boolean));
   } catch {
     return "en";
   }
+}
+
+function formatImagesImportedStatus(count: number, language: Language) {
+  if (language === "ja") return `${count}件の画像を取り込みました`;
+  return `${count} image${count === 1 ? "" : "s"} imported`;
+}
+
+function formatFramesAddedStatus(count: number, actionName: string, language: Language) {
+  if (language === "ja") return `${actionName} に ${count}件のフレームを追加しました`;
+  return `${count} frame${count === 1 ? "" : "s"} added to ${actionName}`;
 }
 
 function saveLanguage(language: Language) {
