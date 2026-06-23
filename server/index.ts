@@ -18,6 +18,7 @@ const codexCommand = process.env.IMAGE_COCKPIT_CODEX_COMMAND ?? "codex";
 const codexSandbox = process.env.IMAGE_COCKPIT_CODEX_SANDBOX ?? "workspace-write";
 const codexApproval = process.env.IMAGE_COCKPIT_CODEX_APPROVAL ?? "never";
 const resultRoutePrefix = "/api/codex/results/";
+const runnerPreflightTimeoutMs = 4000;
 
 const runnerStatuses = new Map<string, CodexRunnerStatus>();
 
@@ -41,6 +42,7 @@ type CodexJobRequest = {
 };
 
 type CodexRunnerState = "running" | "completed" | "failed" | "unavailable" | "disabled" | "unknown";
+type CodexRunnerPreflightState = "ready" | "disabled" | "unavailable";
 
 type CodexRunnerStatus = {
   jobId: string;
@@ -53,6 +55,18 @@ type CodexRunnerStatus = {
   signal?: NodeJS.Signals | null;
   logPath?: string;
   statusPath?: string;
+};
+
+type CodexRunnerPreflight = {
+  state: CodexRunnerPreflightState;
+  message: string;
+  command: string;
+  checkedAt: string;
+  autorun: boolean;
+  sandbox: string;
+  approval: string;
+  errorCode?: string;
+  setupHint?: string;
 };
 
 const server = createServer(async (request, response) => {
@@ -93,6 +107,11 @@ const server = createServer(async (request, response) => {
           }
         ]
       });
+      return;
+    }
+
+    if (request.method === "GET" && pathname === "/api/codex/runner") {
+      sendJson(response, 200, { runner: await checkCodexRunnerPreflight() });
       return;
     }
 
@@ -358,6 +377,112 @@ async function startCodexRunner(job: { id: string; createdAt: string; path: stri
   }
 
   return status;
+}
+
+async function checkCodexRunnerPreflight(): Promise<CodexRunnerPreflight> {
+  const base = createRunnerPreflightBase();
+  if (!codexAutoRun) {
+    return {
+      ...base,
+      state: "disabled",
+      message: "Codex autorun is disabled. Jobs will be written for manual pickup.",
+      setupHint: "Set IMAGE_COCKPIT_CODEX_AUTORUN=1 to let Image Cockpit try to start codex exec."
+    };
+  }
+
+  return new Promise((resolve) => {
+    let settled = false;
+    let stderrText = "";
+    let timeoutId: NodeJS.Timeout | undefined;
+    let child: ReturnType<typeof spawn> | null = null;
+
+    const finish = (preflight: Pick<CodexRunnerPreflight, "state" | "message"> & Partial<CodexRunnerPreflight>) => {
+      if (settled) return;
+      settled = true;
+      if (timeoutId) clearTimeout(timeoutId);
+      resolve({ ...base, ...preflight });
+    };
+
+    timeoutId = setTimeout(() => {
+      if (child && !child.killed) child.kill();
+      finish({
+        state: "unavailable",
+        message: `Codex runner check timed out after ${runnerPreflightTimeoutMs}ms.`,
+        setupHint: codexRunnerSetupHint()
+      });
+    }, runnerPreflightTimeoutMs);
+
+    try {
+      child = spawn(codexCommand, ["--help"], {
+        cwd: process.cwd(),
+        stdio: ["ignore", "ignore", "pipe"],
+        windowsHide: true
+      });
+
+      child.stderr?.on("data", (chunk: Buffer) => {
+        stderrText = `${stderrText}${chunk.toString("utf8")}`.slice(0, 1200);
+      });
+
+      child.on("error", (error: NodeJS.ErrnoException) => {
+        finish({
+          state: "unavailable",
+          message: error.message,
+          errorCode: error.code,
+          setupHint: codexRunnerSetupHint(error)
+        });
+      });
+
+      child.on("close", (exitCode) => {
+        if (exitCode === 0) {
+          finish({
+            state: "ready",
+            message: `${codexCommand} is executable from the local handoff server.`
+          });
+          return;
+        }
+
+        finish({
+          state: "unavailable",
+          message: stderrText.trim() || `${codexCommand} --help exited with code ${exitCode}`,
+          errorCode: exitCode === null ? undefined : String(exitCode),
+          setupHint: codexRunnerSetupHint()
+        });
+      });
+    } catch (error) {
+      finish({
+        state: "unavailable",
+        message: error instanceof Error ? error.message : "Could not start Codex runner check.",
+        errorCode: error && typeof error === "object" && "code" in error ? String((error as NodeJS.ErrnoException).code) : undefined,
+        setupHint: codexRunnerSetupHint(error)
+      });
+    }
+  });
+}
+
+function createRunnerPreflightBase() {
+  return {
+    state: "unavailable" as CodexRunnerPreflightState,
+    message: "",
+    command: codexCommand,
+    checkedAt: new Date().toISOString(),
+    autorun: codexAutoRun,
+    sandbox: codexSandbox,
+    approval: codexApproval
+  };
+}
+
+function codexRunnerSetupHint(error?: unknown) {
+  if (error && typeof error === "object" && "code" in error) {
+    const code = (error as NodeJS.ErrnoException).code;
+    if (code === "ENOENT") {
+      return "Install Codex CLI or set IMAGE_COCKPIT_CODEX_COMMAND to the full executable path.";
+    }
+    if (code === "EACCES" || code === "EPERM") {
+      return "Check that the configured Codex command can run from this shell, or set IMAGE_COCKPIT_CODEX_COMMAND to a runnable executable path.";
+    }
+  }
+
+  return "Set IMAGE_COCKPIT_CODEX_COMMAND to a runnable Codex CLI path, or set IMAGE_COCKPIT_CODEX_AUTORUN=0 for manual handoff.";
 }
 
 function buildCodexRunnerPrompt(job: { id: string; path: string }) {

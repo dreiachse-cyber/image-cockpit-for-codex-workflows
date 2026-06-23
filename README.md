@@ -23,6 +23,8 @@ Codex, the user, or another local workflow can read the inbox job, create or rev
 
 When `IMAGE_COCKPIT_CODEX_AUTORUN=1`, the local handoff server will try to start `codex exec` after writing a job. The app still does not call OpenAI APIs directly; it only launches the locally installed Codex command. If Codex cannot be executed from the current Windows environment, the job remains in `codex-handoff/inbox/` for manual pickup and the UI unlocks instead of waiting forever.
 
+The local API also exposes `GET /api/codex/runner` so the UI can show whether the configured Codex command is ready, disabled for manual handoff, or unavailable before a job is created.
+
 ## MVP Flow
 
 - Choose a starting workflow from Guided Start: image generation, image editing, sprite sheet generation, or sprite sheet editing.
@@ -75,6 +77,12 @@ Runner status and logs are written locally:
 codex-handoff/
   status/  # runner state per job
   logs/    # stdout/stderr from codex exec
+```
+
+Runner preflight can be checked directly:
+
+```powershell
+Invoke-RestMethod http://127.0.0.1:8787/api/codex/runner
 ```
 
 ## Verification

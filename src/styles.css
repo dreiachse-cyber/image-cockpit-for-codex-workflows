@@ -285,6 +285,38 @@ button {
   font-style: normal;
 }
 
+.workflow-summary .runner-pill {
+  width: fit-content;
+  min-height: 24px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid #c9d7ce;
+  border-radius: 999px;
+  background: white;
+  padding: 3px 9px;
+  color: #33443a;
+  font-weight: 700;
+}
+
+.workflow-summary .runner-ready {
+  border-color: #99c7a9;
+  background: #edf8f0;
+  color: #145f35;
+}
+
+.workflow-summary .runner-disabled {
+  border-color: #d6c7a6;
+  background: #fff8e8;
+  color: #6a4b0f;
+}
+
+.workflow-summary .runner-unavailable {
+  border-color: #e1b5aa;
+  background: #fff1ee;
+  color: #8a2e1f;
+}
+
 .button-row {
   display: grid;
   grid-template-columns: 1fr 1fr;

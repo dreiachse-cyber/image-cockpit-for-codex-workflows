@@ -33,6 +33,10 @@ try {
   assert(Array.isArray(providers.providers), "providers response should include providers");
   assert(providers.providers.some((provider) => provider.id === "codex-handoff"), "codex-handoff provider missing");
 
+  const runnerPreflight = await getJson(port, "/api/codex/runner");
+  assert(runnerPreflight.runner?.state === "disabled", "autorun-off preflight should report disabled runner state");
+  assert(runnerPreflight.runner?.autorun === false, "autorun-off preflight should include autorun=false");
+
   const tinyPng =
     "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII=";
   const job = await postJson(port, "/api/codex/jobs", {

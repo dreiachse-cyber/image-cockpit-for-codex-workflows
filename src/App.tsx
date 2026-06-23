@@ -47,6 +47,8 @@ import type {
   CodexJobStatusResponse,
   CodexOutboxImportResponse,
   CodexOutboxResult,
+  CodexRunnerPreflight,
+  CodexRunnerPreflightResponse,
   CodexRunnerStatus,
   ProviderId,
   ProviderStatus,
@@ -102,6 +104,10 @@ const uiCopy = {
     statusCodexRunnerUnavailable: "Codex runner is not available. The job was written for manual pickup",
     statusCodexRunnerFailed: "Codex runner stopped before returning an image",
     statusCodexRunnerCompletedNoImage: "Codex runner completed, but no returned image was found",
+    runnerChecking: "Codex runner: checking",
+    runnerReady: "Codex runner: ready",
+    runnerDisabled: "Codex runner: manual handoff",
+    runnerUnavailable: "Codex runner: unavailable",
     createCodexJob: "Create Codex Job",
     waitingForCodexResult: "Waiting for Codex Result",
     importLatest: "Import Latest",
@@ -139,6 +145,10 @@ const uiCopy = {
     statusCodexRunnerUnavailable: "Codex runnerを起動できませんでした。ジョブは手動受け渡し用に作成済みです",
     statusCodexRunnerFailed: "Codex runnerが画像を返す前に停止しました",
     statusCodexRunnerCompletedNoImage: "Codex runnerは完了しましたが、戻り画像が見つかりません",
+    runnerChecking: "Codex runner: 確認中",
+    runnerReady: "Codex runner: 使用可能",
+    runnerDisabled: "Codex runner: 手動受け渡し",
+    runnerUnavailable: "Codex runner: 起動不可",
     createCodexJob: "Codexジョブ作成",
     waitingForCodexResult: "Codex結果待ち",
     importLatest: "最新を取り込み",
@@ -252,6 +262,7 @@ function App() {
   const [workflowMode, setWorkflowMode] = useState<WorkflowMode | null>(null);
   const [providerId, setProviderId] = useState<ProviderId>("codex-handoff");
   const [providers, setProviders] = useState<ProviderStatus[]>(fallbackProviders);
+  const [runnerPreflight, setRunnerPreflight] = useState<CodexRunnerPreflight | null>(null);
   const [prompt, setPrompt] = useState("Pixel art forest mage, transparent background, 8 directions");
   const [negativePrompt, setNegativePrompt] = useState("blur, text, watermark, cropped feet");
   const [jobNotes, setJobNotes] = useState("");
@@ -316,6 +327,30 @@ function App() {
       .then((response) => response.json())
       .then((data: { providers: ProviderStatus[] }) => setProviders(data.providers))
       .catch(() => setProviders(fallbackProviders));
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    loadCodexRunnerPreflight()
+      .then((runner) => {
+        if (!cancelled) setRunnerPreflight(runner);
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setRunnerPreflight({
+            state: "unavailable",
+            message: "Could not read Codex runner preflight status.",
+            command: "",
+            checkedAt: new Date().toISOString(),
+            autorun: false,
+            sandbox: "",
+            approval: ""
+          });
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   useEffect(() => {
@@ -798,6 +833,12 @@ function App() {
             <strong>{activeWorkflowCopy?.label}</strong>
             <span>{activeWorkflowCopy?.detail}</span>
             <em>{copy.selectedProvider}: {providerLabel(providerId, language)}</em>
+            {providerId === "codex-handoff" && (
+              <em className={`runner-pill runner-${runnerPreflight?.state ?? "checking"}`}>
+                <Plug size={13} aria-hidden="true" />
+                {runnerPreflightLabel(runnerPreflight, copy)}
+              </em>
+            )}
           </div>
           <label className="field">
             <span>Prompt</span>
@@ -1285,6 +1326,20 @@ function primaryActionLabel(providerId: ProviderId, copy: Record<string, string>
   if (providerId === "codex-handoff") return copy.createCodexJob;
   if (providerId === "local-inbox") return copy.importLatest;
   return copy.importFile;
+}
+
+async function loadCodexRunnerPreflight() {
+  const response = await fetch("/api/codex/runner");
+  if (!response.ok) throw new Error(await response.text());
+  const data = (await response.json()) as CodexRunnerPreflightResponse;
+  return data.runner;
+}
+
+function runnerPreflightLabel(runner: CodexRunnerPreflight | null, copy: Record<string, string>) {
+  if (!runner) return copy.runnerChecking;
+  if (runner.state === "ready") return copy.runnerReady;
+  if (runner.state === "disabled") return copy.runnerDisabled;
+  return runner.errorCode ? `${copy.runnerUnavailable}: ${runner.errorCode}` : copy.runnerUnavailable;
 }
 
 async function loadCodexRunnerStatus(jobId: string) {

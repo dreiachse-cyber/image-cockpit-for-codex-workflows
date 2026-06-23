@@ -71,6 +71,7 @@ export interface CodexJobResponse {
 }
 
 export type CodexRunnerState = "running" | "completed" | "failed" | "unavailable" | "disabled" | "unknown";
+export type CodexRunnerPreflightState = "ready" | "disabled" | "unavailable";
 
 export interface CodexRunnerStatus {
   jobId: string;
@@ -83,6 +84,22 @@ export interface CodexRunnerStatus {
   signal?: string | null;
   logPath?: string;
   statusPath?: string;
+}
+
+export interface CodexRunnerPreflight {
+  state: CodexRunnerPreflightState;
+  message: string;
+  command: string;
+  checkedAt: string;
+  autorun: boolean;
+  sandbox: string;
+  approval: string;
+  errorCode?: string;
+  setupHint?: string;
+}
+
+export interface CodexRunnerPreflightResponse {
+  runner: CodexRunnerPreflight;
 }
 
 export interface CodexJobStatusResponse {

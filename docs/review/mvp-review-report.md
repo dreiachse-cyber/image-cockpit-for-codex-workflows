@@ -57,8 +57,14 @@ npm run smoke
 - `docs/qa/image-edit-handoff-1440x1024.png`
 - `docs/qa/sprite-edit-simple-1440x1024.png`
 - `docs/qa/sprite-edit-mobile-390x844.png`
+- `docs/qa/runner-preflight-1440x1024.png`
 - `docs/demo/mvp-demo.gif`
 - `design-qa.md`
+
+## Runner Preflight Addendum
+
+- `GET /api/codex/runner` now reports whether the configured Codex command is ready, disabled for manual handoff, or unavailable before a job is created.
+- The workflow summary shows the same preflight state so reviewers can tell whether the current machine can attempt `codex exec` or should use manual handoff.
 
 ## 既知の制約
 
