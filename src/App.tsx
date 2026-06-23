@@ -71,6 +71,7 @@ const ANIMATION_FRAME_COUNT = 8;
 const MIN_ANIMATION_CELL_SIZE = 512;
 
 type Language = "ja" | "en";
+type MotionInputMode = "prompt" | "preset";
 
 const languageOptions: Array<{ id: Language; label: string }> = [
   { id: "ja", label: "日本語" },
@@ -169,6 +170,11 @@ const uiCopy = {
     motionPrompt: "Motion Prompt",
     motionPromptPlaceholder: "Example: idle breathing loop with gentle robe sway and staff glow",
     motionPreset: "Preset",
+    motionPromptTab: "Prompt",
+    motionPresetTab: "Preset",
+    motionPresetAdditionalPrompt: "Additional Prompt (optional)",
+    motionPresetAdditionalPromptPlaceholder: "Optional: add robe sway, foot timing, effects, or mood.",
+    generationMayTakeMinutes: "Generation can take a few minutes.",
     animationReady: "Animation frames ready",
     animatedGif: "Animated GIF",
     animatedWebP: "Animated WebP",
@@ -283,6 +289,11 @@ const uiCopy = {
     motionPrompt: "動きのprompt",
     motionPromptPlaceholder: "例: idle breathing loop with gentle robe sway and staff glow",
     motionPreset: "プリセット",
+    motionPromptTab: "Prompt",
+    motionPresetTab: "プリセット",
+    motionPresetAdditionalPrompt: "追加prompt（任意）",
+    motionPresetAdditionalPromptPlaceholder: "任意: 揺れ、足運び、エフェクト、雰囲気などを追加できます。",
+    generationMayTakeMinutes: "生成は数分かかります",
     animationReady: "アニメーションframes準備完了",
     animatedGif: "アニメGIF",
     animatedWebP: "アニメWebP",
@@ -561,6 +572,7 @@ function App() {
   const [workflowMode, setWorkflowMode] = useState<WorkflowMode | null>(null);
   const [showPromptExamples, setShowPromptExamples] = useState(false);
   const [providerId, setProviderId] = useState<ProviderId>("codex-handoff");
+  const [motionInputMode, setMotionInputMode] = useState<MotionInputMode>("prompt");
   const [animationSourceId, setAnimationSourceId] = useState("");
   const [providers, setProviders] = useState<ProviderStatus[]>(fallbackProviders);
   const [runnerPreflight, setRunnerPreflight] = useState<CodexRunnerPreflight | null>(null);
@@ -1232,6 +1244,7 @@ function App() {
     if (mode === "image-generate") setTool("select");
     if (mode === "sprite-generate" || mode === "sprite-edit") {
       setActiveActionName("idle");
+      setMotionInputMode("prompt");
       setGrid({ columns: ANIMATION_FRAME_COUNT, rows: 1, gutter: 0 });
       setActions((current) => normalizeAnimationActions(current));
     }
@@ -1307,7 +1320,6 @@ function App() {
           <span>{activeWorkflowCopy?.label}</span>
           <small>v0.1.0</small>
         </div>
-        {workflowMode && <WorkflowTabs language={language} activeMode={workflowMode} onSelect={beginWorkflow} />}
         <div className="project-strip">
           <LanguageSelect language={language} label={copy.language} onChange={setLanguage} />
           <button className="guided-link" onClick={() => setWorkflowMode(null)}>
@@ -1342,6 +1354,7 @@ function App() {
               </em>
             )}
           </div>
+          {workflowMode && <WorkflowTabs language={language} activeMode={workflowMode} onSelect={beginWorkflow} />}
 
           {isAnimationWorkflow ? (
             <div className="animation-steps">
@@ -1375,31 +1388,54 @@ function App() {
                   <strong>{copy.animationStepMotionTitle}</strong>
                   <span>{copy.animationStepMotionBody}</span>
                 </div>
-                <small className="step-kicker">{copy.motionPreset}</small>
-                <div className="motion-presets">
-                  {actions.map((action) => (
-                    <button
-                      key={action.name}
-                      className={action.name === activeAction.name ? "active" : ""}
-                      onClick={() => {
-                        setActiveActionName(action.name);
-                        setGrid({ columns: ANIMATION_FRAME_COUNT, rows: 1, gutter: 0 });
-                      }}
-                    >
-                      {action.name}
-                    </button>
-                  ))}
+                <div className="motion-mode-tabs">
+                  <button className={motionInputMode === "prompt" ? "active" : ""} onClick={() => setMotionInputMode("prompt")}>
+                    {copy.motionPromptTab}
+                  </button>
+                  <button className={motionInputMode === "preset" ? "active" : ""} onClick={() => setMotionInputMode("preset")}>
+                    {copy.motionPresetTab}
+                  </button>
                 </div>
-                <label className="field compact-field">
-                  <span>{copy.motionPrompt}</span>
-                  <textarea
-                    value={prompt}
-                    onChange={(event) => setPrompt(event.target.value)}
-                    maxLength={1200}
-                    placeholder={copy.motionPromptPlaceholder}
-                  />
-                  <small>{prompt.length} / 1200</small>
-                </label>
+                {motionInputMode === "preset" ? (
+                  <>
+                    <small className="step-kicker">{copy.motionPreset}</small>
+                    <div className="motion-presets">
+                      {actions.map((action) => (
+                        <button
+                          key={action.name}
+                          className={action.name === activeAction.name ? "active" : ""}
+                          onClick={() => {
+                            setActiveActionName(action.name);
+                            setGrid({ columns: ANIMATION_FRAME_COUNT, rows: 1, gutter: 0 });
+                          }}
+                        >
+                          {action.name}
+                        </button>
+                      ))}
+                    </div>
+                    <label className="field compact-field">
+                      <span>{copy.motionPresetAdditionalPrompt}</span>
+                      <textarea
+                        value={prompt}
+                        onChange={(event) => setPrompt(event.target.value)}
+                        maxLength={1200}
+                        placeholder={copy.motionPresetAdditionalPromptPlaceholder}
+                      />
+                      <small>{prompt.length} / 1200</small>
+                    </label>
+                  </>
+                ) : (
+                  <label className="field compact-field">
+                    <span>{copy.motionPrompt}</span>
+                    <textarea
+                      value={prompt}
+                      onChange={(event) => setPrompt(event.target.value)}
+                      maxLength={1200}
+                      placeholder={copy.motionPromptPlaceholder}
+                    />
+                    <small>{prompt.length} / 1200</small>
+                  </label>
+                )}
               </section>
 
               <section className="animation-step">
@@ -1454,6 +1490,15 @@ function App() {
                   <FileJson size={15} aria-hidden="true" />
                   {copy.promptExamples}
                 </button>
+              )}
+              {workflowMode === "image-generate" && (
+                <div className="button-row primary-action-row">
+                  <button className="primary-button" onClick={() => void handleGenerate()} disabled={primaryActionDisabled}>
+                    <PrimaryActionIcon providerId={providerId} isBusy={isBusy || isWaitingForCodexResult} />
+                    {primaryActionLabel(providerId, workflowMode, copy, isWaitingForCodexResult)}
+                  </button>
+                  <p className="action-note">{copy.generationMayTakeMinutes}</p>
+                </div>
               )}
               <label className="field">
                 <span>{activeWorkflowFormCopy?.negativeLabel ?? "Negative Prompt"}</span>
@@ -1511,24 +1556,14 @@ function App() {
                 </>
               )}
 
-              <div className="button-row">
-                <button className="primary-button" onClick={() => void handleGenerate()} disabled={primaryActionDisabled}>
-                  <PrimaryActionIcon providerId={providerId} isBusy={isBusy || isWaitingForCodexResult} />
-                  {primaryActionLabel(providerId, workflowMode, copy, isWaitingForCodexResult)}
-                </button>
-                {providerId !== "local-inbox" && (
-                  <button className="secondary-button" onClick={() => void importLatestOutboxResult()} disabled={isBusy}>
-                    <Archive size={17} aria-hidden="true" />
-                    {copy.importLatest}
+              {workflowMode !== "image-generate" && (
+                <div className="button-row primary-action-row">
+                  <button className="primary-button" onClick={() => void handleGenerate()} disabled={primaryActionDisabled}>
+                    <PrimaryActionIcon providerId={providerId} isBusy={isBusy || isWaitingForCodexResult} />
+                    {primaryActionLabel(providerId, workflowMode, copy, isWaitingForCodexResult)}
                   </button>
-                )}
-                {providerId !== "local-file" && (
-                  <button className="secondary-button" onClick={() => fileInputRef.current?.click()}>
-                    <Upload size={17} aria-hidden="true" />
-                    {copy.importFile}
-                  </button>
-                )}
-              </div>
+                </div>
+              )}
             </>
           )}
 

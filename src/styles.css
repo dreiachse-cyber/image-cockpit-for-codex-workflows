@@ -139,6 +139,16 @@ button {
   color: var(--green);
 }
 
+.source-panel > .workflow-tabs {
+  margin: 0 10px 10px;
+  align-self: stretch;
+}
+
+.source-panel > .workflow-tabs button {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
 .cockpit {
   min-height: 0;
   display: grid;
@@ -275,6 +285,10 @@ button {
   min-height: 92px;
   resize: vertical;
   line-height: 1.35;
+}
+
+.source-panel > .field:first-of-type textarea {
+  min-height: 82px;
 }
 
 .field small {
@@ -472,6 +486,33 @@ button {
   color: #0f5d31;
 }
 
+.motion-mode-tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  background: #f8faf8;
+  padding: 3px;
+}
+
+.motion-mode-tabs button {
+  min-height: 30px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: #33443a;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.motion-mode-tabs button.active {
+  background: #ffffff;
+  color: #0f5d31;
+  box-shadow: 0 0 0 1px var(--line);
+}
+
 .compact-field {
   padding: 0;
 }
@@ -545,13 +586,23 @@ button {
   padding: 10px;
 }
 
-.source-panel > .button-row {
-  position: sticky;
-  bottom: 0;
-  z-index: 2;
-  border-top: 1px solid var(--line);
-  background: rgba(255, 255, 255, 0.96);
-  backdrop-filter: blur(8px);
+.primary-action-row .primary-button {
+  grid-column: 1 / -1;
+}
+
+.primary-action-row {
+  gap: 4px;
+  padding-top: 8px;
+  padding-bottom: 6px;
+}
+
+.action-note {
+  grid-column: 1 / -1;
+  margin: -1px 0 0;
+  color: var(--text-muted);
+  font-size: 11px;
+  line-height: 1.35;
+  text-align: center;
 }
 
 .primary-button,

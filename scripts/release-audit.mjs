@@ -325,8 +325,14 @@ function checkWorkflowIds() {
     "Use Prompt",
     "Clockwork Mushroom Courier",
     "Prompt example loaded into Pixel Art Generation",
+    "Generation can take a few minutes.",
+    "hiddenButtons",
+    "workflowTabsInsidePanel",
+    "workflowTabsInTopbar",
     "1. Upload Pixel Art",
     "2. Choose Motion",
+    "Additional Prompt (optional)",
+    "preExerciseButtonChecks",
     "3. Generate",
     "4. Download",
     "Animated GIF",
@@ -460,13 +466,19 @@ function checkSimpleLocalInboxAction() {
   if (!appText) return;
 
   [
-    'providerId !== "local-inbox"',
-    'providerId !== "local-file"',
-    "importLatestOutboxResult()",
-    "{copy.importLatest}"
+    "async function importLatestOutboxResult",
+    "statusInboxImported",
+    "Import Latest",
+    "Import File"
   ].forEach((marker) => {
     if (!appText.includes(marker)) {
-      failures.push(`Simplified UI should expose Local Inbox import action: ${marker}`);
+      failures.push(`Simplified UI should keep import support available internally: ${marker}`);
+    }
+  });
+
+  ["{copy.importLatest}", "{copy.importFile}"].forEach((marker) => {
+    if (appText.includes(marker)) {
+      failures.push(`Simplified UI should hide secondary import buttons for now: ${marker}`);
     }
   });
 }

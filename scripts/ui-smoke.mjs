@@ -96,8 +96,9 @@ try {
     index: 0,
     label: "Pixel Art Generation",
     route: "Route: Codex Handoff",
-    buttons: ["Generate Pixel Art", "Import Latest", "Import File"],
-    requiredText: ["Pixel Art Prompt", "Generation Notes", "Preview"],
+    buttons: ["Generate Pixel Art"],
+    hiddenButtons: ["Import Latest", "Import File"],
+    requiredText: ["Pixel Art Prompt", "Generation Notes", "Preview", "Generation can take a few minutes."],
     exerciseButton: "Generate Pixel Art",
     expectedAfterExercise: "Codex job written"
   });
@@ -106,7 +107,9 @@ try {
     label: "Animation Generation",
     route: "Route: Local Generator",
     buttons: ["Upload Pixel Art", "Generate Animation", "Animated GIF", "Animated WebP", "Sprite Sheet"],
-    requiredText: ["1. Upload Pixel Art", "2. Choose Motion", "3. Generate", "4. Download", "Motion Prompt"],
+    hiddenButtons: ["Import Latest", "Import File"],
+    requiredText: ["1. Upload Pixel Art", "2. Choose Motion", "3. Generate", "4. Download", "Motion Prompt", "Prompt", "Preset"],
+    preExerciseButtonChecks: [{ button: "Preset", expectedText: "Additional Prompt (optional)" }, { button: "Prompt", expectedText: "Motion Prompt" }],
     exerciseButton: "Generate Animation",
     expectedAfterExercise: "Animation generated",
     expectedAfterExerciseText: ["Animation frames ready", "Animated WebP", "512x512"],
@@ -186,7 +189,9 @@ async function assertWorkflow({
   label,
   route,
   buttons,
+  hiddenButtons = [],
   requiredText,
+  preExerciseButtonChecks = [],
   exactButtonCounts = {},
   exerciseButton,
   expectedAfterExercise,
@@ -200,10 +205,15 @@ async function assertWorkflow({
   assert(snapshot.text.includes(label), `${label} should be visible after selection`);
   assert(snapshot.buttons.includes("Pixel Art Generation"), `${label} should expose the Pixel Art Generation tab`);
   assert(snapshot.buttons.includes("Animation Generation"), `${label} should expose the Animation Generation tab`);
+  assert(snapshot.workflowTabsInsidePanel, `${label} should place workflow tabs under 1. Workflow`);
+  assert(!snapshot.workflowTabsInTopbar, `${label} should not place workflow tabs in the global header`);
   assert(snapshot.summary.includes(route), `${label} should select ${route}`);
   assert(snapshot.canvasVisible, `${label} should render the canvas`);
   buttons.forEach((button) => {
     assert(snapshot.buttons.includes(button), `${label} missing action button: ${button}`);
+  });
+  hiddenButtons.forEach((button) => {
+    assert(!snapshot.buttons.includes(button), `${label} should hide action button for now: ${button}`);
   });
   Object.entries(exactButtonCounts).forEach(([button, count]) => {
     const actual = snapshot.buttons.filter((value) => value === button).length;
@@ -212,6 +222,10 @@ async function assertWorkflow({
   requiredText.forEach((text) => {
     assert(snapshot.text.includes(text), `${label} missing workflow text: ${text}`);
   });
+  for (const check of preExerciseButtonChecks) {
+    await clickButtonByText(check.button);
+    await waitForEval(() => `document.body.innerText.includes(${JSON.stringify(check.expectedText)})`, `${label} shows ${check.expectedText}`);
+  }
   if (exerciseButton) {
     await clickButtonByText(exerciseButton);
     await waitForEval(() => `document.body.innerText.includes(${JSON.stringify(expectedAfterExercise)})`, `${label} generated result`);
@@ -261,6 +275,8 @@ async function pageSnapshot() {
     guidedOptions: Array.from(document.querySelectorAll(".guided-option strong")).map((node) => node.textContent.trim()),
     summary: document.querySelector(".workflow-summary")?.innerText.replace(/\\s+/g, " ").trim() || "",
     buttons: Array.from(document.querySelectorAll("button")).map((button) => button.innerText.replace(/\\s+/g, " ").trim()).filter(Boolean),
+    workflowTabsInsidePanel: Boolean(document.querySelector(".source-panel > .workflow-tabs")),
+    workflowTabsInTopbar: Boolean(document.querySelector(".topbar .workflow-tabs")),
     canvasVisible: Boolean(document.querySelector("canvas"))
   }))()`);
 }
