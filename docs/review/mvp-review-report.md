@@ -51,6 +51,9 @@ npm run smoke
 
 - `CHANGELOG.md`
 - `LICENSE`
+- `CONTRIBUTING.md`
+- `SECURITY.md`
+- `CODE_OF_CONDUCT.md`
 - `docs/release/v0.1.0-checklist.md`
 
 ## QA証跡

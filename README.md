@@ -104,6 +104,9 @@ Use `docs/review/mvp-review-report.md` for the private MVP review path, QA evide
 - Changelog: `CHANGELOG.md`
 - Release checklist: `docs/release/v0.1.0-checklist.md`
 - License: `LICENSE`
+- Contribution guide: `CONTRIBUTING.md`
+- Security policy: `SECURITY.md`
+- Code of conduct: `CODE_OF_CONDUCT.md`
 
 ## Roadmap
 
