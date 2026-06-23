@@ -109,8 +109,9 @@ try {
     requiredText: ["1. Upload Pixel Art", "2. Choose Motion", "3. Generate", "4. Download", "Motion Prompt"],
     exerciseButton: "Generate Animation",
     expectedAfterExercise: "Animation generated",
-    expectedAfterExerciseText: ["Animation frames ready", "Animated WebP"],
-    postExerciseButtons: ["Animated WebP"]
+    expectedAfterExerciseText: ["Animation frames ready", "Animated WebP", "512x512"],
+    postExerciseButtons: ["Animated WebP", "Sprite Sheet"],
+    reloadAfterExercise: true
   });
 
   console.log("UI smoke passed.");
@@ -190,7 +191,8 @@ async function assertWorkflow({
   exerciseButton,
   expectedAfterExercise,
   expectedAfterExerciseText = [],
-  postExerciseButtons = []
+  postExerciseButtons = [],
+  reloadAfterExercise = false
 }) {
   await clickGuidedOption(index);
   await waitForEval(() => `document.body.innerText.includes(${JSON.stringify(label)})`, label);
@@ -221,6 +223,15 @@ async function assertWorkflow({
     }
     await delay(250);
     await assertNoBrowserErrors(label);
+    if (reloadAfterExercise) {
+      await delay(500);
+      await cdp.send("Page.reload", { ignoreCache: true });
+      await waitForEval(() => `document.querySelectorAll(".guided-option").length === 2`, `${label} reload returned to Guided Start`);
+      await clickGuidedOption(index);
+      await waitForEval(() => `document.body.innerText.includes("Animation frames ready")`, `${label} persisted animation frames after reload`);
+      await waitForEval(() => `document.body.innerText.includes("512x512")`, `${label} persisted 512x512 frame size after reload`);
+      await assertNoBrowserErrors(`${label} reload persistence`);
+    }
   }
   await maybeCapture(label.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, ""));
   await evaluate(`document.querySelector(".guided-link")?.click()`);

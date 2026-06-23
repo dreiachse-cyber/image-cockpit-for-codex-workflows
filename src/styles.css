@@ -490,7 +490,7 @@ button {
 }
 
 .animation-preview {
-  min-height: 112px;
+  min-height: 220px;
   display: grid;
   place-items: center;
   border: 1px solid var(--line);
@@ -513,8 +513,8 @@ button {
 }
 
 .animation-preview img {
-  max-width: 112px;
-  max-height: 96px;
+  max-width: min(100%, 220px);
+  max-height: 210px;
   image-rendering: pixelated;
 }
 
@@ -719,14 +719,20 @@ button:disabled {
 
 .canvas-stage {
   position: relative;
+  display: grid;
+  place-items: center;
   min-height: 0;
   padding: 8px;
   background: #f0f2f0;
+  overflow: hidden;
 }
 
 .canvas-stage canvas {
   width: 100%;
-  height: 100%;
+  height: auto;
+  max-height: 100%;
+  aspect-ratio: 920 / 520;
+  object-fit: contain;
   display: block;
   border: 1px solid var(--line);
   border-radius: 5px;
@@ -1064,7 +1070,7 @@ button:disabled {
 }
 
 .gif-preview {
-  height: 146px;
+  height: 240px;
   display: grid;
   place-items: center;
   border: 1px solid var(--line);
@@ -1083,8 +1089,8 @@ button:disabled {
 }
 
 .gif-preview img {
-  max-width: 128px;
-  max-height: 128px;
+  max-width: min(100%, 220px);
+  max-height: 220px;
   image-rendering: pixelated;
 }
 

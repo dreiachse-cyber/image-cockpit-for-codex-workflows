@@ -41,7 +41,7 @@ import {
 } from "./lib/exporters";
 import { createId, downloadBlob, loadImage, readFileAsDataUrl } from "./lib/image";
 import { calculateGridCells, summarizeFrames } from "./lib/sprite";
-import { loadActions, loadFrames, loadHistory, saveActions, saveFrames, saveHistory } from "./lib/storage";
+import { loadActions, loadFrames, loadHistory, loadPersistedState, saveActions, saveFrames, saveHistory } from "./lib/storage";
 import type {
   Annotation,
   GridSettings,
@@ -68,6 +68,7 @@ const LANGUAGE_STORAGE_KEY = "image-cockpit.language";
 const PENDING_CODEX_JOB_STORAGE_KEY = "image-cockpit.pendingCodexJob";
 const SHOW_LOW_PRIORITY_CONTROLS = false;
 const ANIMATION_FRAME_COUNT = 8;
+const MIN_ANIMATION_CELL_SIZE = 512;
 
 type Language = "ja" | "en";
 
@@ -436,10 +437,10 @@ const workflowFormCopy: Record<
 };
 
 const defaultActions: SpriteAction[] = [
-  { name: "idle", fps: 12, loop: true, frameIds: [], cell: { width: 128, height: 128 }, anchor: { x: 64, y: 118 } },
-  { name: "walk", fps: 12, loop: true, frameIds: [], cell: { width: 128, height: 128 }, anchor: { x: 64, y: 118 } },
-  { name: "cast", fps: 10, loop: false, frameIds: [], cell: { width: 128, height: 128 }, anchor: { x: 64, y: 118 } },
-  { name: "attack", fps: 10, loop: false, frameIds: [], cell: { width: 128, height: 128 }, anchor: { x: 64, y: 118 } }
+  { name: "idle", fps: 12, loop: true, frameIds: [], cell: { width: 512, height: 512 }, anchor: { x: 256, y: 472 } },
+  { name: "walk", fps: 12, loop: true, frameIds: [], cell: { width: 512, height: 512 }, anchor: { x: 256, y: 472 } },
+  { name: "cast", fps: 10, loop: false, frameIds: [], cell: { width: 512, height: 512 }, anchor: { x: 256, y: 472 } },
+  { name: "attack", fps: 10, loop: false, frameIds: [], cell: { width: 512, height: 512 }, anchor: { x: 256, y: 472 } }
 ];
 
 const fallbackProviders: ProviderStatus[] = [
@@ -469,64 +470,94 @@ const promptExamples: PromptExample[] = [
     category: { en: "Character", ja: "キャラクター" },
     title: { en: "Clockwork Mushroom Courier", ja: "ぜんまい茸の配達人" },
     prompt:
-      "Create one original pixel-art game asset concept image: a tiny clockwork mushroom courier carrying a glowing blue delivery satchel through a rainy neon forest, crisp readable silhouette, 16-bit pixel-art inspired rendering, transparent-game-asset feel, teal rain highlights, warm amber satchel glow, no readable text, no logo, no watermark, no numbers.",
-    negativePrompt: "text, logo, watermark, numbers, photorealistic face, blurry silhouette, placeholder geometric-only output",
-    notes: "Prompt-only image generation. Keep the silhouette readable at game-asset scale and avoid any readable symbols."
+      "Create one original pixel-art game asset concept image: a tiny clockwork mushroom courier carrying a glowing blue delivery satchel, isolated full body on a simple flat chroma-key green background, crisp readable silhouette, 16-bit pixel-art inspired rendering, transparent-game-asset feel, warm amber satchel glow, no scenery, no readable text, no logo, no watermark, no numbers.",
+    negativePrompt: "text, logo, watermark, numbers, photorealistic face, blurry silhouette, placeholder geometric-only output, busy background, detailed scenery",
+    notes: "Prompt-only image generation. Use a simple chroma-key background so the character can be separated for animation."
   },
   {
     id: "forest-mage-idle",
     category: { en: "Character", ja: "キャラクター" },
     title: { en: "Forest Mage Idle Sprite", ja: "森の魔法使いアイドル" },
     prompt:
-      "Create a single full-body pixel-art character asset: a small forest mage with a leaf hood, carved wooden staff, soft green cloak, amber charm, friendly confident pose, idle-animation ready stance, clear feet contact, centered subject, transparent-background feel, 32-bit fantasy RPG palette, crisp silhouette, no readable text, no logo, no watermark.",
-    negativePrompt: "cropped feet, extra arms, text, logo, watermark, blurry edges, realistic skin, busy background",
-    notes: "Character should be easy to cut out and animate later. Keep pose neutral, balanced, and readable."
+      "Create a single full-body pixel-art character asset: a small forest mage with a leaf hood, carved wooden staff, soft green cloak, amber charm, friendly confident pose, idle-animation ready stance, clear feet contact, centered subject, simple flat chroma-key green background, 32-bit fantasy RPG palette, crisp silhouette, no scenery, no readable text, no logo, no watermark.",
+    negativePrompt: "cropped feet, extra arms, text, logo, watermark, blurry edges, realistic skin, busy background, gradient background",
+    notes: "Character should be easy to cut out and animate later. Keep pose neutral, balanced, readable, and on a simple background."
   },
   {
     id: "ember-slime-companion",
     category: { en: "Creature", ja: "クリーチャー" },
     title: { en: "Ember Slime Companion", ja: "火種スライム" },
     prompt:
-      "Create a cute pixel-art creature asset: a small ember slime companion with a warm orange core, tiny charcoal feet, two expressive glowing eyes, faint heat shimmer, simple rounded body, readable silhouette on transparent-background feel, collectible monster game style, clean 16-bit pixel-art inspired rendering, no text, no logo, no watermark.",
-    negativePrompt: "scary horror, text, logo, watermark, photorealistic fire, over-detailed smoke, cropped body",
-    notes: "Creature design should be simple enough for idle, hop, and attack animation variants."
+      "Create a cute pixel-art creature asset: a small ember slime companion with a warm orange core, tiny charcoal feet, two expressive glowing eyes, faint heat shimmer, simple rounded body, readable silhouette, isolated on a simple flat chroma-key blue background, collectible monster game style, clean 16-bit pixel-art inspired rendering, no scenery, no text, no logo, no watermark.",
+    negativePrompt: "scary horror, text, logo, watermark, photorealistic fire, over-detailed smoke, cropped body, complex background",
+    notes: "Creature design should be simple enough for idle, hop, and attack animation variants, with a plain background for cleanup."
   },
   {
     id: "crystal-export-station",
     category: { en: "Prop", ja: "小物" },
     title: { en: "Crystal Export Station", ja: "水晶の書き出し台" },
     prompt:
-      "Create a pixel-art game prop asset: a compact crystal export station made of mossy stone and brass rails, three amber crystals glowing above small sockets, teal interface sparks, fantasy workshop mood, isometric-front readable angle, transparent-background feel, crisp edge clusters, no readable text, no logo, no watermark, no numbers.",
-    negativePrompt: "letters, labels, UI words, logo, watermark, photorealism, cluttered background, broken perspective",
-    notes: "Prop should read clearly as a small interactive workstation and fit beside character sprites."
+      "Create a pixel-art game prop asset: a compact crystal export station made of mossy stone and brass rails, three amber crystals glowing above small sockets, teal interface sparks, isometric-front readable angle, isolated prop on a simple flat chroma-key green background, crisp edge clusters, no scenery, no readable text, no logo, no watermark, no numbers.",
+    negativePrompt: "letters, labels, UI words, logo, watermark, photorealism, cluttered background, broken perspective, detailed room",
+    notes: "Prop should read clearly as a small interactive workstation and stay easy to separate from the background."
   },
   {
     id: "rainy-neon-forest-tile",
     category: { en: "Environment", ja: "背景" },
     title: { en: "Rainy Neon Forest Tile", ja: "雨のネオン森タイル" },
     prompt:
-      "Create a pixel-art environment tile concept: rainy neon forest ground with wet stone path, cyan puddle reflections, small purple mushrooms, dark green leaves, warm lantern glints, seamless game-map tile mood, top-down three-quarter RPG perspective, no characters, no readable text, no logo, no watermark.",
-    negativePrompt: "characters, text, logo, watermark, flat plain grass, photorealistic rain, unreadable clutter",
-    notes: "Keep it tile-friendly with no large unique landmark in the center."
+      "Create a pixel-art environment tile concept: a small isolated rainy neon forest ground tile with wet stone path, cyan puddle reflections, small purple mushrooms, dark green leaves, top-down three-quarter RPG perspective, tile edges clearly visible, simple flat chroma-key green background outside the tile footprint, no characters, no readable text, no logo, no watermark.",
+    negativePrompt: "characters, text, logo, watermark, photorealistic rain, unreadable clutter, full landscape, complex surrounding background",
+    notes: "Keep it tile-friendly, isolated, and surrounded by a simple background so the tile can be extracted."
   },
   {
     id: "sprite-sheet-workbench",
     category: { en: "Scene", ja: "シーン" },
     title: { en: "Sprite-Sheet Workbench", ja: "スプライト作業台" },
     prompt:
-      "Create a pixel-art inspired production-tool scene: a cozy fantasy sprite-sheet workbench with glowing teal grid panels, tiny frame thumbnails, amber export crystals, pinned annotation marks, wooden desk, mossy stone walls, friendly maker mood, crisp readable composition, no readable text, no logo, no watermark, no numbers.",
-    negativePrompt: "readable UI text, letters, numbers, logo, watermark, photorealistic monitor, blurry composition",
-    notes: "Use this when testing whether complex production-tool concepts survive the imagegen prompt."
+      "Create a pixel-art inspired production-tool prop: a compact fantasy sprite-sheet workbench with glowing teal grid panels, tiny frame thumbnails, amber export crystals, pinned annotation marks, wooden desk silhouette, isolated object on a simple flat chroma-key green background, crisp readable composition, no scenery wall, no readable text, no logo, no watermark, no numbers.",
+    negativePrompt: "readable UI text, letters, numbers, logo, watermark, photorealistic monitor, blurry composition, complex room background",
+    notes: "Use this when testing whether complex production-tool concepts survive the imagegen prompt while still remaining easy to cut out."
   }
 ];
+
+function normalizeAnimationActions(actions: SpriteAction[]) {
+  const source = actions.length > 0 ? actions : defaultActions;
+  return source.map((action) => normalizeAnimationAction(action));
+}
+
+function normalizeAnimationAction(action: SpriteAction): SpriteAction {
+  const width = Math.max(MIN_ANIMATION_CELL_SIZE, action.cell.width);
+  const height = Math.max(MIN_ANIMATION_CELL_SIZE, action.cell.height);
+  const scaleX = width / Math.max(1, action.cell.width);
+  const scaleY = height / Math.max(1, action.cell.height);
+  const cellChanged = width !== action.cell.width || height !== action.cell.height;
+  const anchor = cellChanged
+    ? {
+        x: clampInteger(Math.round(action.anchor.x * scaleX), 0, width),
+        y: clampInteger(Math.round(action.anchor.y * scaleY), 0, height)
+      }
+    : action.anchor;
+
+  return {
+    ...action,
+    cell: { width, height },
+    anchor
+  };
+}
+
+function clampInteger(value: number, min: number, max: number) {
+  return Math.max(min, Math.min(max, Math.round(value)));
+}
 
 function App() {
   const [history, setHistory] = useState<HistoryItem[]>(() => loadHistory());
   const [frames, setFrames] = useState<SpriteFrame[]>(() => loadFrames());
-  const [actions, setActions] = useState<SpriteAction[]>(() => loadActions(defaultActions));
+  const [actions, setActions] = useState<SpriteAction[]>(() => normalizeAnimationActions(loadActions(defaultActions)));
   const [selectedId, setSelectedId] = useState<string>("");
   const [activeActionName, setActiveActionName] = useState("idle");
   const [language, setLanguage] = useState<Language>(loadLanguage);
+  const [storageHydrated, setStorageHydrated] = useState(false);
   const [workflowMode, setWorkflowMode] = useState<WorkflowMode | null>(null);
   const [showPromptExamples, setShowPromptExamples] = useState(false);
   const [providerId, setProviderId] = useState<ProviderId>("codex-handoff");
@@ -598,9 +629,33 @@ function App() {
     [actionFrames, activeAction.cell.height, activeAction.cell.width]
   );
 
-  useEffect(() => saveHistory(history), [history]);
-  useEffect(() => saveFrames(frames), [frames]);
-  useEffect(() => saveActions(actions), [actions]);
+  useEffect(() => {
+    let cancelled = false;
+    loadPersistedState(defaultActions)
+      .then((persisted) => {
+        if (cancelled) return;
+        setHistory(persisted.history);
+        setFrames(persisted.frames);
+        setActions(normalizeAnimationActions(persisted.actions));
+        setStorageHydrated(true);
+      })
+      .catch(() => {
+        if (!cancelled) setStorageHydrated(true);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (storageHydrated) saveHistory(history);
+  }, [history, storageHydrated]);
+  useEffect(() => {
+    if (storageHydrated) saveFrames(frames);
+  }, [frames, storageHydrated]);
+  useEffect(() => {
+    if (storageHydrated) saveActions(actions);
+  }, [actions, storageHydrated]);
   useEffect(() => saveLanguage(language), [language]);
   useEffect(() => savePendingCodexJob(pendingCodexJob), [pendingCodexJob]);
 
@@ -636,13 +691,14 @@ function App() {
   }, []);
 
   useEffect(() => {
+    if (!storageHydrated) return;
     if (history.length > 0) {
       setSelectedId((current) => current || history[0].id);
       return;
     }
 
     void seedSampleWorkspace();
-  }, [history.length]);
+  }, [history.length, storageHydrated]);
 
   useEffect(() => {
     drawWorkspaceCanvas();
@@ -732,7 +788,7 @@ function App() {
       "forest_mage",
       { columns: 8, rows: 4, gutter: 0 },
       item.id,
-      { width: 128, height: 128 }
+      { width: MIN_ANIMATION_CELL_SIZE, height: MIN_ANIMATION_CELL_SIZE }
     );
     setFrames(sampleFrames);
     setSelectedFrameId(sampleFrames[0]?.id ?? "");
@@ -923,9 +979,10 @@ function App() {
       return;
     }
 
+    const animationAction = normalizeAnimationAction(activeAction);
     const animationGrid = { columns: ANIMATION_FRAME_COUNT, rows: 1, gutter: 0 };
-    const sheetDataUrl = await renderAnimationSheet(source.dataUrl, activeAction.cell, activeAction.name);
-    const sheetName = `${source.name.replace(/\.[^.]+$/, "")}_${activeAction.name}_animation_sheet.png`;
+    const sheetDataUrl = await renderAnimationSheet(source.dataUrl, animationAction.cell, animationAction.name);
+    const sheetName = `${source.name.replace(/\.[^.]+$/, "")}_${animationAction.name}_animation_sheet.png`;
     const item: HistoryItem = {
       id: createId("hist"),
       name: sheetName,
@@ -933,12 +990,12 @@ function App() {
       provider: "local-generator",
       prompt,
       seed,
-      size: `${activeAction.cell.width * ANIMATION_FRAME_COUNT}x${activeAction.cell.height}`,
+      size: `${animationAction.cell.width * ANIMATION_FRAME_COUNT}x${animationAction.cell.height}`,
       createdAt: new Date().toISOString(),
       adopted: false,
       source: "generate"
     };
-    const newFrames = await splitImageIntoFrames(sheetDataUrl, sheetName.replace(/\.[^.]+$/, ""), animationGrid, item.id, activeAction.cell);
+    const newFrames = await splitImageIntoFrames(sheetDataUrl, sheetName.replace(/\.[^.]+$/, ""), animationGrid, item.id, animationAction.cell);
 
     setGrid(animationGrid);
     setHistory((current) => [item, ...current]);
@@ -946,11 +1003,11 @@ function App() {
     setFrames((current) => [...current, ...newFrames]);
     setActions((current) =>
       current.map((action) =>
-        action.name === activeAction.name ? { ...action, frameIds: newFrames.map((frame) => frame.id) } : action
+        action.name === animationAction.name ? { ...animationAction, frameIds: newFrames.map((frame) => frame.id) } : action
       )
     );
     setSelectedFrameId(newFrames[0]?.id ?? "");
-    setStatus(`${copy.statusAnimationGenerated}: ${sheetName}. ${formatFramesAddedStatus(newFrames.length, activeAction.name, language)}`);
+    setStatus(`${copy.statusAnimationGenerated}: ${sheetName}. ${formatFramesAddedStatus(newFrames.length, animationAction.name, language)}`);
   }
 
   async function importLatestOutboxResult(options: ImportLatestOptions = {}) {
@@ -1113,7 +1170,12 @@ function App() {
   }
 
   function updateCell(width: number, height: number) {
-    updateActiveAction({ cell: { width, height } });
+    const nextWidth = Math.max(MIN_ANIMATION_CELL_SIZE, width);
+    const nextHeight = Math.max(MIN_ANIMATION_CELL_SIZE, height);
+    updateActiveAction({
+      cell: { width: nextWidth, height: nextHeight },
+      anchor: { x: Math.round(nextWidth / 2), y: Math.round(nextHeight * 0.92) }
+    });
   }
 
   function handlePointerDown(event: React.PointerEvent<HTMLCanvasElement>) {
@@ -1171,6 +1233,7 @@ function App() {
     if (mode === "sprite-generate" || mode === "sprite-edit") {
       setActiveActionName("idle");
       setGrid({ columns: ANIMATION_FRAME_COUNT, rows: 1, gutter: 0 });
+      setActions((current) => normalizeAnimationActions(current));
     }
     if (mode === "sprite-generate") {
       setAnimationSourceId(selected && isAnimationSource(selected) ? selected.id : "");
@@ -1345,8 +1408,8 @@ function App() {
                   <span>{copy.animationStepGenerateBody}</span>
                 </div>
                 <div className="field-row compact-row">
-                  <NumberField label={copy.frameWidth} value={activeAction.cell.width} onChange={(width) => updateCell(width, activeAction.cell.height)} />
-                  <NumberField label={copy.frameHeight} value={activeAction.cell.height} onChange={(height) => updateCell(activeAction.cell.width, height)} />
+                  <NumberField label={copy.frameWidth} value={activeAction.cell.width} min={MIN_ANIMATION_CELL_SIZE} onChange={(width) => updateCell(width, activeAction.cell.height)} />
+                  <NumberField label={copy.frameHeight} value={activeAction.cell.height} min={MIN_ANIMATION_CELL_SIZE} onChange={(height) => updateCell(activeAction.cell.width, height)} />
                 </div>
                 <button className="primary-button full" onClick={() => void handleGenerate()} disabled={primaryActionDisabled}>
                   <PrimaryActionIcon providerId={providerId} isBusy={isBusy} />
@@ -1518,8 +1581,8 @@ function App() {
           {showFrameGridControls && (
             <>
               <div className="field-row">
-                <NumberField label={copy.frameWidth} value={activeAction.cell.width} onChange={(width) => updateCell(width, activeAction.cell.height)} />
-                <NumberField label={copy.frameHeight} value={activeAction.cell.height} onChange={(height) => updateCell(activeAction.cell.width, height)} />
+                <NumberField label={copy.frameWidth} value={activeAction.cell.width} min={MIN_ANIMATION_CELL_SIZE} onChange={(width) => updateCell(width, activeAction.cell.height)} />
+                <NumberField label={copy.frameHeight} value={activeAction.cell.height} min={MIN_ANIMATION_CELL_SIZE} onChange={(height) => updateCell(activeAction.cell.width, height)} />
               </div>
               <label className="check-row">
                 <input type="checkbox" checked={showGrid} onChange={(event) => setShowGrid(event.target.checked)} />
@@ -1893,8 +1956,10 @@ function isAnimationSource(item?: HistoryItem): item is HistoryItem {
   return Boolean(item && item.source !== "sample");
 }
 
+type AnimationDrawable = (HTMLCanvasElement | HTMLImageElement) & { width: number; height: number };
+
 async function renderAnimationSheet(sourceDataUrl: string, cell: SpriteAction["cell"], actionName: string) {
-  const source = await loadImage(sourceDataUrl);
+  const source = await createTransparentAnimationSource(sourceDataUrl);
   const canvas = document.createElement("canvas");
   canvas.width = cell.width * ANIMATION_FRAME_COUNT;
   canvas.height = cell.height;
@@ -1912,7 +1977,7 @@ async function renderAnimationSheet(sourceDataUrl: string, cell: SpriteAction["c
 
 function drawAnimationFrame(
   context: CanvasRenderingContext2D,
-  source: HTMLImageElement,
+  source: AnimationDrawable,
   cell: SpriteAction["cell"],
   actionName: string,
   frame: number
@@ -1927,28 +1992,137 @@ function drawAnimationFrame(
   const centerY = cell.height / 2 + preset.y;
 
   context.save();
-  context.globalAlpha = 0.2;
-  context.fillStyle = "#1c2028";
-  context.beginPath();
-  context.ellipse(x + cell.width / 2, cell.height * 0.86, cell.width * 0.22, cell.height * 0.035, 0, 0, Math.PI * 2);
-  context.fill();
-  context.restore();
-
-  context.save();
   context.translate(centerX, centerY);
   context.rotate(preset.rotate);
   context.scale(preset.scaleX, preset.scaleY);
   context.drawImage(source, -width / 2, -height / 2, width, height);
   context.restore();
+}
 
-  if (preset.accent) {
-    context.save();
-    context.globalAlpha = 0.55;
-    context.fillStyle = preset.accent;
-    context.fillRect(x + cell.width * 0.18 + frame, cell.height * 0.18, 3, 3);
-    context.fillRect(x + cell.width * 0.74 - frame * 0.5, cell.height * 0.28, 2, 2);
-    context.restore();
+async function createTransparentAnimationSource(sourceDataUrl: string) {
+  const source = await loadImage(sourceDataUrl);
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.max(1, source.naturalWidth || source.width);
+  canvas.height = Math.max(1, source.naturalHeight || source.height);
+  const context = canvas.getContext("2d", { willReadFrequently: true });
+  if (!context) throw new Error("Could not create transparent source canvas.");
+  context.clearRect(0, 0, canvas.width, canvas.height);
+  context.drawImage(source, 0, 0, canvas.width, canvas.height);
+  removeConnectedBackground(context, canvas.width, canvas.height);
+  return trimTransparentCanvas(canvas);
+}
+
+function removeConnectedBackground(context: CanvasRenderingContext2D, width: number, height: number) {
+  const imageData = context.getImageData(0, 0, width, height);
+  const data = imageData.data;
+  const keyColors = [
+    readPixelColor(data, 0),
+    readPixelColor(data, width - 1),
+    readPixelColor(data, (height - 1) * width),
+    readPixelColor(data, height * width - 1)
+  ].filter((color) => color.a > 8);
+  const visited = new Uint8Array(width * height);
+  const stack: number[] = [];
+
+  const enqueue = (index: number) => {
+    if (index < 0 || index >= visited.length || visited[index]) return;
+    visited[index] = 1;
+    stack.push(index);
+  };
+
+  for (let x = 0; x < width; x += 1) {
+    enqueue(x);
+    enqueue((height - 1) * width + x);
   }
+  for (let y = 0; y < height; y += 1) {
+    enqueue(y * width);
+    enqueue(y * width + width - 1);
+  }
+
+  while (stack.length > 0) {
+    const index = stack.pop();
+    if (index === undefined) break;
+    const offset = index * 4;
+    if (!isRemovableBackgroundPixel(data, offset, keyColors)) continue;
+    data[offset + 3] = 0;
+
+    const x = index % width;
+    if (x > 0) enqueue(index - 1);
+    if (x < width - 1) enqueue(index + 1);
+    if (index >= width) enqueue(index - width);
+    if (index < width * (height - 1)) enqueue(index + width);
+  }
+
+  context.putImageData(imageData, 0, 0);
+}
+
+function trimTransparentCanvas(source: HTMLCanvasElement) {
+  const context = source.getContext("2d", { willReadFrequently: true });
+  if (!context) return source;
+  const imageData = context.getImageData(0, 0, source.width, source.height);
+  const data = imageData.data;
+  let minX = source.width;
+  let minY = source.height;
+  let maxX = -1;
+  let maxY = -1;
+
+  for (let y = 0; y < source.height; y += 1) {
+    for (let x = 0; x < source.width; x += 1) {
+      const alpha = data[(y * source.width + x) * 4 + 3];
+      if (alpha <= 12) continue;
+      minX = Math.min(minX, x);
+      minY = Math.min(minY, y);
+      maxX = Math.max(maxX, x);
+      maxY = Math.max(maxY, y);
+    }
+  }
+
+  if (maxX < minX || maxY < minY) return source;
+
+  const padding = Math.max(2, Math.round(Math.max(maxX - minX, maxY - minY) * 0.03));
+  const sx = Math.max(0, minX - padding);
+  const sy = Math.max(0, minY - padding);
+  const sw = Math.min(source.width - sx, maxX - minX + 1 + padding * 2);
+  const sh = Math.min(source.height - sy, maxY - minY + 1 + padding * 2);
+  const trimmed = document.createElement("canvas");
+  trimmed.width = sw;
+  trimmed.height = sh;
+  const trimmedContext = trimmed.getContext("2d");
+  if (!trimmedContext) return source;
+  trimmedContext.imageSmoothingEnabled = false;
+  trimmedContext.drawImage(source, sx, sy, sw, sh, 0, 0, sw, sh);
+  return trimmed;
+}
+
+function readPixelColor(data: Uint8ClampedArray, index: number) {
+  const offset = index * 4;
+  return { r: data[offset], g: data[offset + 1], b: data[offset + 2], a: data[offset + 3] };
+}
+
+function isRemovableBackgroundPixel(data: Uint8ClampedArray, offset: number, keyColors: Array<ReturnType<typeof readPixelColor>>) {
+  const alpha = data[offset + 3];
+  if (alpha < 12) return true;
+  if (isChromaPixel(data, offset)) return true;
+  return keyColors.some((color) => Math.abs(alpha - color.a) < 90 && colorDistanceSq(data, offset, color) <= 62 * 62);
+}
+
+function isChromaPixel(data: Uint8ClampedArray, offset: number) {
+  const r = data[offset];
+  const g = data[offset + 1];
+  const b = data[offset + 2];
+  const a = data[offset + 3];
+  if (a < 12) return true;
+  const green = g > 105 && g > r * 1.3 && g > b * 1.3;
+  const blue = b > 120 && b > r * 1.25 && b > g * 1.08;
+  const magenta = r > 130 && b > 110 && g < Math.min(r, b) * 0.7;
+  return green || blue || magenta;
+}
+
+function colorDistanceSq(data: Uint8ClampedArray, offset: number, color: ReturnType<typeof readPixelColor>) {
+  const dr = data[offset] - color.r;
+  const dg = data[offset + 1] - color.g;
+  const db = data[offset + 2] - color.b;
+  return dr * dr + dg * dg + db * db;
 }
 
 function animationPreset(actionName: string, phase: number, frame: number) {
@@ -2040,11 +2214,21 @@ function runnerStatusMessage(status: CodexRunnerStatus | undefined, copy: Record
   return copy.statusCodexRunnerCompletedNoImage;
 }
 
-function NumberField({ label, value, onChange }: { label: string; value: number; onChange: (value: number) => void }) {
+function NumberField({
+  label,
+  value,
+  min = 1,
+  onChange
+}: {
+  label: string;
+  value: number;
+  min?: number;
+  onChange: (value: number) => void;
+}) {
   return (
     <label className="field number-field">
       <span>{label}</span>
-      <input type="number" value={value} onChange={(event) => onChange(Number(event.target.value))} />
+      <input type="number" min={min} value={value} onChange={(event) => onChange(Math.max(min, Number(event.target.value)))} />
     </label>
   );
 }

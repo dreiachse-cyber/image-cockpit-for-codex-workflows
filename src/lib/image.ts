@@ -37,8 +37,11 @@ export function downloadBlob(blob: Blob, filename: string) {
   const link = document.createElement("a");
   link.href = url;
   link.download = filename;
+  link.style.display = "none";
+  document.body.appendChild(link);
   link.click();
-  URL.revokeObjectURL(url);
+  link.remove();
+  window.setTimeout(() => URL.revokeObjectURL(url), 0);
 }
 
 export function canvasToBlob(canvas: HTMLCanvasElement, type = "image/png") {

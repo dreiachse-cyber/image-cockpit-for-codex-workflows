@@ -332,7 +332,10 @@ function checkWorkflowIds() {
     "Animated GIF",
     "Animated WebP",
     "Sprite Sheet",
-    "Animation frames ready"
+    "Animation frames ready",
+    "512x512",
+    "persisted animation frames after reload",
+    "persisted 512x512 frame size after reload"
   ].forEach((marker) => {
     if (!uiSmokeText.includes(marker)) {
       failures.push(`UI smoke should cover guided workflow review: ${marker}`);
