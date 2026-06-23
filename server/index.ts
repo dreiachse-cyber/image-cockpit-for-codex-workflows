@@ -1,6 +1,6 @@
 import { spawn } from "node:child_process";
 import { createWriteStream, existsSync, readFileSync } from "node:fs";
-import { mkdir, readFile, readdir, stat, writeFile } from "node:fs/promises";
+import { copyFile, mkdir, readFile, readdir, stat, writeFile } from "node:fs/promises";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { extname, join, resolve, sep } from "node:path";
 
@@ -10,6 +10,7 @@ const port = Number(process.env.IMAGE_COCKPIT_API_PORT ?? 8787);
 const handoffRoot = resolve(process.env.IMAGE_COCKPIT_HANDOFF_DIR ?? "codex-handoff");
 const inboxDir = join(handoffRoot, "inbox");
 const outboxDir = join(handoffRoot, "outbox");
+const assetsDir = join(handoffRoot, "assets");
 const statusDir = join(handoffRoot, "status");
 const logsDir = join(handoffRoot, "logs");
 const codexAutoRun = process.env.IMAGE_COCKPIT_CODEX_AUTORUN !== "0";
@@ -21,8 +22,10 @@ const resultRoutePrefix = "/api/codex/results/";
 const runnerStatuses = new Map<string, CodexRunnerStatus>();
 
 type CodexJobRequest = {
+  workflowMode?: string;
   prompt?: string;
   negativePrompt?: string;
+  jobNotes?: string;
   seed?: string;
   size?: string;
   count?: number;
@@ -30,6 +33,9 @@ type CodexJobRequest = {
   selectedImageName?: string;
   selectedImageSize?: string;
   selectedImageSource?: string;
+  selectedImageDataUrl?: string;
+  annotations?: unknown[];
+  grid?: unknown;
   action?: string;
   frames?: number;
 };
@@ -147,13 +153,16 @@ const server = createServer(async (request, response) => {
 
       const createdAt = new Date().toISOString();
       const id = `codex-job-${createdAt.replace(/[:.]/g, "-")}`;
+      const selectedImageAsset = await writeSelectedImageAsset(id, body);
       const job = {
         id,
         createdAt,
         kind: "image-cockpit.codex-handoff",
+        workflowMode: body.workflowMode ?? "",
         intent: "Ask local Codex to create or revise image assets, then return files to the outbox.",
         prompt: body.prompt,
         negativePrompt: body.negativePrompt ?? "",
+        jobNotes: body.jobNotes ?? "",
         generationHints: {
           seed: body.seed ?? "",
           size: body.size ?? "1024x1024",
@@ -163,11 +172,21 @@ const server = createServer(async (request, response) => {
         selectedImage: {
           name: body.selectedImageName ?? "",
           size: body.selectedImageSize ?? "",
-          source: body.selectedImageSource ?? ""
+          source: body.selectedImageSource ?? "",
+          assetPath: selectedImageAsset?.path ?? "",
+          mimeType: selectedImageAsset?.mimeType ?? "",
+          originalSource: selectedImageAsset?.source ?? ""
+        },
+        annotationContext: {
+          annotations: body.annotations ?? [],
+          annotationCount: Array.isArray(body.annotations) ? body.annotations.length : 0,
+          coordinateSpace: "Image Cockpit canvas coordinates",
+          canvasSize: { width: 920, height: 520 }
         },
         spriteContext: {
           action: body.action ?? "",
-          frames: body.frames ?? 0
+          frames: body.frames ?? 0,
+          grid: body.grid ?? null
         },
         returnTo: {
           outboxDir,
@@ -175,7 +194,8 @@ const server = createServer(async (request, response) => {
         },
         notes: [
           "This app does not call OpenAI APIs directly.",
-          "Codex or the user should perform generation/editing externally and place results in the outbox or import them through the UI."
+          "Codex or the user should perform generation/editing externally and place results in the outbox or import them through the UI.",
+          "Use selectedImage.assetPath when present. Use annotationContext and jobNotes to understand requested edits."
         ]
       };
       const path = join(inboxDir, `${id}.json`);
@@ -199,8 +219,38 @@ server.listen(port, "127.0.0.1", () => {
 async function ensureHandoffDirs() {
   await mkdir(inboxDir, { recursive: true });
   await mkdir(outboxDir, { recursive: true });
+  await mkdir(assetsDir, { recursive: true });
   await mkdir(statusDir, { recursive: true });
   await mkdir(logsDir, { recursive: true });
+}
+
+async function writeSelectedImageAsset(jobId: string, body: CodexJobRequest) {
+  const value = body.selectedImageDataUrl;
+  if (!value) return null;
+
+  const dataUrlMatch = value.match(/^data:([^;,]+);base64,(.+)$/);
+  if (dataUrlMatch) {
+    const mimeType = dataUrlMatch[1];
+    const extension = extensionForMimeType(mimeType);
+    if (!extension) return null;
+    const path = join(assetsDir, `${jobId}-selected${extension}`);
+    await writeFile(path, Buffer.from(dataUrlMatch[2], "base64"));
+    return { path, mimeType, source: "data-url" };
+  }
+
+  if (value.startsWith("/")) {
+    const sourcePath = resolve("public", value.replace(/^\/+/, ""));
+    const root = `${resolve("public")}${sep}`;
+    if (!sourcePath.startsWith(root)) return null;
+    const mimeType = mimeTypeForImage(sourcePath);
+    const extension = extname(sourcePath).toLowerCase();
+    if (!mimeType || !extension) return null;
+    const path = join(assetsDir, `${jobId}-selected${extension}`);
+    await copyFile(sourcePath, path);
+    return { path, mimeType, source: value };
+  }
+
+  return null;
 }
 
 async function startCodexRunner(job: { id: string; createdAt: string; path: string }) {
@@ -315,6 +365,8 @@ function buildCodexRunnerPrompt(job: { id: string; path: string }) {
     "You are processing an Image Cockpit for Codex Workflows handoff job.",
     "",
     `Read this local JSON job file: ${job.path}`,
+    "If the job has selectedImage.assetPath, inspect that source image before editing or generating variants.",
+    "Use jobNotes and annotationContext.annotations as the user's edit instructions.",
     `Write final image result files only into this outbox directory: ${outboxDir}`,
     `Use this filename prefix for returned assets: ${job.id}`,
     "",
@@ -399,6 +451,14 @@ function mimeTypeForImage(name: string) {
   if (extension === ".jpg" || extension === ".jpeg") return "image/jpeg";
   if (extension === ".webp") return "image/webp";
   if (extension === ".gif") return "image/gif";
+  return null;
+}
+
+function extensionForMimeType(mimeType: string) {
+  if (mimeType === "image/png") return ".png";
+  if (mimeType === "image/jpeg") return ".jpg";
+  if (mimeType === "image/webp") return ".webp";
+  if (mimeType === "image/gif") return ".gif";
   return null;
 }
 

@@ -658,6 +658,11 @@ button:disabled {
   grid-template-rows: minmax(0, 1fr);
 }
 
+.simple-cockpit .bench-grid.with-sprite-tuning {
+  grid-template-columns: minmax(0, 1fr) 104px 178px 220px;
+  grid-template-rows: minmax(0, 1fr);
+}
+
 .timeline {
   grid-column: 1 / 4;
   display: flex;
@@ -743,6 +748,15 @@ button:disabled {
 }
 
 .simple-cockpit .export-panel {
+  grid-column: 3;
+  grid-row: 1;
+}
+
+.simple-cockpit .bench-grid.with-sprite-tuning .export-panel {
+  grid-column: 4;
+}
+
+.simple-cockpit .bench-grid.with-sprite-tuning .metadata-panel {
   grid-column: 3;
   grid-row: 1;
 }

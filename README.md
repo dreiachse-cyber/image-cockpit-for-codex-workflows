@@ -13,6 +13,7 @@ Instead, the cockpit writes local handoff jobs for Codex:
 ```text
 codex-handoff/
   inbox/   # JSON jobs created by Image Cockpit
+  assets/  # selected source images copied for a job
   outbox/  # images or metadata returned by Codex/user workflows
 ```
 
@@ -26,7 +27,7 @@ When `IMAGE_COCKPIT_CODEX_AUTORUN=1`, the local handoff server will try to start
 - Import local images or use the included original sample sprite sheet.
 - Select history items and review them on the canvas.
 - Draw annotations with brush, rectangle, or arrow tools.
-- Create a Codex handoff job from the prompt, selected image, and sprite context.
+- Add edit notes, then create a Codex handoff job from the prompt, selected image asset, annotations, workflow, grid, and sprite context.
 - Split a sheet into sprite frames with grid controls.
 - Reorder frames in the timeline and edit action metadata.
 - Run lightweight QC checks for size consistency, transparency, duplicates, and anchor placement.

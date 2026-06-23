@@ -114,6 +114,8 @@ const uiCopy = {
     splitSheet: "Split Sheet",
     addFrame: "Add Frame",
     annotatedPng: "Annotated PNG",
+    jobNotes: "Edit Notes",
+    jobNotesPlaceholder: "What should Codex preserve, fix, crop, split, or export?",
     guidedQuestion: "What do you want to do?",
     guidedIntro: "Choose one workflow. The cockpit will open with the right tools and provider preselected.",
     guidedNote:
@@ -149,6 +151,8 @@ const uiCopy = {
     splitSheet: "シート分割",
     addFrame: "フレーム追加",
     annotatedPng: "注釈PNG",
+    jobNotes: "編集メモ",
+    jobNotesPlaceholder: "Codexに残してほしい点、直してほしい点、切り出し方、出力形式を書きます",
     guidedQuestion: "あなたがしたいのは次のうちどれですか？",
     guidedIntro: "作業したい流れを選ぶと、必要なツールとproviderを選んだ状態でcockpitを開きます。",
     guidedNote:
@@ -250,6 +254,7 @@ function App() {
   const [providers, setProviders] = useState<ProviderStatus[]>(fallbackProviders);
   const [prompt, setPrompt] = useState("Pixel art forest mage, transparent background, 8 directions");
   const [negativePrompt, setNegativePrompt] = useState("blur, text, watermark, cropped feet");
+  const [jobNotes, setJobNotes] = useState("");
   const [seed, setSeed] = useState("24682");
   const [size, setSize] = useState("1024x1024");
   const [count, setCount] = useState(1);
@@ -496,8 +501,10 @@ function App() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          workflowMode,
           prompt,
           negativePrompt,
+          jobNotes,
           seed,
           size,
           count,
@@ -505,6 +512,9 @@ function App() {
           selectedImageName: selected?.name,
           selectedImageSize: selected?.size,
           selectedImageSource: selected?.source,
+          selectedImageDataUrl: selected?.dataUrl,
+          annotations: selected ? annotationsByItem[selected.id] ?? [] : [],
+          grid,
           action: activeAction.name,
           frames: actionFrames.length
         })
@@ -745,6 +755,8 @@ function App() {
   const activeWorkflowCopy = workflowMode ? workflowCopy[language][workflowMode] : null;
   const isWaitingForCodexResult = providerId === "codex-handoff" && Boolean(pendingCodexJob);
   const primaryActionDisabled = isBusy || isWaitingForCodexResult;
+  const showFrameGridControls = SHOW_LOW_PRIORITY_CONTROLS || workflowMode === "sprite-generate" || workflowMode === "sprite-edit";
+  const showSpriteTuningControls = SHOW_LOW_PRIORITY_CONTROLS || workflowMode === "sprite-edit";
 
   if (!workflowMode) {
     return <GuidedStart language={language} onLanguageChange={setLanguage} onSelect={beginWorkflow} />;
@@ -795,6 +807,17 @@ function App() {
           <label className="field">
             <span>Negative Prompt</span>
             <textarea value={negativePrompt} onChange={(event) => setNegativePrompt(event.target.value)} rows={2} />
+          </label>
+          <label className="field">
+            <span>{copy.jobNotes}</span>
+            <textarea
+              value={jobNotes}
+              onChange={(event) => setJobNotes(event.target.value)}
+              rows={3}
+              maxLength={1000}
+              placeholder={copy.jobNotesPlaceholder}
+            />
+            <small>{jobNotes.length} / 1000</small>
           </label>
 
           {SHOW_LOW_PRIORITY_CONTROLS && (
@@ -902,7 +925,7 @@ function App() {
             {copy.splitSheet}
           </button>
 
-          {SHOW_LOW_PRIORITY_CONTROLS && (
+          {showFrameGridControls && (
             <>
               <div className="field-row">
                 <NumberField label="Frame W" value={activeAction.cell.width} onChange={(width) => updateCell(width, activeAction.cell.height)} />
@@ -916,7 +939,11 @@ function App() {
                 <input type="checkbox" checked={showCenter} onChange={(event) => setShowCenter(event.target.checked)} />
                 Show Center
               </label>
+            </>
+          )}
 
+          {showSpriteTuningControls && (
+            <>
               <SectionLabel title="Transparency Cleanup" />
               <label className="field">
                 <span>Key Color</span>
@@ -1094,7 +1121,7 @@ function App() {
             )}
           </div>
 
-          <div className="bench-grid">
+          <div className={`bench-grid ${showSpriteTuningControls ? "with-sprite-tuning" : ""}`}>
             <div className="timeline">
               {actionFrames.map((frame, index) => (
                 <button
@@ -1166,7 +1193,7 @@ function App() {
               </button>
             </div>
 
-            {SHOW_LOW_PRIORITY_CONTROLS && (
+            {showSpriteTuningControls && (
               <div className="metadata-panel">
                 <h3>Metadata</h3>
                 <label>
