@@ -24,6 +24,7 @@ Private release candidate for the first local Image Cockpit MVP.
 - GitHub Actions CI workflow for typecheck, test, build, smoke, and release audit.
 - Local doctor script for required files, handoff folder writability, and Codex command availability.
 - Manual handoff guide for inbox / assets / outbox workflows when `codex exec` is unavailable.
+- Manual handoff status copy now points users back to `Import Latest` after returning an outbox image.
 
 ### Notes
 
