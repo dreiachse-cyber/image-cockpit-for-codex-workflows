@@ -22,6 +22,7 @@ const requiredFiles = [
   "docs/release/v0.1.0-checklist.md",
   "docs/release/v0.1.0-runbook.md",
   "docs/release/v0.1.0-release-notes.md",
+  "docs/release/v0.1.0-acceptance-evidence.md",
   "docs/usage/manual-handoff.md",
   "docs/demo/mvp-demo.gif"
 ];
@@ -41,6 +42,7 @@ const requiredPackageScripts = ["doctor", "typecheck", "test", "build", "smoke",
 const requiredReadmeLinks = [
   "CHANGELOG.md",
   "docs/release/v0.1.0-release-notes.md",
+  "docs/release/v0.1.0-acceptance-evidence.md",
   "docs/release/v0.1.0-checklist.md",
   "docs/release/v0.1.0-runbook.md",
   "docs/usage/manual-handoff.md",
@@ -242,8 +244,9 @@ function checkReleaseDocs() {
   const checklist = readText("docs/release/v0.1.0-checklist.md");
   const runbook = readText("docs/release/v0.1.0-runbook.md");
   const releaseNotes = readText("docs/release/v0.1.0-release-notes.md");
+  const acceptanceEvidence = readText("docs/release/v0.1.0-acceptance-evidence.md");
   const manualHandoff = readText("docs/usage/manual-handoff.md");
-  if (!readme || !checklist || !runbook || !releaseNotes || !manualHandoff) return;
+  if (!readme || !checklist || !runbook || !releaseNotes || !acceptanceEvidence || !manualHandoff) return;
 
   requiredReadmeLinks.forEach((link) => {
     if (!readme.includes(link)) {
@@ -280,6 +283,22 @@ function checkReleaseDocs() {
   ].forEach((line) => {
     if (!releaseNotes.includes(line)) {
       failures.push(`Release notes draft is missing expected content: ${line}`);
+    }
+  });
+
+  [
+    "Image generation",
+    "Image editing",
+    "Sprite sheet generation",
+    "Sprite sheet editing",
+    "Local-first boundary",
+    "Manual handoff fallback",
+    "Remaining Gates",
+    "codex exec",
+    "npm run smoke"
+  ].forEach((line) => {
+    if (!acceptanceEvidence.includes(line)) {
+      failures.push(`Acceptance evidence is missing expected content: ${line}`);
     }
   });
 

@@ -25,6 +25,7 @@ Private release candidate for the first local Image Cockpit MVP.
 - Local doctor script for required files, handoff folder writability, and Codex command availability.
 - Manual handoff guide for inbox / assets / outbox workflows when `codex exec` is unavailable.
 - Manual handoff status copy now points users back to `Import Latest` after returning an outbox image.
+- v0.1.0 acceptance evidence mapping the four primary workflows, local-first boundary, manual handoff path, and release gates to review artifacts.
 
 ### Notes
 
