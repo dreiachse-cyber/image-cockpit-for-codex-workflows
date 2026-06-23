@@ -18,6 +18,7 @@ const requiredFiles = [
   "scripts/doctor.mjs",
   "scripts/release-audit.mjs",
   "scripts/real-codex-runner-smoke.mjs",
+  "scripts/real-imagegen-smoke.mjs",
   "scripts/ui-smoke.mjs",
   "src/App.test.ts",
   "docs/review/mvp-review-report.md",
@@ -35,7 +36,8 @@ const requiredFiles = [
   "docs/qa/simple-image-generate-import-latest-mobile-390x844.png",
   "docs/qa/simple-sprite-generate-actions-1280x720.png",
   "docs/qa/manual-handoff-import-latest-1280x720.png",
-  "docs/qa/real-codex-runner-smoke.md"
+  "docs/qa/real-codex-runner-smoke.md",
+  "docs/qa/imagegen-handoff-smoke.md"
 ];
 
 const requiredEnvKeys = [
@@ -59,6 +61,7 @@ const requiredPackageScripts = [
   "smoke",
   "ui:smoke",
   "codex:smoke",
+  "imagegen:smoke",
   "release:audit",
   "verify",
   "review:local"
@@ -82,6 +85,7 @@ const requiredReadmeLinks = [
   "docs/release/v0.1.0-checklist.md",
   "docs/release/v0.1.0-runbook.md",
   "docs/usage/manual-handoff.md",
+  "docs/qa/imagegen-handoff-smoke.md",
   ".github/workflows/ci.yml",
   "LICENSE",
   "CONTRIBUTING.md",
@@ -252,6 +256,7 @@ function checkWorkflowIds() {
     "Pixel Art Generation",
     "Animation Generation",
     "Start screen should show two workflow options",
+    "Route: Codex Handoff",
     "Route: Local Generator",
     "Generate Pixel Art",
     "Generate Animation",
@@ -276,6 +281,32 @@ function checkWorkflowIds() {
   ].forEach((marker) => {
     if (!realCodexSmokeText.includes(marker)) {
       failures.push(`Real Codex runner smoke should cover installed runner completion: ${marker}`);
+    }
+  });
+
+  const realImagegenSmokeText = readText("scripts/real-imagegen-smoke.mjs");
+  [
+    "Real imagegen smoke passed.",
+    "IMAGE_COCKPIT_IMAGEGEN_SMOKE_KEEP",
+    "IMAGE_COCKPIT_IMAGEGEN_SMOKE_TIMEOUT_MS",
+    "built-in image generation path",
+    "Do not create a placeholder image",
+    "Returned PNG should be larger than a placeholder"
+  ].forEach((marker) => {
+    if (!realImagegenSmokeText?.includes(marker)) {
+      failures.push(`Real imagegen smoke should cover prompt-only imagegen completion: ${marker}`);
+    }
+  });
+
+  const serverText = readText("server/index.ts");
+  [
+    "imagegen skill default built-in image generation path",
+    "never a procedural placeholder",
+    "If the first result contains unwanted text or numbers, retry once",
+    "write a short Markdown or JSON sidecar"
+  ].forEach((marker) => {
+    if (!serverText?.includes(marker)) {
+      failures.push(`Server should preserve imagegen handoff instructions: ${marker}`);
     }
   });
 

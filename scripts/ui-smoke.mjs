@@ -7,6 +7,8 @@ import { delimiter, join } from "node:path";
 
 const nodeCommand = process.execPath;
 const browserCommand = process.env.IMAGE_COCKPIT_BROWSER_COMMAND || findBrowserCommand();
+const tinyPng =
+  "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII=";
 
 if (!browserCommand) {
   console.error("UI smoke requires Chrome or Edge. Set IMAGE_COCKPIT_BROWSER_COMMAND to a browser executable.");
@@ -61,6 +63,20 @@ try {
     source: `
       localStorage.setItem("image-cockpit.language", "en");
       localStorage.removeItem("image-cockpit.pendingCodexJob");
+      localStorage.setItem("image-cockpit.v3.history", JSON.stringify([{
+        id: "ui-smoke-source",
+        name: "ui-smoke-source.png",
+        dataUrl: ${JSON.stringify(tinyPng)},
+        provider: "local-file",
+        prompt: "UI smoke source pixel art",
+        seed: "ui-smoke",
+        size: "1x1",
+        createdAt: new Date().toISOString(),
+        adopted: false,
+        source: "import"
+      }]));
+      localStorage.removeItem("image-cockpit.v3.frames");
+      localStorage.removeItem("image-cockpit.v3.actions");
     `
   });
   await cdp.send("Page.navigate", { url: `http://127.0.0.1:${vitePort}/` });
@@ -71,11 +87,11 @@ try {
   await assertWorkflow({
     index: 0,
     label: "Pixel Art Generation",
-    route: "Route: Local Generator",
+    route: "Route: Codex Handoff",
     buttons: ["Generate Pixel Art", "Import Latest", "Import File"],
     requiredText: ["Pixel Art Prompt", "Generation Notes", "Preview"],
     exerciseButton: "Generate Pixel Art",
-    expectedAfterExercise: "Generated locally"
+    expectedAfterExercise: "Codex job written"
   });
   await assertWorkflow({
     index: 1,

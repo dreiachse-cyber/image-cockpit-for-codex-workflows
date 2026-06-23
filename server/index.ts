@@ -354,7 +354,7 @@ function workflowIntent(mode: CodexWorkflowMode) {
   if (mode === "sprite-edit") {
     return "Ask local Codex to revise sprite-sheet frames or metadata when available, or record sprite edit context for manual handoff.";
   }
-  return "Ask local Codex to generate a new image from the prompt, then return image files to the outbox.";
+  return "Ask local Codex to use imagegen / built-in image_gen to generate a real pixel-art image from the prompt, then return image files to the outbox.";
 }
 
 function workflowNotes(mode: CodexWorkflowMode) {
@@ -371,6 +371,12 @@ function workflowNotes(mode: CodexWorkflowMode) {
     ];
   }
   return [
+    "For prompt-only pixel art generation, use the imagegen skill default built-in image generation path when it is available.",
+    "Use the job prompt as the creative brief. Interpret complex prompts literally and preserve concrete subject, style, palette, composition, and production constraints.",
+    "Create a real raster image. Do not create a procedural placeholder, SVG, diagram, or text-only result.",
+    "Avoid readable text, logos, watermarks, labels, UI words, and numbers unless the user explicitly asks for them.",
+    "If the first result contains unwanted text or numbers, retry once with stricter no-text/no-number constraints.",
+    "Write the final image with the job id prefix, and write a short Markdown or JSON sidecar that states whether image_gen was used.",
     "This is a text-to-image style generation job. Do not treat the current UI sample image as a source image unless selectedImage.assetPath is populated.",
     "Use prompt, negativePrompt, generationHints, and jobNotes as the generation brief."
   ];
@@ -696,6 +702,8 @@ function buildCodexRunnerPrompt(job: { id: string; path: string }) {
     `Read this local JSON job file: ${job.path}`,
     "If selectedImage.assetPath is populated, inspect that source image before editing it.",
     "If selectedImage.assetPath is empty, treat the job as prompt-only unless the job notes say otherwise.",
+    "For workflowMode=image-generate, use the imagegen skill default built-in image generation path with built-in image_gen when available. Create a real raster image from the job prompt, never a procedural placeholder or SVG.",
+    "For workflowMode=image-generate, if image generation is unavailable, write only a small blocker sidecar into the outbox and do not create a fake image.",
     "Use jobNotes, annotationContext, and spriteContext only when those fields are populated for the workflow.",
     `Write final image result files only into this outbox directory: ${outboxDir}`,
     `Use this filename prefix for returned assets: ${job.id}`,

@@ -4,14 +4,16 @@
 
 ### Added
 
-- Built-in local procedural PNG generator for the pixel art generation workflow.
+- Pixel art generation now routes to local Codex handoff so `codex exec` can use imagegen / built-in `image_gen` for real prompt-only images.
+- Built-in local procedural PNG generator kept as a fallback/dev verification path.
 - Pixel-art-to-animation generation workflow that requires an uploaded or selected pixel-art source, then creates an animation sheet and immediate timeline frames.
 - Two-choice start screen focused on pixel art generation and animation generation, with editing workflows deferred from the primary UI.
 - `POST /api/generate` local generation endpoint and smoke coverage that checks generated PNG dimensions.
+- Optional real imagegen smoke through `npm run imagegen:smoke`.
 
 ### Notes
 
-- The built-in generator is local and deterministic so pixel art generation and animation generation can run end-to-end without external services. It is not a dedicated AI image model.
+- The built-in generator is local and deterministic so fallback image routes and animation generation can run end-to-end without external services. Pixel art image quality depends on the local Codex imagegen path.
 
 ## 0.1.0-rc.1 - 2026-06-23
 

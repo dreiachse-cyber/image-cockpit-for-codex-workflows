@@ -172,7 +172,7 @@ const uiCopy = {
     guidedQuestion: "Choose what to make",
     guidedIntro: "Pixel art first, then animation from a selected pixel-art source.",
     guidedNote:
-      "No direct OpenAI API calls. Images can be generated locally, while Codex handoff jobs stay available for external processing."
+      "No direct OpenAI API calls from this app. Pixel art generation uses the local Codex handoff, and animation generation runs from a selected pixel-art source."
   },
   ja: {
     language: "言語",
@@ -258,7 +258,7 @@ const uiCopy = {
     guidedQuestion: "作りたいものを選んでください",
     guidedIntro: "まずピクセルアートを作り、選択したピクセルアートからアニメーションを生成します。",
     guidedNote:
-      "このアプリはOpenAI APIを直接呼びません。画像はローカル生成でき、Codex受け渡しも外部処理用に残しています。"
+      "このアプリ自体はOpenAI APIを直接呼びません。ピクセルアート生成はローカルCodex受け渡し、アニメーション生成は選択済みピクセルアートから行います。"
   }
 } satisfies Record<Language, Record<string, string>>;
 
@@ -266,8 +266,8 @@ const workflowCopy: Record<Language, Record<WorkflowMode, { label: string; detai
   en: {
     "image-generate": {
       label: "Pixel Art Generation",
-      detail: "Generate a local PNG from a prompt and add it to the cockpit.",
-      status: "Generate pixel art from the prompt"
+      detail: "Send the prompt to local Codex imagegen and return the generated image to the cockpit.",
+      status: "Generate pixel art through the local Codex imagegen handoff"
     },
     "image-edit": {
       label: "2. Image Editing",
@@ -288,8 +288,8 @@ const workflowCopy: Record<Language, Record<WorkflowMode, { label: string; detai
   ja: {
     "image-generate": {
       label: "ピクセルアートの生成",
-      detail: "プロンプトからローカルPNGを生成し、cockpitへ追加します。",
-      status: "プロンプトからピクセルアートを生成します"
+      detail: "プロンプトをローカルCodex imagegenへ渡し、生成画像をcockpitへ戻します。",
+      status: "ローカルCodex imagegen受け渡しでピクセルアートを生成します"
     },
     "image-edit": {
       label: "2. 画像編集",
@@ -387,7 +387,7 @@ const workflowOptions: Array<{
 }> = [
   {
     id: "image-generate",
-    provider: "local-generator"
+    provider: "codex-handoff"
   },
   {
     id: "sprite-generate",
@@ -1584,6 +1584,7 @@ function primaryActionLabel(
   if (providerId === "local-generator" && workflowMode === "sprite-generate") return copy.generateLocalSprite;
   if (providerId === "local-generator") return copy.generateLocalImage;
   if (providerId === "codex-handoff" && isWaitingForCodexResult) return copy.waitingForCodexResult;
+  if (providerId === "codex-handoff" && workflowMode === "image-generate") return copy.generateLocalImage;
   if (providerId === "codex-handoff") return copy.createCodexJob;
   if (providerId === "local-inbox") return copy.importLatest;
   return copy.importFile;

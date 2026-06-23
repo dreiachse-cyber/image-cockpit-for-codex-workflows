@@ -116,10 +116,18 @@ async function runManualHandoffSmoke() {
     });
     const generateJobJson = JSON.parse(await readFile(generateJob.path, "utf8"));
     assert(generateJobJson.workflowMode === "image-generate", "generation job should include workflowMode");
-    assert(generateJobJson.intent.includes("generate a new image"), "generation job should include generation intent");
+    assert(generateJobJson.intent.includes("imagegen"), "generation job should include imagegen generation intent");
     assert(!generateJobJson.selectedImage.assetPath, "generation job should not attach the current selected image");
     assert(generateJobJson.annotationContext.annotationCount === 0, "generation job should not carry edit annotations");
     assert(generateJobJson.spriteContext.frames === 0, "generation job should not carry sprite context");
+    assert(
+      generateJobJson.notes.some((note) => note.includes("built-in image generation path")),
+      "generation job should instruct Codex to use the imagegen built-in image generation path"
+    );
+    assert(
+      generateJobJson.notes.some((note) => note.includes("Do not create a procedural placeholder")),
+      "generation job should forbid procedural placeholder images"
+    );
 
     const spriteGenerateJob = await postJson(port, "/api/codex/jobs", {
       workflowMode: "sprite-generate",
@@ -349,6 +357,11 @@ for await (const chunk of process.stdin) {
 if (!stdin.includes("Image Cockpit for Codex Workflows")) {
   console.error("missing Image Cockpit prompt");
   process.exit(2);
+}
+
+if (!stdin.includes("imagegen") || !stdin.includes("never a procedural placeholder")) {
+  console.error("missing imagegen runner instructions");
+  process.exit(5);
 }
 
 const jobId = process.env.IMAGE_COCKPIT_JOB_ID;

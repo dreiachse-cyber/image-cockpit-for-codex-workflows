@@ -23,7 +23,8 @@
 すでにできていること:
 
 - スタート画面で、ピクセルアート生成 / アニメーション生成の2択から開始できる
-- ピクセルアート生成では、内蔵ローカル生成器でPNGを生成してhistoryへ即時追加できる
+- ピクセルアート生成では、`Codex Handoff` から `codex exec` -> `imagegen` skill / built-in `image_gen` を使い、複雑promptから実画像PNGをoutboxへ返せることを確認済み
+- 内蔵ローカル生成器は、開発・fallback・smoke用の決定的PNG生成として残している
 - アニメーション生成では、アップロードまたは選択済みのピクセルアートを必須sourceとして、8フレームのanimation sheetを生成しtimeline frameへ即時分割できる
 - 低優先の細かいUIと編集機能は既定非表示にし、2つの主操作が先に見えるシンプル画面へ戻している
 - 日本語 / English の言語切り替えをグローバルヘッダーから選べ、2つの中核操作ラベルが選択言語に追従する
@@ -46,9 +47,10 @@
 - `npm run doctor` でローカルhandoff folderとCodex command availabilityを診断できる
 - Windowsでは `%LOCALAPPDATA%\OpenAI\Codex\bin\...\codex.exe` のterminal-runnable Codex CLIを自動発見し、WindowsApps desktop shimのsubprocess制限を避けられる
 - `npm run verify` でdoctor / typecheck / test / build / smoke / release auditを一括実行できる
-- `npm run smoke` でmanual handoffに加え、mock autorun runnerの `ready -> running -> completed -> outbox PNG import` を確認できる
-- `npm run ui:smoke` で2択スタート画面、ピクセルアート生成、アニメーション生成、言語切替をheadless browserで確認できる
+- `npm run smoke` でmanual handoff、imagegen handoff指示、mock autorun runnerの `ready -> running -> completed -> outbox PNG import` を確認できる
+- `npm run ui:smoke` で2択スタート画面、`ピクセルアート生成 -> Codex Handoff job作成`、`アニメーション生成 -> local animation生成`、言語切替をheadless browserで確認できる
 - `npm run codex:smoke` で実Codex CLIのno-image handoff完走を再実行できる
+- `npm run imagegen:smoke` で実Codex CLIのprompt-only imagegen画像生成を任意再実行できる
 - `npm run review:local` でrelease verification、browser workflow smoke、実Codex runner smokeをまとめて確認できる
 - 実Codex CLIでもno-image runner smokeが完走し、outboxへMarkdown sidecarを書けることを確認済み
 - `docs/usage/manual-handoff.md` で `codex exec` が使えない環境の手動受け渡し手順を確認できる
@@ -61,7 +63,7 @@
 
 1. ローカルで迷わず起動できる
 2. スタート画面から2つの中核ワークフローへ目的別に入れる
-3. ピクセルアート生成: promptからPNGを生成してhistoryへ追加できる
+3. ピクセルアート生成: promptからCodex imagegen経由でPNGを生成し、outbox / Import Latest / historyへ戻せる
 4. アニメーション生成: ピクセルアートsourceを必須にし、animation sheetとtimeline framesを生成できる
 5. スプライトシート: アニメーション生成の過程で生成され、PNG / ZIP / GIF / metadataを書き出せる
 6. 編集機能は初期導線から外し、後続フェーズへ回す
@@ -74,7 +76,7 @@
 | フェーズ | 目的 | 完了条件 | ご主人の確認ポイント |
 | --- | --- | --- | --- |
 | Phase 0: MVP骨格 | 触れるコクピットを作る | local handoff、history、sprite exportが動く | 入口と目的が分かるか |
-| Phase 1: ピクセルアート生成 | promptからピクセルアートを作る | PNG生成、history反映、確認が通る | 生成結果が素材として使えそうか |
+| Phase 1: ピクセルアート生成 | promptからピクセルアートを作る | Codex imagegen経由のPNG生成、outbox返却、history反映、確認が通る | 生成結果が素材として使えそうか |
 | Phase 2: アニメーション生成 | ピクセルアートsourceから動きを作る | upload/source必須、animation sheet、timeline frames、exportまで通る | ゲーム素材化の最短導線が分かるか |
 | Phase 3: レビュー可能MVP | 初回レビューで迷わない状態にする | README、roadmap、demo capture plan、QA証跡、検証コマンドが揃う | 何を見ればよいか分かるか |
 | Phase 4: v0.1.0候補 | privateのままrelease候補にする | 既知のP0/P1バグなし、スクショ/短いdemo、tag前確認 | public化してよい品質か |
@@ -83,20 +85,21 @@
 
 ## 直近の実装順
 
-1. ピクセルアート生成とアニメーション生成のローカル実生成を、UIとsmokeで確認する
+1. ピクセルアート生成はCodex imagegen経由、アニメーション生成は選択sourceからのローカル生成として、UIとsmokeで確認する
 2. ご主人が生成結果の質感と導線を触って確認する
 3. 次に外部AI画像モデルadapter、またはアニメーションpreset追加の方針を決める
-4. 選択されたCodex launch commandで、実際の `codex exec` no-image job自動完走は確認済み。AI画像生成/編集可否はCodex環境ごとに確認する
+4. 選択されたCodex launch commandで、実際の `codex exec` no-image job自動完走とprompt-only imagegen画像生成は確認済み。画像編集/annotation編集/sprite sheet整合は次QAで確認する
 
 ## ご主人がレビューするときの見方
 
 1. `npm run dev:all` で起動する
 2. Codexが入ったレビュー機では `npm run review:local` を通す
 3. スタート画面の2択が分かりやすいか見る
-4. `ピクセルアートの生成` でローカル生成PNGがhistoryへ追加されるか見る
-5. `アニメーションの生成` でピクセルアートsource必須になっており、生成後にanimation sheetとtimeline frameができるか見る
-6. 必要に応じて `Codex Handoff` でjobを作り、`codex-handoff/inbox/*.json` とrunner status/logsを確認する
-7. PNG / ZIP / GIF / metadataを書き出す
+4. `ピクセルアートの生成` で `Codex Handoff` routeになり、複雑promptからoutboxへPNGが返るか見る
+5. `Import Latest` または自動取り込みで生成PNGがhistoryへ追加されるか見る
+6. `アニメーションの生成` でピクセルアートsource必須になっており、生成後にanimation sheetとtimeline frameができるか見る
+7. 必要に応じて `codex-handoff/inbox/*.json` とrunner status/logsを確認する
+8. PNG / ZIP / GIF / metadataを書き出す
 
 ## まだやらないこと
 
