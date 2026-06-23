@@ -57,6 +57,7 @@ const SAMPLE_URL = "/samples/forest-mage-sheet.png";
 const CANVAS_WIDTH = 920;
 const CANVAS_HEIGHT = 520;
 const LANGUAGE_STORAGE_KEY = "image-cockpit.language";
+const PENDING_CODEX_JOB_STORAGE_KEY = "image-cockpit.pendingCodexJob";
 const SHOW_LOW_PRIORITY_CONTROLS = false;
 
 type Language = "ja" | "en";
@@ -67,6 +68,18 @@ const languageOptions: Array<{ id: Language; label: string }> = [
 ];
 
 type WorkflowMode = "image-generate" | "image-edit" | "sprite-generate" | "sprite-edit";
+
+interface PendingCodexJob {
+  id: string;
+  path: string;
+  createdAt: string;
+}
+
+interface ImportLatestOptions {
+  background?: boolean;
+  newerThan?: string;
+  quietEmpty?: boolean;
+}
 
 const uiCopy = {
   en: {
@@ -83,7 +96,9 @@ const uiCopy = {
     statusInboxEmpty: "No image files found in the Codex outbox",
     statusInboxImported: "Imported from Local Inbox",
     statusInboxError: "Could not import from Local Inbox",
+    statusCodexJobPending: "Waiting for Codex to return an image",
     createCodexJob: "Create Codex Job",
+    waitingForCodexResult: "Waiting for Codex Result",
     importLatest: "Import Latest",
     importFile: "Import File",
     currentWorkflow: "Current workflow",
@@ -113,7 +128,9 @@ const uiCopy = {
     statusInboxEmpty: "Codex outboxに画像ファイルが見つかりません",
     statusInboxImported: "Local Inboxから取り込みました",
     statusInboxError: "Local Inboxから取り込めませんでした",
+    statusCodexJobPending: "Codexから画像が戻るのを待っています",
     createCodexJob: "Codexジョブ作成",
+    waitingForCodexResult: "Codex結果待ち",
     importLatest: "最新を取り込み",
     importFile: "ファイル取り込み",
     currentWorkflow: "現在のワークフロー",
@@ -240,6 +257,7 @@ function App() {
   const [chromaTolerance, setChromaTolerance] = useState(32);
   const [status, setStatus] = useState("All changes saved locally");
   const [isBusy, setIsBusy] = useState(false);
+  const [pendingCodexJob, setPendingCodexJob] = useState<PendingCodexJob | null>(() => loadPendingCodexJob());
   const [gifPreviewUrl, setGifPreviewUrl] = useState("");
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -278,6 +296,7 @@ function App() {
   useEffect(() => saveFrames(frames), [frames]);
   useEffect(() => saveActions(actions), [actions]);
   useEffect(() => saveLanguage(language), [language]);
+  useEffect(() => savePendingCodexJob(pendingCodexJob), [pendingCodexJob]);
 
   useEffect(() => {
     fetch("/api/providers")
@@ -327,6 +346,29 @@ function App() {
       cancelled = true;
     };
   }, [activeAction, actionFrames.length, frames]);
+
+  useEffect(() => {
+    if (!pendingCodexJob) return;
+    let cancelled = false;
+
+    const pollForReturnedImage = async () => {
+      const imported = await importLatestOutboxResult({
+        background: true,
+        newerThan: pendingCodexJob.createdAt,
+        quietEmpty: true
+      });
+      if (!cancelled && !imported) {
+        setStatus(`${copy.statusCodexJobPending}: ${pendingCodexJob.id}`);
+      }
+    };
+
+    void pollForReturnedImage();
+    const intervalId = window.setInterval(() => void pollForReturnedImage(), 5000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(intervalId);
+    };
+  }, [pendingCodexJob?.id, pendingCodexJob?.createdAt, language]);
 
   async function seedSampleWorkspace() {
     const image = await loadImage(SAMPLE_URL);
@@ -416,6 +458,10 @@ function App() {
   }
 
   async function handleGenerate() {
+    if (providerId === "codex-handoff" && pendingCodexJob) {
+      setStatus(`${copy.statusCodexJobPending}: ${pendingCodexJob.id}`);
+      return;
+    }
     if (providerId === "local-file") {
       setStatus(`${providerLabel(providerId, language)} ${copy.statusUsesImport}`);
       fileInputRef.current?.click();
@@ -446,7 +492,8 @@ function App() {
       });
       if (!response.ok) throw new Error(await response.text());
       const data = (await response.json()) as CodexJobResponse;
-      setStatus(`${copy.statusCodexJobWritten}: ${data.path}`);
+      setPendingCodexJob({ id: data.id, path: data.path, createdAt: data.createdAt });
+      setStatus(`${copy.statusCodexJobWritten}: ${data.path}. ${copy.statusCodexJobPending}.`);
     } catch (error) {
       setStatus(error instanceof Error ? error.message : copy.statusCodexJobError);
     } finally {
@@ -454,16 +501,17 @@ function App() {
     }
   }
 
-  async function importLatestOutboxResult() {
-    setIsBusy(true);
+  async function importLatestOutboxResult(options: ImportLatestOptions = {}) {
+    if (!options.background) setIsBusy(true);
     try {
       const listResponse = await fetch("/api/codex/results");
       if (!listResponse.ok) throw new Error(await listResponse.text());
       const listData = (await listResponse.json()) as { outboxPath: string; results: CodexOutboxResult[] };
-      const latest = listData.results[0];
+      const newerThanTime = options.newerThan ? Date.parse(options.newerThan) : Number.NEGATIVE_INFINITY;
+      const latest = listData.results.find((result) => Date.parse(result.modifiedAt) >= newerThanTime);
       if (!latest) {
-        setStatus(`${copy.statusInboxEmpty}: ${listData.outboxPath}`);
-        return;
+        if (!options.quietEmpty) setStatus(`${copy.statusInboxEmpty}: ${listData.outboxPath}`);
+        return false;
       }
 
       const importResponse = await fetch(`/api/codex/results/${encodeURIComponent(latest.name)}`);
@@ -484,11 +532,16 @@ function App() {
       };
       setHistory((current) => [item, ...current]);
       setSelectedId(item.id);
+      if (pendingCodexJob && Date.parse(latest.modifiedAt) >= Date.parse(pendingCodexJob.createdAt)) {
+        setPendingCodexJob(null);
+      }
       setStatus(`${copy.statusInboxImported}: ${imported.name}`);
+      return true;
     } catch (error) {
-      setStatus(error instanceof Error ? error.message : copy.statusInboxError);
+      if (!options.background) setStatus(error instanceof Error ? error.message : copy.statusInboxError);
+      return false;
     } finally {
-      setIsBusy(false);
+      if (!options.background) setIsBusy(false);
     }
   }
 
@@ -667,6 +720,8 @@ function App() {
 
   const codexProvider = providers.find((provider) => provider.id === "codex-handoff");
   const activeWorkflowCopy = workflowMode ? workflowCopy[language][workflowMode] : null;
+  const isWaitingForCodexResult = providerId === "codex-handoff" && Boolean(pendingCodexJob);
+  const primaryActionDisabled = isBusy || isWaitingForCodexResult;
 
   if (!workflowMode) {
     return <GuidedStart language={language} onLanguageChange={setLanguage} onSelect={beginWorkflow} />;
@@ -760,9 +815,9 @@ function App() {
           )}
 
           <div className="button-row">
-            <button className="primary-button" onClick={() => void handleGenerate()} disabled={isBusy}>
-              <PrimaryActionIcon providerId={providerId} isBusy={isBusy} />
-              {primaryActionLabel(providerId, copy)}
+            <button className="primary-button" onClick={() => void handleGenerate()} disabled={primaryActionDisabled}>
+              <PrimaryActionIcon providerId={providerId} isBusy={isBusy || isWaitingForCodexResult} />
+              {primaryActionLabel(providerId, copy, isWaitingForCodexResult)}
             </button>
             <button className="secondary-button" onClick={() => fileInputRef.current?.click()}>
               <Upload size={17} aria-hidden="true" />
@@ -1175,7 +1230,8 @@ function PrimaryActionIcon({ providerId, isBusy }: { providerId: ProviderId; isB
   return <ImagePlus size={17} aria-hidden="true" />;
 }
 
-function primaryActionLabel(providerId: ProviderId, copy: Record<string, string>) {
+function primaryActionLabel(providerId: ProviderId, copy: Record<string, string>, isWaitingForCodexResult = false) {
+  if (providerId === "codex-handoff" && isWaitingForCodexResult) return copy.waitingForCodexResult;
   if (providerId === "codex-handoff") return copy.createCodexJob;
   if (providerId === "local-inbox") return copy.importLatest;
   return copy.importFile;
@@ -1426,6 +1482,29 @@ function saveLanguage(language: Language) {
     window.localStorage.setItem(LANGUAGE_STORAGE_KEY, language);
   } catch {
     // The selector still works for the current session if storage is unavailable.
+  }
+}
+
+function loadPendingCodexJob(): PendingCodexJob | null {
+  try {
+    const stored = window.localStorage.getItem(PENDING_CODEX_JOB_STORAGE_KEY);
+    if (!stored) return null;
+    const job = JSON.parse(stored) as PendingCodexJob;
+    return job?.id && job.path && job.createdAt ? job : null;
+  } catch {
+    return null;
+  }
+}
+
+function savePendingCodexJob(job: PendingCodexJob | null) {
+  try {
+    if (job) {
+      window.localStorage.setItem(PENDING_CODEX_JOB_STORAGE_KEY, JSON.stringify(job));
+      return;
+    }
+    window.localStorage.removeItem(PENDING_CODEX_JOB_STORAGE_KEY);
+  } catch {
+    // Pending state is best-effort; the current session still keeps the button locked.
   }
 }
 
