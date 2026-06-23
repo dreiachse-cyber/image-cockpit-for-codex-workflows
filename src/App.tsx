@@ -57,6 +57,7 @@ const SAMPLE_URL = "/samples/forest-mage-sheet.png";
 const CANVAS_WIDTH = 920;
 const CANVAS_HEIGHT = 520;
 const LANGUAGE_STORAGE_KEY = "image-cockpit.language";
+const SHOW_LOW_PRIORITY_CONTROLS = false;
 
 type Language = "ja" | "en";
 
@@ -85,6 +86,14 @@ const uiCopy = {
     createCodexJob: "Create Codex Job",
     importLatest: "Import Latest",
     importFile: "Import File",
+    currentWorkflow: "Current workflow",
+    selectedProvider: "Route",
+    results: "Results",
+    spriteActions: "Sprite Actions",
+    exportSprite: "Export Sprite",
+    splitSheet: "Split Sheet",
+    addFrame: "Add Frame",
+    annotatedPng: "Annotated PNG",
     guidedQuestion: "What do you want to do?",
     guidedIntro: "Choose one workflow. The cockpit will open with the right tools and provider preselected.",
     guidedNote:
@@ -107,6 +116,14 @@ const uiCopy = {
     createCodexJob: "Codexジョブ作成",
     importLatest: "最新を取り込み",
     importFile: "ファイル取り込み",
+    currentWorkflow: "現在のワークフロー",
+    selectedProvider: "受け渡し先",
+    results: "結果",
+    spriteActions: "スプライト動作",
+    exportSprite: "スプライト書き出し",
+    splitSheet: "シート分割",
+    addFrame: "フレーム追加",
+    annotatedPng: "注釈PNG",
     guidedQuestion: "あなたがしたいのは次のうちどれですか？",
     guidedIntro: "作業したい流れを選ぶと、必要なツールとproviderを選んだ状態でcockpitを開きます。",
     guidedNote:
@@ -649,6 +666,7 @@ function App() {
   }
 
   const codexProvider = providers.find((provider) => provider.id === "codex-handoff");
+  const activeWorkflowCopy = workflowMode ? workflowCopy[language][workflowMode] : null;
 
   if (!workflowMode) {
     return <GuidedStart language={language} onLanguageChange={setLanguage} onSelect={beginWorkflow} />;
@@ -660,7 +678,7 @@ function App() {
         <div className="brand">
           <Grid3X3 size={18} aria-hidden="true" />
           <strong>Image Cockpit for Codex Workflows</strong>
-          <span>Sprite Bench</span>
+          <span>{activeWorkflowCopy?.label}</span>
           <small>v0.1.0</small>
         </div>
         <div className="project-strip">
@@ -668,24 +686,28 @@ function App() {
           <button className="guided-link" onClick={() => setWorkflowMode(null)}>
             {copy.guidedStart}
           </button>
-          <span>{copy.project}</span>
-          <button className="icon-button" title={copy.openWorkspace}>
-            <FolderOpen size={18} aria-hidden="true" />
-          </button>
-          <button className="icon-button" title={copy.settings}>
-            <Settings size={18} aria-hidden="true" />
-          </button>
+          {SHOW_LOW_PRIORITY_CONTROLS && (
+            <>
+              <span>{copy.project}</span>
+              <button className="icon-button" title={copy.openWorkspace}>
+                <FolderOpen size={18} aria-hidden="true" />
+              </button>
+              <button className="icon-button" title={copy.settings}>
+                <Settings size={18} aria-hidden="true" />
+              </button>
+            </>
+          )}
         </div>
       </header>
 
-      <main className="cockpit">
+      <main className={`cockpit ${SHOW_LOW_PRIORITY_CONTROLS ? "" : "simple-cockpit"}`}>
         <aside className="panel source-panel">
-          <PanelTitle index="1" title="Source & Prompt" />
-          <div className="tabs">
-            <button className="tab active">Prompt</button>
-            <button className="tab" onClick={() => fileInputRef.current?.click()}>
-              Import
-            </button>
+          <PanelTitle index="1" title="Workflow" />
+          <div className="workflow-summary">
+            <small>{copy.currentWorkflow}</small>
+            <strong>{activeWorkflowCopy?.label}</strong>
+            <span>{activeWorkflowCopy?.detail}</span>
+            <em>{copy.selectedProvider}: {providerLabel(providerId, language)}</em>
           </div>
           <label className="field">
             <span>Prompt</span>
@@ -697,41 +719,45 @@ function App() {
             <textarea value={negativePrompt} onChange={(event) => setNegativePrompt(event.target.value)} rows={2} />
           </label>
 
-          <div className="field-row">
-            <label className="field">
-              <span>Seed</span>
-              <input value={seed} onChange={(event) => setSeed(event.target.value)} />
-            </label>
-            <label className="field">
-              <span>Count</span>
-              <input
-                type="number"
-                min={1}
-                max={4}
-                value={count}
-                onChange={(event) => setCount(Number(event.target.value))}
-              />
-            </label>
-          </div>
-          <div className="field-row">
-            <label className="field">
-              <span>Size</span>
-              <select value={size} onChange={(event) => setSize(event.target.value)}>
-                <option>1024x1024</option>
-                <option>1536x1024</option>
-                <option>1024x1536</option>
-              </select>
-            </label>
-            <label className="field">
-              <span>Quality</span>
-              <select value={quality} onChange={(event) => setQuality(event.target.value)}>
-                <option>auto</option>
-                <option>low</option>
-                <option>medium</option>
-                <option>high</option>
-              </select>
-            </label>
-          </div>
+          {SHOW_LOW_PRIORITY_CONTROLS && (
+            <>
+              <div className="field-row">
+                <label className="field">
+                  <span>Seed</span>
+                  <input value={seed} onChange={(event) => setSeed(event.target.value)} />
+                </label>
+                <label className="field">
+                  <span>Count</span>
+                  <input
+                    type="number"
+                    min={1}
+                    max={4}
+                    value={count}
+                    onChange={(event) => setCount(Number(event.target.value))}
+                  />
+                </label>
+              </div>
+              <div className="field-row">
+                <label className="field">
+                  <span>Size</span>
+                  <select value={size} onChange={(event) => setSize(event.target.value)}>
+                    <option>1024x1024</option>
+                    <option>1536x1024</option>
+                    <option>1024x1536</option>
+                  </select>
+                </label>
+                <label className="field">
+                  <span>Quality</span>
+                  <select value={quality} onChange={(event) => setQuality(event.target.value)}>
+                    <option>auto</option>
+                    <option>low</option>
+                    <option>medium</option>
+                    <option>high</option>
+                  </select>
+                </label>
+              </div>
+            </>
+          )}
 
           <div className="button-row">
             <button className="primary-button" onClick={() => void handleGenerate()} disabled={isBusy}>
@@ -755,72 +781,85 @@ function App() {
             }}
           />
 
-          <SectionLabel title="Providers" />
-          <div className="provider-list">
-            {providers.map((provider) => (
-              <button
-                key={provider.id}
-                className={`provider ${providerId === provider.id ? "selected" : ""}`}
-                onClick={() => setProviderId(provider.id)}
-                disabled={!provider.enabled}
-              >
-                {provider.id === "local-file" && <FolderOpen size={22} aria-hidden="true" />}
-                {provider.id === "codex-handoff" && <Plug size={22} aria-hidden="true" />}
-                {provider.id === "local-inbox" && <Archive size={22} aria-hidden="true" />}
-                <span>
-                  <strong>{providerLabel(provider.id, language)}</strong>
-                  <small>{providerMessage(provider, language)}</small>
-                </span>
-                {provider.enabled ? <CheckCircle2 size={16} aria-hidden="true" /> : <em>Off</em>}
-              </button>
-            ))}
-          </div>
+          {SHOW_LOW_PRIORITY_CONTROLS && (
+            <>
+              <SectionLabel title="Providers" />
+              <div className="provider-list">
+                {providers.map((provider) => (
+                  <button
+                    key={provider.id}
+                    className={`provider ${providerId === provider.id ? "selected" : ""}`}
+                    onClick={() => setProviderId(provider.id)}
+                    disabled={!provider.enabled}
+                  >
+                    {provider.id === "local-file" && <FolderOpen size={22} aria-hidden="true" />}
+                    {provider.id === "codex-handoff" && <Plug size={22} aria-hidden="true" />}
+                    {provider.id === "local-inbox" && <Archive size={22} aria-hidden="true" />}
+                    <span>
+                      <strong>{providerLabel(provider.id, language)}</strong>
+                      <small>{providerMessage(provider, language)}</small>
+                    </span>
+                    {provider.enabled ? <CheckCircle2 size={16} aria-hidden="true" /> : <em>Off</em>}
+                  </button>
+                ))}
+              </div>
 
-          <div className="notice">
-            <AlertTriangle size={18} aria-hidden="true" />
-            <span>
-              This app does not call OpenAI APIs directly. Codex jobs are written to the local inbox
-              {codexProvider?.path ? `: ${codexProvider.path}` : "."}
-            </span>
-          </div>
+              <div className="notice">
+                <AlertTriangle size={18} aria-hidden="true" />
+                <span>
+                  This app does not call OpenAI APIs directly. Codex jobs are written to the local inbox
+                  {codexProvider?.path ? `: ${codexProvider.path}` : "."}
+                </span>
+              </div>
+            </>
+          )}
 
           <SectionLabel title="Canvas & Grid" />
           <div className="field-row">
             <NumberField label="Columns" value={grid.columns} onChange={(columns) => setGrid({ ...grid, columns })} />
             <NumberField label="Rows" value={grid.rows} onChange={(rows) => setGrid({ ...grid, rows })} />
           </div>
-          <div className="field-row">
-            <NumberField label="Frame W" value={activeAction.cell.width} onChange={(width) => updateCell(width, activeAction.cell.height)} />
-            <NumberField label="Frame H" value={activeAction.cell.height} onChange={(height) => updateCell(activeAction.cell.width, height)} />
-          </div>
-          <label className="check-row">
-            <input type="checkbox" checked={showGrid} onChange={(event) => setShowGrid(event.target.checked)} />
-            Show Grid
-          </label>
-          <label className="check-row">
-            <input type="checkbox" checked={showCenter} onChange={(event) => setShowCenter(event.target.checked)} />
-            Show Center
-          </label>
-
-          <SectionLabel title="Transparency Cleanup" />
-          <label className="field">
-            <span>Key Color</span>
-            <input type="color" value={annotationColor} onChange={(event) => setAnnotationColor(event.target.value)} />
-          </label>
-          <label className="field">
-            <span>Tolerance</span>
-            <input
-              type="range"
-              min={0}
-              max={120}
-              value={chromaTolerance}
-              onChange={(event) => setChromaTolerance(Number(event.target.value))}
-            />
-          </label>
-          <button className="secondary-button full" onClick={() => void applyChromaToSelectedFrame()} disabled={!selectedFrame}>
-            <Pipette size={16} aria-hidden="true" />
-            Apply Chroma Key
+          <button className="secondary-button full" onClick={() => void splitSelectedToTimeline()} disabled={!selected || isBusy}>
+            <Scissors size={16} aria-hidden="true" />
+            {copy.splitSheet}
           </button>
+
+          {SHOW_LOW_PRIORITY_CONTROLS && (
+            <>
+              <div className="field-row">
+                <NumberField label="Frame W" value={activeAction.cell.width} onChange={(width) => updateCell(width, activeAction.cell.height)} />
+                <NumberField label="Frame H" value={activeAction.cell.height} onChange={(height) => updateCell(activeAction.cell.width, height)} />
+              </div>
+              <label className="check-row">
+                <input type="checkbox" checked={showGrid} onChange={(event) => setShowGrid(event.target.checked)} />
+                Show Grid
+              </label>
+              <label className="check-row">
+                <input type="checkbox" checked={showCenter} onChange={(event) => setShowCenter(event.target.checked)} />
+                Show Center
+              </label>
+
+              <SectionLabel title="Transparency Cleanup" />
+              <label className="field">
+                <span>Key Color</span>
+                <input type="color" value={annotationColor} onChange={(event) => setAnnotationColor(event.target.value)} />
+              </label>
+              <label className="field">
+                <span>Tolerance</span>
+                <input
+                  type="range"
+                  min={0}
+                  max={120}
+                  value={chromaTolerance}
+                  onChange={(event) => setChromaTolerance(Number(event.target.value))}
+                />
+              </label>
+              <button className="secondary-button full" onClick={() => void applyChromaToSelectedFrame()} disabled={!selectedFrame}>
+                <Pipette size={16} aria-hidden="true" />
+                Apply Chroma Key
+              </button>
+            </>
+          )}
         </aside>
 
         <section className="workspace">
@@ -832,18 +871,22 @@ function App() {
               <ToolButton active={tool === "rect"} title="Rectangle" onClick={() => setTool("rect")} icon={<Square size={18} />} />
               <ToolButton active={tool === "arrow"} title="Arrow" onClick={() => setTool("arrow")} icon={<MoveUpRight size={18} />} />
               <span className="toolbar-separator" />
-              <button className="icon-text-button" title="Split grid into frames" onClick={() => void splitSelectedToTimeline()} disabled={!selected || isBusy}>
-                <Scissors size={17} aria-hidden="true" />
-                Split Grid
-              </button>
-              <button className="icon-text-button" title="Use selected image as a sprite frame" onClick={() => void addSelectedAsFrame()} disabled={!selected}>
-                <Plus size={17} aria-hidden="true" />
-                Use as Frame
-              </button>
               <button className="icon-text-button" title="Export annotation PNG" onClick={() => void exportAnnotatedPng()} disabled={!selected}>
                 <Download size={17} aria-hidden="true" />
-                Annotated PNG
+                {copy.annotatedPng}
               </button>
+              {SHOW_LOW_PRIORITY_CONTROLS && (
+                <>
+                  <button className="icon-text-button" title="Split grid into frames" onClick={() => void splitSelectedToTimeline()} disabled={!selected || isBusy}>
+                    <Scissors size={17} aria-hidden="true" />
+                    Split Grid
+                  </button>
+                  <button className="icon-text-button" title="Use selected image as a sprite frame" onClick={() => void addSelectedAsFrame()} disabled={!selected}>
+                    <Plus size={17} aria-hidden="true" />
+                    Use as Frame
+                  </button>
+                </>
+              )}
             </div>
             <div
               className="canvas-stage"
@@ -862,13 +905,15 @@ function App() {
                 onPointerUp={handlePointerUp}
                 onPointerLeave={handlePointerUp}
               />
-              <div className="split-popover">
-                <strong>Split Grid</strong>
-                <NumberField label="Columns" value={grid.columns} onChange={(columns) => setGrid({ ...grid, columns })} />
-                <NumberField label="Rows" value={grid.rows} onChange={(rows) => setGrid({ ...grid, rows })} />
-                <NumberField label="Gutter" value={grid.gutter} onChange={(gutter) => setGrid({ ...grid, gutter })} />
-                <button onClick={() => void splitSelectedToTimeline()}>Apply to Sheet</button>
-              </div>
+              {SHOW_LOW_PRIORITY_CONTROLS && (
+                <div className="split-popover">
+                  <strong>Split Grid</strong>
+                  <NumberField label="Columns" value={grid.columns} onChange={(columns) => setGrid({ ...grid, columns })} />
+                  <NumberField label="Rows" value={grid.rows} onChange={(rows) => setGrid({ ...grid, rows })} />
+                  <NumberField label="Gutter" value={grid.gutter} onChange={(gutter) => setGrid({ ...grid, gutter })} />
+                  <button onClick={() => void splitSelectedToTimeline()}>Apply to Sheet</button>
+                </div>
+              )}
             </div>
             <div className="canvas-status">
               <span>Frame: {selectedFrame ? selectedFrame.index : "-"}</span>
@@ -881,11 +926,13 @@ function App() {
         </section>
 
         <aside className="panel history-panel">
-          <PanelTitle index="3" title="History & Adopted Assets" />
-          <div className="tabs">
-            <button className="tab active">History</button>
-            <button className="tab">Adopted ({history.filter((item) => item.adopted).length})</button>
-          </div>
+          <PanelTitle index="3" title={copy.results} />
+          {SHOW_LOW_PRIORITY_CONTROLS && (
+            <div className="tabs">
+              <button className="tab active">History</button>
+              <button className="tab">Adopted ({history.filter((item) => item.adopted).length})</button>
+            </div>
+          )}
           <div className="history-list">
             {history.map((item) => (
               <button
@@ -899,34 +946,36 @@ function App() {
                   <small>{formatTime(item.createdAt)} • {providerLabel(item.provider, language)}</small>
                   <small>{item.size} • {item.source}</small>
                 </span>
-                {item.adopted && <em>Adopted</em>}
+                {SHOW_LOW_PRIORITY_CONTROLS && item.adopted && <em>Adopted</em>}
               </button>
             ))}
           </div>
-          <div className="variant-box">
-            <div className="variant-title">
-              <strong>Variant Comparison</strong>
-              <button className="secondary-button mini" onClick={() => void adoptSelected()} disabled={!selected}>
-                Adopt
-              </button>
-            </div>
-            <div className="variant-strip">
-              {history.slice(0, 3).map((item) => (
-                <button
-                  key={item.id}
-                  className={selected?.id === item.id ? "variant selected" : "variant"}
-                  onClick={() => setSelectedId(item.id)}
-                >
-                  <img src={item.dataUrl} alt="" />
-                  <span>{item.adopted ? "Adopted" : "Candidate"}</span>
+          {SHOW_LOW_PRIORITY_CONTROLS && (
+            <div className="variant-box">
+              <div className="variant-title">
+                <strong>Variant Comparison</strong>
+                <button className="secondary-button mini" onClick={() => void adoptSelected()} disabled={!selected}>
+                  Adopt
                 </button>
-              ))}
+              </div>
+              <div className="variant-strip">
+                {history.slice(0, 3).map((item) => (
+                  <button
+                    key={item.id}
+                    className={selected?.id === item.id ? "variant selected" : "variant"}
+                    onClick={() => setSelectedId(item.id)}
+                  >
+                    <img src={item.dataUrl} alt="" />
+                    <span>{item.adopted ? "Adopted" : "Candidate"}</span>
+                  </button>
+                ))}
+              </div>
             </div>
-          </div>
+          )}
         </aside>
 
         <section className="panel sprite-bench">
-          <PanelTitle index="4" title="Sprite Bench (Animation & QC)" />
+          <PanelTitle index="4" title={copy.spriteActions} />
           <div className="action-tabs">
             {actions.map((action) => (
               <button
@@ -937,28 +986,34 @@ function App() {
                 {action.name}
               </button>
             ))}
-            <button className="icon-button" title="Add action preset">
-              <Plus size={16} aria-hidden="true" />
-            </button>
+            {SHOW_LOW_PRIORITY_CONTROLS && (
+              <button className="icon-button" title="Add action preset">
+                <Plus size={16} aria-hidden="true" />
+              </button>
+            )}
             <span className="spacer" />
-            <label>
-              FPS
-              <input
-                type="number"
-                min={1}
-                max={60}
-                value={activeAction.fps}
-                onChange={(event) => updateActiveAction({ fps: Number(event.target.value) })}
-              />
-            </label>
-            <label className="check-row inline">
-              <input
-                type="checkbox"
-                checked={activeAction.loop}
-                onChange={(event) => updateActiveAction({ loop: event.target.checked })}
-              />
-              Loop
-            </label>
+            {SHOW_LOW_PRIORITY_CONTROLS && (
+              <>
+                <label>
+                  FPS
+                  <input
+                    type="number"
+                    min={1}
+                    max={60}
+                    value={activeAction.fps}
+                    onChange={(event) => updateActiveAction({ fps: Number(event.target.value) })}
+                  />
+                </label>
+                <label className="check-row inline">
+                  <input
+                    type="checkbox"
+                    checked={activeAction.loop}
+                    onChange={(event) => updateActiveAction({ loop: event.target.checked })}
+                  />
+                  Loop
+                </label>
+              </>
+            )}
           </div>
 
           <div className="bench-grid">
@@ -974,7 +1029,7 @@ function App() {
                   <small>{frame.width}x{frame.height}</small>
                 </button>
               ))}
-              <button className="add-frame" onClick={() => void addSelectedAsFrame()} title="Add selected image as frame">
+              <button className="add-frame" onClick={() => void addSelectedAsFrame()} title={copy.addFrame}>
                 <Plus size={18} aria-hidden="true" />
               </button>
             </div>
@@ -991,26 +1046,30 @@ function App() {
               </button>
             </div>
 
-            <div className="qc-panel">
-              <h3>QC Checks <em>{qc.sizeMismatchCount + qc.duplicateCount}</em></h3>
-              <QcLine ok={qc.sizeMismatchCount === 0} label="Frame Size Consistency" value={qc.sizeMismatchCount ? `${qc.sizeMismatchCount} mismatches` : "All frames match"} />
-              <QcLine ok={qc.transparentFrames === actionFrames.length && actionFrames.length > 0} label="Transparent PNG" value={`${qc.transparentFrames}/${actionFrames.length} frames`} />
-              <QcLine ok={qc.duplicateCount === 0} label="Duplicate Frame Check" value={qc.duplicateCount ? `${qc.duplicateCount} duplicates` : "No duplicates found"} />
-              <QcLine ok={activeAction.anchor.y >= activeAction.cell.height * 0.75} label="Anchor at Feet" value={`${activeAction.anchor.x}, ${activeAction.anchor.y}`} />
-              <button className="secondary-button mini">
-                <RefreshCw size={14} aria-hidden="true" />
-                Re-check
-              </button>
-            </div>
+            {SHOW_LOW_PRIORITY_CONTROLS && (
+              <>
+                <div className="qc-panel">
+                  <h3>QC Checks <em>{qc.sizeMismatchCount + qc.duplicateCount}</em></h3>
+                  <QcLine ok={qc.sizeMismatchCount === 0} label="Frame Size Consistency" value={qc.sizeMismatchCount ? `${qc.sizeMismatchCount} mismatches` : "All frames match"} />
+                  <QcLine ok={qc.transparentFrames === actionFrames.length && actionFrames.length > 0} label="Transparent PNG" value={`${qc.transparentFrames}/${actionFrames.length} frames`} />
+                  <QcLine ok={qc.duplicateCount === 0} label="Duplicate Frame Check" value={qc.duplicateCount ? `${qc.duplicateCount} duplicates` : "No duplicates found"} />
+                  <QcLine ok={activeAction.anchor.y >= activeAction.cell.height * 0.75} label="Anchor at Feet" value={`${activeAction.anchor.x}, ${activeAction.anchor.y}`} />
+                  <button className="secondary-button mini">
+                    <RefreshCw size={14} aria-hidden="true" />
+                    Re-check
+                  </button>
+                </div>
 
-            <div className="preview-panel">
-              <h3>Preview (GIF)</h3>
-              <div className="gif-preview">{gifPreviewUrl ? <img src={gifPreviewUrl} alt="" /> : <span>No frames</span>}</div>
-              <small>{activeAction.cell.width}x{activeAction.cell.height} • {activeAction.fps} FPS</small>
-            </div>
+                <div className="preview-panel">
+                  <h3>Preview (GIF)</h3>
+                  <div className="gif-preview">{gifPreviewUrl ? <img src={gifPreviewUrl} alt="" /> : <span>No frames</span>}</div>
+                  <small>{activeAction.cell.width}x{activeAction.cell.height} • {activeAction.fps} FPS</small>
+                </div>
+              </>
+            )}
 
             <div className="export-panel">
-              <h3>Export</h3>
+              <h3>{copy.exportSprite}</h3>
               <button onClick={() => void exportSpriteSheet(frames, activeAction)} disabled={actionFrames.length === 0}>
                 <FileImage size={18} aria-hidden="true" />
                 Export Sheet (PNG)
@@ -1029,25 +1088,27 @@ function App() {
               </button>
             </div>
 
-            <div className="metadata-panel">
-              <h3>Metadata</h3>
-              <label>
-                Anchor X
-                <input
-                  type="number"
-                  value={activeAction.anchor.x}
-                  onChange={(event) => updateActiveAction({ anchor: { ...activeAction.anchor, x: Number(event.target.value) } })}
-                />
-              </label>
-              <label>
-                Anchor Y
-                <input
-                  type="number"
-                  value={activeAction.anchor.y}
-                  onChange={(event) => updateActiveAction({ anchor: { ...activeAction.anchor, y: Number(event.target.value) } })}
-                />
-              </label>
-            </div>
+            {SHOW_LOW_PRIORITY_CONTROLS && (
+              <div className="metadata-panel">
+                <h3>Metadata</h3>
+                <label>
+                  Anchor X
+                  <input
+                    type="number"
+                    value={activeAction.anchor.x}
+                    onChange={(event) => updateActiveAction({ anchor: { ...activeAction.anchor, x: Number(event.target.value) } })}
+                  />
+                </label>
+                <label>
+                  Anchor Y
+                  <input
+                    type="number"
+                    value={activeAction.anchor.y}
+                    onChange={(event) => updateActiveAction({ anchor: { ...activeAction.anchor, y: Number(event.target.value) } })}
+                  />
+                </label>
+              </div>
+            )}
           </div>
         </section>
       </main>
