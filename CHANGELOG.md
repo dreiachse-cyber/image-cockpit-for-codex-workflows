@@ -11,6 +11,7 @@ Private release candidate for the first local Image Cockpit MVP.
 - Optional `codex exec` runner launched by the local server when `IMAGE_COCKPIT_CODEX_AUTORUN=1`.
 - Pending-job lock so the Codex job button cannot create duplicate handoff jobs while waiting for a result.
 - Handoff job context including workflow mode, edit notes, selected image asset, annotations, grid, and sprite context.
+- Smoke coverage for sprite generation and sprite editing handoff payloads.
 - Local Inbox import for returned outbox images.
 - Visible `Import Latest` action in the simplified workflow screen for manual handoff returns.
 - Smoke coverage for Local Inbox outbox listing and data URL import.

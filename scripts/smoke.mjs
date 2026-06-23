@@ -94,6 +94,52 @@ try {
   assert(generateJobJson.annotationContext.annotationCount === 0, "generation job should not carry edit annotations");
   assert(generateJobJson.spriteContext.frames === 0, "generation job should not carry sprite context");
 
+  const spriteGenerateJob = await postJson(port, "/api/codex/jobs", {
+    workflowMode: "sprite-generate",
+    prompt: "Smoke test sprite sheet generation",
+    negativePrompt: "text",
+    jobNotes: "Create a 4x2 idle sheet with transparent background.",
+    selectedImageName: "tiny.png",
+    selectedImageSize: "1x1",
+    selectedImageSource: "sample",
+    selectedImageDataUrl: tinyPng,
+    annotations: [{ id: "ann-sprite-ignored", tool: "rect", color: "#00ff00", points: [{ x: 0, y: 0 }] }],
+    grid: { columns: 4, rows: 2, gutter: 1 },
+    action: "idle",
+    frames: 8
+  });
+  const spriteGenerateJobJson = JSON.parse(await readFile(spriteGenerateJob.path, "utf8"));
+  assert(spriteGenerateJobJson.workflowMode === "sprite-generate", "sprite generation job should include workflowMode");
+  assert(spriteGenerateJobJson.intent.includes("create a sprite sheet asset"), "sprite generation job should include sprite intent");
+  assert(spriteGenerateJobJson.spriteContext.frames === 8, "sprite generation job should include sprite frame count");
+  assert(spriteGenerateJobJson.spriteContext.grid.columns === 4, "sprite generation job should include sprite grid columns");
+  assert(spriteGenerateJobJson.spriteContext.action === "idle", "sprite generation job should include action");
+  assert(!spriteGenerateJobJson.selectedImage.assetPath, "sprite generation job should not attach the current selected image");
+  assert(spriteGenerateJobJson.annotationContext.annotationCount === 0, "sprite generation job should not carry edit annotations");
+
+  const spriteEditJob = await postJson(port, "/api/codex/jobs", {
+    workflowMode: "sprite-edit",
+    prompt: "Smoke test sprite sheet editing",
+    negativePrompt: "text",
+    jobNotes: "Normalize anchors and clean magenta key color.",
+    selectedImageName: "tiny.png",
+    selectedImageSize: "1x1",
+    selectedImageSource: "sample",
+    selectedImageDataUrl: tinyPng,
+    annotations: [{ id: "ann-sprite-edit-ignored", tool: "rect", color: "#0000ff", points: [{ x: 0, y: 0 }] }],
+    grid: { columns: 8, rows: 4, gutter: 0 },
+    action: "walk",
+    frames: 32
+  });
+  const spriteEditJobJson = JSON.parse(await readFile(spriteEditJob.path, "utf8"));
+  assert(spriteEditJobJson.workflowMode === "sprite-edit", "sprite edit job should include workflowMode");
+  assert(spriteEditJobJson.intent.includes("revise sprite-sheet frames"), "sprite edit job should include sprite edit intent");
+  assert(spriteEditJobJson.spriteContext.frames === 32, "sprite edit job should include sprite frame count");
+  assert(spriteEditJobJson.spriteContext.grid.rows === 4, "sprite edit job should include sprite grid rows");
+  assert(spriteEditJobJson.spriteContext.action === "walk", "sprite edit job should include action");
+  assert(!spriteEditJobJson.selectedImage.assetPath, "sprite edit job should not attach the current selected image");
+  assert(spriteEditJobJson.annotationContext.annotationCount === 0, "sprite edit job should not carry edit annotations");
+
   const status = await getJson(port, `/api/codex/jobs/${encodeURIComponent(job.id)}/status`);
   assert(status.status.state === "disabled", "status endpoint should return disabled runner state");
 

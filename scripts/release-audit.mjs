@@ -188,7 +188,7 @@ function checkWorkflowIds() {
     }
   });
 
-  ["image-generate", "image-edit"].forEach((workflowId) => {
+  requiredWorkflowIds.forEach((workflowId) => {
     if (!smokeText.includes(workflowId)) {
       failures.push(`Smoke test should cover Codex handoff workflow: ${workflowId}`);
     }
@@ -197,6 +197,17 @@ function checkWorkflowIds() {
   if (!smokeText.includes("/api/codex/results")) {
     failures.push("Smoke test should cover Local Inbox outbox result listing/import.");
   }
+
+  [
+    "sprite generation job should include sprite frame count",
+    "sprite edit job should include sprite frame count",
+    "sprite generation job should not carry edit annotations",
+    "sprite edit job should not carry edit annotations"
+  ].forEach((marker) => {
+    if (!smokeText.includes(marker)) {
+      failures.push(`Smoke test should cover sprite handoff detail: ${marker}`);
+    }
+  });
 }
 
 function checkSimpleLocalInboxAction() {
