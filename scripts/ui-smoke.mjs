@@ -131,6 +131,7 @@ try {
     expectedCanvasPreviewModeAfterExercise: "result",
     reloadAfterExercise: true
   });
+  await assertAnimationResultNotEditable();
 
   console.log("UI smoke passed.");
 } finally {
@@ -243,6 +244,15 @@ async function assertImageEditing() {
   assert(!snapshot.buttons.includes("Annotated PNG"), "Image Editing should hide the old annotation PNG button");
   assert(!snapshot.buttons.includes("Brush"), "Image Editing should hide the old brush tool");
   assert(!snapshot.buttons.includes("Arrow"), "Image Editing should hide the old arrow tool");
+  await waitForEval(
+    () => `(() => {
+      const canvas = document.querySelector("canvas");
+      if (!canvas || getComputedStyle(canvas).display === "none") return false;
+      const rect = canvas.getBoundingClientRect();
+      return rect.width > 300 && rect.height > 160;
+    })()`,
+    "Image Editing canvas ready"
+  );
 
   await dragCanvasRegion();
   await waitForEval(() => `document.querySelectorAll(".annotation-region-row").length === 1`, "Image Editing numbered region");
@@ -266,6 +276,21 @@ async function assertImageEditing() {
   assert(snapshot.canvasPreviewMode === "edit", `Image Editing should keep edit canvas mode after import, got ${snapshot.canvasPreviewMode}`);
   await assertNoBrowserErrors("Image Editing");
   await maybeCapture("image-editing-before-after");
+  await selectWorkflowTab("Pixel Art Generation");
+}
+
+async function assertAnimationResultNotEditable() {
+  await selectWorkflowTab("Image Editing");
+  await waitForEval(() => `document.body.innerText.includes("Animation output")`, "Image Editing final animation notice");
+  const snapshot = await pageSnapshot();
+  assert(snapshot.canvasPreviewMode === "result", `Animation results should stay in result preview mode in Image Editing, got ${snapshot.canvasPreviewMode}`);
+  assert(!snapshot.annotationToolbarVisible, "Animation results should not expose the rectangle selection toolbar");
+  assert(snapshot.finalEditNoticeVisible, "Animation results should show the final-artifact edit notice");
+  assert(snapshot.text.includes("Animation outputs are final artifacts"), "Animation results should update the status copy to final-artifact guidance");
+  assert(snapshot.annotationRegionRows === 0, `Animation results should not show numbered edit rows, got ${snapshot.annotationRegionRows}`);
+  assert(snapshot.disabledButtons.includes("Edit Image"), "Animation results should disable the Edit Image action");
+  await assertNoBrowserErrors("Animation result is not editable");
+  await maybeCapture("animation-result-not-editable");
   await selectWorkflowTab("Pixel Art Generation");
 }
 
@@ -392,6 +417,10 @@ async function assertWorkflow({
 }
 
 async function selectWorkflowTab(label) {
+  await waitForEval(
+    () => `Array.from(document.querySelectorAll(".workflow-tabs button")).some((item) => item.innerText.replace(/\\s+/g, " ").trim() === ${JSON.stringify(label)})`,
+    `${label} workflow tab button`
+  );
   await evaluate(`(() => {
     const button = Array.from(document.querySelectorAll(".workflow-tabs button")).find((item) => item.innerText.replace(/\\s+/g, " ").trim() === ${JSON.stringify(label)});
     if (!button) throw new Error("Workflow tab not found: ${label}");
@@ -412,9 +441,29 @@ async function dragCanvasRegion() {
       endY: rect.top + rect.height * 0.55
     };
   })()`);
-  await cdp.send("Input.dispatchMouseEvent", { type: "mousePressed", x: drag.startX, y: drag.startY, button: "left", buttons: 1, clickCount: 1 });
-  await cdp.send("Input.dispatchMouseEvent", { type: "mouseMoved", x: drag.endX, y: drag.endY, button: "left", buttons: 1 });
-  await cdp.send("Input.dispatchMouseEvent", { type: "mouseReleased", x: drag.endX, y: drag.endY, button: "left", buttons: 0, clickCount: 1 });
+  await dispatchCanvasPointer("pointerdown", drag.startX, drag.startY, 1);
+  await delay(40);
+  await dispatchCanvasPointer("pointermove", drag.endX, drag.endY, 1);
+  await delay(40);
+  await dispatchCanvasPointer("pointerup", drag.endX, drag.endY, 0);
+}
+
+async function dispatchCanvasPointer(type, x, y, buttons) {
+  await evaluate(`(() => {
+    const canvas = document.querySelector("canvas");
+    if (!canvas) throw new Error("Canvas not found for pointer dispatch");
+    canvas.dispatchEvent(new PointerEvent(${JSON.stringify(type)}, {
+      bubbles: true,
+      cancelable: true,
+      pointerId: 1,
+      pointerType: "mouse",
+      isPrimary: true,
+      clientX: ${JSON.stringify(x)},
+      clientY: ${JSON.stringify(y)},
+      button: 0,
+      buttons: ${JSON.stringify(buttons)}
+    }));
+  })()`);
 }
 
 async function clickButtonByText(label) {
@@ -443,6 +492,7 @@ async function pageSnapshot() {
     guidedOptions: Array.from(document.querySelectorAll(".guided-option strong")).map((node) => node.textContent.trim()),
     summary: document.querySelector(".workflow-summary")?.innerText.replace(/\\s+/g, " ").trim() || "",
     buttons: Array.from(document.querySelectorAll("button")).map((button) => button.innerText.replace(/\\s+/g, " ").trim()).filter(Boolean),
+    disabledButtons: Array.from(document.querySelectorAll("button:disabled")).map((button) => button.innerText.replace(/\\s+/g, " ").trim()).filter(Boolean),
     workflowTabsInsidePanel: Boolean(document.querySelector(".source-panel > .workflow-tabs")),
     workflowTabsInTopbar: Boolean(document.querySelector(".topbar .workflow-tabs")),
     canvasVisible: Boolean(document.querySelector("canvas")),
@@ -456,6 +506,7 @@ async function pageSnapshot() {
     downloadPanelInSource: Boolean(document.querySelector(".source-panel .animation-download-panel")),
     downloadPanelInWorkspace: Boolean(document.querySelector(".workspace .animation-download-panel")),
     animationSourceStatus: document.querySelector(".animation-source-status")?.innerText || "",
+    finalEditNoticeVisible: Boolean(document.querySelector(".edit-final-notice")),
     annotationRegionRows: document.querySelectorAll(".annotation-region-row").length,
     annotationComments: Array.from(document.querySelectorAll(".annotation-comment-field")).map((field) => field.value),
     editCompareImages: document.querySelectorAll(".edit-compare-grid img").length,
@@ -478,7 +529,7 @@ async function evaluate(expression) {
     returnByValue: true
   });
   if (result.exceptionDetails) {
-    throw new Error(result.exceptionDetails.text || "Browser evaluation failed");
+    throw new Error(result.exceptionDetails.exception?.description || result.exceptionDetails.text || "Browser evaluation failed");
   }
   return result.result.value;
 }

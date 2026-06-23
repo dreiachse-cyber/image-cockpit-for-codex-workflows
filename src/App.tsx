@@ -281,6 +281,8 @@ const uiCopy = {
     uploadImageForEdit: "Upload Image",
     selectedEditSource: "Selected image",
     noEditSource: "No image selected yet",
+    animationFinalNotEditableTitle: "Animation output",
+    animationFinalNotEditableBody: "Animation results are final artifacts. Select an image from Pixel Art Generation or Image Editing before using numbered edit regions.",
     imageEditRegionsTitle: "Numbered edit regions",
     imageEditRegionsHelp: "Drag a rectangle on the preview. Each rectangle gets a number and a comment box.",
     noEditRegions: "No numbered regions yet. Drag on the preview to add #1.",
@@ -304,6 +306,7 @@ const uiCopy = {
     statusLocalGenerateError: "Could not generate locally",
     statusAnimationSourceRequired: "Upload or select a pixel-art source before generating animation",
     statusAnimationGenerated: "Animation generated",
+    statusAnimationFinalNotEditable: "Animation outputs are final artifacts. Select a generated or edited image to edit.",
     statusCodexJobPending: "Waiting for Codex to return an image",
     statusCodexRunnerUnavailable: "Codex runner unavailable. Return an outbox image, then use Import Latest",
     statusCodexRunnerFailed: "Codex runner stopped before returning an image",
@@ -422,6 +425,8 @@ const uiCopy = {
     uploadImageForEdit: "画像をアップロード",
     selectedEditSource: "選択中の画像",
     noEditSource: "まだ画像が選択されていません",
+    animationFinalNotEditableTitle: "アニメーション生成物",
+    animationFinalNotEditableBody: "アニメーション結果は最終成果物です。番号付き編集範囲を使う場合は、画像生成または画像編集で作った画像を選択してください。",
     imageEditRegionsTitle: "番号付き編集範囲",
     imageEditRegionsHelp: "プレビュー上をドラッグして矩形選択します。矩形には番号が付き、番号ごとにコメントできます。",
     noEditRegions: "まだ編集範囲がありません。プレビュー上をドラッグして #1 を追加してください。",
@@ -445,6 +450,7 @@ const uiCopy = {
     statusLocalGenerateError: "ローカル生成できませんでした",
     statusAnimationSourceRequired: "アニメーション生成の前にピクセルアートをアップロードするか、生成結果を選択してください",
     statusAnimationGenerated: "アニメーションを生成しました",
+    statusAnimationFinalNotEditable: "アニメーション結果は最終成果物です。編集する場合は生成画像または編集後画像を選択してください",
     statusCodexJobPending: "Codexから画像が戻るのを待っています",
     statusCodexRunnerUnavailable: "Codex runner起動不可。outboxへ画像を戻したらImport Latestを押してください",
     statusCodexRunnerFailed: "Codex runnerが画像を返す前に停止しました",
@@ -794,6 +800,7 @@ function App() {
   const selectedAnimationExportReady = Boolean(
     selected && selected.source === "generate" && selectedAnimationFrames.length > 0
   );
+  const selectedIsAnimationResult = selectedAnimationExportReady;
 
   const selectedAnimationSource = useMemo(
     () =>
@@ -1164,6 +1171,11 @@ function App() {
     const spriteGrid = isAnimationJob ? ANIMATION_SHEET_GRID : grid;
     const spriteCell = isAnimationJob ? animationAction.cell : activeAction.cell;
     const spriteFrameCount = spriteGrid.columns * spriteGrid.rows;
+
+    if (isImageEditJob && selectedIsAnimationResult) {
+      setStatus(copy.statusAnimationFinalNotEditable);
+      return null;
+    }
 
     if (isAnimationJob && !isAnimationSource(sourceImageForJob)) {
       setStatus(copy.statusAnimationSourceRequired);
@@ -1635,6 +1647,9 @@ function App() {
     setSelectedId(item.id);
     setSelectedFrameId("");
     if (isAnimationWorkflow && isAnimationSource(item)) setAnimationSourceId(item.id);
+    if (isImageEditWorkflow && item.source === "generate" && frames.some((frame) => frame.sourceId === item.id)) {
+      setStatus(copy.statusAnimationFinalNotEditable);
+    }
   }
 
   async function applyChromaToSelectedFrame() {
@@ -1714,6 +1729,7 @@ function App() {
 
   function beginAnnotationDrag(event: React.PointerEvent<HTMLCanvasElement> | React.MouseEvent<HTMLCanvasElement>) {
     if (workflowMode !== "image-edit" || !selected) return;
+    if (selectedIsAnimationResult) return;
     if (event.button !== 0) return;
     const point = canvasPoint(event);
     const number = (annotationsByItem[selected.id]?.length ?? 0) + 1;
@@ -1822,7 +1838,7 @@ function App() {
       setStatus(copy.statusAnimationSourceRequired);
       return;
     }
-    setStatus(workflowCopy[language][mode].status);
+    setStatus(mode === "image-edit" && selectedIsAnimationResult ? copy.statusAnimationFinalNotEditable : workflowCopy[language][mode].status);
   }
 
   async function copyPromptExample(example: PromptExample) {
@@ -1866,9 +1882,9 @@ function App() {
   const isAnimationWorkflow = workflowMode === "sprite-generate";
   const isImageEditWorkflow = workflowMode === "image-edit";
   const animationSourceReady = !isAnimationWorkflow || isAnimationSource(animationSource);
-  const imageEditSourceReady = !isImageEditWorkflow || Boolean(selected);
+  const imageEditSourceReady = !isImageEditWorkflow || Boolean(selected && !selectedIsAnimationResult);
   const primaryActionDisabled = isBusy || !animationSourceReady || !imageEditSourceReady;
-  const previewMode = !selected ? "empty" : isPreviewingSelectedFrame ? "frame" : isImageEditWorkflow ? "edit" : "result";
+  const previewMode = !selected ? "empty" : isPreviewingSelectedFrame ? "frame" : isImageEditWorkflow && !selectedIsAnimationResult ? "edit" : "result";
   const previewStatus = isPreviewingSelectedFrame && selectedFrameForPreview
     ? `${copy.frameLabel}: ${selectedFrameForPreview.index}`
     : `${copy.previewLabel}: ${selected?.name ?? "-"}`;
@@ -1878,7 +1894,7 @@ function App() {
   const animationDownloadTitle = copy.animationStepDownloadTitle.replace(/^4\.\s*/, "");
   const showFrameGridControls = SHOW_LOW_PRIORITY_CONTROLS || workflowMode === "sprite-edit";
   const showSpriteTuningControls = SHOW_LOW_PRIORITY_CONTROLS || workflowMode === "sprite-edit";
-  const showAnnotationToolbar = isImageEditWorkflow;
+  const showAnnotationToolbar = isImageEditWorkflow && !selectedIsAnimationResult;
   const showSpriteActionsPanel = SHOW_SPRITE_ACTIONS_PANEL;
 
   return (
@@ -2040,7 +2056,7 @@ function App() {
                 <section className="image-edit-panel">
                   <div className="step-heading">
                     <strong>{copy.selectedEditSource}</strong>
-                    <span>{copy.imageEditRegionsHelp}</span>
+                    <span>{selectedIsAnimationResult ? copy.animationFinalNotEditableBody : copy.imageEditRegionsHelp}</span>
                   </div>
                   <button className="secondary-button full inline-full" onClick={() => fileInputRef.current?.click()}>
                     <Upload size={16} aria-hidden="true" />
@@ -2061,39 +2077,48 @@ function App() {
                     )}
                   </div>
 
-                  <div className="annotation-region-heading">
-                    <span>{copy.imageEditRegionsTitle}</span>
-                    {selectedAnnotations.length > 0 && (
-                      <button className="secondary-button mini" onClick={clearSelectedAnnotations}>
-                        <Trash2 size={14} aria-hidden="true" />
-                        {copy.clearRegions}
-                      </button>
-                    )}
-                  </div>
-                  <div className="annotation-region-list">
-                    {selectedAnnotations.length === 0 ? (
-                      <p className="annotation-empty">{copy.noEditRegions}</p>
-                    ) : (
-                      selectedAnnotations.map((annotation, index) => (
-                        <label className="annotation-region-row" key={annotation.id}>
-                          <span>
-                            <strong>#{annotation.number ?? index + 1}</strong>
-                            {copy.editRegionLabel}
-                          </span>
-                          <textarea
-                            className="annotation-comment-field"
-                            value={annotation.comment ?? ""}
-                            onChange={(event) => updateAnnotationComment(annotation.id, event.target.value)}
-                            placeholder={copy.editRegionPlaceholder}
-                            rows={2}
-                          />
-                          <button className="icon-button danger" type="button" title={copy.removeRegion} onClick={() => removeAnnotation(annotation.id)}>
-                            <Trash2 size={16} aria-hidden="true" />
+                  {selectedIsAnimationResult ? (
+                    <div className="edit-final-notice">
+                      <strong>{copy.animationFinalNotEditableTitle}</strong>
+                      <span>{copy.animationFinalNotEditableBody}</span>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="annotation-region-heading">
+                        <span>{copy.imageEditRegionsTitle}</span>
+                        {selectedAnnotations.length > 0 && (
+                          <button className="secondary-button mini" onClick={clearSelectedAnnotations}>
+                            <Trash2 size={14} aria-hidden="true" />
+                            {copy.clearRegions}
                           </button>
-                        </label>
-                      ))
-                    )}
-                  </div>
+                        )}
+                      </div>
+                      <div className="annotation-region-list">
+                        {selectedAnnotations.length === 0 ? (
+                          <p className="annotation-empty">{copy.noEditRegions}</p>
+                        ) : (
+                          selectedAnnotations.map((annotation, index) => (
+                            <label className="annotation-region-row" key={annotation.id}>
+                              <span>
+                                <strong>#{annotation.number ?? index + 1}</strong>
+                                {copy.editRegionLabel}
+                              </span>
+                              <textarea
+                                className="annotation-comment-field"
+                                value={annotation.comment ?? ""}
+                                onChange={(event) => updateAnnotationComment(annotation.id, event.target.value)}
+                                placeholder={copy.editRegionPlaceholder}
+                                rows={2}
+                              />
+                              <button className="icon-button danger" type="button" title={copy.removeRegion} onClick={() => removeAnnotation(annotation.id)}>
+                                <Trash2 size={16} aria-hidden="true" />
+                              </button>
+                            </label>
+                          ))
+                        )}
+                      </div>
+                    </>
+                  )}
                 </section>
               )}
               {workflowMode === "image-generate" && (

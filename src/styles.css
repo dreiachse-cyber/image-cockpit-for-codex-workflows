@@ -635,6 +635,26 @@ button {
   line-height: 1.35;
 }
 
+.edit-final-notice {
+  display: grid;
+  gap: 5px;
+  border: 1px solid #d6c7a6;
+  border-radius: 6px;
+  background: #fff8e8;
+  padding: 9px;
+  color: #5a4210;
+}
+
+.edit-final-notice strong {
+  font-size: 12px;
+}
+
+.edit-final-notice span {
+  color: #6a4b0f;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
 .annotation-region-row {
   display: grid;
   grid-template-columns: 48px minmax(0, 1fr) 32px;
