@@ -2165,9 +2165,6 @@ function App() {
             )}
           </div>
           <WorkflowTabs language={language} activeMode={workflowMode} onSelect={beginWorkflow} />
-          {providerId === "codex-handoff" && codexJobs.length > 0 && (
-            <CodexJobShelf jobs={codexJobs} maxActive={MAX_ACTIVE_CODEX_JOBS} language={language} />
-          )}
 
           {isAnimationWorkflow ? (
             <div className="animation-steps">
@@ -2638,6 +2635,9 @@ function App() {
 
         <aside className="panel history-panel">
           <PanelTitle index="3" title={copy.results} />
+          {providerId === "codex-handoff" && codexJobs.length > 0 && (
+            <CodexJobShelf jobs={codexJobs} maxActive={MAX_ACTIVE_CODEX_JOBS} language={language} />
+          )}
           {SHOW_LOW_PRIORITY_CONTROLS && (
             <div className="tabs">
               <button className="tab active">History</button>

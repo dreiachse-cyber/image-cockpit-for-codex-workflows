@@ -268,6 +268,10 @@ async function assertCodexQueue() {
   assert(snapshot.buttons.includes("Queue Codex Job"), "Codex queue should switch the primary action to Queue Codex Job at two active jobs");
   assert(snapshot.text.includes("Codex job queued"), "Codex queue should report that the third job was queued");
   assert(snapshot.codexJobRows === 3, `Codex queue should show 3 job rows, got ${snapshot.codexJobRows}`);
+  assert(snapshot.codexJobShelfInHistory, "Codex job shelf should appear above the Results cards in the right column");
+  assert(!snapshot.codexJobShelfInSource, "Codex job shelf should not remain in the left source column");
+  assert(snapshot.codexJobShelfBeforeHistoryList, "Codex job shelf should sit before the result card list");
+  await maybeCapture("codex-job-shelf-results");
 
   await waitForEval(() => `document.querySelectorAll(".codex-job-row").length === 0`, "Codex queue drains after results return", 18000);
   await assertNoBrowserErrors("Codex queue");
@@ -753,6 +757,14 @@ async function pageSnapshot() {
     codexFailureCards: document.querySelectorAll(".codex-failure-card").length,
     spriteBenchVisible: Boolean(document.querySelector(".sprite-bench")),
     codexJobRows: document.querySelectorAll(".codex-job-row").length,
+    codexJobShelfInHistory: Boolean(document.querySelector(".history-panel > .codex-job-shelf")),
+    codexJobShelfInSource: Boolean(document.querySelector(".source-panel > .codex-job-shelf")),
+    codexJobShelfBeforeHistoryList: (() => {
+      const shelf = document.querySelector(".history-panel > .codex-job-shelf");
+      const list = document.querySelector(".history-panel > .history-list");
+      if (!shelf || !list) return false;
+      return Boolean(shelf.compareDocumentPosition(list) & Node.DOCUMENT_POSITION_FOLLOWING);
+    })(),
     animationPreviewImages: document.querySelectorAll(".animation-preview img").length,
     promptPreviewImages: document.querySelectorAll(".prompt-card-preview img").length,
     animationPresetSampleSprites: document.querySelectorAll(".animation-sample-sprite").length,
