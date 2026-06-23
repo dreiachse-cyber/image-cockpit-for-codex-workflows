@@ -367,7 +367,10 @@ function workflowNotes(mode: CodexWorkflowMode) {
   if (mode === "image-edit") {
     return [
       "Use selectedImage.assetPath as the source image when present.",
-      "Use annotationContext.annotations and jobNotes as the user's edit instructions."
+      "Use imagegen / built-in image_gen editing when available so the result is a real edited raster image.",
+      "Use annotationContext.annotations, numbered region comments, prompt, and jobNotes as the user's edit instructions.",
+      "Preserve unrelated pixels when possible, and return the edited image as a real PNG or WebP with the job id filename prefix.",
+      "Do not create a placeholder, SVG, diagram, or text-only result."
     ];
   }
   if (mode === "sprite-generate") {
@@ -721,6 +724,7 @@ function buildCodexRunnerPrompt(job: { id: string; path: string }) {
     "If selectedImage.assetPath is empty, treat the job as prompt-only unless the job notes say otherwise.",
     "For workflowMode=image-generate, use the imagegen skill default built-in image generation path with built-in image_gen when available. Create a real raster image from the job prompt, never a procedural placeholder or SVG.",
     "For workflowMode=image-generate, if image generation is unavailable, write only a small blocker sidecar into the outbox and do not create a fake image.",
+    "For workflowMode=image-edit, inspect selectedImage.assetPath, use imagegen / built-in image_gen editing when available, follow numbered annotationContext region comments plus prompt/jobNotes, and return a real edited PNG or WebP with the job id filename prefix. Never create a procedural placeholder or SVG.",
     "For workflowMode=sprite-generate, inspect selectedImage.assetPath, then use imagegen / built-in image_gen when available to create one complete chroma-key sprite sheet from the source character image. Never create a procedural placeholder or SVG.",
     "For workflowMode=sprite-generate, follow spriteContext.grid, spriteContext.cell, spriteContext.directions, and spriteContext.chromaKey. Return one usable PNG or WebP sprite sheet with the job id filename prefix.",
     "Use jobNotes, annotationContext, and spriteContext only when those fields are populated for the workflow.",

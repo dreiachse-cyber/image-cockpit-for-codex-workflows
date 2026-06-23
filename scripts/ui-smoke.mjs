@@ -93,12 +93,13 @@ try {
     `
   });
   await cdp.send("Page.navigate", { url: `http://127.0.0.1:${vitePort}/` });
-  await waitForEval(() => `document.querySelectorAll(".guided-option").length === 2`, "Guided Start options");
+  await waitForEval(() => `document.querySelectorAll(".guided-option").length === 3`, "Guided Start options");
 
   await assertGuidedStart();
   await assertLanguageSwitch();
   await assertPromptExamples();
   await assertCodexQueue();
+  await assertImageEditing();
   await assertWorkflow({
     index: 0,
     label: "Pixel Art Generation",
@@ -112,7 +113,7 @@ try {
     expectedCanvasPreviewModeAfterExercise: "result"
   });
   await assertWorkflow({
-    index: 1,
+    index: 2,
     label: "Animation Generation",
     route: "Route: Codex Handoff",
     buttons: ["Upload Pixel Art", "Generate Animation", "Animated GIF", "Animated WebP", "Sprite Sheet"],
@@ -141,8 +142,8 @@ try {
 
 async function assertGuidedStart() {
   const snapshot = await pageSnapshot();
-  assert(snapshot.guidedOptions.length === 2, "Start screen should show two workflow options");
-  ["Pixel Art Generation", "Animation Generation"].forEach((label) => {
+  assert(snapshot.guidedOptions.length === 3, "Start screen should show three workflow options");
+  ["Pixel Art Generation", "Image Editing", "Animation Generation"].forEach((label) => {
     assert(snapshot.text.includes(label), `Guided Start missing ${label}`);
   });
   assert(snapshot.text.includes("No direct OpenAI API calls"), "Guided Start should state the local-first boundary");
@@ -194,7 +195,7 @@ async function assertPromptExamples() {
   assert(modalClosed, "Use Prompt should close the Prompt Examples modal");
 
   await evaluate(`document.querySelector(".guided-link")?.click()`);
-  await waitForEval(() => `document.querySelectorAll(".guided-option").length === 2`, "return to Guided Start after Prompt Examples");
+  await waitForEval(() => `document.querySelectorAll(".guided-option").length === 3`, "return to Guided Start after Prompt Examples");
 }
 
 async function assertCodexQueue() {
@@ -220,7 +221,51 @@ async function assertCodexQueue() {
   await waitForEval(() => `document.querySelectorAll(".codex-job-row").length === 0`, "Codex queue drains after results return", 18000);
   await assertNoBrowserErrors("Codex queue");
   await evaluate(`document.querySelector(".guided-link")?.click()`);
-  await waitForEval(() => `document.querySelectorAll(".guided-option").length === 2`, "return to Guided Start after Codex queue");
+  await waitForEval(() => `document.querySelectorAll(".guided-option").length === 3`, "return to Guided Start after Codex queue");
+}
+
+async function assertImageEditing() {
+  await clickGuidedOption(1);
+  await waitForEval(() => `document.body.innerText.includes("Image Editing")`, "Image Editing workflow");
+  let snapshot = await pageSnapshot();
+  assert(snapshot.summary.includes("Route: Codex Handoff"), "Image Editing should use Codex Handoff");
+  assert(snapshot.buttons.includes("Edit Image"), "Image Editing should expose the Edit Image action");
+  assert(snapshot.buttons.includes("Upload Image"), "Image Editing should expose image upload");
+  assert(snapshot.buttons.includes("Pixel Art Generation"), "Image Editing should expose Pixel Art Generation tab");
+  assert(snapshot.buttons.includes("Image Editing"), "Image Editing should expose Image Editing tab");
+  assert(snapshot.buttons.includes("Animation Generation"), "Image Editing should expose Animation Generation tab");
+  assert(snapshot.annotationToolbarVisible, "Image Editing should show the rectangle selection toolbar");
+  assert(snapshot.canvasPreviewMode === "edit", `Image Editing should use edit canvas mode, got ${snapshot.canvasPreviewMode}`);
+  assert(snapshot.text.includes("Numbered edit regions"), "Image Editing should show numbered edit regions");
+  assert(snapshot.text.includes("Before / After"), "Image Editing should show Before / After compare");
+  assert(!snapshot.buttons.includes("Annotated PNG"), "Image Editing should hide the old annotation PNG button");
+  assert(!snapshot.buttons.includes("Brush"), "Image Editing should hide the old brush tool");
+  assert(!snapshot.buttons.includes("Arrow"), "Image Editing should hide the old arrow tool");
+
+  await dragCanvasRegion();
+  await waitForEval(() => `document.querySelectorAll(".annotation-region-row").length === 1`, "Image Editing numbered region");
+  await evaluate(`(() => {
+    const field = document.querySelector(".annotation-comment-field");
+    field.focus();
+  })()`);
+  await cdp.send("Input.insertText", { text: "Add the text X in this selected rectangle" });
+  await waitForEval(
+    () => `document.querySelector(".annotation-comment-field")?.value.includes("text X")`,
+    "Image Editing comment input"
+  );
+
+  await clickButtonByText("Edit Image");
+  await waitForEval(() => `document.body.innerText.includes("Imported from Local Inbox")`, "Image Editing imported result", 18000);
+  await waitForEval(() => `document.querySelectorAll(".edit-compare-grid img").length >= 2`, "Image Editing before after preview");
+  snapshot = await pageSnapshot();
+  assert(snapshot.annotationRegionRows === 1, "Image Editing should keep the numbered region visible after submit");
+  assert(snapshot.editCompareImages >= 2, `Image Editing should show before and after images, got ${snapshot.editCompareImages}`);
+  assert(snapshot.annotationComments.some((value) => value.includes("text X")), "Image Editing should keep region comments");
+  assert(snapshot.canvasPreviewMode === "edit", `Image Editing should keep edit canvas mode after import, got ${snapshot.canvasPreviewMode}`);
+  await assertNoBrowserErrors("Image Editing");
+  await maybeCapture("image-editing-before-after");
+  await evaluate(`document.querySelector(".guided-link")?.click()`);
+  await waitForEval(() => `document.querySelectorAll(".guided-option").length === 3`, "return to Guided Start after Image Editing");
 }
 
 async function assertWorkflow({
@@ -240,6 +285,7 @@ async function assertWorkflow({
   expectedPreviewImages = 0,
   expectedDirectionPreviewCount = 0,
   expectedCanvasPreviewModeAfterExercise = "",
+  expectedAnnotationToolbarVisible = false,
   reloadAfterExercise = false
 }) {
   await clickGuidedOption(index);
@@ -247,12 +293,16 @@ async function assertWorkflow({
   const snapshot = await pageSnapshot();
   assert(snapshot.text.includes(label), `${label} should be visible after selection`);
   assert(snapshot.buttons.includes("Pixel Art Generation"), `${label} should expose the Pixel Art Generation tab`);
+  assert(snapshot.buttons.includes("Image Editing"), `${label} should expose the Image Editing tab`);
   assert(snapshot.buttons.includes("Animation Generation"), `${label} should expose the Animation Generation tab`);
   assert(snapshot.workflowTabsInsidePanel, `${label} should place workflow tabs under 1. Workflow`);
   assert(!snapshot.workflowTabsInTopbar, `${label} should not place workflow tabs in the global header`);
   assert(snapshot.summary.includes(route), `${label} should select ${route}`);
   assert(snapshot.canvasVisible, `${label} should render the canvas`);
-  assert(snapshot.annotationToolbarVisible, `${label} should show the Preview toolbar`);
+  assert(
+    snapshot.annotationToolbarVisible === expectedAnnotationToolbarVisible,
+    `${label} Preview toolbar visibility should be ${expectedAnnotationToolbarVisible}`
+  );
   assert(!snapshot.spriteBenchVisible, `${label} should keep the Sprite Actions panel hidden for now`);
   buttons.forEach((button) => {
     assert(snapshot.buttons.includes(button), `${label} missing action button: ${button}`);
@@ -309,9 +359,11 @@ async function assertWorkflow({
         `${label} should use ${expectedCanvasPreviewModeAfterExercise} canvas preview mode, got ${previewSnapshot.canvasPreviewMode}`
       );
       assert(previewSnapshot.canvasPreviewName, `${label} should expose the selected result name on the preview canvas`);
-      assert(previewSnapshot.resultPreviewImages === 1, `${label} should render one selected result preview image, got ${previewSnapshot.resultPreviewImages}`);
-      assert(previewSnapshot.resultPreviewLoaded, `${label} should load the selected result preview image`);
-      assert(previewSnapshot.resultPreviewFrameHeight >= 240, `${label} result preview frame should be tall enough to inspect, got ${previewSnapshot.resultPreviewFrameHeight}`);
+      if (expectedCanvasPreviewModeAfterExercise === "result") {
+        assert(previewSnapshot.resultPreviewImages === 1, `${label} should render one selected result preview image, got ${previewSnapshot.resultPreviewImages}`);
+        assert(previewSnapshot.resultPreviewLoaded, `${label} should load the selected result preview image`);
+        assert(previewSnapshot.resultPreviewFrameHeight >= 240, `${label} result preview frame should be tall enough to inspect, got ${previewSnapshot.resultPreviewFrameHeight}`);
+      }
     }
     for (const button of postExerciseButtons) {
       await clickButtonByText(button);
@@ -321,7 +373,7 @@ async function assertWorkflow({
     if (reloadAfterExercise) {
       await delay(500);
       await cdp.send("Page.reload", { ignoreCache: true });
-      await waitForEval(() => `document.querySelectorAll(".guided-option").length === 2`, `${label} reload returned to Guided Start`);
+      await waitForEval(() => `document.querySelectorAll(".guided-option").length === 3`, `${label} reload returned to Guided Start`);
       await clickGuidedOption(index);
       await waitForEval(() => `document.body.innerText.includes("Animation frames ready")`, `${label} persisted animation frames after reload`);
       await waitForEval(() => `document.body.innerText.includes("512x512")`, `${label} persisted 512x512 frame size after reload`);
@@ -330,11 +382,28 @@ async function assertWorkflow({
   }
   await maybeCapture(label.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, ""));
   await evaluate(`document.querySelector(".guided-link")?.click()`);
-  await waitForEval(() => `document.querySelectorAll(".guided-option").length === 2`, "return to Guided Start");
+  await waitForEval(() => `document.querySelectorAll(".guided-option").length === 3`, "return to Guided Start");
 }
 
 async function clickGuidedOption(index) {
   await evaluate(`document.querySelectorAll(".guided-option")[${index}]?.click()`);
+}
+
+async function dragCanvasRegion() {
+  const drag = await evaluate(`(() => {
+    const canvas = document.querySelector("canvas");
+    if (!canvas) throw new Error("Canvas not found for rectangle drag");
+    const rect = canvas.getBoundingClientRect();
+    return {
+      startX: rect.left + rect.width * 0.34,
+      startY: rect.top + rect.height * 0.32,
+      endX: rect.left + rect.width * 0.58,
+      endY: rect.top + rect.height * 0.55
+    };
+  })()`);
+  await cdp.send("Input.dispatchMouseEvent", { type: "mousePressed", x: drag.startX, y: drag.startY, button: "left", buttons: 1, clickCount: 1 });
+  await cdp.send("Input.dispatchMouseEvent", { type: "mouseMoved", x: drag.endX, y: drag.endY, button: "left", buttons: 1 });
+  await cdp.send("Input.dispatchMouseEvent", { type: "mouseReleased", x: drag.endX, y: drag.endY, button: "left", buttons: 0, clickCount: 1 });
 }
 
 async function clickButtonByText(label) {
@@ -373,6 +442,9 @@ async function pageSnapshot() {
     resultPreviewLoaded: Boolean(document.querySelector(".result-preview-image")?.naturalWidth),
     resultPreviewFrameHeight: Math.round(document.querySelector(".result-preview-frame")?.getBoundingClientRect().height || 0),
     directionPreviewRows: document.querySelectorAll(".direction-preview-row").length,
+    annotationRegionRows: document.querySelectorAll(".annotation-region-row").length,
+    annotationComments: Array.from(document.querySelectorAll(".annotation-comment-field")).map((field) => field.value),
+    editCompareImages: document.querySelectorAll(".edit-compare-grid img").length,
     spriteBenchVisible: Boolean(document.querySelector(".sprite-bench")),
     codexJobRows: document.querySelectorAll(".codex-job-row").length,
     animationPreviewImages: document.querySelectorAll(".animation-preview img").length
@@ -500,6 +572,14 @@ const job = JSON.parse(await readFile(jobPath, "utf8"));
 const delayMs = Number(process.env.IMAGE_COCKPIT_MOCK_RUNNER_DELAY_MS || 0);
 if (delayMs > 0) {
   await new Promise((resolve) => setTimeout(resolve, delayMs));
+}
+
+if (job.workflowMode === "image-edit") {
+  const comments = (job.annotationContext?.annotations || []).map((annotation) => annotation.comment || "").join("\\n");
+  if (!job.selectedImage?.assetPath || job.annotationContext?.annotationCount < 1 || !comments.includes("text X")) {
+    console.error("image edit job missing selected asset, numbered annotation, or comment");
+    process.exit(4);
+  }
 }
 
 if (job.workflowMode !== "sprite-generate") {

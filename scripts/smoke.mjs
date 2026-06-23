@@ -86,7 +86,7 @@ async function runManualHandoffSmoke() {
       selectedImageSize: "1x1",
       selectedImageSource: "import",
       selectedImageDataUrl: tinyPng,
-      annotations: [{ id: "ann-1", tool: "rect", color: "#ff0000", points: [{ x: 1, y: 2 }, { x: 3, y: 4 }] }],
+      annotations: [{ id: "ann-1", tool: "rect", color: "#ff0000", number: 1, comment: "Add the text X here", points: [{ x: 1, y: 2 }, { x: 3, y: 4 }] }],
       grid: { columns: 8, rows: 4, gutter: 0 },
       action: "idle",
       frames: 8
@@ -97,6 +97,8 @@ async function runManualHandoffSmoke() {
     assert(jobJson.workflowMode === "image-edit", "job should include workflowMode");
     assert(jobJson.jobNotes.includes("Preserve silhouette"), "job should include edit notes");
     assert(jobJson.annotationContext.annotationCount === 1, "job should include annotation count");
+    assert(jobJson.annotationContext.annotations[0].number === 1, "job should include numbered edit annotations");
+    assert(jobJson.annotationContext.annotations[0].comment.includes("text X"), "job should include numbered edit comments");
     assert(jobJson.selectedImage.assetPath, "job should include selected image asset path");
     await stat(jobJson.selectedImage.assetPath);
 

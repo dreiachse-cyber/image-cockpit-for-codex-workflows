@@ -6,7 +6,6 @@ import {
   Brush,
   CheckCircle2,
   Copy,
-  Download,
   FileArchive,
   FileImage,
   FileJson,
@@ -16,8 +15,6 @@ import {
   ImagePlus,
   Languages,
   Loader2,
-  MousePointer2,
-  MoveUpRight,
   PanelRight,
   Pipette,
   Plug,
@@ -120,6 +117,8 @@ interface PendingCodexJob {
   grid?: GridSettings;
   cell?: SpriteAction["cell"];
   chromaKey?: AnimationChromaKeyName;
+  sourceImageId?: string;
+  sourceImageName?: string;
 }
 
 interface CodexJobDraft {
@@ -148,6 +147,8 @@ interface CodexJobDraft {
   resultGrid?: GridSettings;
   resultCell?: SpriteAction["cell"];
   resultChromaKey?: AnimationChromaKeyName;
+  resultSourceImageId?: string;
+  resultSourceImageName?: string;
 }
 
 interface CodexJobQueueItem {
@@ -163,6 +164,8 @@ interface CodexJobQueueItem {
   grid?: GridSettings;
   cell?: SpriteAction["cell"];
   chromaKey?: AnimationChromaKeyName;
+  sourceImageId?: string;
+  sourceImageName?: string;
 }
 
 interface ImportLatestOptions {
@@ -178,6 +181,12 @@ interface AnimationDirectionPreview {
   gifUrl: string;
   webpUrl: string;
   frameCount: number;
+}
+
+interface ImageEditComparison {
+  before: HistoryItem;
+  after?: HistoryItem;
+  jobId?: string;
 }
 
 const uiCopy = {
@@ -269,6 +278,22 @@ const uiCopy = {
     previewWebP: "WebP Preview",
     previewSpriteSheet: "Sprite Sheet Preview",
     animationDownloadsLocked: "Generate animation frames before downloading.",
+    uploadImageForEdit: "Upload Image",
+    selectedEditSource: "Selected image",
+    noEditSource: "No image selected yet",
+    imageEditRegionsTitle: "Numbered edit regions",
+    imageEditRegionsHelp: "Drag a rectangle on the preview. Each rectangle gets a number and a comment box.",
+    noEditRegions: "No numbered regions yet. Drag on the preview to add #1.",
+    editRegionLabel: "Region",
+    editRegionPlaceholder: "Example: add the text X here / remove X from here",
+    removeRegion: "Remove region",
+    clearRegions: "Clear regions",
+    imageEditRegionAdded: "Edit region added",
+    imageEditComparisonTitle: "Before / After",
+    beforeEdit: "Before",
+    afterEdit: "After",
+    waitingForEditResult: "Waiting for the edited image from Codex.",
+    editImage: "Edit Image",
     statusUsesImport: "uses Import or drag and drop",
     statusCodexJobWritten: "Codex job written",
     statusCodexJobError: "Could not create Codex handoff job",
@@ -306,9 +331,9 @@ const uiCopy = {
     jobNotes: "Edit Notes",
     jobNotesPlaceholder: "What should Codex preserve, fix, crop, split, or export?",
     guidedQuestion: "Choose what to make",
-    guidedIntro: "Pixel art first, then animation from a selected pixel-art source.",
+    guidedIntro: "Generate pixel art, edit an image with numbered regions, or animate a selected pixel-art source.",
     guidedNote:
-      "No direct OpenAI API calls from this app. Pixel art and animation generation both use the local Codex handoff."
+      "No direct OpenAI API calls from this app. Pixel art generation, image editing, and animation generation use the local Codex handoff."
   },
   ja: {
     language: "言語",
@@ -398,6 +423,22 @@ const uiCopy = {
     previewWebP: "WebP Preview",
     previewSpriteSheet: "Sprite Sheet Preview",
     animationDownloadsLocked: "ダウンロード前にアニメーションを生成してください。",
+    uploadImageForEdit: "画像をアップロード",
+    selectedEditSource: "選択中の画像",
+    noEditSource: "まだ画像が選択されていません",
+    imageEditRegionsTitle: "番号付き編集範囲",
+    imageEditRegionsHelp: "プレビュー上をドラッグして矩形選択します。矩形には番号が付き、番号ごとにコメントできます。",
+    noEditRegions: "まだ編集範囲がありません。プレビュー上をドラッグして #1 を追加してください。",
+    editRegionLabel: "範囲",
+    editRegionPlaceholder: "例: ここにXというテキスト追加 / ここのXを削除",
+    removeRegion: "範囲を削除",
+    clearRegions: "範囲を全削除",
+    imageEditRegionAdded: "編集範囲を追加しました",
+    imageEditComparisonTitle: "編集前 / 編集後",
+    beforeEdit: "編集前",
+    afterEdit: "編集後",
+    waitingForEditResult: "Codexから編集後画像が戻るのを待っています。",
+    editImage: "画像編集",
     statusUsesImport: "はImportまたはドラッグ&ドロップを使います",
     statusCodexJobWritten: "Codexジョブを書き込みました",
     statusCodexJobError: "Codex handoffジョブを作成できませんでした",
@@ -435,9 +476,9 @@ const uiCopy = {
     jobNotes: "編集メモ",
     jobNotesPlaceholder: "Codexに残してほしい点、直してほしい点、切り出し方、出力形式を書きます",
     guidedQuestion: "作りたいものを選んでください",
-    guidedIntro: "まずピクセルアートを作り、選択したピクセルアートからアニメーションを生成します。",
+    guidedIntro: "ピクセルアート生成、番号付き範囲での画像編集、選択したピクセルアートのアニメーション生成を行えます。",
     guidedNote:
-      "このアプリ自体はOpenAI APIを直接呼びません。ピクセルアート生成はローカルCodex受け渡し、アニメーション生成は選択済みピクセルアートから行います。"
+      "このアプリ自体はOpenAI APIを直接呼びません。ピクセルアート生成、画像編集、アニメーション生成はいずれもローカルCodex受け渡しで行います。"
   }
 } satisfies Record<Language, Record<string, string>>;
 
@@ -449,9 +490,9 @@ const workflowCopy: Record<Language, Record<WorkflowMode, { label: string; detai
       status: "Generate pixel art through the local Codex imagegen handoff"
     },
     "image-edit": {
-      label: "2. Image Editing",
-      detail: "Annotate an image and hand the edit instruction to Codex.",
-      status: "Annotate the image, then create a Codex handoff job with the edit notes"
+      label: "Image Editing",
+      detail: "Select numbered rectangles on an image, comment on each region, then ask Codex to edit it.",
+      status: "Select numbered edit regions, add comments, then create a Codex handoff job"
     },
     "sprite-generate": {
       label: "Animation Generation",
@@ -471,9 +512,9 @@ const workflowCopy: Record<Language, Record<WorkflowMode, { label: string; detai
       status: "ローカルCodex imagegen受け渡しでピクセルアートを生成します"
     },
     "image-edit": {
-      label: "2. 画像編集",
-      detail: "画像に注釈を入れて、編集指示をCodexへ受け渡します。",
-      status: "画像に注釈を入れてから、編集メモつきのCodex受け渡しジョブを作成します"
+      label: "画像編集",
+      detail: "画像を矩形選択して番号を付け、番号ごとのコメントをCodexへ渡します。",
+      status: "番号付き編集範囲とコメントを作ってから、Codex受け渡しジョブを作成します"
     },
     "sprite-generate": {
       label: "アニメーションの生成",
@@ -566,6 +607,10 @@ const workflowOptions: Array<{
 }> = [
   {
     id: "image-generate",
+    provider: "codex-handoff"
+  },
+  {
+    id: "image-edit",
     provider: "codex-handoff"
   },
   {
@@ -699,10 +744,12 @@ function App() {
   const [spriteSheetPreviewUrl, setSpriteSheetPreviewUrl] = useState("");
   const [animationDirectionPreviews, setAnimationDirectionPreviews] = useState<AnimationDirectionPreview[]>([]);
   const [animationChromaKey, setAnimationChromaKey] = useState<AnimationChromaKeyName>("green");
+  const [imageEditComparison, setImageEditComparison] = useState<ImageEditComparison | null>(null);
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const startingQueuedJobIdsRef = useRef<Set<string>>(new Set());
+  const lastPointerEventAtRef = useRef(0);
   const copy = uiCopy[language];
 
   const selected = useMemo(
@@ -746,6 +793,10 @@ function App() {
   );
 
   const isPreviewingSelectedFrame = Boolean(selectedFrameForPreview?.sourceId && selectedFrameForPreview.sourceId === selected?.id);
+  const selectedAnnotations = useMemo(
+    () => (selected ? annotationsByItem[selected.id] ?? [] : []),
+    [annotationsByItem, selected]
+  );
 
   const qc = useMemo(
     () => summarizeFrames(actionFrames, activeAction.cell.width, activeAction.cell.height),
@@ -1012,11 +1063,13 @@ function App() {
     const y = (CANVAS_HEIGHT - height) / 2;
     context.drawImage(image, x, y, width, height);
 
-    if (showGrid && !displayingFrame) drawGridOverlay(context, x, y, width, height, grid.columns, grid.rows);
-    if (showCenter) drawCenterOverlay(context, x, y, width, height);
-    const annotations = [...(annotationsByItem[selected.id] ?? []), ...(draftAnnotation ? [draftAnnotation] : [])];
-    annotations.forEach((annotation) => drawAnnotation(context, annotation));
-  }, [annotationsByItem, copy.canvasEmpty, draftAnnotation, grid.columns, grid.rows, selected, selectedFrameForPreview, showCenter, showGrid]);
+    if (showGrid && !displayingFrame && workflowMode !== "image-edit") drawGridOverlay(context, x, y, width, height, grid.columns, grid.rows);
+    if (showCenter && workflowMode !== "image-edit") drawCenterOverlay(context, x, y, width, height);
+    if (workflowMode === "image-edit") {
+      const annotations = [...(annotationsByItem[selected.id] ?? []), ...(draftAnnotation ? [draftAnnotation] : [])];
+      annotations.forEach((annotation) => drawAnnotation(context, annotation));
+    }
+  }, [annotationsByItem, copy.canvasEmpty, draftAnnotation, grid.columns, grid.rows, selected, selectedFrameForPreview, showCenter, showGrid, workflowMode]);
 
   async function handleFiles(files: FileList | File[]) {
     const entries = Array.from(files).filter((file) => file.type.startsWith("image/"));
@@ -1083,6 +1136,7 @@ function App() {
   async function buildCodexJobDraft(): Promise<CodexJobDraft | null> {
     const includeSelectedImage = workflowUsesSelectedImage(workflowMode);
     const includeSpriteContext = workflowUsesSpriteContext(workflowMode);
+    const isImageEditJob = workflowMode === "image-edit";
     const isAnimationJob = workflowMode === "sprite-generate";
     const sourceImageForJob = isAnimationJob ? animationSource : selected;
     const animationAction = normalizeAnimationAction(activeAction);
@@ -1112,7 +1166,13 @@ function App() {
           chromaKey: chromaDecision.key,
           cell: spriteCell
         })
-      : prompt;
+      : isImageEditJob
+        ? buildImageEditCodexPrompt({
+            prompt,
+            sourceName: sourceImageForJob?.name ?? "",
+            annotations: selectedAnnotations
+          })
+        : prompt;
     const codexJobNotes = isAnimationJob
       ? buildAnimationCodexNotes({
           userNotes: jobNotes,
@@ -1121,7 +1181,12 @@ function App() {
           grid: spriteGrid,
           cell: spriteCell
         })
-      : jobNotes;
+      : isImageEditJob
+        ? buildImageEditCodexNotes({
+            userNotes: jobNotes,
+            annotations: selectedAnnotations
+          })
+        : jobNotes;
 
     return {
       workflowMode,
@@ -1136,7 +1201,7 @@ function App() {
       selectedImageSize: includeSelectedImage ? sourceImageForJob?.size ?? "" : "",
       selectedImageSource: includeSelectedImage ? sourceImageForJob?.source ?? "" : "",
       selectedImageDataUrl: includeSelectedImage ? sourceImageForJob?.dataUrl ?? "" : "",
-      annotations: workflowMode === "image-edit" && selected ? annotationsByItem[selected.id] ?? [] : [],
+      annotations: isImageEditJob && selected ? selectedAnnotations : [],
       grid: includeSpriteContext ? spriteGrid : null,
       action: includeSpriteContext ? animationAction.name : "",
       frames: includeSpriteContext ? spriteFrameCount : 0,
@@ -1148,7 +1213,9 @@ function App() {
       resultActionName: isAnimationJob ? animationAction.name : undefined,
       resultGrid: isAnimationJob ? spriteGrid : undefined,
       resultCell: isAnimationJob ? spriteCell : undefined,
-      resultChromaKey: isAnimationJob ? chromaDecision.key.name : undefined
+      resultChromaKey: isAnimationJob ? chromaDecision.key.name : undefined,
+      resultSourceImageId: isImageEditJob ? sourceImageForJob?.id : undefined,
+      resultSourceImageName: isImageEditJob ? sourceImageForJob?.name : undefined
     };
   }
 
@@ -1168,7 +1235,9 @@ function App() {
         actionName: draft.resultActionName,
         grid: draft.resultGrid,
         cell: draft.resultCell,
-        chromaKey: draft.resultChromaKey
+        chromaKey: draft.resultChromaKey,
+        sourceImageId: draft.resultSourceImageId,
+        sourceImageName: draft.resultSourceImageName
       }
     ]);
     setStatus(`${labels.queuedStatus}: ${draft.label}`);
@@ -1205,6 +1274,10 @@ function App() {
       if (!response.ok) throw new Error(await response.text());
 
       const data = (await response.json()) as CodexJobResponse;
+      if (draft.resultWorkflowMode === "image-edit") {
+        const before = history.find((item) => item.id === draft.resultSourceImageId) ?? selected;
+        if (before) setImageEditComparison({ before, jobId: data.id });
+      }
       if (shouldWaitForCodexRunner(data.runner)) {
         const runningJob: CodexJobQueueItem = {
           id: data.id,
@@ -1216,7 +1289,9 @@ function App() {
           actionName: draft.resultActionName,
           grid: draft.resultGrid,
           cell: draft.resultCell,
-          chromaKey: draft.resultChromaKey
+          chromaKey: draft.resultChromaKey,
+          sourceImageId: draft.resultSourceImageId,
+          sourceImageName: draft.resultSourceImageName
         };
         setCodexJobs((current) => {
           const withoutQueued = queuedJobId ? current.filter((job) => job.id !== queuedJobId) : current;
@@ -1414,8 +1489,17 @@ function App() {
         adopted: false,
         source: "inbox"
       };
+      const isImageEditImport = pendingJob?.workflowMode === "image-edit" || (!pendingJob && workflowMode === "image-edit" && imageEditComparison?.before);
+      let imageEditBefore: HistoryItem | undefined;
+      if (isImageEditImport) {
+        imageEditBefore =
+          history.find((historyItem) => historyItem.id === pendingJob?.sourceImageId) ??
+          imageEditComparison?.before ??
+          selected;
+        if (imageEditBefore) setImageEditComparison({ before: imageEditBefore, after: item, jobId: pendingJob?.id ?? imageEditComparison?.jobId });
+      }
       setHistory((current) => [item, ...current]);
-      setSelectedId(item.id);
+      setSelectedId(imageEditBefore?.id ?? item.id);
       setSelectedFrameId("");
       if (pendingJob) removeCodexJob(pendingJob.id);
       setStatus(`${copy.statusInboxImported}: ${imported.name}`);
@@ -1570,43 +1654,112 @@ function App() {
   }
 
   function handlePointerDown(event: React.PointerEvent<HTMLCanvasElement>) {
-    if (tool === "select" || !selected) return;
-    const point = canvasPoint(event);
-    setDraftAnnotation({
-      id: createId("anno"),
-      tool,
-      color: annotationColor,
-      width: tool === "brush" ? 4 : 3,
-      points: [point]
-    });
+    lastPointerEventAtRef.current = Date.now();
+    beginAnnotationDrag(event);
   }
 
   function handlePointerMove(event: React.PointerEvent<HTMLCanvasElement>) {
+    lastPointerEventAtRef.current = Date.now();
+    updateAnnotationDrag(event);
+  }
+
+  function handlePointerUp() {
+    lastPointerEventAtRef.current = Date.now();
+    finishAnnotationDrag();
+  }
+
+  function handleMouseDown(event: React.MouseEvent<HTMLCanvasElement>) {
+    if (shouldIgnoreMouseFallback()) return;
+    beginAnnotationDrag(event);
+  }
+
+  function handleMouseMove(event: React.MouseEvent<HTMLCanvasElement>) {
+    if (shouldIgnoreMouseFallback()) return;
+    updateAnnotationDrag(event);
+  }
+
+  function handleMouseUp() {
+    if (shouldIgnoreMouseFallback()) return;
+    finishAnnotationDrag();
+  }
+
+  function shouldIgnoreMouseFallback() {
+    return Date.now() - lastPointerEventAtRef.current < 500;
+  }
+
+  function beginAnnotationDrag(event: React.PointerEvent<HTMLCanvasElement> | React.MouseEvent<HTMLCanvasElement>) {
+    if (workflowMode !== "image-edit" || !selected) return;
+    if (event.button !== 0) return;
+    const point = canvasPoint(event);
+    const number = (annotationsByItem[selected.id]?.length ?? 0) + 1;
+    try {
+      if ("pointerId" in event) event.currentTarget.setPointerCapture?.(event.pointerId);
+    } catch {
+      // Synthetic smoke-test pointer events may not register an active pointer id.
+    }
+    setDraftAnnotation({
+      id: createId("anno"),
+      tool: "rect",
+      color: annotationColor,
+      width: 3,
+      number,
+      comment: "",
+      points: [point, point]
+    });
+  }
+
+  function updateAnnotationDrag(event: React.PointerEvent<HTMLCanvasElement> | React.MouseEvent<HTMLCanvasElement>) {
     if (!draftAnnotation) return;
     const point = canvasPoint(event);
     setDraftAnnotation((current) => {
       if (!current) return current;
-      if (current.tool === "brush") return { ...current, points: [...current.points, point] };
       return { ...current, points: [current.points[0], point] };
     });
   }
 
-  function handlePointerUp() {
+  function finishAnnotationDrag() {
     if (!draftAnnotation || !selected) return;
-    setAnnotationsByItem((current) => ({
-      ...current,
-      [selected.id]: [...(current[selected.id] ?? []), draftAnnotation]
-    }));
+    const [start, end = start] = draftAnnotation.points;
+    if (Math.abs(end.x - start.x) < 6 || Math.abs(end.y - start.y) < 6) {
+      setDraftAnnotation(null);
+      return;
+    }
+    setAnnotationsByItem((current) => {
+      const currentList = current[selected.id] ?? [];
+      const number = currentList.length + 1;
+      return {
+        ...current,
+        [selected.id]: [...currentList, { ...draftAnnotation, number }]
+      };
+    });
     setDraftAnnotation(null);
+    setStatus(`${copy.imageEditRegionAdded} #${draftAnnotation.number ?? ""}`.trim());
   }
 
-  async function exportAnnotatedPng() {
-    const canvas = canvasRef.current;
-    if (!canvas || !selected) return;
-    canvas.toBlob((blob) => {
-      if (!blob) return;
-      downloadBlob(blob, `${selected.name.replace(/\.[^.]+$/, "")}_annotated.png`);
-    }, "image/png");
+  function updateAnnotationComment(annotationId: string, comment: string) {
+    if (!selected) return;
+    setAnnotationsByItem((current) => ({
+      ...current,
+      [selected.id]: (current[selected.id] ?? []).map((annotation) =>
+        annotation.id === annotationId ? { ...annotation, comment } : annotation
+      )
+    }));
+  }
+
+  function removeAnnotation(annotationId: string) {
+    if (!selected) return;
+    setAnnotationsByItem((current) => ({
+      ...current,
+      [selected.id]: renumberAnnotations((current[selected.id] ?? []).filter((annotation) => annotation.id !== annotationId))
+    }));
+  }
+
+  function clearSelectedAnnotations() {
+    if (!selected) return;
+    setAnnotationsByItem((current) => ({
+      ...current,
+      [selected.id]: []
+    }));
   }
 
   async function adoptSelected() {
@@ -1619,11 +1772,21 @@ function App() {
     setWorkflowMode(mode);
     setShowPromptExamples(false);
     if (option) setProviderId(option.provider);
-    if (mode === "image-edit") setTool("brush");
-    if (mode === "image-generate") setTool("select");
+    if (mode === "image-edit") {
+      setTool("rect");
+      setShowGrid(false);
+      setShowCenter(false);
+    }
+    if (mode === "image-generate") {
+      setTool("select");
+      setShowGrid(true);
+      setShowCenter(true);
+    }
     if (mode === "sprite-generate" || mode === "sprite-edit") {
       setActiveActionName("idle");
       setMotionInputMode("prompt");
+      setShowGrid(true);
+      setShowCenter(true);
       setGrid(mode === "sprite-generate" ? ANIMATION_SHEET_GRID : { columns: ANIMATION_FRAME_COUNT, rows: 1, gutter: 0 });
       setActions((current) => normalizeAnimationActions(current));
     }
@@ -1676,9 +1839,11 @@ function App() {
   const runningCodexJobCount = codexJobs.filter((job) => job.state === "running").length;
   const shouldQueueCodexJob = providerId === "codex-handoff" && runningCodexJobCount >= MAX_ACTIVE_CODEX_JOBS;
   const isAnimationWorkflow = workflowMode === "sprite-generate";
+  const isImageEditWorkflow = workflowMode === "image-edit";
   const animationSourceReady = !isAnimationWorkflow || isAnimationSource(animationSource);
-  const primaryActionDisabled = isBusy || !animationSourceReady;
-  const previewMode = !selected ? "empty" : isPreviewingSelectedFrame ? "frame" : "result";
+  const imageEditSourceReady = !isImageEditWorkflow || Boolean(selected);
+  const primaryActionDisabled = isBusy || !animationSourceReady || !imageEditSourceReady;
+  const previewMode = !selected ? "empty" : isPreviewingSelectedFrame ? "frame" : isImageEditWorkflow ? "edit" : "result";
   const previewStatus = isPreviewingSelectedFrame && selectedFrameForPreview
     ? `${copy.frameLabel}: ${selectedFrameForPreview.index}`
     : `${copy.previewLabel}: ${selected?.name ?? "-"}`;
@@ -1687,7 +1852,7 @@ function App() {
     : selected?.size ?? "-";
   const showFrameGridControls = SHOW_LOW_PRIORITY_CONTROLS || workflowMode === "sprite-edit";
   const showSpriteTuningControls = SHOW_LOW_PRIORITY_CONTROLS || workflowMode === "sprite-edit";
-  const showAnnotationToolbar = true;
+  const showAnnotationToolbar = isImageEditWorkflow;
   const showSpriteActionsPanel = SHOW_SPRITE_ACTIONS_PANEL;
 
   if (!workflowMode) {
@@ -1918,6 +2083,66 @@ function App() {
                   {copy.promptExamples}
                 </button>
               )}
+              {isImageEditWorkflow && (
+                <section className="image-edit-panel">
+                  <div className="step-heading">
+                    <strong>{copy.selectedEditSource}</strong>
+                    <span>{copy.imageEditRegionsHelp}</span>
+                  </div>
+                  <button className="secondary-button full inline-full" onClick={() => fileInputRef.current?.click()}>
+                    <Upload size={16} aria-hidden="true" />
+                    {copy.uploadImageForEdit}
+                  </button>
+                  <div className="source-preview edit-source-preview">
+                    {selected ? (
+                      <>
+                        <img src={selected.dataUrl} alt="" />
+                        <span>
+                          <small>{copy.selectedEditSource}</small>
+                          <strong>{selected.name}</strong>
+                          <em>{selected.size} / {selected.source}</em>
+                        </span>
+                      </>
+                    ) : (
+                      <span>{copy.noEditSource}</span>
+                    )}
+                  </div>
+
+                  <div className="annotation-region-heading">
+                    <span>{copy.imageEditRegionsTitle}</span>
+                    {selectedAnnotations.length > 0 && (
+                      <button className="secondary-button mini" onClick={clearSelectedAnnotations}>
+                        <Trash2 size={14} aria-hidden="true" />
+                        {copy.clearRegions}
+                      </button>
+                    )}
+                  </div>
+                  <div className="annotation-region-list">
+                    {selectedAnnotations.length === 0 ? (
+                      <p className="annotation-empty">{copy.noEditRegions}</p>
+                    ) : (
+                      selectedAnnotations.map((annotation, index) => (
+                        <label className="annotation-region-row" key={annotation.id}>
+                          <span>
+                            <strong>#{annotation.number ?? index + 1}</strong>
+                            {copy.editRegionLabel}
+                          </span>
+                          <textarea
+                            className="annotation-comment-field"
+                            value={annotation.comment ?? ""}
+                            onChange={(event) => updateAnnotationComment(annotation.id, event.target.value)}
+                            placeholder={copy.editRegionPlaceholder}
+                            rows={2}
+                          />
+                          <button className="icon-button danger" type="button" title={copy.removeRegion} onClick={() => removeAnnotation(annotation.id)}>
+                            <Trash2 size={16} aria-hidden="true" />
+                          </button>
+                        </label>
+                      ))
+                    )}
+                  </div>
+                </section>
+              )}
               {workflowMode === "image-generate" && (
                 <div className="button-row primary-action-row">
                   <button className="primary-button" onClick={() => void handleGenerate()} disabled={primaryActionDisabled}>
@@ -1990,6 +2215,32 @@ function App() {
                     {shouldQueueCodexJob ? codexQueueCopy.queueAction : primaryActionLabel(providerId, workflowMode, copy)}
                   </button>
                 </div>
+              )}
+              {isImageEditWorkflow && (
+                <section className="image-edit-compare">
+                  <div className="step-heading">
+                    <strong>{copy.imageEditComparisonTitle}</strong>
+                    <span>{imageEditComparison?.after ? copy.statusInboxImported : copy.waitingForEditResult}</span>
+                  </div>
+                  <div className="edit-compare-grid">
+                    <figure>
+                      <figcaption>{copy.beforeEdit}</figcaption>
+                      {(imageEditComparison?.before ?? selected) ? (
+                        <img src={(imageEditComparison?.before ?? selected)?.dataUrl} alt="" />
+                      ) : (
+                        <span>{copy.noEditSource}</span>
+                      )}
+                    </figure>
+                    <figure>
+                      <figcaption>{copy.afterEdit}</figcaption>
+                      {imageEditComparison?.after ? (
+                        <img src={imageEditComparison.after.dataUrl} alt="" />
+                      ) : (
+                        <span>{copy.waitingForEditResult}</span>
+                      )}
+                    </figure>
+                  </div>
+                </section>
               )}
             </>
           )}
@@ -2086,16 +2337,12 @@ function App() {
           <div className={`panel canvas-panel ${showAnnotationToolbar ? "" : "without-toolbar"}`}>
             <PanelTitle index="2" title={copy.canvasAnnotationTitle} />
             {showAnnotationToolbar && (
-              <div className="toolbar">
-                <ToolButton active={tool === "select"} title={copy.selectTool} onClick={() => setTool("select")} icon={<MousePointer2 size={18} />} />
-                <ToolButton active={tool === "brush"} title={copy.brushTool} onClick={() => setTool("brush")} icon={<Brush size={18} />} />
-                <ToolButton active={tool === "rect"} title={copy.rectangleTool} onClick={() => setTool("rect")} icon={<Square size={18} />} />
-                <ToolButton active={tool === "arrow"} title={copy.arrowTool} onClick={() => setTool("arrow")} icon={<MoveUpRight size={18} />} />
-                <span className="toolbar-separator" />
-                <button className="icon-text-button" title={copy.exportAnnotationTitle} onClick={() => void exportAnnotatedPng()} disabled={!selected}>
-                  <Download size={17} aria-hidden="true" />
-                  {copy.annotatedPng}
-                </button>
+              <div className="toolbar edit-toolbar">
+                <span className="edit-tool-pill">
+                  <Square size={16} aria-hidden="true" />
+                  {copy.rectangleTool}
+                </span>
+                <span>{copy.imageEditRegionsHelp}</span>
               </div>
             )}
             <div
@@ -2121,6 +2368,10 @@ function App() {
                 onPointerMove={handlePointerMove}
                 onPointerUp={handlePointerUp}
                 onPointerLeave={handlePointerUp}
+                onMouseDown={handleMouseDown}
+                onMouseMove={handleMouseMove}
+                onMouseUp={handleMouseUp}
+                onMouseLeave={handleMouseUp}
               />
               {SHOW_LOW_PRIORITY_CONTROLS && (
                 <div className="split-popover">
@@ -2353,7 +2604,7 @@ function App() {
     </div>
   );
 
-  function canvasPoint(event: React.PointerEvent<HTMLCanvasElement>) {
+  function canvasPoint(event: React.PointerEvent<HTMLCanvasElement> | React.MouseEvent<HTMLCanvasElement>) {
     const rect = event.currentTarget.getBoundingClientRect();
     return {
       x: ((event.clientX - rect.left) / rect.width) * CANVAS_WIDTH,
@@ -2448,6 +2699,7 @@ function primaryActionLabel(
   if (providerId === "local-generator") return copy.generateLocalImage;
   if (providerId === "codex-handoff" && isWaitingForCodexResult) return copy.waitingForCodexResult;
   if (providerId === "codex-handoff" && workflowMode === "image-generate") return copy.generateLocalImage;
+  if (providerId === "codex-handoff" && workflowMode === "image-edit") return copy.editImage;
   if (providerId === "codex-handoff") return copy.createCodexJob;
   if (providerId === "local-inbox") return copy.importLatest;
   return copy.importFile;
@@ -2484,6 +2736,76 @@ function codexJobLabel(mode: WorkflowMode | null, prompt: string, actionName?: s
   if (mode === "image-edit") return shortPrompt ? `Image Edit: ${shortPrompt}` : "Image Edit";
   if (mode === "sprite-edit") return shortPrompt ? `Sprite Edit: ${shortPrompt}` : "Sprite Edit";
   return shortPrompt || "Codex Job";
+}
+
+function buildImageEditCodexPrompt({
+  prompt,
+  sourceName,
+  annotations
+}: {
+  prompt: string;
+  sourceName: string;
+  annotations: Annotation[];
+}) {
+  const basePrompt = prompt.trim() || "Edit the selected image according to the numbered region comments.";
+  const regionLines = annotations.length > 0
+    ? annotations.map(formatAnnotationInstruction).join("\n")
+    : "- No numbered regions were selected. Apply only the general edit prompt and job notes.";
+
+  return [
+    basePrompt,
+    "",
+    `Source image: ${sourceName || "selected image asset"}.`,
+    "Use the selected source image as the edit base.",
+    "Apply only the requested edits while preserving the rest of the image.",
+    "Return the edited image as a real PNG or WebP with the job id filename prefix.",
+    "",
+    "Numbered edit regions:",
+    regionLines
+  ].join("\n");
+}
+
+function buildImageEditCodexNotes({
+  userNotes,
+  annotations
+}: {
+  userNotes: string;
+  annotations: Annotation[];
+}) {
+  const regionNotes = annotations.length > 0
+    ? annotations.map(formatAnnotationInstruction).join("\n")
+    : "- No numbered regions were selected.";
+  return [
+    userNotes.trim(),
+    "",
+    "Image edit region comments:",
+    regionNotes,
+    "",
+    "Keep unrelated pixels unchanged when possible. Do not add labels, watermarks, or UI text unless a region comment explicitly asks for text."
+  ]
+    .filter((line, index) => index > 0 || line.length > 0)
+    .join("\n")
+    .trim();
+}
+
+function formatAnnotationInstruction(annotation: Annotation) {
+  const rect = annotationRect(annotation);
+  const number = annotation.number ?? 0;
+  const comment = annotation.comment?.trim() || "(no comment yet)";
+  return `- #${number}: ${comment} [canvas rect x=${Math.round(rect.x)}, y=${Math.round(rect.y)}, w=${Math.round(rect.width)}, h=${Math.round(rect.height)}]`;
+}
+
+function annotationRect(annotation: Annotation) {
+  const [start, end = start] = annotation.points;
+  const x = Math.min(start.x, end.x);
+  const y = Math.min(start.y, end.y);
+  const width = Math.abs(end.x - start.x);
+  const height = Math.abs(end.y - start.y);
+  return { x, y, width, height };
+}
+
+function renumberAnnotations(annotations: Annotation[]) {
+  return annotations.map((annotation, index) => ({ ...annotation, number: index + 1 }));
 }
 
 function buildAnimationDirectionPreviewActions(action: SpriteAction, actionFrames: SpriteFrame[]) {
@@ -2927,14 +3249,6 @@ function NumberField({
   );
 }
 
-function ToolButton({ active, icon, title, onClick }: { active: boolean; icon: React.ReactNode; title: string; onClick: () => void }) {
-  return (
-    <button className={`icon-button ${active ? "active" : ""}`} title={title} onClick={onClick}>
-      {icon}
-    </button>
-  );
-}
-
 function QcLine({ ok, label, value }: { ok: boolean; label: string; value: string }) {
   return (
     <div className="qc-line">
@@ -3202,7 +3516,17 @@ function drawAnnotation(context: CanvasRenderingContext2D, annotation: Annotatio
     context.stroke();
   }
   if (annotation.tool === "rect") {
-    context.strokeRect(start.x, start.y, end.x - start.x, end.y - start.y);
+    const rect = annotationRect(annotation);
+    context.strokeRect(rect.x, rect.y, rect.width, rect.height);
+    const label = `#${annotation.number ?? ""}`;
+    context.font = "700 14px Inter, system-ui, sans-serif";
+    const labelWidth = Math.max(28, context.measureText(label).width + 14);
+    const labelX = Math.max(4, rect.x);
+    const labelY = Math.max(4, rect.y - 28);
+    context.fillStyle = annotation.color;
+    context.fillRect(labelX, labelY, labelWidth, 24);
+    context.fillStyle = "#ffffff";
+    context.fillText(label, labelX + 7, labelY + 17);
   }
   if (annotation.tool === "arrow") {
     context.beginPath();
@@ -3300,7 +3624,9 @@ function savePendingCodexJobs(jobs: CodexJobQueueItem[]) {
         actionName: job.actionName,
         grid: job.grid,
         cell: job.cell,
-        chromaKey: job.chromaKey
+        chromaKey: job.chromaKey,
+        sourceImageId: job.sourceImageId,
+        sourceImageName: job.sourceImageName
       }));
     if (runningJobs.length > 0) {
       window.localStorage.setItem(PENDING_CODEX_JOB_STORAGE_KEY, JSON.stringify(runningJobs));

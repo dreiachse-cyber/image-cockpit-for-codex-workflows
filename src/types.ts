@@ -45,6 +45,8 @@ export interface Annotation {
   tool: Exclude<ToolMode, "select">;
   color: string;
   width: number;
+  number?: number;
+  comment?: string;
   points: Array<{ x: number; y: number }>;
 }
 
