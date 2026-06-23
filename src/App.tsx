@@ -1631,7 +1631,7 @@ function App() {
     : selected?.size ?? "-";
   const showFrameGridControls = SHOW_LOW_PRIORITY_CONTROLS || workflowMode === "sprite-edit";
   const showSpriteTuningControls = SHOW_LOW_PRIORITY_CONTROLS || workflowMode === "sprite-edit";
-  const showAnnotationToolbar = SHOW_LOW_PRIORITY_CONTROLS || workflowMode === "image-edit";
+  const showAnnotationToolbar = true;
   const showSpriteActionsPanel = SHOW_SPRITE_ACTIONS_PANEL;
 
   if (!workflowMode) {
@@ -2009,7 +2009,7 @@ function App() {
         </aside>
 
         <section className="workspace">
-          <div className="panel canvas-panel">
+          <div className={`panel canvas-panel ${showAnnotationToolbar ? "" : "without-toolbar"}`}>
             <PanelTitle index="2" title={copy.canvasAnnotationTitle} />
             {showAnnotationToolbar && (
               <div className="toolbar">

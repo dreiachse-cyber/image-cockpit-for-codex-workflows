@@ -279,6 +279,10 @@ button {
   grid-template-rows: 38px 44px minmax(0, 1fr) 34px;
 }
 
+.canvas-panel.without-toolbar {
+  grid-template-rows: 38px minmax(0, 1fr) 34px;
+}
+
 .sprite-bench {
   grid-column: 2 / 4;
   grid-row: 2;

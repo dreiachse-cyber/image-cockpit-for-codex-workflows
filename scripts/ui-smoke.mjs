@@ -250,6 +250,7 @@ async function assertWorkflow({
   assert(!snapshot.workflowTabsInTopbar, `${label} should not place workflow tabs in the global header`);
   assert(snapshot.summary.includes(route), `${label} should select ${route}`);
   assert(snapshot.canvasVisible, `${label} should render the canvas`);
+  assert(snapshot.annotationToolbarVisible, `${label} should show the Preview toolbar`);
   assert(!snapshot.spriteBenchVisible, `${label} should keep the Sprite Actions panel hidden for now`);
   buttons.forEach((button) => {
     assert(snapshot.buttons.includes(button), `${label} missing action button: ${button}`);
@@ -301,6 +302,7 @@ async function assertWorkflow({
       assert(previewSnapshot.canvasPreviewName, `${label} should expose the selected result name on the preview canvas`);
       assert(previewSnapshot.resultPreviewImages === 1, `${label} should render one selected result preview image, got ${previewSnapshot.resultPreviewImages}`);
       assert(previewSnapshot.resultPreviewLoaded, `${label} should load the selected result preview image`);
+      assert(previewSnapshot.resultPreviewFrameHeight >= 240, `${label} result preview frame should be tall enough to inspect, got ${previewSnapshot.resultPreviewFrameHeight}`);
     }
     for (const button of postExerciseButtons) {
       await clickButtonByText(button);
@@ -355,10 +357,12 @@ async function pageSnapshot() {
     workflowTabsInsidePanel: Boolean(document.querySelector(".source-panel > .workflow-tabs")),
     workflowTabsInTopbar: Boolean(document.querySelector(".topbar .workflow-tabs")),
     canvasVisible: Boolean(document.querySelector("canvas")),
+    annotationToolbarVisible: Boolean(document.querySelector(".canvas-panel .toolbar")),
     canvasPreviewMode: document.querySelector("canvas")?.dataset.previewMode || "",
     canvasPreviewName: document.querySelector("canvas")?.dataset.previewName || "",
     resultPreviewImages: document.querySelectorAll(".result-preview-image").length,
     resultPreviewLoaded: Boolean(document.querySelector(".result-preview-image")?.naturalWidth),
+    resultPreviewFrameHeight: Math.round(document.querySelector(".result-preview-frame")?.getBoundingClientRect().height || 0),
     spriteBenchVisible: Boolean(document.querySelector(".sprite-bench")),
     codexJobRows: document.querySelectorAll(".codex-job-row").length,
     animationPreviewImages: document.querySelectorAll(".animation-preview img").length
