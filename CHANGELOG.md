@@ -33,6 +33,7 @@ Private release candidate for the first local Image Cockpit MVP.
 - MVP demo GIF linked from README.
 - Release audit script for local-first boundaries, required docs, workflow IDs, and tracked-file safety checks.
 - v0.1.0 release notes draft for the first public release approval gate.
+- v0.1.0 owner review guide with the short path through `review:local`, manual workflow review, and approval gates.
 - GitHub Actions CI workflow for the same `npm run verify` release-check path.
 - One-command local verification through `npm run verify`.
 - Browser UI smoke through `npm run ui:smoke`, covering Guided Start, all four workflow routes, main actions, language switching, and core sprite-edit controls.

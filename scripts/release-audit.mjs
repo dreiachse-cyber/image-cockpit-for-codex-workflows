@@ -25,6 +25,7 @@ const requiredFiles = [
   "docs/release/v0.1.0-checklist.md",
   "docs/release/v0.1.0-runbook.md",
   "docs/release/v0.1.0-release-notes.md",
+  "docs/release/v0.1.0-owner-review.md",
   "docs/release/v0.1.0-acceptance-evidence.md",
   "docs/release/v0.1.0-owner-decision.md",
   "docs/usage/manual-handoff.md",
@@ -73,6 +74,7 @@ const requiredReviewLocalCommands = ["npm run verify", "npm run ui:smoke", "npm 
 const requiredReadmeLinks = [
   "CHANGELOG.md",
   "docs/release/v0.1.0-release-notes.md",
+  "docs/release/v0.1.0-owner-review.md",
   "docs/release/v0.1.0-acceptance-evidence.md",
   "docs/release/v0.1.0-owner-decision.md",
   "docs/release/v0.1.0-checklist.md",
@@ -418,10 +420,11 @@ function checkReleaseDocs() {
   const checklist = readText("docs/release/v0.1.0-checklist.md");
   const runbook = readText("docs/release/v0.1.0-runbook.md");
   const releaseNotes = readText("docs/release/v0.1.0-release-notes.md");
+  const ownerReview = readText("docs/release/v0.1.0-owner-review.md");
   const acceptanceEvidence = readText("docs/release/v0.1.0-acceptance-evidence.md");
   const ownerDecision = readText("docs/release/v0.1.0-owner-decision.md");
   const manualHandoff = readText("docs/usage/manual-handoff.md");
-  if (!readme || !checklist || !runbook || !releaseNotes || !acceptanceEvidence || !ownerDecision || !manualHandoff) return;
+  if (!readme || !checklist || !runbook || !releaseNotes || !ownerReview || !acceptanceEvidence || !ownerDecision || !manualHandoff) return;
 
   requiredReadmeLinks.forEach((link) => {
     if (!readme.includes(link)) {
@@ -438,6 +441,7 @@ function checkReleaseDocs() {
   [
     "Do not merge `main`, change repository visibility, or create a public release until the owner explicitly approves those actions.",
     "Do Not Ship If",
+    "docs/release/v0.1.0-owner-review.md",
     "A direct OpenAI API call or API key requirement was added.",
     "`codex-handoff/`, `.env`, generated outputs, model weights, or license-unclear assets are staged."
   ].forEach((line) => {
@@ -461,6 +465,7 @@ function checkReleaseDocs() {
     "terminal-runnable `%LOCALAPPDATA%\\OpenAI\\Codex\\bin\\...\\codex.exe` CLI",
     "codex exec -c approval_policy",
     "real no-image runner smoke",
+    "Owner review guide gives the short path through `review:local`, manual workflow checks, and approval gates.",
     "npm run release:audit"
   ].forEach((line) => {
     if (!releaseNotes.includes(line)) {
@@ -483,6 +488,7 @@ function checkReleaseDocs() {
     "real-codex-runner-smoke.md",
     "manual-handoff-import-latest-1280x720.png",
     "docs/release/v0.1.0-owner-decision.md",
+    "docs/release/v0.1.0-owner-review.md",
     "Remaining Gates",
     "codex exec",
     "npm run ui:smoke",
@@ -497,11 +503,27 @@ function checkReleaseDocs() {
   checkAcceptanceEvidencePaths(acceptanceEvidence);
 
   [
+    "npm run review:local",
+    "npm run dev:all",
+    "画像生成 / 画像編集 / スプライトシート生成 / スプライトシート編集",
+    "アプリ自身はOpenAI APIを直接呼ばず",
+    "release notes / changelog承認",
+    "main merge承認",
+    "repository public化承認",
+    "P0 / P1 / P2"
+  ].forEach((line) => {
+    if (!ownerReview.includes(line)) {
+      failures.push(`Owner review guide is missing expected content: ${line}`);
+    }
+  });
+
+  [
     "Owner Decisions Still Required",
     "Do Not Proceed Without Approval",
     "Approve merge into `main`",
     "Approve changing repository visibility from private to public",
     "Approve creating the `v0.1.0` tag and GitHub release",
+    "Owner review guide: `docs/release/v0.1.0-owner-review.md`",
     "Owner-review sweep: `npm run review:local` on Codex-installed review machines",
     "automatic no-image `codex exec` completion has been verified",
     "Do not treat a successful Codex `--help` preflight as proof that automatic `codex exec` job completion works",

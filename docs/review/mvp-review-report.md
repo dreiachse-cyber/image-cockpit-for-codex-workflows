@@ -20,6 +20,7 @@
 8. `codex exec` が実行できない環境では、`docs/usage/manual-handoff.md` に沿って画像を `codex-handoff/outbox/` に置き、Local Inbox取り込みを確認する。
 
 受け入れ条件と証跡の対応表は `docs/release/v0.1.0-acceptance-evidence.md` を見る。
+短い確認入口だけ見たい場合は `docs/release/v0.1.0-owner-review.md` を見る。
 
 ## 主要成果
 
@@ -88,6 +89,7 @@ npm run release:audit
 - `docs/release/v0.1.0-checklist.md`
 - `docs/release/v0.1.0-runbook.md`
 - `docs/release/v0.1.0-release-notes.md`
+- `docs/release/v0.1.0-owner-review.md`
 - `docs/release/v0.1.0-acceptance-evidence.md`
 - `docs/release/v0.1.0-owner-decision.md`
 - `docs/usage/manual-handoff.md`
