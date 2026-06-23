@@ -1,0 +1,40 @@
+{
+  "name": "image-cockpit-for-codex-workflows",
+  "version": "0.1.0",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1",
+    "dev:all": "node scripts/dev-all.mjs",
+    "dev:server": "tsx server/index.ts",
+    "doctor": "node scripts/doctor.mjs",
+    "build": "tsc -b && vite build",
+    "codex:smoke": "node scripts/real-codex-runner-smoke.mjs",
+    "lint": "tsc --noEmit",
+    "release:audit": "node scripts/release-audit.mjs",
+    "review:local": "npm run verify && npm run ui:smoke && npm run codex:smoke",
+    "smoke": "node scripts/smoke.mjs",
+    "typecheck": "tsc --noEmit",
+    "ui:smoke": "node scripts/ui-smoke.mjs",
+    "test": "vitest run",
+    "verify": "npm run doctor && npm run typecheck && npm test && npm run build && npm run smoke && npm run release:audit"
+  },
+  "dependencies": {
+    "@vitejs/plugin-react": "5.0.4",
+    "gifenc": "1.0.3",
+    "jszip": "3.10.1",
+    "lucide-react": "0.468.0",
+    "react": "19.2.0",
+    "react-dom": "19.2.0",
+    "vite": "6.4.2"
+  },
+  "devDependencies": {
+    "@types/node": "24.10.1",
+    "@types/react": "19.2.6",
+    "@types/react-dom": "19.2.3",
+    "tsx": "4.21.0",
+    "typescript": "5.9.3",
+    "vitest": "4.0.15"
+  }
+}
