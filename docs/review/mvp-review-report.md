@@ -83,6 +83,7 @@ npm run release:audit
 - `docs/release/v0.1.0-runbook.md`
 - `docs/release/v0.1.0-release-notes.md`
 - `docs/release/v0.1.0-acceptance-evidence.md`
+- `docs/release/v0.1.0-owner-decision.md`
 - `docs/usage/manual-handoff.md`
 - `.github/workflows/ci.yml`
 
@@ -109,4 +110,5 @@ npm run release:audit
 ## 既知の制約
 
 - この環境ではCodex executableの直接起動が `spawn EPERM` になるため、自動画像生成の完走は未確認。
+- `docs/release/v0.1.0-owner-decision.md` の未チェック項目は、ご主人の明示承認まで未完了。
 - repoは最初のリリース版までprivateのまま。main merge / public化はご主人確認後。

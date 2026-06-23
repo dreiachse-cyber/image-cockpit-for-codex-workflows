@@ -32,6 +32,7 @@ Private release candidate for the first local Image Cockpit MVP.
 - Manual handoff guide for inbox / assets / outbox workflows when `codex exec` is unavailable.
 - Manual handoff status copy now points users back to `Import Latest` after returning an outbox image.
 - v0.1.0 acceptance evidence mapping the four primary workflows, local-first boundary, manual handoff path, and release gates to review artifacts.
+- v0.1.0 owner decision record separating private-MVP acceptance from owner approval gates for merge, public visibility, tag, and release.
 
 ### Notes
 

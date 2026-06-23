@@ -24,6 +24,7 @@ const requiredFiles = [
   "docs/release/v0.1.0-runbook.md",
   "docs/release/v0.1.0-release-notes.md",
   "docs/release/v0.1.0-acceptance-evidence.md",
+  "docs/release/v0.1.0-owner-decision.md",
   "docs/usage/manual-handoff.md",
   "docs/demo/mvp-demo.gif",
   "docs/qa/simple-image-generate-import-latest-1280x720.png",
@@ -56,6 +57,7 @@ const requiredReadmeLinks = [
   "CHANGELOG.md",
   "docs/release/v0.1.0-release-notes.md",
   "docs/release/v0.1.0-acceptance-evidence.md",
+  "docs/release/v0.1.0-owner-decision.md",
   "docs/release/v0.1.0-checklist.md",
   "docs/release/v0.1.0-runbook.md",
   "docs/usage/manual-handoff.md",
@@ -319,8 +321,9 @@ function checkReleaseDocs() {
   const runbook = readText("docs/release/v0.1.0-runbook.md");
   const releaseNotes = readText("docs/release/v0.1.0-release-notes.md");
   const acceptanceEvidence = readText("docs/release/v0.1.0-acceptance-evidence.md");
+  const ownerDecision = readText("docs/release/v0.1.0-owner-decision.md");
   const manualHandoff = readText("docs/usage/manual-handoff.md");
-  if (!readme || !checklist || !runbook || !releaseNotes || !acceptanceEvidence || !manualHandoff) return;
+  if (!readme || !checklist || !runbook || !releaseNotes || !acceptanceEvidence || !ownerDecision || !manualHandoff) return;
 
   requiredReadmeLinks.forEach((link) => {
     if (!readme.includes(link)) {
@@ -369,6 +372,7 @@ function checkReleaseDocs() {
     "Local-first boundary",
     "Manual handoff fallback",
     "manual-handoff-import-latest-1280x720.png",
+    "docs/release/v0.1.0-owner-decision.md",
     "Remaining Gates",
     "codex exec",
     "npm run smoke",
@@ -379,6 +383,20 @@ function checkReleaseDocs() {
     }
   });
   checkAcceptanceEvidencePaths(acceptanceEvidence);
+
+  [
+    "Owner Decisions Still Required",
+    "Do Not Proceed Without Approval",
+    "Approve merge into `main`",
+    "Approve changing repository visibility from private to public",
+    "Approve creating the `v0.1.0` tag and GitHub release",
+    "manual-handoff-first v0.1.0",
+    "Do not treat the current `spawn EPERM` environment as proof that automatic `codex exec` completion works."
+  ].forEach((line) => {
+    if (!ownerDecision.includes(line)) {
+      failures.push(`Owner decision record is missing expected content: ${line}`);
+    }
+  });
 
   [
     "codex-handoff/inbox/",
