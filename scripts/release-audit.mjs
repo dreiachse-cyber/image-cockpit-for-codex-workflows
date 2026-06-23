@@ -301,6 +301,7 @@ function checkReleaseDocs() {
       failures.push(`Acceptance evidence is missing expected content: ${line}`);
     }
   });
+  checkAcceptanceEvidencePaths(acceptanceEvidence);
 
   [
     "codex-handoff/inbox/",
@@ -312,6 +313,21 @@ function checkReleaseDocs() {
   ].forEach((line) => {
     if (!manualHandoff.includes(line)) {
       failures.push(`Manual handoff guide is missing expected content: ${line}`);
+    }
+  });
+}
+
+function checkAcceptanceEvidencePaths(text) {
+  const pathPattern = /`([^`]+\.(?:gif|json|md|mjs|png|ts|tsx|yml))`/g;
+  const refs = new Set();
+  let match;
+  while ((match = pathPattern.exec(text))) {
+    refs.add(match[1]);
+  }
+
+  refs.forEach((file) => {
+    if (!existsSync(join(root, file))) {
+      failures.push(`Acceptance evidence references missing file: ${file}`);
     }
   });
 }
