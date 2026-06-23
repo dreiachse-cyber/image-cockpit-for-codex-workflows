@@ -77,6 +77,10 @@ npm test
 npm run build
 ```
 
+## Review
+
+Use `docs/review/mvp-review-report.md` for the private MVP review path, QA evidence, and known constraints.
+
 ## Roadmap
 
 See `docs/roadmap/release-roadmap.md` for the path from the current private MVP to the first public release.
