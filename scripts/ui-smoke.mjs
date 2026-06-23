@@ -103,6 +103,7 @@ try {
   await assertInitialWorkspace();
   await assertLanguageSwitch();
   await assertPromptExamples();
+  await assertAnimationPresetExamples();
   await assertCodexFailureNotice();
   await assertCodexQueue();
   await assertImageEditing();
@@ -206,6 +207,44 @@ async function assertPromptExamples() {
   assert(loadedPrompt.includes("clockwork mushroom courier"), "Use Prompt should load the example into the prompt field");
   const modalClosed = await evaluate(`!document.querySelector(".prompt-modal")`);
   assert(modalClosed, "Use Prompt should close the Prompt Examples modal");
+
+  await selectWorkflowTab("Pixel Art Generation");
+}
+
+async function assertAnimationPresetExamples() {
+  await selectWorkflowTab("Animation Generation");
+  await waitForEval(() => `document.body.innerText.includes("Animation Generation")`, "Animation Generation for preset examples");
+  await clickButtonByText("Preset");
+  await waitForEval(() => `document.body.innerText.includes("Additional Prompt (optional)")`, "Animation preset tab");
+  const triggerPlacement = await evaluate(`(() => {
+    const presets = document.querySelector(".motion-presets");
+    const trigger = document.querySelector(".animation-preset-example-trigger");
+    return Boolean(trigger && presets && presets.nextElementSibling === trigger);
+  })()`);
+  assert(triggerPlacement, "Animation Preset Examples trigger should sit directly below the preset buttons");
+
+  await clickButtonByText("Preset Examples");
+  await waitForEval(() => `document.querySelector(".animation-preset-modal")?.innerText.includes("Idle Breathing Loop")`, "Animation Preset Examples modal");
+  const snapshot = await pageSnapshot();
+  assert(snapshot.text.includes("Pick an animated sample"), "Animation Preset Examples intro should be visible");
+  assert(snapshot.buttons.includes("Use Preset"), "Animation Preset Examples should expose use buttons");
+  assert(snapshot.animationPresetSampleSprites >= 4, `Animation Preset Examples should show animated sprite samples, got ${snapshot.animationPresetSampleSprites}`);
+  assert(snapshot.promptRawTextBlocks === 0, `Animation Preset Examples should hide raw prompt text, got ${snapshot.promptRawTextBlocks} raw blocks`);
+  const animationName = await evaluate(`getComputedStyle(document.querySelector(".animation-sample-sprite")).animationName`);
+  assert(animationName && animationName !== "none", "Animation Preset Examples samples should be animated");
+  await maybeCapture("animation-preset-examples-modal");
+
+  await clickButtonByText("Use Preset");
+  await waitForEval(
+    () => `document.body.innerText.includes("Animation preset loaded")`,
+    "Animation preset loaded"
+  );
+  const selectedPreset = await evaluate(`document.querySelector(".motion-presets button.active")?.innerText.replace(/\\s+/g, " ").trim() || ""`);
+  assert(selectedPreset === "idle", `Use Preset should select idle, got ${selectedPreset}`);
+  const loadedPrompt = await evaluate(`document.querySelector(".animation-step textarea")?.value || ""`);
+  assert(loadedPrompt.includes("idle breathing loop"), "Use Preset should load the preset motion prompt");
+  const modalClosed = await evaluate(`!document.querySelector(".animation-preset-modal")`);
+  assert(modalClosed, "Use Preset should close the Animation Preset Examples modal");
 
   await selectWorkflowTab("Pixel Art Generation");
 }
@@ -716,6 +755,7 @@ async function pageSnapshot() {
     codexJobRows: document.querySelectorAll(".codex-job-row").length,
     animationPreviewImages: document.querySelectorAll(".animation-preview img").length,
     promptPreviewImages: document.querySelectorAll(".prompt-card-preview img").length,
+    animationPresetSampleSprites: document.querySelectorAll(".animation-sample-sprite").length,
     promptRawTextBlocks: document.querySelectorAll(".prompt-card-text, .prompt-card-negative").length
   }))()`);
 }

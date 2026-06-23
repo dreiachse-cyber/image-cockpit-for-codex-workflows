@@ -114,6 +114,17 @@ interface PromptExample {
   notes: string;
 }
 
+interface AnimationPresetExample {
+  id: string;
+  actionName: string;
+  previewClassName: string;
+  category: Record<Language, string>;
+  title: Record<Language, string>;
+  summary: Record<Language, string>;
+  prompt: string;
+  notes: string;
+}
+
 interface PendingCodexJob {
   id: string;
   path: string;
@@ -267,6 +278,11 @@ const uiCopy = {
     motionPreset: "Preset",
     motionPromptTab: "Prompt",
     motionPresetTab: "Preset",
+    animationPresetExamples: "Preset Examples",
+    animationPresetExamplesTitle: "Animation Preset Examples",
+    animationPresetExamplesIntro: "Pick an animated sample, then load the matching motion preset.",
+    useAnimationPreset: "Use Preset",
+    animationPresetExampleApplied: "Animation preset loaded",
     motionPresetAdditionalPrompt: "Additional Prompt (optional)",
     motionPresetAdditionalPromptPlaceholder: "Optional: add robe sway, foot timing, effects, or mood.",
     generationMayTakeMinutes: "Generation can take a few minutes.",
@@ -430,6 +446,11 @@ const uiCopy = {
     motionPreset: "プリセット",
     motionPromptTab: "Prompt",
     motionPresetTab: "プリセット",
+    animationPresetExamples: "プリセット例",
+    animationPresetExamplesTitle: "アニメーションプリセット例",
+    animationPresetExamplesIntro: "動いているサンプルを見て、対応するプリセットを入力できます。",
+    useAnimationPreset: "このプリセットを使う",
+    animationPresetExampleApplied: "アニメーションプリセットを入力しました",
     motionPresetAdditionalPrompt: "追加prompt（任意）",
     motionPresetAdditionalPromptPlaceholder: "任意: 揺れ、足運び、エフェクト、雰囲気などを追加できます。",
     generationMayTakeMinutes: "生成は数分かかります",
@@ -638,6 +659,61 @@ const defaultActions: SpriteAction[] = [
   { name: "attack", fps: 10, loop: false, frameIds: [], cell: { width: 512, height: 512 }, anchor: { x: 256, y: 472 } }
 ];
 
+const animationPresetExamples: AnimationPresetExample[] = [
+  {
+    id: "idle-breathing-loop",
+    actionName: "idle",
+    previewClassName: "sample-row-idle",
+    category: { en: "Idle", ja: "待機" },
+    title: { en: "Idle Breathing Loop", ja: "待機ブレスループ" },
+    summary: {
+      en: "Small torso bounce, robe sway, and readable neutral pose.",
+      ja: "小さな上下動、布の揺れ、読みやすいニュートラル姿勢です。"
+    },
+    prompt: "idle breathing loop with subtle torso bounce, gentle cloth sway, stable feet, calm readable ready pose",
+    notes: "Preset example: keep the character centered and full body in every frame, with only small secondary motion."
+  },
+  {
+    id: "walk-cycle",
+    actionName: "walk",
+    previewClassName: "sample-row-walk",
+    category: { en: "Move", ja: "移動" },
+    title: { en: "Walk Cycle", ja: "歩行ループ" },
+    summary: {
+      en: "Alternating steps with steady baseline and clean silhouette.",
+      ja: "足運びが交互に読めて、基準線が安定した歩行です。"
+    },
+    prompt: "walk cycle with clear alternating steps, steady baseline, readable arm swing, full-body side-readable motion",
+    notes: "Preset example: keep the foot contact point consistent and avoid sliding, cropped feet, or pose drift."
+  },
+  {
+    id: "spell-cast",
+    actionName: "cast",
+    previewClassName: "sample-row-cast",
+    category: { en: "Cast", ja: "詠唱" },
+    title: { en: "Spell Cast", ja: "魔法詠唱" },
+    summary: {
+      en: "Anticipation, staff lift, charge glow, and return pose.",
+      ja: "予備動作、杖上げ、発光、戻り姿勢まである詠唱です。"
+    },
+    prompt: "spell cast animation with anticipation, staff lift, bright charge glow, release flash, and return to ready pose",
+    notes: "Preset example: effects must stay inside each cell and remain separate from the character silhouette."
+  },
+  {
+    id: "quick-attack",
+    actionName: "attack",
+    previewClassName: "sample-row-attack",
+    category: { en: "Attack", ja: "攻撃" },
+    title: { en: "Quick Attack", ja: "クイック攻撃" },
+    summary: {
+      en: "Wind-up, slash arc, follow-through, and recovery frames.",
+      ja: "振りかぶり、斬撃、フォロースルー、復帰までの動きです。"
+    },
+    prompt: "quick attack animation with anticipation, clean slash arc, follow-through, recovery frame, stable full-body silhouette",
+    notes: "Preset example: keep weapon trails inside the cell, do not crop the slash, and keep scale consistent."
+  }
+];
+
 const fallbackProviders: ProviderStatus[] = [
   { id: "local-file", label: "Local File", enabled: true, message: "Use images from this machine" },
   { id: "local-generator", label: "Local Generator", enabled: true, message: "Generate local PNG images" },
@@ -801,6 +877,7 @@ function App() {
   const [storageHydrated, setStorageHydrated] = useState(false);
   const [workflowMode, setWorkflowMode] = useState<WorkflowMode>("image-generate");
   const [showPromptExamples, setShowPromptExamples] = useState(false);
+  const [showAnimationPresetExamples, setShowAnimationPresetExamples] = useState(false);
   const [providerId, setProviderId] = useState<ProviderId>("codex-handoff");
   const [motionInputMode, setMotionInputMode] = useState<MotionInputMode>("prompt");
   const [animationSourceId, setAnimationSourceId] = useState("");
@@ -1940,6 +2017,7 @@ function App() {
     const option = workflowOptions.find((item) => item.id === mode);
     setWorkflowMode(mode);
     setShowPromptExamples(false);
+    setShowAnimationPresetExamples(false);
     if (option) setProviderId(option.provider);
     if (mode === "image-edit") {
       setTool("rect");
@@ -1999,6 +2077,24 @@ function App() {
     setProviderId("codex-handoff");
     setTool("select");
     setStatus(copy.promptExampleApplied);
+  }
+
+  function useAnimationPresetExample(example: AnimationPresetExample) {
+    const defaultAction = defaultActions.find((action) => action.name === example.actionName);
+    setActions((current) => (
+      current.some((action) => action.name === example.actionName) || !defaultAction
+        ? current
+        : normalizeAnimationActions([...current, defaultAction])
+    ));
+    setWorkflowMode("sprite-generate");
+    setProviderId("codex-handoff");
+    setMotionInputMode("preset");
+    setActiveActionName(example.actionName);
+    setGrid(ANIMATION_SHEET_GRID);
+    setPrompt(example.prompt);
+    setJobNotes(example.notes);
+    setShowAnimationPresetExamples(false);
+    setStatus(`${copy.animationPresetExampleApplied}: ${example.title[language]}`);
   }
 
   const codexProvider = providers.find((provider) => provider.id === "codex-handoff");
@@ -2130,6 +2226,10 @@ function App() {
                         </button>
                       ))}
                     </div>
+                    <button className="prompt-example-trigger animation-preset-example-trigger" onClick={() => setShowAnimationPresetExamples(true)}>
+                      <Film size={15} aria-hidden="true" />
+                      {copy.animationPresetExamples}
+                    </button>
                     <label className="field compact-field">
                       <span>{copy.motionPresetAdditionalPrompt}</span>
                       <textarea
@@ -2752,6 +2852,13 @@ function App() {
           onClose={() => setShowPromptExamples(false)}
           onCopy={copyPromptExample}
           onUse={usePromptExample}
+        />
+      )}
+      {showAnimationPresetExamples && (
+        <AnimationPresetExamplesModal
+          language={language}
+          onClose={() => setShowAnimationPresetExamples(false)}
+          onUse={useAnimationPresetExample}
         />
       )}
     </div>
@@ -3562,6 +3669,60 @@ function PromptExamplesModal({
                 <button className="primary-button" onClick={() => onUse(example)}>
                   <ImagePlus size={15} aria-hidden="true" />
                   {copy.usePrompt}
+                </button>
+              </div>
+            </article>
+          ))}
+        </div>
+      </section>
+    </div>
+  );
+}
+
+function AnimationPresetExamplesModal({
+  language,
+  onClose,
+  onUse
+}: {
+  language: Language;
+  onClose: () => void;
+  onUse: (example: AnimationPresetExample) => void;
+}) {
+  const copy = uiCopy[language];
+  return (
+    <div className="prompt-modal-backdrop" role="presentation" onMouseDown={onClose}>
+      <section
+        className="prompt-modal animation-preset-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="animation-preset-examples-title"
+        onMouseDown={(event) => event.stopPropagation()}
+      >
+        <div className="prompt-library-heading">
+          <div>
+            <strong id="animation-preset-examples-title">{copy.animationPresetExamplesTitle}</strong>
+            <span>{copy.animationPresetExamplesIntro}</span>
+          </div>
+          <button className="icon-button" title={copy.closePromptExamples} aria-label={copy.closePromptExamples} onClick={onClose}>
+            <X size={18} aria-hidden="true" />
+          </button>
+        </div>
+
+        <div className="prompt-grid animation-preset-grid">
+          {animationPresetExamples.map((example) => (
+            <article key={example.id} className="prompt-card animation-preset-card">
+              <div className="prompt-card-preview animation-sample-preview">
+                <div className={`animation-sample-sprite ${example.previewClassName}`} aria-label={`${example.title[language]} sample animation`} />
+              </div>
+              <div className="prompt-card-meta">
+                <small>{example.category[language]}</small>
+              </div>
+              <h2>{example.title[language]}</h2>
+              <small className="prompt-card-note">{example.summary[language]}</small>
+              <div className="prompt-actions single-action">
+                <button className="primary-button" onClick={() => onUse(example)}>
+                  <CheckCircle2 size={15} aria-hidden="true" />
+                  {copy.useAnimationPreset}
                 </button>
               </div>
             </article>

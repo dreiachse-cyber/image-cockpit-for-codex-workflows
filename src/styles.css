@@ -1770,6 +1770,11 @@ button:disabled {
   font-weight: 800;
 }
 
+.animation-preset-example-trigger {
+  width: 100%;
+  margin: 0 0 8px;
+}
+
 .prompt-modal-backdrop {
   position: fixed;
   inset: 0;
@@ -1914,6 +1919,55 @@ button:disabled {
   border-color: #1e7a42;
   background: var(--green);
   color: #fff;
+}
+
+.prompt-actions.single-action {
+  grid-template-columns: 1fr;
+}
+
+.animation-sample-preview {
+  aspect-ratio: 4 / 3;
+}
+
+.animation-sample-sprite {
+  --sample-y: 0%;
+  width: min(76%, 148px);
+  aspect-ratio: 1 / 1;
+  border-radius: 4px;
+  background-color: #050807;
+  background-image: url("/samples/forest-mage-sheet.png");
+  background-repeat: no-repeat;
+  background-position: 0 var(--sample-y);
+  background-size: 800% 400%;
+  image-rendering: pixelated;
+  animation: animation-sample-frames 0.92s steps(7) infinite;
+  box-shadow: 0 8px 22px rgb(23 33 27 / 18%);
+}
+
+.sample-row-idle {
+  --sample-y: 0%;
+}
+
+.sample-row-walk {
+  --sample-y: 33.333%;
+}
+
+.sample-row-cast {
+  --sample-y: 66.667%;
+}
+
+.sample-row-attack {
+  --sample-y: 100%;
+}
+
+@keyframes animation-sample-frames {
+  from {
+    background-position: 0 var(--sample-y);
+  }
+
+  to {
+    background-position: 100% var(--sample-y);
+  }
 }
 
 .language-control {
