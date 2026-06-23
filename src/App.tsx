@@ -32,7 +32,9 @@ import {
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
+  createAnimatedWebpBlob,
   createGifBlob,
+  createSpriteSheetBlob,
   exportWebP,
   exportFramesZip,
   exportGif,
@@ -69,10 +71,26 @@ const PENDING_CODEX_JOB_STORAGE_KEY = "image-cockpit.pendingCodexJob";
 const SHOW_LOW_PRIORITY_CONTROLS = false;
 const SHOW_SPRITE_ACTIONS_PANEL = false;
 const ANIMATION_FRAME_COUNT = 8;
+const ANIMATION_DIRECTION_COUNT = 5;
 const MIN_ANIMATION_CELL_SIZE = 512;
+const ANIMATION_SHEET_GRID: GridSettings = { columns: ANIMATION_FRAME_COUNT, rows: ANIMATION_DIRECTION_COUNT, gutter: 0 };
+const ANIMATION_DIRECTIONS = ["front", "back", "back three-quarter", "front three-quarter", "side"];
 
 type Language = "ja" | "en";
 type MotionInputMode = "prompt" | "preset";
+type AnimationChromaKeyName = "green" | "magenta";
+
+interface AnimationChromaKey {
+  name: AnimationChromaKeyName;
+  label: string;
+  hex: string;
+  rgb: { r: number; g: number; b: number };
+}
+
+const animationChromaKeys: Record<AnimationChromaKeyName, AnimationChromaKey> = {
+  green: { name: "green", label: "chroma-key green", hex: "#00ff00", rgb: { r: 0, g: 255, b: 0 } },
+  magenta: { name: "magenta", label: "chroma-key magenta", hex: "#ff00ff", rgb: { r: 255, g: 0, b: 255 } }
+};
 
 const languageOptions: Array<{ id: Language; label: string }> = [
   { id: "ja", label: "日本語" },
@@ -94,6 +112,11 @@ interface PendingCodexJob {
   id: string;
   path: string;
   createdAt: string;
+  workflowMode?: WorkflowMode;
+  actionName?: string;
+  grid?: GridSettings;
+  cell?: SpriteAction["cell"];
+  chromaKey?: AnimationChromaKeyName;
 }
 
 interface ImportLatestOptions {
@@ -162,9 +185,9 @@ const uiCopy = {
     animationStepMotionTitle: "2. Choose Motion",
     animationStepMotionBody: "Pick a preset or describe the motion you want.",
     animationStepGenerateTitle: "3. Generate",
-    animationStepGenerateBody: "Create an animation sheet and timeline frames from the uploaded source.",
+    animationStepGenerateBody: "Send the uploaded source to Codex and generate a 5-direction chroma-key sprite sheet.",
     animationStepDownloadTitle: "4. Download",
-    animationStepDownloadBody: "Export the generated result as an animated GIF, animated WebP, or sprite sheet.",
+    animationStepDownloadBody: "Preview and export the transparent animated GIF, animated WebP, and sprite sheet.",
     uploadPixelArt: "Upload Pixel Art",
     selectedSource: "Selected source",
     noAnimationSource: "No pixel-art source uploaded yet",
@@ -180,6 +203,9 @@ const uiCopy = {
     animatedGif: "Animated GIF",
     animatedWebP: "Animated WebP",
     spriteSheetDownload: "Sprite Sheet",
+    previewGif: "GIF Preview",
+    previewWebP: "WebP Preview",
+    previewSpriteSheet: "Sprite Sheet Preview",
     animationDownloadsLocked: "Generate animation frames before downloading.",
     statusUsesImport: "uses Import or drag and drop",
     statusCodexJobWritten: "Codex job written",
@@ -220,7 +246,7 @@ const uiCopy = {
     guidedQuestion: "Choose what to make",
     guidedIntro: "Pixel art first, then animation from a selected pixel-art source.",
     guidedNote:
-      "No direct OpenAI API calls from this app. Pixel art generation uses the local Codex handoff, and animation generation runs from a selected pixel-art source."
+      "No direct OpenAI API calls from this app. Pixel art and animation generation both use the local Codex handoff."
   },
   ja: {
     language: "言語",
@@ -357,7 +383,7 @@ const workflowCopy: Record<Language, Record<WorkflowMode, { label: string; detai
     },
     "sprite-generate": {
       label: "Animation Generation",
-      detail: "Upload or select pixel art, then generate an animation sheet and timeline frames.",
+      detail: "Upload or select pixel art, then ask Codex for a 5-direction animation sprite sheet.",
       status: "Upload or select pixel art, then generate animation frames"
     },
     "sprite-edit": {
@@ -472,7 +498,7 @@ const workflowOptions: Array<{
   },
   {
     id: "sprite-generate",
-    provider: "local-generator"
+    provider: "codex-handoff"
   }
 ];
 
@@ -577,7 +603,7 @@ function App() {
   const [animationSourceId, setAnimationSourceId] = useState("");
   const [providers, setProviders] = useState<ProviderStatus[]>(fallbackProviders);
   const [runnerPreflight, setRunnerPreflight] = useState<CodexRunnerPreflight | null>(null);
-  const [prompt, setPrompt] = useState("Pixel art forest mage, transparent background, 8 directions");
+  const [prompt, setPrompt] = useState("idle breathing loop with gentle robe sway, ready for a 5-direction sprite sheet");
   const [negativePrompt, setNegativePrompt] = useState("blur, text, watermark, cropped feet");
   const [jobNotes, setJobNotes] = useState("");
   const [seed, setSeed] = useState("24682");
@@ -597,6 +623,9 @@ function App() {
   const [isBusy, setIsBusy] = useState(false);
   const [pendingCodexJob, setPendingCodexJob] = useState<PendingCodexJob | null>(() => loadPendingCodexJob());
   const [gifPreviewUrl, setGifPreviewUrl] = useState("");
+  const [webpPreviewUrl, setWebpPreviewUrl] = useState("");
+  const [spriteSheetPreviewUrl, setSpriteSheetPreviewUrl] = useState("");
+  const [animationChromaKey, setAnimationChromaKey] = useState<AnimationChromaKeyName>("green");
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -731,18 +760,36 @@ function App() {
   useEffect(() => {
     if (actionFrames.length === 0) {
       setGifPreviewUrl("");
+      setWebpPreviewUrl("");
+      setSpriteSheetPreviewUrl("");
       return;
     }
     let cancelled = false;
-    createGifBlob(frames, activeAction)
-      .then((blob) => {
+    const objectUrls: string[] = [];
+
+    Promise.all([
+      createGifBlob(frames, activeAction),
+      createAnimatedWebpBlob(frames, activeAction),
+      createSpriteSheetBlob(frames, activeAction, ANIMATION_FRAME_COUNT)
+    ])
+      .then(([gifBlob, webpBlob, spriteSheetBlob]) => {
         if (cancelled) return;
-        if (gifPreviewUrl) URL.revokeObjectURL(gifPreviewUrl);
-        setGifPreviewUrl(URL.createObjectURL(blob));
+        const gifUrl = URL.createObjectURL(gifBlob);
+        const webpUrl = URL.createObjectURL(webpBlob);
+        const sheetUrl = URL.createObjectURL(spriteSheetBlob);
+        objectUrls.push(gifUrl, webpUrl, sheetUrl);
+        setGifPreviewUrl(gifUrl);
+        setWebpPreviewUrl(webpUrl);
+        setSpriteSheetPreviewUrl(sheetUrl);
       })
-      .catch(() => setGifPreviewUrl(""));
+      .catch(() => {
+        setGifPreviewUrl("");
+        setWebpPreviewUrl("");
+        setSpriteSheetPreviewUrl("");
+      });
     return () => {
       cancelled = true;
+      objectUrls.forEach((url) => URL.revokeObjectURL(url));
     };
   }, [activeAction, actionFrames.length, frames]);
 
@@ -890,33 +937,79 @@ function App() {
     try {
       const includeSelectedImage = workflowUsesSelectedImage(workflowMode);
       const includeSpriteContext = workflowUsesSpriteContext(workflowMode);
+      const isAnimationJob = workflowMode === "sprite-generate";
+      const sourceImageForJob = isAnimationJob ? animationSource : selected;
+      const animationAction = normalizeAnimationAction(activeAction);
+      const spriteGrid = isAnimationJob ? ANIMATION_SHEET_GRID : grid;
+      const spriteCell = isAnimationJob ? animationAction.cell : activeAction.cell;
+      const spriteFrameCount = spriteGrid.columns * spriteGrid.rows;
+      const chromaDecision = isAnimationJob && sourceImageForJob
+        ? await chooseAnimationChromaKey(sourceImageForJob.dataUrl)
+        : { key: animationChromaKeys[animationChromaKey], reason: "" };
+      if (isAnimationJob) {
+        if (!isAnimationSource(sourceImageForJob)) {
+          setStatus(copy.statusAnimationSourceRequired);
+          fileInputRef.current?.click();
+          return;
+        }
+        setAnimationChromaKey(chromaDecision.key.name);
+      }
+      const codexPrompt = isAnimationJob
+        ? buildAnimationCodexPrompt({
+            sourceName: sourceImageForJob?.name ?? "",
+            motionPrompt: prompt,
+            actionName: animationAction.name,
+            chromaKey: chromaDecision.key,
+            cell: spriteCell
+          })
+        : prompt;
+      const codexJobNotes = isAnimationJob
+        ? buildAnimationCodexNotes({
+            userNotes: jobNotes,
+            chromaKey: chromaDecision.key,
+            chromaReason: chromaDecision.reason,
+            grid: spriteGrid,
+            cell: spriteCell
+          })
+        : jobNotes;
       const response = await fetch("/api/codex/jobs", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           workflowMode,
-          prompt,
+          prompt: codexPrompt,
           negativePrompt,
-          jobNotes,
+          jobNotes: codexJobNotes,
           seed,
-          size,
+          size: isAnimationJob ? `${spriteCell.width * spriteGrid.columns}x${spriteCell.height * spriteGrid.rows}` : size,
           count,
           quality,
-          selectedImageName: includeSelectedImage ? selected?.name : "",
-          selectedImageSize: includeSelectedImage ? selected?.size : "",
-          selectedImageSource: includeSelectedImage ? selected?.source : "",
-          selectedImageDataUrl: includeSelectedImage ? selected?.dataUrl : "",
-          annotations: includeSelectedImage && selected ? annotationsByItem[selected.id] ?? [] : [],
-          grid: includeSpriteContext ? grid : null,
-          action: includeSpriteContext ? activeAction.name : "",
-          frames: includeSpriteContext ? actionFrames.length : 0,
-          cell: includeSpriteContext ? activeAction.cell : null
+          selectedImageName: includeSelectedImage ? sourceImageForJob?.name : "",
+          selectedImageSize: includeSelectedImage ? sourceImageForJob?.size : "",
+          selectedImageSource: includeSelectedImage ? sourceImageForJob?.source : "",
+          selectedImageDataUrl: includeSelectedImage ? sourceImageForJob?.dataUrl : "",
+          annotations: workflowMode === "image-edit" && selected ? annotationsByItem[selected.id] ?? [] : [],
+          grid: includeSpriteContext ? spriteGrid : null,
+          action: includeSpriteContext ? animationAction.name : "",
+          frames: includeSpriteContext ? spriteFrameCount : 0,
+          cell: includeSpriteContext ? spriteCell : null,
+          chromaKey: isAnimationJob ? chromaDecision.key.name : "",
+          directions: isAnimationJob ? ANIMATION_DIRECTIONS : []
         })
       });
       if (!response.ok) throw new Error(await response.text());
       const data = (await response.json()) as CodexJobResponse;
       if (shouldWaitForCodexRunner(data.runner)) {
-        setPendingCodexJob({ id: data.id, path: data.path, createdAt: data.createdAt });
+        setPendingCodexJob({
+          id: data.id,
+          path: data.path,
+          createdAt: data.createdAt,
+          workflowMode: workflowMode ?? undefined,
+          actionName: isAnimationJob ? animationAction.name : undefined,
+          grid: isAnimationJob ? spriteGrid : undefined,
+          cell: isAnimationJob ? spriteCell : undefined,
+          chromaKey: isAnimationJob ? chromaDecision.key.name : undefined
+        });
       } else {
         setPendingCodexJob(null);
       }
@@ -1023,9 +1116,50 @@ function App() {
     setStatus(`${copy.statusAnimationGenerated}: ${sheetName}. ${formatFramesAddedStatus(newFrames.length, animationAction.name, language)}`);
   }
 
+  async function importAnimationSheetResult(imported: CodexOutboxImportResponse, pendingJob: PendingCodexJob) {
+    const actionName = pendingJob.actionName ?? activeAction.name;
+    const spriteGrid = pendingJob.grid ?? ANIMATION_SHEET_GRID;
+    const spriteCell = pendingJob.cell ?? normalizeAnimationAction(activeAction).cell;
+    const chromaKey = animationChromaKeys[pendingJob.chromaKey ?? animationChromaKey];
+    const transparentSheetDataUrl = await createTransparentSpriteSheetDataUrl(imported.dataUrl, chromaKey);
+    const image = await loadImage(transparentSheetDataUrl);
+    const baseName = imported.name.replace(/\.[^.]+$/, "");
+    const item: HistoryItem = {
+      id: createId("hist"),
+      name: `${baseName}_transparent.png`,
+      dataUrl: transparentSheetDataUrl,
+      provider: "local-inbox",
+      prompt,
+      seed,
+      size: `${image.width}x${image.height}`,
+      createdAt: new Date().toISOString(),
+      adopted: false,
+      source: "generate"
+    };
+    const newFrames = await splitImageIntoFrames(transparentSheetDataUrl, baseName, spriteGrid, item.id, spriteCell);
+    if (newFrames.length === 0) throw new Error("Returned sprite sheet could not be split into frames.");
+
+    setAnimationChromaKey(chromaKey.name);
+    setGrid(spriteGrid);
+    setHistory((current) => [item, ...current]);
+    setSelectedId(item.id);
+    setFrames((current) => [...current, ...newFrames]);
+    setActiveActionName(actionName);
+    setActions((current) =>
+      current.map((action) =>
+        action.name === actionName
+          ? { ...normalizeAnimationAction(action), cell: spriteCell, frameIds: newFrames.map((frame) => frame.id) }
+          : action
+      )
+    );
+    setSelectedFrameId(newFrames[0]?.id ?? "");
+    setStatus(`${copy.statusAnimationGenerated}: ${item.name}. ${formatFramesAddedStatus(newFrames.length, actionName, language)}`);
+  }
+
   async function importLatestOutboxResult(options: ImportLatestOptions = {}) {
     if (!options.background) setIsBusy(true);
     try {
+      const pendingJob = pendingCodexJob;
       const listResponse = await fetch("/api/codex/results");
       if (!listResponse.ok) throw new Error(await listResponse.text());
       const listData = (await listResponse.json()) as { outboxPath: string; results: CodexOutboxResult[] };
@@ -1039,6 +1173,14 @@ function App() {
       const importResponse = await fetch(`/api/codex/results/${encodeURIComponent(latest.name)}`);
       if (!importResponse.ok) throw new Error(await importResponse.text());
       const imported = (await importResponse.json()) as CodexOutboxImportResponse;
+      if (pendingJob?.workflowMode === "sprite-generate") {
+        await importAnimationSheetResult(imported, pendingJob);
+        if (Date.parse(latest.modifiedAt) >= Date.parse(pendingJob.createdAt)) {
+          setPendingCodexJob(null);
+        }
+        return true;
+      }
+
       const image = await loadImage(imported.dataUrl);
       const item: HistoryItem = {
         id: createId("hist"),
@@ -1054,7 +1196,7 @@ function App() {
       };
       setHistory((current) => [item, ...current]);
       setSelectedId(item.id);
-      if (pendingCodexJob && Date.parse(latest.modifiedAt) >= Date.parse(pendingCodexJob.createdAt)) {
+      if (pendingJob && Date.parse(latest.modifiedAt) >= Date.parse(pendingJob.createdAt)) {
         setPendingCodexJob(null);
       }
       setStatus(`${copy.statusInboxImported}: ${imported.name}`);
@@ -1246,7 +1388,7 @@ function App() {
     if (mode === "sprite-generate" || mode === "sprite-edit") {
       setActiveActionName("idle");
       setMotionInputMode("prompt");
-      setGrid({ columns: ANIMATION_FRAME_COUNT, rows: 1, gutter: 0 });
+      setGrid(mode === "sprite-generate" ? ANIMATION_SHEET_GRID : { columns: ANIMATION_FRAME_COUNT, rows: 1, gutter: 0 });
       setActions((current) => normalizeAnimationActions(current));
     }
     if (mode === "sprite-generate") {
@@ -1408,7 +1550,7 @@ function App() {
                           className={action.name === activeAction.name ? "active" : ""}
                           onClick={() => {
                             setActiveActionName(action.name);
-                            setGrid({ columns: ANIMATION_FRAME_COUNT, rows: 1, gutter: 0 });
+                            setGrid(ANIMATION_SHEET_GRID);
                           }}
                         >
                           {action.name}
@@ -1461,8 +1603,25 @@ function App() {
                   <span>{copy.animationStepDownloadBody}</span>
                 </div>
                 {animationExportReady && <small className="step-kicker">{copy.animationReady}</small>}
-                <div className="animation-preview">
-                  {animationExportReady && gifPreviewUrl ? <img src={gifPreviewUrl} alt="" /> : <span>{copy.animationDownloadsLocked}</span>}
+                <div className="animation-preview-grid">
+                  <div className="animation-preview-card">
+                    <strong>{(copy as Record<string, string>).previewGif ?? "GIF Preview"}</strong>
+                    <div className="animation-preview">
+                      {animationExportReady && gifPreviewUrl ? <img src={gifPreviewUrl} alt="" /> : <span>{copy.animationDownloadsLocked}</span>}
+                    </div>
+                  </div>
+                  <div className="animation-preview-card">
+                    <strong>{(copy as Record<string, string>).previewWebP ?? "WebP Preview"}</strong>
+                    <div className="animation-preview">
+                      {animationExportReady && webpPreviewUrl ? <img src={webpPreviewUrl} alt="" /> : <span>{copy.animationDownloadsLocked}</span>}
+                    </div>
+                  </div>
+                  <div className="animation-preview-card">
+                    <strong>{(copy as Record<string, string>).previewSpriteSheet ?? "Sprite Sheet Preview"}</strong>
+                    <div className="animation-preview sheet-preview">
+                      {animationExportReady && spriteSheetPreviewUrl ? <img src={spriteSheetPreviewUrl} alt="" /> : <span>{copy.animationDownloadsLocked}</span>}
+                    </div>
+                  </div>
                 </div>
                 <div className="download-grid">
                   <button onClick={() => void exportGif(frames, activeAction)} disabled={!animationExportReady}>
@@ -1473,7 +1632,7 @@ function App() {
                     <FileArchive size={16} aria-hidden="true" />
                     {copy.animatedWebP}
                   </button>
-                  <button onClick={() => void exportSpriteSheet(frames, activeAction)} disabled={!animationExportReady}>
+                  <button onClick={() => void exportSpriteSheet(frames, activeAction, ANIMATION_FRAME_COUNT)} disabled={!animationExportReady}>
                     <FileImage size={16} aria-hidden="true" />
                     {copy.spriteSheetDownload}
                   </button>
@@ -1995,6 +2154,101 @@ function isAnimationSource(item?: HistoryItem): item is HistoryItem {
   return Boolean(item && item.source !== "sample");
 }
 
+async function chooseAnimationChromaKey(sourceDataUrl: string) {
+  const character = await createTransparentAnimationSource(sourceDataUrl);
+  const context = character.getContext("2d", { willReadFrequently: true });
+  if (!context) {
+    return { key: animationChromaKeys.green, reason: "Could not inspect source colors; defaulted to green." };
+  }
+
+  const imageData = context.getImageData(0, 0, character.width, character.height);
+  const data = imageData.data;
+  let opaque = 0;
+  let greenPixels = 0;
+
+  for (let offset = 0; offset < data.length; offset += 4) {
+    if (data[offset + 3] <= 24) continue;
+    opaque += 1;
+    if (isCharacterGreenPixel(data, offset)) greenPixels += 1;
+  }
+
+  const ratio = opaque > 0 ? greenPixels / opaque : 0;
+  if (greenPixels >= 80 && ratio >= 0.015) {
+    return {
+      key: animationChromaKeys.magenta,
+      reason: `Detected green in the extracted character (${Math.round(ratio * 1000) / 10}% of opaque pixels), so magenta was selected.`
+    };
+  }
+
+  return {
+    key: animationChromaKeys.green,
+    reason: "No meaningful green was detected in the extracted character, so green was selected."
+  };
+}
+
+function buildAnimationCodexPrompt({
+  sourceName,
+  motionPrompt,
+  actionName,
+  chromaKey,
+  cell
+}: {
+  sourceName: string;
+  motionPrompt: string;
+  actionName: string;
+  chromaKey: AnimationChromaKey;
+  cell: SpriteAction["cell"];
+}) {
+  const motion = motionPrompt.trim() || actionName;
+  return [
+    `Use the uploaded source image "${sourceName}" as the character reference.`,
+    `Extract only the character and create a pixel-art sprite sheet of that character ${motion}.`,
+    `Create exactly ${ANIMATION_DIRECTION_COUNT} direction rows in this order: ${ANIMATION_DIRECTIONS.join(", ")}.`,
+    `Each direction row must contain exactly ${ANIMATION_FRAME_COUNT} animation frames, for ${ANIMATION_FRAME_COUNT * ANIMATION_DIRECTION_COUNT} total cells.`,
+    `Target each cell as ${cell.width}x${cell.height} pixels, arranged as ${ANIMATION_FRAME_COUNT} columns by ${ANIMATION_DIRECTION_COUNT} rows.`,
+    `Use a flat ${chromaKey.label} background (${chromaKey.hex}) in every cell; do not use gradients, scenery, shadows, UI, text, logos, watermarks, letters, or numbers.`,
+    "Keep the character centered in every frame with consistent scale, readable full body, clear feet contact, and pixel-art edges.",
+    "Return one complete raster sprite sheet PNG or WebP using the job id filename prefix."
+  ].join(" ");
+}
+
+function buildAnimationCodexNotes({
+  userNotes,
+  chromaKey,
+  chromaReason,
+  grid,
+  cell
+}: {
+  userNotes: string;
+  chromaKey: AnimationChromaKey;
+  chromaReason: string;
+  grid: GridSettings;
+  cell: SpriteAction["cell"];
+}) {
+  return [
+    userNotes.trim(),
+    `Animation sprite workflow: generate a source-image-driven sprite sheet through Codex imagegen / built-in image_gen, then Image Cockpit will remove the ${chromaKey.label} background.`,
+    `Chroma key decision: ${chromaKey.name} ${chromaKey.hex}. ${chromaReason}`,
+    `Expected sheet layout: ${grid.columns} columns x ${grid.rows} rows, ${cell.width}x${cell.height} per cell.`,
+    `Direction rows: ${ANIMATION_DIRECTIONS.join(", ")}.`,
+    "The generated sheet should keep the chroma key background simple and flat so the app can remove it reliably."
+  ].filter(Boolean).join("\n");
+}
+
+async function createTransparentSpriteSheetDataUrl(dataUrl: string, chromaKey: AnimationChromaKey) {
+  const image = await loadImage(dataUrl);
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.max(1, image.naturalWidth || image.width);
+  canvas.height = Math.max(1, image.naturalHeight || image.height);
+  const context = canvas.getContext("2d", { willReadFrequently: true });
+  if (!context) throw new Error("Could not create transparent sprite sheet canvas.");
+  context.clearRect(0, 0, canvas.width, canvas.height);
+  context.drawImage(image, 0, 0, canvas.width, canvas.height);
+  removeConnectedBackground(context, canvas.width, canvas.height);
+  removeChromaKeyPixels(context, canvas.width, canvas.height, chromaKey);
+  return canvas.toDataURL("image/png");
+}
+
 type AnimationDrawable = (HTMLCanvasElement | HTMLImageElement) & { width: number; height: number };
 
 async function renderAnimationSheet(sourceDataUrl: string, cell: SpriteAction["cell"], actionName: string) {
@@ -2157,6 +2411,41 @@ function isChromaPixel(data: Uint8ClampedArray, offset: number) {
   return green || blue || magenta;
 }
 
+function isCharacterGreenPixel(data: Uint8ClampedArray, offset: number) {
+  const r = data[offset];
+  const g = data[offset + 1];
+  const b = data[offset + 2];
+  const saturatedGreen = g > 95 && g > r * 1.18 && g > b * 1.18;
+  const naturalGreen = g > 72 && g >= r + 18 && g >= b + 14 && r < 150;
+  return saturatedGreen || naturalGreen;
+}
+
+function removeChromaKeyPixels(
+  context: CanvasRenderingContext2D,
+  width: number,
+  height: number,
+  chromaKey: AnimationChromaKey
+) {
+  const imageData = context.getImageData(0, 0, width, height);
+  const data = imageData.data;
+  const tolerance = chromaKey.name === "green" ? 96 : 88;
+
+  for (let offset = 0; offset < data.length; offset += 4) {
+    if (data[offset + 3] < 12) continue;
+    const dr = data[offset] - chromaKey.rgb.r;
+    const dg = data[offset + 1] - chromaKey.rgb.g;
+    const db = data[offset + 2] - chromaKey.rgb.b;
+    const closeToKey = dr * dr + dg * dg + db * db <= tolerance * tolerance;
+    const semanticKey =
+      chromaKey.name === "green"
+        ? data[offset + 1] > 120 && data[offset + 1] > data[offset] * 1.25 && data[offset + 1] > data[offset + 2] * 1.25
+        : data[offset] > 150 && data[offset + 2] > 130 && data[offset + 1] < Math.min(data[offset], data[offset + 2]) * 0.72;
+    if (closeToKey || semanticKey) data[offset + 3] = 0;
+  }
+
+  context.putImageData(imageData, 0, 0);
+}
+
 function colorDistanceSq(data: Uint8ClampedArray, offset: number, color: ReturnType<typeof readPixelColor>) {
   const dr = data[offset] - color.r;
   const dg = data[offset + 1] - color.g;
@@ -2207,7 +2496,7 @@ function animationPreset(actionName: string, phase: number, frame: number) {
 }
 
 function workflowUsesSelectedImage(mode: WorkflowMode | null) {
-  return mode === "image-edit";
+  return mode === "image-edit" || mode === "sprite-generate";
 }
 
 function workflowUsesSpriteContext(mode: WorkflowMode | null) {

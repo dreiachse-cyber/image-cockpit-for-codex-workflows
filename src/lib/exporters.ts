@@ -4,11 +4,11 @@ import type { SpriteAction, SpriteFrame } from "../types";
 import { canvasToBlob, dataUrlToBlob, downloadBlob, loadImage } from "./image";
 import { buildSpriteMetadata, packSpriteSheet } from "./sprite";
 
-export async function createSpriteSheetBlob(frames: SpriteFrame[], action: SpriteAction) {
+export async function createSpriteSheetBlob(frames: SpriteFrame[], action: SpriteAction, columns?: number) {
   const ordered = action.frameIds
     .map((frameId) => frames.find((frame) => frame.id === frameId))
     .filter((frame): frame is SpriteFrame => Boolean(frame));
-  const packed = packSpriteSheet(ordered, action.cell.width, action.cell.height);
+  const packed = packSpriteSheet(ordered, action.cell.width, action.cell.height, columns);
   const canvas = document.createElement("canvas");
   canvas.width = packed.width;
   canvas.height = packed.height;
@@ -26,8 +26,8 @@ export async function createSpriteSheetBlob(frames: SpriteFrame[], action: Sprit
   return canvasToBlob(canvas);
 }
 
-export async function exportSpriteSheet(frames: SpriteFrame[], action: SpriteAction) {
-  const blob = await createSpriteSheetBlob(frames, action);
+export async function exportSpriteSheet(frames: SpriteFrame[], action: SpriteAction, columns?: number) {
+  const blob = await createSpriteSheetBlob(frames, action, columns);
   downloadBlob(blob, `${action.name}_sheet.png`);
 }
 

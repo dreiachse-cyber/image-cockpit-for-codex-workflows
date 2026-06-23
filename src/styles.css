@@ -540,8 +540,23 @@ button {
   min-height: 38px;
 }
 
+.animation-preview-grid {
+  display: grid;
+  gap: 8px;
+}
+
+.animation-preview-card {
+  display: grid;
+  gap: 5px;
+}
+
+.animation-preview-card > strong {
+  color: #26382d;
+  font-size: 12px;
+}
+
 .animation-preview {
-  min-height: 220px;
+  min-height: 132px;
   display: grid;
   place-items: center;
   border: 1px solid var(--line);
@@ -564,9 +579,14 @@ button {
 }
 
 .animation-preview img {
-  max-width: min(100%, 220px);
-  max-height: 210px;
+  max-width: min(100%, 170px);
+  max-height: 124px;
   image-rendering: pixelated;
+}
+
+.animation-preview.sheet-preview img {
+  max-width: 100%;
+  max-height: 150px;
 }
 
 .download-grid {

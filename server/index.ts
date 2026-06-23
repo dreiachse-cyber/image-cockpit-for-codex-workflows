@@ -52,6 +52,8 @@ type CodexJobRequest = {
   action?: string;
   frames?: number;
   cell?: unknown;
+  chromaKey?: string;
+  directions?: unknown;
 };
 
 type CodexWorkflowMode = "image-generate" | "image-edit" | "sprite-generate" | "sprite-edit";
@@ -223,8 +225,9 @@ const server = createServer(async (request, response) => {
       const workflowMode = normalizeWorkflowMode(body.workflowMode);
       const includeSelectedImage = workflowUsesSelectedImage(workflowMode);
       const includeSpriteContext = workflowUsesSpriteContext(workflowMode);
+      const includeAnnotations = workflowMode === "image-edit";
       const selectedImageAsset = includeSelectedImage ? await writeSelectedImageAsset(id, body) : null;
-      const annotations = includeSelectedImage && Array.isArray(body.annotations) ? body.annotations : [];
+      const annotations = includeAnnotations && Array.isArray(body.annotations) ? body.annotations : [];
       const job = {
         id,
         createdAt,
@@ -257,7 +260,10 @@ const server = createServer(async (request, response) => {
         spriteContext: {
           action: includeSpriteContext ? body.action ?? "" : "",
           frames: includeSpriteContext ? body.frames ?? 0 : 0,
-          grid: includeSpriteContext ? body.grid ?? null : null
+          grid: includeSpriteContext ? body.grid ?? null : null,
+          cell: includeSpriteContext ? body.cell ?? null : null,
+          chromaKey: includeSpriteContext ? body.chromaKey ?? "" : "",
+          directions: includeSpriteContext && Array.isArray(body.directions) ? body.directions : []
         },
         returnTo: {
           outboxDir,
@@ -337,7 +343,7 @@ function normalizeWorkflowMode(value?: string): CodexWorkflowMode {
 }
 
 function workflowUsesSelectedImage(mode: CodexWorkflowMode) {
-  return mode === "image-edit";
+  return mode === "image-edit" || mode === "sprite-generate";
 }
 
 function workflowUsesSpriteContext(mode: CodexWorkflowMode) {
@@ -349,7 +355,7 @@ function workflowIntent(mode: CodexWorkflowMode) {
     return "Ask local Codex to revise the selected source image using annotations and edit notes, then return image files to the outbox.";
   }
   if (mode === "sprite-generate") {
-    return "Ask local Codex to create a sprite sheet asset when available, or record sprite generation context for manual handoff.";
+    return "Ask local Codex to inspect the selected source image and use imagegen / built-in image_gen to create a chroma-key animation sprite sheet.";
   }
   if (mode === "sprite-edit") {
     return "Ask local Codex to revise sprite-sheet frames or metadata when available, or record sprite edit context for manual handoff.";
@@ -364,7 +370,18 @@ function workflowNotes(mode: CodexWorkflowMode) {
       "Use annotationContext.annotations and jobNotes as the user's edit instructions."
     ];
   }
-  if (mode === "sprite-generate" || mode === "sprite-edit") {
+  if (mode === "sprite-generate") {
+    return [
+      "Use selectedImage.assetPath as the source character image.",
+      "Use imagegen / built-in image_gen when available to create a real raster sprite sheet from that source image; never create a procedural placeholder.",
+      "Extract only the character from the source image, then generate the requested motion as a sprite sheet.",
+      "Use spriteContext.grid, spriteContext.cell, spriteContext.action, spriteContext.frames, spriteContext.directions, and spriteContext.chromaKey exactly when they are populated.",
+      "The default direction-row order is front, back, back three-quarter, front three-quarter, side.",
+      "Use the requested chroma-key background color as a flat simple background in every cell so Image Cockpit can remove it after import.",
+      "Avoid readable text, logos, watermarks, labels, UI words, numbers, scenery, and complex backgrounds."
+    ];
+  }
+  if (mode === "sprite-edit") {
     return [
       "Use spriteContext.grid, spriteContext.action, and spriteContext.frames when they are populated.",
       "Use jobNotes for frame, transparency, anchor, or export requirements."
@@ -704,6 +721,8 @@ function buildCodexRunnerPrompt(job: { id: string; path: string }) {
     "If selectedImage.assetPath is empty, treat the job as prompt-only unless the job notes say otherwise.",
     "For workflowMode=image-generate, use the imagegen skill default built-in image generation path with built-in image_gen when available. Create a real raster image from the job prompt, never a procedural placeholder or SVG.",
     "For workflowMode=image-generate, if image generation is unavailable, write only a small blocker sidecar into the outbox and do not create a fake image.",
+    "For workflowMode=sprite-generate, inspect selectedImage.assetPath, then use imagegen / built-in image_gen when available to create one complete chroma-key sprite sheet from the source character image. Never create a procedural placeholder or SVG.",
+    "For workflowMode=sprite-generate, follow spriteContext.grid, spriteContext.cell, spriteContext.directions, and spriteContext.chromaKey. Return one usable PNG or WebP sprite sheet with the job id filename prefix.",
     "Use jobNotes, annotationContext, and spriteContext only when those fields are populated for the workflow.",
     `Write final image result files only into this outbox directory: ${outboxDir}`,
     `Use this filename prefix for returned assets: ${job.id}`,

@@ -18,6 +18,7 @@ if (!browserCommand) {
 const tempRoot = await mkdtemp(join(tmpdir(), "image-cockpit-ui-smoke-"));
 const handoffDir = join(tempRoot, "handoff");
 const chromeProfileDir = join(tempRoot, "chrome-profile");
+const mockRunnerPath = join(tempRoot, "mock-codex-runner.mjs");
 const apiPort = await getOpenPort();
 const vitePort = await getOpenPort();
 const debugPort = await getOpenPort();
@@ -29,10 +30,14 @@ let browserProcess;
 let cdp;
 
 try {
+  await writeFile(mockRunnerPath, mockRunnerSource(), "utf8");
   apiServer = startProcess(nodeCommand, ["node_modules/tsx/dist/cli.mjs", "server/index.ts"], {
     IMAGE_COCKPIT_API_PORT: String(apiPort),
     IMAGE_COCKPIT_HANDOFF_DIR: handoffDir,
-    IMAGE_COCKPIT_CODEX_AUTORUN: "0"
+    IMAGE_COCKPIT_CODEX_AUTORUN: "1",
+    IMAGE_COCKPIT_CODEX_COMMAND: nodeCommand,
+    IMAGE_COCKPIT_CODEX_HELP_ARGS_JSON: JSON.stringify([mockRunnerPath, "--help"]),
+    IMAGE_COCKPIT_CODEX_EXEC_ARGS_JSON: JSON.stringify([mockRunnerPath])
   });
   await waitForHttp(`http://127.0.0.1:${apiPort}/api/providers`, "local API");
 
@@ -101,21 +106,22 @@ try {
     hiddenText: ["Sprite Actions", "Export Sprite"],
     requiredText: ["Pixel Art Prompt", "Generation Notes", "Preview", "Generation can take a few minutes."],
     exerciseButton: "Generate Pixel Art",
-    expectedAfterExercise: "Codex job written"
+    expectedAfterExercise: "Imported from Local Inbox"
   });
   await assertWorkflow({
     index: 1,
     label: "Animation Generation",
-    route: "Route: Local Generator",
+    route: "Route: Codex Handoff",
     buttons: ["Upload Pixel Art", "Generate Animation", "Animated GIF", "Animated WebP", "Sprite Sheet"],
     hiddenButtons: ["Import Latest", "Import File"],
     hiddenText: ["Sprite Actions", "Export Sprite"],
-    requiredText: ["1. Upload Pixel Art", "2. Choose Motion", "3. Generate", "4. Download", "Motion Prompt", "Prompt", "Preset"],
+    requiredText: ["1. Upload Pixel Art", "2. Choose Motion", "3. Generate", "4. Download", "Motion Prompt", "Prompt", "Preset", "5-direction chroma-key sprite sheet", "GIF Preview", "WebP Preview", "Sprite Sheet Preview"],
     preExerciseButtonChecks: [{ button: "Preset", expectedText: "Additional Prompt (optional)" }, { button: "Prompt", expectedText: "Motion Prompt" }],
     exerciseButton: "Generate Animation",
     expectedAfterExercise: "Animation generated",
     expectedAfterExerciseText: ["Animation frames ready", "Animated WebP", "512x512"],
     postExerciseButtons: ["Animated WebP", "Sprite Sheet"],
+    expectedPreviewImages: 3,
     reloadAfterExercise: true
   });
 
@@ -200,6 +206,7 @@ async function assertWorkflow({
   expectedAfterExercise,
   expectedAfterExerciseText = [],
   postExerciseButtons = [],
+  expectedPreviewImages = 0,
   reloadAfterExercise = false
 }) {
   await clickGuidedOption(index);
@@ -238,6 +245,17 @@ async function assertWorkflow({
     await waitForEval(() => `document.body.innerText.includes(${JSON.stringify(expectedAfterExercise)})`, `${label} generated result`);
     for (const text of expectedAfterExerciseText) {
       await waitForEval(() => `document.body.innerText.includes(${JSON.stringify(text)})`, `${label} shows ${text}`);
+    }
+    if (expectedPreviewImages > 0) {
+      await waitForEval(
+        () => `document.querySelectorAll(".animation-preview img").length >= ${expectedPreviewImages}`,
+        `${label} renders animation preview images`
+      );
+      const postSnapshot = await pageSnapshot();
+      assert(
+        postSnapshot.animationPreviewImages >= expectedPreviewImages,
+        `${label} should render ${expectedPreviewImages} animation preview image(s), got ${postSnapshot.animationPreviewImages}`
+      );
     }
     for (const button of postExerciseButtons) {
       await clickButtonByText(button);
@@ -285,7 +303,8 @@ async function pageSnapshot() {
     workflowTabsInsidePanel: Boolean(document.querySelector(".source-panel > .workflow-tabs")),
     workflowTabsInTopbar: Boolean(document.querySelector(".topbar .workflow-tabs")),
     canvasVisible: Boolean(document.querySelector("canvas")),
-    spriteBenchVisible: Boolean(document.querySelector(".sprite-bench"))
+    spriteBenchVisible: Boolean(document.querySelector(".sprite-bench")),
+    animationPreviewImages: document.querySelectorAll(".animation-preview img").length
   }))()`);
 }
 
@@ -375,6 +394,119 @@ async function waitForPageTarget(port) {
     await delay(150);
   }
   throw new Error("Timed out waiting for browser debugging target");
+}
+
+function mockRunnerSource() {
+  return `import { readFile, writeFile } from "node:fs/promises";
+import { join } from "node:path";
+import { deflateSync } from "node:zlib";
+
+if (process.argv.includes("--help")) {
+  console.log("mock codex runner");
+  process.exit(0);
+}
+
+let stdin = "";
+process.stdin.setEncoding("utf8");
+for await (const chunk of process.stdin) {
+  stdin += chunk;
+}
+
+if (!stdin.includes("built-in image_gen")) {
+  console.error("missing imagegen runner instructions");
+  process.exit(2);
+}
+
+const jobId = process.env.IMAGE_COCKPIT_JOB_ID;
+const jobPath = process.env.IMAGE_COCKPIT_JOB_PATH;
+const outboxDir = process.env.IMAGE_COCKPIT_OUTBOX_DIR;
+if (!jobId || !jobPath || !outboxDir) {
+  console.error("missing Image Cockpit runner environment");
+  process.exit(3);
+}
+
+const job = JSON.parse(await readFile(jobPath, "utf8"));
+if (job.workflowMode !== "sprite-generate") {
+  await writeFile(join(outboxDir, \`\${jobId}-mock-image.png\`), makeSpriteSheetPng(512, 512, 1, 1, 512, 512, [0, 255, 0, 255]));
+  console.log(\`mock image completed \${jobId}\`);
+  process.exit(0);
+}
+
+const columns = Number(job.spriteContext?.grid?.columns || 8);
+const rows = Number(job.spriteContext?.grid?.rows || 5);
+const cellWidth = Number(job.spriteContext?.cell?.width || 512);
+const cellHeight = Number(job.spriteContext?.cell?.height || 512);
+const width = columns * cellWidth;
+const height = rows * cellHeight;
+const chroma = job.spriteContext?.chromaKey === "magenta" ? [255, 0, 255, 255] : [0, 255, 0, 255];
+const png = makeSpriteSheetPng(width, height, columns, rows, cellWidth, cellHeight, chroma);
+await writeFile(join(outboxDir, \`\${jobId}-mock-sprite-sheet.png\`), png);
+console.log(\`mock sprite sheet completed \${jobId}\`);
+
+function makeSpriteSheetPng(width, height, columns, rows, cellWidth, cellHeight, chroma) {
+  const bytesPerPixel = 4;
+  const stride = 1 + width * bytesPerPixel;
+  const raw = Buffer.alloc(stride * height);
+  for (let y = 0; y < height; y += 1) {
+    const rowOffset = y * stride;
+    raw[rowOffset] = 0;
+    for (let x = 0; x < width; x += 1) {
+      const offset = rowOffset + 1 + x * bytesPerPixel;
+      raw[offset] = chroma[0];
+      raw[offset + 1] = chroma[1];
+      raw[offset + 2] = chroma[2];
+      raw[offset + 3] = chroma[3];
+      const column = Math.floor(x / cellWidth);
+      const row = Math.floor(y / cellHeight);
+      const localX = x % cellWidth;
+      const localY = y % cellHeight;
+      const centerX = Math.round(cellWidth / 2 + Math.sin(column / Math.max(1, columns - 1) * Math.PI * 2) * 28);
+      const centerY = Math.round(cellHeight * 0.58 + row * 3);
+      const body = Math.abs(localX - centerX) < 54 && Math.abs(localY - centerY) < 78;
+      const head = (localX - centerX) ** 2 + (localY - (centerY - 82)) ** 2 < 42 ** 2;
+      const feet = Math.abs(localX - centerX) < 72 && Math.abs(localY - (centerY + 88)) < 12;
+      if (body || head || feet) {
+        raw[offset] = 32 + row * 28;
+        raw[offset + 1] = 44 + column * 10;
+        raw[offset + 2] = 74 + row * 18;
+        raw[offset + 3] = 255;
+      }
+    }
+  }
+  return makePng(width, height, raw);
+}
+
+function makePng(width, height, raw) {
+  return Buffer.concat([
+    Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]),
+    chunk("IHDR", Buffer.concat([u32(width), u32(height), Buffer.from([8, 6, 0, 0, 0])])),
+    chunk("IDAT", deflateSync(raw)),
+    chunk("IEND", Buffer.alloc(0))
+  ]);
+}
+
+function chunk(type, data) {
+  const typeBytes = Buffer.from(type, "ascii");
+  return Buffer.concat([u32(data.length), typeBytes, data, u32(crc32(Buffer.concat([typeBytes, data])))]);
+}
+
+function u32(value) {
+  const buffer = Buffer.alloc(4);
+  buffer.writeUInt32BE(value >>> 0, 0);
+  return buffer;
+}
+
+function crc32(buffer) {
+  let crc = 0xffffffff;
+  for (const byte of buffer) {
+    crc ^= byte;
+    for (let bit = 0; bit < 8; bit += 1) {
+      crc = (crc >>> 1) ^ (0xedb88320 & -(crc & 1));
+    }
+  }
+  return (crc ^ 0xffffffff) >>> 0;
+}
+`;
 }
 
 async function createCdpClient(webSocketUrl) {

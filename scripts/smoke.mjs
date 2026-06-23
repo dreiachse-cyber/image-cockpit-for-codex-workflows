@@ -141,16 +141,26 @@ async function runManualHandoffSmoke() {
       annotations: [{ id: "ann-sprite-ignored", tool: "rect", color: "#00ff00", points: [{ x: 0, y: 0 }] }],
       grid: { columns: 4, rows: 2, gutter: 1 },
       action: "idle",
-      frames: 8
+      frames: 8,
+      cell: { width: 512, height: 512 },
+      chromaKey: "green",
+      directions: ["front", "back", "back three-quarter", "front three-quarter", "side"]
     });
     const spriteGenerateJobJson = JSON.parse(await readFile(spriteGenerateJob.path, "utf8"));
     assert(spriteGenerateJobJson.workflowMode === "sprite-generate", "sprite generation job should include workflowMode");
-    assert(spriteGenerateJobJson.intent.includes("create a sprite sheet asset"), "sprite generation job should include sprite intent");
+    assert(spriteGenerateJobJson.intent.includes("chroma-key animation sprite sheet"), "sprite generation job should include sprite intent");
     assert(spriteGenerateJobJson.spriteContext.frames === 8, "sprite generation job should include sprite frame count");
     assert(spriteGenerateJobJson.spriteContext.grid.columns === 4, "sprite generation job should include sprite grid columns");
     assert(spriteGenerateJobJson.spriteContext.action === "idle", "sprite generation job should include action");
-    assert(!spriteGenerateJobJson.selectedImage.assetPath, "sprite generation job should not attach the current selected image");
+    assert(spriteGenerateJobJson.spriteContext.cell.width === 512, "sprite generation job should include cell size");
+    assert(spriteGenerateJobJson.spriteContext.chromaKey === "green", "sprite generation job should include chroma key");
+    assert(spriteGenerateJobJson.spriteContext.directions.length === 5, "sprite generation job should include five direction rows");
+    assert(spriteGenerateJobJson.selectedImage.assetPath, "sprite generation job should attach the source image");
     assert(spriteGenerateJobJson.annotationContext.annotationCount === 0, "sprite generation job should not carry edit annotations");
+    assert(
+      spriteGenerateJobJson.notes.some((note) => note.includes("built-in image_gen")),
+      "sprite generation job should instruct Codex to use built-in image generation"
+    );
 
     const spriteEditJob = await postJson(port, "/api/codex/jobs", {
       workflowMode: "sprite-edit",

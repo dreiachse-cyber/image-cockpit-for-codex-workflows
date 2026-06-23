@@ -313,7 +313,7 @@ function checkWorkflowIds() {
     "Animation Generation",
     "Start screen should show two workflow options",
     "Route: Codex Handoff",
-    "Route: Local Generator",
+    "5-direction chroma-key sprite sheet",
     "Generate Pixel Art",
     "Generate Animation",
     "Animation generated",
@@ -343,6 +343,11 @@ function checkWorkflowIds() {
     "Animated GIF",
     "Animated WebP",
     "Sprite Sheet",
+    "GIF Preview",
+    "WebP Preview",
+    "Sprite Sheet Preview",
+    "expectedPreviewImages",
+    "animationPreviewImages",
     "Animation frames ready",
     "512x512",
     "persisted animation frames after reload",
@@ -394,6 +399,9 @@ function checkWorkflowIds() {
   [
     "imagegen skill default built-in image generation path",
     "never a procedural placeholder",
+    "workflowMode=sprite-generate",
+    "spriteContext.chromaKey",
+    "spriteContext.directions",
     "If the first result contains unwanted text or numbers, retry once",
     "write a short Markdown or JSON sidecar"
   ].forEach((marker) => {
@@ -404,6 +412,10 @@ function checkWorkflowIds() {
 
   [
     "sprite generation job should include sprite frame count",
+    "sprite generation job should attach the source image",
+    "sprite generation job should include chroma key",
+    "sprite generation job should include five direction rows",
+    "sprite generation job should instruct Codex to use built-in image generation",
     "sprite edit job should include sprite frame count",
     "sprite generation job should not carry edit annotations",
     "sprite edit job should not carry edit annotations",
