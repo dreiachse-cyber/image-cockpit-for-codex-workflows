@@ -41,6 +41,7 @@ type CodexJobRequest = {
   frames?: number;
 };
 
+type CodexWorkflowMode = "image-generate" | "image-edit" | "sprite-generate" | "sprite-edit";
 type CodexRunnerState = "running" | "completed" | "failed" | "unavailable" | "disabled" | "unknown";
 type CodexRunnerPreflightState = "ready" | "disabled" | "unavailable";
 
@@ -172,13 +173,17 @@ const server = createServer(async (request, response) => {
 
       const createdAt = new Date().toISOString();
       const id = `codex-job-${createdAt.replace(/[:.]/g, "-")}`;
-      const selectedImageAsset = await writeSelectedImageAsset(id, body);
+      const workflowMode = normalizeWorkflowMode(body.workflowMode);
+      const includeSelectedImage = workflowUsesSelectedImage(workflowMode);
+      const includeSpriteContext = workflowUsesSpriteContext(workflowMode);
+      const selectedImageAsset = includeSelectedImage ? await writeSelectedImageAsset(id, body) : null;
+      const annotations = includeSelectedImage && Array.isArray(body.annotations) ? body.annotations : [];
       const job = {
         id,
         createdAt,
         kind: "image-cockpit.codex-handoff",
-        workflowMode: body.workflowMode ?? "",
-        intent: "Ask local Codex to create or revise image assets, then return files to the outbox.",
+        workflowMode,
+        intent: workflowIntent(workflowMode),
         prompt: body.prompt,
         negativePrompt: body.negativePrompt ?? "",
         jobNotes: body.jobNotes ?? "",
@@ -189,23 +194,23 @@ const server = createServer(async (request, response) => {
           quality: body.quality ?? "auto"
         },
         selectedImage: {
-          name: body.selectedImageName ?? "",
-          size: body.selectedImageSize ?? "",
-          source: body.selectedImageSource ?? "",
+          name: includeSelectedImage ? body.selectedImageName ?? "" : "",
+          size: includeSelectedImage ? body.selectedImageSize ?? "" : "",
+          source: includeSelectedImage ? body.selectedImageSource ?? "" : "",
           assetPath: selectedImageAsset?.path ?? "",
           mimeType: selectedImageAsset?.mimeType ?? "",
           originalSource: selectedImageAsset?.source ?? ""
         },
         annotationContext: {
-          annotations: body.annotations ?? [],
-          annotationCount: Array.isArray(body.annotations) ? body.annotations.length : 0,
+          annotations,
+          annotationCount: annotations.length,
           coordinateSpace: "Image Cockpit canvas coordinates",
           canvasSize: { width: 920, height: 520 }
         },
         spriteContext: {
-          action: body.action ?? "",
-          frames: body.frames ?? 0,
-          grid: body.grid ?? null
+          action: includeSpriteContext ? body.action ?? "" : "",
+          frames: includeSpriteContext ? body.frames ?? 0 : 0,
+          grid: includeSpriteContext ? body.grid ?? null : null
         },
         returnTo: {
           outboxDir,
@@ -214,7 +219,7 @@ const server = createServer(async (request, response) => {
         notes: [
           "This app does not call OpenAI APIs directly.",
           "Codex or the user should perform generation/editing externally and place results in the outbox or import them through the UI.",
-          "Use selectedImage.assetPath when present. Use annotationContext and jobNotes to understand requested edits."
+          ...workflowNotes(workflowMode)
         ]
       };
       const path = join(inboxDir, `${id}.json`);
@@ -270,6 +275,58 @@ async function writeSelectedImageAsset(jobId: string, body: CodexJobRequest) {
   }
 
   return null;
+}
+
+function normalizeWorkflowMode(value?: string): CodexWorkflowMode {
+  if (
+    value === "image-generate" ||
+    value === "image-edit" ||
+    value === "sprite-generate" ||
+    value === "sprite-edit"
+  ) {
+    return value;
+  }
+  return "image-generate";
+}
+
+function workflowUsesSelectedImage(mode: CodexWorkflowMode) {
+  return mode === "image-edit";
+}
+
+function workflowUsesSpriteContext(mode: CodexWorkflowMode) {
+  return mode === "sprite-generate" || mode === "sprite-edit";
+}
+
+function workflowIntent(mode: CodexWorkflowMode) {
+  if (mode === "image-edit") {
+    return "Ask local Codex to revise the selected source image using annotations and edit notes, then return image files to the outbox.";
+  }
+  if (mode === "sprite-generate") {
+    return "Ask local Codex to create a sprite sheet asset when available, or record sprite generation context for manual handoff.";
+  }
+  if (mode === "sprite-edit") {
+    return "Ask local Codex to revise sprite-sheet frames or metadata when available, or record sprite edit context for manual handoff.";
+  }
+  return "Ask local Codex to generate a new image from the prompt, then return image files to the outbox.";
+}
+
+function workflowNotes(mode: CodexWorkflowMode) {
+  if (mode === "image-edit") {
+    return [
+      "Use selectedImage.assetPath as the source image when present.",
+      "Use annotationContext.annotations and jobNotes as the user's edit instructions."
+    ];
+  }
+  if (mode === "sprite-generate" || mode === "sprite-edit") {
+    return [
+      "Use spriteContext.grid, spriteContext.action, and spriteContext.frames when they are populated.",
+      "Use jobNotes for frame, transparency, anchor, or export requirements."
+    ];
+  }
+  return [
+    "This is a text-to-image style generation job. Do not treat the current UI sample image as a source image unless selectedImage.assetPath is populated.",
+    "Use prompt, negativePrompt, generationHints, and jobNotes as the generation brief."
+  ];
 }
 
 async function startCodexRunner(job: { id: string; createdAt: string; path: string }) {
@@ -490,8 +547,9 @@ function buildCodexRunnerPrompt(job: { id: string; path: string }) {
     "You are processing an Image Cockpit for Codex Workflows handoff job.",
     "",
     `Read this local JSON job file: ${job.path}`,
-    "If the job has selectedImage.assetPath, inspect that source image before editing or generating variants.",
-    "Use jobNotes and annotationContext.annotations as the user's edit instructions.",
+    "If selectedImage.assetPath is populated, inspect that source image before editing it.",
+    "If selectedImage.assetPath is empty, treat the job as prompt-only unless the job notes say otherwise.",
+    "Use jobNotes, annotationContext, and spriteContext only when those fields are populated for the workflow.",
     `Write final image result files only into this outbox directory: ${outboxDir}`,
     `Use this filename prefix for returned assets: ${job.id}`,
     "",

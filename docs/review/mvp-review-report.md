@@ -25,6 +25,7 @@
 - UIは低優先の細かい機能を既定非表示にし、主要操作を先に見せる。
 - Codex job作成後は、結果が戻るまで二重作成を防ぐ。
 - handoff jobにworkflow種別、編集メモ、選択画像asset、注釈、grid、sprite contextが入る。
+- 画像生成jobはprompt中心にし、画像編集jobだけが選択画像assetと注釈を持つ。
 - local serverは `IMAGE_COCKPIT_CODEX_AUTORUN=1` のとき `codex exec` を起動する。
 - runnerがdisabled / unavailable / failed / completedを記録し、UIのpendingを解除できる。
 - sprite-editではframe size、anchor、chroma key透明化、PNG / ZIP / GIF / metadata exportを確認できる。
@@ -43,6 +44,7 @@ npm run smoke
 - `IMAGE_COCKPIT_CODEX_AUTORUN=0` でrunner state `disabled` を確認。
 - 現在のWindows環境では `codex` 実行が `spawn EPERM` となり、runner state `unavailable` として記録されることを確認。
 - `/api/codex/jobs` smokeで、job JSONに `workflowMode=image-edit`、編集メモ、`annotationCount=1`、`selectedImage.assetPath` が入ることを確認。
+- `/api/codex/jobs` smokeで、`workflowMode=image-generate` のjobに選択画像asset、編集注釈、sprite contextが混入しないことを確認。
 - Chrome headlessでimage-edit desktop、sprite-edit desktop、sprite-edit mobileを確認し、sprite-edit mobileに横あふれがないことを確認。
 
 ## リリース候補資料
@@ -58,6 +60,7 @@ npm run smoke
 - `docs/qa/sprite-edit-simple-1440x1024.png`
 - `docs/qa/sprite-edit-mobile-390x844.png`
 - `docs/qa/runner-preflight-1440x1024.png`
+- `docs/qa/workflow-aware-image-generate-1440x1024.png`
 - `docs/demo/mvp-demo.gif`
 - `design-qa.md`
 

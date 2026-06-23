@@ -62,6 +62,27 @@ try {
   assert(jobJson.selectedImage.assetPath, "job should include selected image asset path");
   await stat(jobJson.selectedImage.assetPath);
 
+  const generateJob = await postJson(port, "/api/codex/jobs", {
+    workflowMode: "image-generate",
+    prompt: "Smoke test generation",
+    negativePrompt: "text",
+    jobNotes: "Transparent background and centered subject.",
+    selectedImageName: "tiny.png",
+    selectedImageSize: "1x1",
+    selectedImageSource: "sample",
+    selectedImageDataUrl: tinyPng,
+    annotations: [{ id: "ann-ignored", tool: "rect", color: "#ff0000", points: [{ x: 0, y: 0 }] }],
+    grid: { columns: 8, rows: 4, gutter: 0 },
+    action: "idle",
+    frames: 8
+  });
+  const generateJobJson = JSON.parse(await readFile(generateJob.path, "utf8"));
+  assert(generateJobJson.workflowMode === "image-generate", "generation job should include workflowMode");
+  assert(generateJobJson.intent.includes("generate a new image"), "generation job should include generation intent");
+  assert(!generateJobJson.selectedImage.assetPath, "generation job should not attach the current selected image");
+  assert(generateJobJson.annotationContext.annotationCount === 0, "generation job should not carry edit annotations");
+  assert(generateJobJson.spriteContext.frames === 0, "generation job should not carry sprite context");
+
   const status = await getJson(port, `/api/codex/jobs/${encodeURIComponent(job.id)}/status`);
   assert(status.status.state === "disabled", "status endpoint should return disabled runner state");
 

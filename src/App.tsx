@@ -217,6 +217,64 @@ const workflowCopy: Record<Language, Record<WorkflowMode, { label: string; detai
   }
 };
 
+const workflowFormCopy: Record<
+  Language,
+  Record<WorkflowMode, { promptLabel: string; negativeLabel: string; notesLabel: string; notesPlaceholder: string }>
+> = {
+  en: {
+    "image-generate": {
+      promptLabel: "Image Prompt",
+      negativeLabel: "Negative Prompt",
+      notesLabel: "Generation Notes",
+      notesPlaceholder: "Style, aspect, transparency, sprite-readiness, or output details"
+    },
+    "image-edit": {
+      promptLabel: "Edit Prompt",
+      negativeLabel: "Avoid",
+      notesLabel: "Edit Notes",
+      notesPlaceholder: "What should Codex preserve, fix, crop, split, or export?"
+    },
+    "sprite-generate": {
+      promptLabel: "Sheet Prompt",
+      negativeLabel: "Avoid",
+      notesLabel: "Sheet Notes",
+      notesPlaceholder: "Frame count, grid shape, motion, transparency, or export details"
+    },
+    "sprite-edit": {
+      promptLabel: "Sprite Prompt",
+      negativeLabel: "Avoid",
+      notesLabel: "Sprite Notes",
+      notesPlaceholder: "Timeline order, anchor, cleanup, frame size, or export details"
+    }
+  },
+  ja: {
+    "image-generate": {
+      promptLabel: "画像プロンプト",
+      negativeLabel: "避けたい要素",
+      notesLabel: "生成メモ",
+      notesPlaceholder: "画風、比率、透過、スプライト化しやすさ、出力条件を書きます"
+    },
+    "image-edit": {
+      promptLabel: "編集プロンプト",
+      negativeLabel: "避けたい要素",
+      notesLabel: "編集メモ",
+      notesPlaceholder: "Codexに残してほしい点、直してほしい点、切り出し方、出力形式を書きます"
+    },
+    "sprite-generate": {
+      promptLabel: "シートプロンプト",
+      negativeLabel: "避けたい要素",
+      notesLabel: "シートメモ",
+      notesPlaceholder: "フレーム数、grid、動作、透過、出力条件を書きます"
+    },
+    "sprite-edit": {
+      promptLabel: "スプライトプロンプト",
+      negativeLabel: "避けたい要素",
+      notesLabel: "調整メモ",
+      notesPlaceholder: "順番、anchor、透明化、frame size、出力条件を書きます"
+    }
+  }
+};
+
 const defaultActions: SpriteAction[] = [
   { name: "idle", fps: 12, loop: true, frameIds: [], cell: { width: 128, height: 128 }, anchor: { x: 64, y: 118 } },
   { name: "walk", fps: 12, loop: true, frameIds: [], cell: { width: 128, height: 128 }, anchor: { x: 64, y: 118 } },
@@ -532,6 +590,8 @@ function App() {
     }
     setIsBusy(true);
     try {
+      const includeSelectedImage = workflowUsesSelectedImage(workflowMode);
+      const includeSpriteContext = workflowUsesSpriteContext(workflowMode);
       const response = await fetch("/api/codex/jobs", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -544,14 +604,14 @@ function App() {
           size,
           count,
           quality,
-          selectedImageName: selected?.name,
-          selectedImageSize: selected?.size,
-          selectedImageSource: selected?.source,
-          selectedImageDataUrl: selected?.dataUrl,
-          annotations: selected ? annotationsByItem[selected.id] ?? [] : [],
-          grid,
-          action: activeAction.name,
-          frames: actionFrames.length
+          selectedImageName: includeSelectedImage ? selected?.name : "",
+          selectedImageSize: includeSelectedImage ? selected?.size : "",
+          selectedImageSource: includeSelectedImage ? selected?.source : "",
+          selectedImageDataUrl: includeSelectedImage ? selected?.dataUrl : "",
+          annotations: includeSelectedImage && selected ? annotationsByItem[selected.id] ?? [] : [],
+          grid: includeSpriteContext ? grid : null,
+          action: includeSpriteContext ? activeAction.name : "",
+          frames: includeSpriteContext ? actionFrames.length : 0
         })
       });
       if (!response.ok) throw new Error(await response.text());
@@ -782,12 +842,14 @@ function App() {
     setWorkflowMode(mode);
     if (option) setProviderId(option.provider);
     if (mode === "image-edit") setTool("brush");
+    if (mode === "image-generate") setTool("select");
     if (mode === "sprite-edit") setActiveActionName("idle");
     setStatus(workflowCopy[language][mode].status);
   }
 
   const codexProvider = providers.find((provider) => provider.id === "codex-handoff");
   const activeWorkflowCopy = workflowMode ? workflowCopy[language][workflowMode] : null;
+  const activeWorkflowFormCopy = workflowMode ? workflowFormCopy[language][workflowMode] : null;
   const isWaitingForCodexResult = providerId === "codex-handoff" && Boolean(pendingCodexJob);
   const primaryActionDisabled = isBusy || isWaitingForCodexResult;
   const showFrameGridControls = SHOW_LOW_PRIORITY_CONTROLS || workflowMode === "sprite-generate" || workflowMode === "sprite-edit";
@@ -841,22 +903,22 @@ function App() {
             )}
           </div>
           <label className="field">
-            <span>Prompt</span>
+            <span>{activeWorkflowFormCopy?.promptLabel ?? "Prompt"}</span>
             <textarea value={prompt} onChange={(event) => setPrompt(event.target.value)} maxLength={1200} />
             <small>{prompt.length} / 1200</small>
           </label>
           <label className="field">
-            <span>Negative Prompt</span>
+            <span>{activeWorkflowFormCopy?.negativeLabel ?? "Negative Prompt"}</span>
             <textarea value={negativePrompt} onChange={(event) => setNegativePrompt(event.target.value)} rows={2} />
           </label>
           <label className="field">
-            <span>{copy.jobNotes}</span>
+            <span>{activeWorkflowFormCopy?.notesLabel ?? copy.jobNotes}</span>
             <textarea
               value={jobNotes}
               onChange={(event) => setJobNotes(event.target.value)}
               rows={3}
               maxLength={1000}
-              placeholder={copy.jobNotesPlaceholder}
+              placeholder={activeWorkflowFormCopy?.notesPlaceholder ?? copy.jobNotesPlaceholder}
             />
             <small>{jobNotes.length} / 1000</small>
           </label>
@@ -1326,6 +1388,14 @@ function primaryActionLabel(providerId: ProviderId, copy: Record<string, string>
   if (providerId === "codex-handoff") return copy.createCodexJob;
   if (providerId === "local-inbox") return copy.importLatest;
   return copy.importFile;
+}
+
+function workflowUsesSelectedImage(mode: WorkflowMode | null) {
+  return mode === "image-edit";
+}
+
+function workflowUsesSpriteContext(mode: WorkflowMode | null) {
+  return mode === "sprite-generate" || mode === "sprite-edit";
 }
 
 async function loadCodexRunnerPreflight() {

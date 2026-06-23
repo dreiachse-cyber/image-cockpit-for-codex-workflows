@@ -32,6 +32,7 @@ The local API also exposes `GET /api/codex/runner` so the UI can show whether th
 - Select history items and review them on the canvas.
 - Draw annotations with brush, rectangle, or arrow tools.
 - Add edit notes, then create a Codex handoff job from the prompt, selected image asset, annotations, workflow, grid, and sprite context.
+- Image generation jobs stay prompt-only by default, while image editing jobs include the selected source image and annotations.
 - Split a sheet into sprite frames with grid controls.
 - Reorder frames in the timeline and edit action metadata.
 - Run lightweight QC checks for size consistency, transparency, duplicates, and anchor placement.
