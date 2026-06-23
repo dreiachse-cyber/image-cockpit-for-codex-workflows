@@ -285,10 +285,6 @@ button {
   gap: 6px;
 }
 
-.workspace.with-animation-downloads.animation-result-selected {
-  grid-template-rows: minmax(0, 1fr);
-}
-
 .canvas-panel {
   height: 100%;
   display: grid;
@@ -499,13 +495,9 @@ button {
 }
 
 .animation-download-panel {
-  height: 228px;
+  height: 150px;
   display: grid;
   grid-template-rows: 38px minmax(0, 1fr);
-}
-
-.workspace.animation-result-selected .animation-download-panel {
-  height: 100%;
 }
 
 .animation-download-panel.complete {
@@ -525,9 +517,23 @@ button {
 .animation-download-body {
   min-height: 0;
   display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(300px, 390px);
+  align-items: center;
   gap: 8px;
   overflow: auto;
   padding: 10px;
+}
+
+.animation-download-body .step-heading {
+  min-width: 0;
+}
+
+.animation-download-body .step-heading strong,
+.animation-download-body .step-heading span {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .image-download-body {
@@ -986,7 +992,16 @@ button {
 }
 
 .animation-download-panel .download-grid {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  align-self: center;
   grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.animation-download-panel .download-grid button {
+  justify-content: center;
+  min-width: 0;
+  padding: 0 8px;
 }
 
 .download-grid button {
@@ -1325,10 +1340,16 @@ button:disabled {
 }
 
 .history-list {
+  flex: 1;
+  min-height: 0;
   padding: 10px;
   display: grid;
   gap: 8px;
   overflow-y: auto;
+}
+
+.history-load-more-sentinel {
+  min-height: 1px;
 }
 
 .history-item {
@@ -2070,6 +2091,15 @@ button:disabled {
   .animation-download-panel .download-grid,
   .image-download-body {
     grid-template-columns: 1fr;
+  }
+
+  .animation-download-body {
+    grid-template-columns: 1fr;
+  }
+
+  .animation-download-panel .download-grid {
+    grid-column: 1;
+    grid-row: auto;
   }
 
   .image-download-grid {

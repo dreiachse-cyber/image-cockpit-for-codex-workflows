@@ -396,16 +396,9 @@ function checkWorkflowIds() {
     "Animated GIF",
     "Animated WebP",
     "Sprite Sheet",
-    "Directional Previews",
-    "expectedDirectionPreviewCount",
-    "directionPreviewRows",
-    "GIF Preview",
-    "WebP Preview",
-    "Sprite Sheet Preview",
-    "expectedPreviewImages",
+    "expectedDownloadPreviewImagesAfterExercise",
+    "download preview image(s)",
     "animationPreviewImages",
-    "expectedMainPreviewHiddenAfterExercise",
-    "hides the main preview for selected animation results",
     "canvasPanelVisible",
     "expectedCanvasPreviewModeAfterExercise",
     "canvasPreviewMode",
@@ -487,9 +480,9 @@ function checkWorkflowIds() {
   });
 
   [
-    "createSpriteSheetBlob(frames, selectedAnimationAction",
-    "animation-result-selected",
-    "Preparing animation previews",
+    "exportDirectionalAnimations",
+    "animation-source-status",
+    "with-animation-downloads",
     "exactly one full-body character",
     "Do not let body parts cross cell borders",
     "Quality gate before returning",
@@ -505,7 +498,8 @@ function checkWorkflowIds() {
     "HISTORY_RENDER_BATCH_SIZE",
     "visibleHistory",
     "data-visible-count",
-    "getVisibleHistoryCount"
+    "getVisibleHistoryCount",
+    "history-load-more-sentinel"
   ].forEach((marker) => {
     if (!appText.includes(marker)) {
       failures.push(`App should preserve incremental Results list rendering: ${marker}`);

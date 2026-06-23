@@ -32,7 +32,6 @@ import type { UIEvent } from "react";
 import {
   createAnimatedWebpBlob,
   createGifBlob,
-  createSpriteSheetBlob,
   exportWebP,
   exportFramesZip,
   exportGif,
@@ -181,14 +180,6 @@ interface ImportLatestOptions {
   newerThan?: string;
   quietEmpty?: boolean;
   job?: CodexJobQueueItem;
-}
-
-interface AnimationDirectionPreview {
-  id: string;
-  label: string;
-  gifUrl: string;
-  webpUrl: string;
-  frameCount: number;
 }
 
 interface ImageEditComparison {
@@ -834,16 +825,15 @@ function App() {
   const [status, setStatus] = useState("All changes saved locally");
   const [isBusy, setIsBusy] = useState(false);
   const [codexJobs, setCodexJobs] = useState<CodexJobQueueItem[]>(() => loadPendingCodexJobs());
-  const [gifPreviewUrl, setGifPreviewUrl] = useState("");
-  const [webpPreviewUrl, setWebpPreviewUrl] = useState("");
-  const [spriteSheetPreviewUrl, setSpriteSheetPreviewUrl] = useState("");
-  const [animationDirectionPreviews, setAnimationDirectionPreviews] = useState<AnimationDirectionPreview[]>([]);
+  const gifPreviewUrl = "";
   const [animationChromaKey, setAnimationChromaKey] = useState<AnimationChromaKeyName>("green");
   const [imageEditComparison, setImageEditComparison] = useState<ImageEditComparison | null>(null);
   const [codexFailureNotices, setCodexFailureNotices] = useState<CodexFailureNotice[]>([]);
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const historyListRef = useRef<HTMLDivElement | null>(null);
+  const historyLoadMoreRef = useRef<HTMLDivElement | null>(null);
   const startingQueuedJobIdsRef = useRef<Set<string>>(new Set());
   const lastPointerEventAtRef = useRef(0);
   const copy = uiCopy[language];
@@ -950,6 +940,47 @@ function App() {
     [actionFrames, activeAction.cell.height, activeAction.cell.width]
   );
 
+  const loadMoreHistoryResults = useCallback(() => {
+    setHistoryRenderLimit((current) =>
+      getNextHistoryRenderLimit(Math.max(current, visibleHistoryCount), history.length)
+    );
+  }, [history.length, visibleHistoryCount]);
+
+  const maybeLoadMoreHistoryResults = useCallback(
+    (target: HTMLElement) => {
+      if (!hasMoreHistory) return;
+      const remaining = target.scrollHeight - target.scrollTop - target.clientHeight;
+      if (remaining > HISTORY_SCROLL_LOAD_THRESHOLD_PX) return;
+      loadMoreHistoryResults();
+    },
+    [hasMoreHistory, loadMoreHistoryResults]
+  );
+
+  useEffect(() => {
+    const list = historyListRef.current;
+    const sentinel = historyLoadMoreRef.current;
+    if (!list || !sentinel || !hasMoreHistory || typeof IntersectionObserver === "undefined") return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) loadMoreHistoryResults();
+      },
+      {
+        root: list,
+        rootMargin: `${HISTORY_SCROLL_LOAD_THRESHOLD_PX}px`
+      }
+    );
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [hasMoreHistory, loadMoreHistoryResults]);
+
+  useEffect(() => {
+    const list = historyListRef.current;
+    if (!list || !hasMoreHistory) return;
+    const listener = () => maybeLoadMoreHistoryResults(list);
+    list.addEventListener("scroll", listener, { passive: true });
+    return () => list.removeEventListener("scroll", listener);
+  }, [hasMoreHistory, maybeLoadMoreHistoryResults]);
+
   useEffect(() => {
     let cancelled = false;
     loadPersistedState(defaultActions)
@@ -1036,68 +1067,6 @@ function App() {
     grid,
     tool
   ]);
-
-  useEffect(() => {
-    if (!selectedAnimationExportReady) {
-      setGifPreviewUrl("");
-      setWebpPreviewUrl("");
-      setSpriteSheetPreviewUrl("");
-      setAnimationDirectionPreviews([]);
-      return;
-    }
-    let cancelled = false;
-    const objectUrls: string[] = [];
-    setGifPreviewUrl("");
-    setWebpPreviewUrl("");
-    setSpriteSheetPreviewUrl("");
-    setAnimationDirectionPreviews([]);
-    const directionActions = buildAnimationDirectionPreviewActions(selectedAnimationAction, selectedAnimationFrames);
-
-    Promise.all([
-      Promise.all(
-        directionActions.map(async ({ directionId, action }) => ({
-          id: directionId,
-          label: animationDirectionLabel(directionId, language),
-          frameCount: action.frameIds.length,
-          gifBlob: await createGifBlob(frames, action),
-          webpBlob: await createAnimatedWebpBlob(frames, action)
-        }))
-      ),
-      createSpriteSheetBlob(frames, selectedAnimationAction, ANIMATION_FRAME_COUNT)
-    ])
-      .then(([directionBlobs, spriteSheetBlob]) => {
-        if (cancelled) return;
-        const directionPreviews = directionBlobs.map((preview) => {
-          const gifUrl = URL.createObjectURL(preview.gifBlob);
-          const webpUrl = URL.createObjectURL(preview.webpBlob);
-          objectUrls.push(gifUrl, webpUrl);
-          return {
-            id: preview.id,
-            label: preview.label,
-            frameCount: preview.frameCount,
-            gifUrl,
-            webpUrl
-          };
-        });
-        const sheetUrl = URL.createObjectURL(spriteSheetBlob);
-        objectUrls.push(sheetUrl);
-        setAnimationDirectionPreviews(directionPreviews);
-        setGifPreviewUrl(directionPreviews[0]?.gifUrl ?? "");
-        setWebpPreviewUrl(directionPreviews[0]?.webpUrl ?? "");
-        setSpriteSheetPreviewUrl(sheetUrl);
-      })
-      .catch(() => {
-        if (cancelled) return;
-        setGifPreviewUrl("");
-        setWebpPreviewUrl("");
-        setSpriteSheetPreviewUrl("");
-        setAnimationDirectionPreviews([]);
-      });
-    return () => {
-      cancelled = true;
-      objectUrls.forEach((url) => URL.revokeObjectURL(url));
-    };
-  }, [frames, language, selected?.id, selectedAnimationAction, selectedAnimationExportReady, selectedAnimationFrames]);
 
   useEffect(() => {
     const runningJobs = codexJobs.filter((job) => job.state === "running");
@@ -1806,15 +1775,9 @@ function App() {
 
   const handleHistoryScroll = useCallback(
     (event: UIEvent<HTMLDivElement>) => {
-      if (!hasMoreHistory) return;
-      const target = event.currentTarget;
-      const remaining = target.scrollHeight - target.scrollTop - target.clientHeight;
-      if (remaining > HISTORY_SCROLL_LOAD_THRESHOLD_PX) return;
-      setHistoryRenderLimit((current) =>
-        getNextHistoryRenderLimit(Math.max(current, visibleHistoryCount), history.length)
-      );
+      maybeLoadMoreHistoryResults(event.currentTarget);
     },
-    [hasMoreHistory, history.length, visibleHistoryCount]
+    [maybeLoadMoreHistoryResults]
   );
 
   async function applyChromaToSelectedFrame() {
@@ -2058,12 +2021,10 @@ function App() {
     : selected?.size ?? "-";
   const selectedImageEditSourceName = selectedImageEditSource?.name ?? (!selectedAnimationExportReady ? selected?.derivedFromName : undefined);
   const animationDownloadTitle = copy.animationStepDownloadTitle.replace(/^4\.\s*/, "");
-  const animationPreviewPlaceholder = selectedAnimationExportReady ? copy.animationPreviewsBuilding : copy.animationDownloadsLocked;
   const showFrameGridControls = SHOW_LOW_PRIORITY_CONTROLS || workflowMode === "sprite-edit";
   const showSpriteTuningControls = SHOW_LOW_PRIORITY_CONTROLS || workflowMode === "sprite-edit";
   const showAnnotationToolbar = isImageEditWorkflow && !selectedIsAnimationResult;
   const showSpriteActionsPanel = SHOW_SPRITE_ACTIONS_PANEL;
-  const hideMainPreviewForAnimationResult = isAnimationWorkflow && selectedAnimationExportReady;
   const showImageDownloadPanel = !isAnimationWorkflow;
   const selectedImageDownloadReady = Boolean(selected && !selectedIsAnimationResult);
 
@@ -2455,8 +2416,7 @@ function App() {
           )}
         </aside>
 
-        <section className={`workspace ${isAnimationWorkflow ? "with-animation-downloads" : ""} ${showImageDownloadPanel ? "with-image-downloads" : ""} ${hideMainPreviewForAnimationResult ? "animation-result-selected" : ""}`}>
-          {!hideMainPreviewForAnimationResult && (
+        <section className={`workspace ${isAnimationWorkflow ? "with-animation-downloads" : ""} ${showImageDownloadPanel ? "with-image-downloads" : ""}`}>
           <div className={`panel canvas-panel ${showAnnotationToolbar ? "" : "without-toolbar"}`}>
             <PanelTitle index="2" title={copy.canvasAnnotationTitle} />
             {showAnnotationToolbar && (
@@ -2528,7 +2488,6 @@ function App() {
               <span className="swatch" style={{ background: annotationColor }} />
             </div>
           </div>
-          )}
           {showImageDownloadPanel && (
             <section className={`panel image-download-panel ${selectedImageDownloadReady ? "complete" : ""}`}>
               <PanelTitle index="4" title={copy.imageDownloadTitle} />
@@ -2558,49 +2517,6 @@ function App() {
                   <span>{copy.animationStepDownloadBody}</span>
                 </div>
                 {selectedAnimationExportReady && <small className="step-kicker">{copy.animationReady}</small>}
-                {selectedAnimationExportReady && (
-                  <span className="animation-download-source-status">
-                    {copy.animationGeneratedFrom}: {selectedAnimationSource?.name ?? selected?.derivedFromName ?? copy.animationSourceUnknown}
-                  </span>
-                )}
-                <div className="animation-preview-grid">
-                  <div className="animation-preview-card direction-preview-card">
-                    <strong>{(copy as Record<string, string>).directionalPreviews ?? "Directional Previews"}</strong>
-                    {selectedAnimationExportReady && animationDirectionPreviews.length > 0 ? (
-                      <div className="direction-preview-list">
-                        {animationDirectionPreviews.map((preview) => (
-                          <div className="direction-preview-row" key={preview.id}>
-                            <span>{preview.label}</span>
-                            <div className="direction-preview-media">
-                              <div className="direction-preview-slot">
-                                <small>{(copy as Record<string, string>).previewGif ?? "GIF"}</small>
-                                <div className="animation-preview compact-animation-preview">
-                                  <img src={preview.gifUrl} alt="" />
-                                </div>
-                              </div>
-                              <div className="direction-preview-slot">
-                                <small>{(copy as Record<string, string>).previewWebP ?? "WebP"}</small>
-                                <div className="animation-preview compact-animation-preview">
-                                  <img src={preview.webpUrl} alt="" />
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <div className="animation-preview">
-                        <span>{animationPreviewPlaceholder}</span>
-                      </div>
-                    )}
-                  </div>
-                  <div className="animation-preview-card">
-                    <strong>{(copy as Record<string, string>).previewSpriteSheet ?? "Sprite Sheet Preview"}</strong>
-                    <div className="animation-preview sheet-preview">
-                      {selectedAnimationExportReady && spriteSheetPreviewUrl ? <img src={spriteSheetPreviewUrl} alt="" /> : <span>{animationPreviewPlaceholder}</span>}
-                    </div>
-                  </div>
-                </div>
                 <div className="download-grid">
                   <button onClick={() => void exportDirectionalAnimations("gif")} disabled={!selectedAnimationExportReady}>
                     <Film size={16} aria-hidden="true" />
@@ -2629,6 +2545,7 @@ function App() {
             </div>
           )}
           <div
+            ref={historyListRef}
             className="history-list"
             data-visible-count={visibleHistoryCount}
             data-total-count={history.length}
@@ -2652,6 +2569,7 @@ function App() {
                 {SHOW_LOW_PRIORITY_CONTROLS && item.adopted && <em>Adopted</em>}
               </button>
             ))}
+            {hasMoreHistory && <div ref={historyLoadMoreRef} className="history-load-more-sentinel" aria-hidden="true" />}
           </div>
           {SHOW_LOW_PRIORITY_CONTROLS && (
             <div className="variant-box">
