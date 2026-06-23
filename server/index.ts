@@ -17,6 +17,15 @@ const codexAutoRun = process.env.IMAGE_COCKPIT_CODEX_AUTORUN !== "0";
 const codexCommand = process.env.IMAGE_COCKPIT_CODEX_COMMAND ?? "codex";
 const codexSandbox = process.env.IMAGE_COCKPIT_CODEX_SANDBOX ?? "workspace-write";
 const codexApproval = process.env.IMAGE_COCKPIT_CODEX_APPROVAL ?? "never";
+const codexHelpArgs = parseJsonStringArray("IMAGE_COCKPIT_CODEX_HELP_ARGS_JSON", ["--help"]);
+const codexExecArgs = parseJsonStringArray("IMAGE_COCKPIT_CODEX_EXEC_ARGS_JSON", [
+  "exec",
+  "--sandbox",
+  codexSandbox,
+  "--ask-for-approval",
+  codexApproval,
+  "-"
+]);
 const resultRoutePrefix = "/api/codex/results/";
 const runnerPreflightTimeoutMs = 4000;
 
@@ -368,7 +377,7 @@ async function startCodexRunner(job: { id: string; createdAt: string; path: stri
   try {
     const child = spawn(
       codexCommand,
-      ["exec", "--sandbox", codexSandbox, "--ask-for-approval", codexApproval, "-"],
+      codexExecArgs,
       {
         cwd: process.cwd(),
         env: {
@@ -470,7 +479,7 @@ async function checkCodexRunnerPreflight(): Promise<CodexRunnerPreflight> {
     }, runnerPreflightTimeoutMs);
 
     try {
-      child = spawn(codexCommand, ["--help"], {
+      child = spawn(codexCommand, codexHelpArgs, {
         cwd: process.cwd(),
         stdio: ["ignore", "ignore", "pipe"],
         windowsHide: true
@@ -500,7 +509,7 @@ async function checkCodexRunnerPreflight(): Promise<CodexRunnerPreflight> {
 
         finish({
           state: "unavailable",
-          message: stderrText.trim() || `${codexCommand} --help exited with code ${exitCode}`,
+          message: stderrText.trim() || `${codexCommand} ${codexHelpArgs.join(" ")} exited with code ${exitCode}`,
           errorCode: exitCode === null ? undefined : String(exitCode),
           setupHint: codexRunnerSetupHint()
         });
@@ -526,6 +535,20 @@ function createRunnerPreflightBase() {
     sandbox: codexSandbox,
     approval: codexApproval
   };
+}
+
+function parseJsonStringArray(envKey: string, fallback: string[]) {
+  const rawValue = process.env[envKey];
+  if (!rawValue) return fallback;
+  try {
+    const parsed = JSON.parse(rawValue);
+    if (Array.isArray(parsed) && parsed.every((item) => typeof item === "string")) {
+      return parsed;
+    }
+  } catch {
+    // Fall through to fallback; doctor/release docs explain the JSON form for wrappers.
+  }
+  return fallback;
 }
 
 function codexRunnerSetupHint(error?: unknown) {

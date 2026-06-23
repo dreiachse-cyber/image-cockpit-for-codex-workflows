@@ -72,7 +72,11 @@ IMAGE_COCKPIT_CODEX_AUTORUN=1       # 0 disables autorun and keeps manual handof
 IMAGE_COCKPIT_CODEX_COMMAND=codex   # executable used for `codex exec`
 IMAGE_COCKPIT_CODEX_SANDBOX=workspace-write
 IMAGE_COCKPIT_CODEX_APPROVAL=never
+IMAGE_COCKPIT_CODEX_HELP_ARGS_JSON= # optional JSON array for wrapper preflight args
+IMAGE_COCKPIT_CODEX_EXEC_ARGS_JSON= # optional JSON array for wrapper exec args
 ```
+
+The default runner command is equivalent to `codex exec --sandbox <sandbox> --ask-for-approval <approval> -`. Advanced wrapper setups can set the two JSON arg arrays when the executable needs extra fixed arguments before the Image Cockpit prompt is piped on stdin.
 
 Runner status and logs are written locally:
 
@@ -116,6 +120,8 @@ npm run release:audit
 ```
 
 GitHub Actions runs the same verification path through `.github/workflows/ci.yml`.
+
+`npm run smoke` covers manual handoff mode and a mock autorun runner that reaches `ready`, creates a job, records `completed`, writes a PNG to the outbox, and imports that PNG through the Local Inbox endpoint. This proves the runner lifecycle wiring without claiming that the installed Codex executable completed successfully on every machine.
 
 ## Review
 

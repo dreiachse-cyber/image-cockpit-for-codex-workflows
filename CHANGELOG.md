@@ -9,6 +9,7 @@ Private release candidate for the first local Image Cockpit MVP.
 - Guided Start with four workflows: image generation, image editing, sprite sheet generation, and sprite sheet editing.
 - Local-only Codex handoff through `codex-handoff/inbox/`, `assets/`, `outbox/`, `status/`, and `logs/`.
 - Optional `codex exec` runner launched by the local server when `IMAGE_COCKPIT_CODEX_AUTORUN=1`.
+- Optional JSON arg overrides for Codex runner wrappers and smoke coverage for a mock autorun runner reaching completed state.
 - Pending-job lock so the Codex job button cannot create duplicate handoff jobs while waiting for a result.
 - Orphaned pending Codex jobs with missing runner status now unlock instead of waiting forever.
 - Handoff job context including workflow mode, edit notes, selected image asset, annotations, grid, and sprite context.
@@ -19,6 +20,7 @@ Private release candidate for the first local Image Cockpit MVP.
 - Desktop and mobile QA screenshots for the simplified image generation screen with `Import Latest` visible.
 - Manual handoff Browser QA screenshot showing an outbox return imported through `Import Latest`.
 - Smoke coverage for Local Inbox outbox listing and data URL import.
+- Smoke coverage for runner preflight `ready`, autorun `running -> completed`, and mock outbox PNG import.
 - Canvas annotation tools for select, brush, rectangle, and arrow.
 - Grid split into sprite frames, frame timeline editing, frame size controls, anchor controls, chroma key cleanup, and PNG / ZIP / GIF / metadata exports.
 - Japanese / English language selector, with core workflow panel labels, canvas controls, sprite controls, and export actions following the selected language.

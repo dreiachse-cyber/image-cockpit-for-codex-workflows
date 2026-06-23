@@ -23,6 +23,7 @@ const codexAutoRun = process.env.IMAGE_COCKPIT_CODEX_AUTORUN !== "0";
 const codexCommand = process.env.IMAGE_COCKPIT_CODEX_COMMAND ?? "codex";
 const codexSandbox = process.env.IMAGE_COCKPIT_CODEX_SANDBOX ?? "workspace-write";
 const codexApproval = process.env.IMAGE_COCKPIT_CODEX_APPROVAL ?? "never";
+const codexHelpArgs = parseJsonStringArray("IMAGE_COCKPIT_CODEX_HELP_ARGS_JSON", ["--help"]);
 const runnerTimeoutMs = 4000;
 
 const hardFailures = [];
@@ -94,9 +95,9 @@ async function checkCodexCommand() {
     return;
   }
 
-  const result = await tryRun(codexCommand, ["--help"], runnerTimeoutMs);
+  const result = await tryRun(codexCommand, codexHelpArgs, runnerTimeoutMs);
   if (result.ok) {
-    ok(`${codexCommand} --help completed`);
+    ok(`${codexCommand} ${codexHelpArgs.join(" ")} completed`);
     return;
   }
 
@@ -211,4 +212,18 @@ function loadDotEnv(path) {
     if (process.env[key] !== undefined) continue;
     process.env[key] = rawValue.replace(/^["']|["']$/g, "");
   }
+}
+
+function parseJsonStringArray(envKey, fallback) {
+  const rawValue = process.env[envKey];
+  if (!rawValue) return fallback;
+  try {
+    const parsed = JSON.parse(rawValue);
+    if (Array.isArray(parsed) && parsed.every((item) => typeof item === "string")) {
+      return parsed;
+    }
+  } catch {
+    // Invalid optional wrapper args fall back to Codex CLI defaults.
+  }
+  return fallback;
 }

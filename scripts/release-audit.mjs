@@ -39,7 +39,9 @@ const requiredEnvKeys = [
   "IMAGE_COCKPIT_CODEX_AUTORUN",
   "IMAGE_COCKPIT_CODEX_COMMAND",
   "IMAGE_COCKPIT_CODEX_SANDBOX",
-  "IMAGE_COCKPIT_CODEX_APPROVAL"
+  "IMAGE_COCKPIT_CODEX_APPROVAL",
+  "IMAGE_COCKPIT_CODEX_HELP_ARGS_JSON",
+  "IMAGE_COCKPIT_CODEX_EXEC_ARGS_JSON"
 ];
 
 const requiredWorkflowIds = ["image-generate", "image-edit", "sprite-generate", "sprite-edit"];
@@ -226,10 +228,25 @@ function checkWorkflowIds() {
     "sprite generation job should include sprite frame count",
     "sprite edit job should include sprite frame count",
     "sprite generation job should not carry edit annotations",
-    "sprite edit job should not carry edit annotations"
+    "sprite edit job should not carry edit annotations",
+    "mock autorun preflight should report ready",
+    "mock autorun job should start in running state",
+    "mock autorun result image should be listed",
+    "waitForJobState"
   ].forEach((marker) => {
     if (!smokeText.includes(marker)) {
       failures.push(`Smoke test should cover sprite handoff detail: ${marker}`);
+    }
+  });
+
+  [
+    "IMAGE_COCKPIT_CODEX_HELP_ARGS_JSON",
+    "IMAGE_COCKPIT_CODEX_EXEC_ARGS_JSON",
+    "parseJsonStringArray"
+  ].forEach((marker) => {
+    const serverText = readText("server/index.ts");
+    if (!serverText.includes(marker)) {
+      failures.push(`Server should support runner wrapper args: ${marker}`);
     }
   });
 }
@@ -371,6 +388,7 @@ function checkReleaseDocs() {
     "Sprite sheet editing",
     "Local-first boundary",
     "Manual handoff fallback",
+    "Runner lifecycle wiring",
     "manual-handoff-import-latest-1280x720.png",
     "docs/release/v0.1.0-owner-decision.md",
     "Remaining Gates",
@@ -391,7 +409,8 @@ function checkReleaseDocs() {
     "Approve changing repository visibility from private to public",
     "Approve creating the `v0.1.0` tag and GitHub release",
     "manual-handoff-first v0.1.0",
-    "Do not treat the current `spawn EPERM` environment as proof that automatic `codex exec` completion works."
+    "Do not treat the current `spawn EPERM` environment as proof that automatic `codex exec` completion works.",
+    "Do not treat mock autorun smoke as proof that the installed Codex executable itself can complete on every machine."
   ].forEach((line) => {
     if (!ownerDecision.includes(line)) {
       failures.push(`Owner decision record is missing expected content: ${line}`);
