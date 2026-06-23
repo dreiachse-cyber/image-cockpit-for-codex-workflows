@@ -260,7 +260,12 @@ function checkWorkflowIds() {
     "Route: Local Generator",
     "Generate Pixel Art",
     "Generate Animation",
-    "Animation generated"
+    "Animation generated",
+    "Prompt Examples",
+    "Copy Prompt",
+    "Use Prompt",
+    "Clockwork Mushroom Courier",
+    "Prompt example loaded into Pixel Art Generation"
   ].forEach((marker) => {
     if (!uiSmokeText.includes(marker)) {
       failures.push(`UI smoke should cover guided workflow review: ${marker}`);

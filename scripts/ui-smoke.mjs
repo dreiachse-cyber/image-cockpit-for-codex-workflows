@@ -84,6 +84,7 @@ try {
 
   await assertGuidedStart();
   await assertLanguageSwitch();
+  await assertPromptExamples();
   await assertWorkflow({
     index: 0,
     label: "Pixel Art Generation",
@@ -136,6 +137,29 @@ async function assertLanguageSwitch() {
     select.dispatchEvent(new Event("change", { bubbles: true }));
   })()`);
   await waitForEval(() => `document.body.innerText.includes("Choose what to make")`, "English Guided Start copy");
+}
+
+async function assertPromptExamples() {
+  await clickButtonByText("Prompt Examples");
+  await waitForEval(() => `document.body.innerText.includes("Clockwork Mushroom Courier")`, "Prompt Examples page");
+  const snapshot = await pageSnapshot();
+  assert(snapshot.text.includes("Pixel-art prompts tuned for Codex imagegen."), "Prompt Examples intro should be visible");
+  assert(snapshot.buttons.includes("Copy Prompt"), "Prompt Examples should expose copy buttons");
+  assert(snapshot.buttons.includes("Use Prompt"), "Prompt Examples should expose use buttons");
+  const examplePrompt = await evaluate(`document.querySelector(".prompt-card-text")?.textContent || ""`);
+  assert(examplePrompt.includes("clockwork mushroom courier"), "Prompt example text should be available for copy");
+  await maybeCapture("prompt-examples");
+
+  await clickButtonByText("Use Prompt");
+  await waitForEval(
+    () => `document.body.innerText.includes("Prompt example loaded into Pixel Art Generation")`,
+    "Prompt example loaded"
+  );
+  const loadedPrompt = await evaluate(`document.querySelector("textarea")?.value || ""`);
+  assert(loadedPrompt.includes("clockwork mushroom courier"), "Use Prompt should load the example into the prompt field");
+
+  await evaluate(`document.querySelector(".guided-link")?.click()`);
+  await waitForEval(() => `document.querySelectorAll(".guided-option").length === 2`, "return to Guided Start after Prompt Examples");
 }
 
 async function assertWorkflow({ index, label, route, buttons, requiredText, exactButtonCounts = {}, exerciseButton, expectedAfterExercise }) {

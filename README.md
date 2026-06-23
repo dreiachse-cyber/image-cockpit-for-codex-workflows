@@ -37,6 +37,7 @@ The prompt-only imagegen handoff smoke result is recorded in `docs/qa/imagegen-h
 ## MVP Flow
 
 - Choose one of two starting workflows: pixel art generation, or animation generation.
+- Open Prompt Examples from the header, copy tuned pixel-art prompts, or load one directly into Pixel Art Generation.
 - Generate pixel art from a prompt through local Codex imagegen handoff.
 - Upload or select a pixel-art source before generating animation.
 - Generate animation frames from that pixel-art source; a sprite sheet is produced as part of the process.
@@ -134,7 +135,7 @@ Optional local browser review smoke:
 npm run ui:smoke
 ```
 
-`npm run ui:smoke` starts the local API and Vite app with a temporary handoff folder, opens a headless Chrome/Edge session, verifies the two-workflow start screen, clicks pixel art generation through `Codex Handoff`, clicks animation generation through the local animation route, and checks the expected UI state for both actions.
+`npm run ui:smoke` starts the local API and Vite app with a temporary handoff folder, opens a headless Chrome/Edge session, verifies the two-workflow start screen, verifies Prompt Examples can load a tuned prompt into Pixel Art Generation, clicks pixel art generation through `Codex Handoff`, clicks animation generation through the local animation route, and checks the expected UI state for both actions.
 
 Optional real Codex runner smoke:
 

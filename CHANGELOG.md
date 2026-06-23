@@ -8,6 +8,7 @@
 - Built-in local procedural PNG generator kept as a fallback/dev verification path.
 - Pixel-art-to-animation generation workflow that requires an uploaded or selected pixel-art source, then creates an animation sheet and immediate timeline frames.
 - Two-choice start screen focused on pixel art generation and animation generation, with editing workflows deferred from the primary UI.
+- Prompt Examples page with copy buttons and one-click loading into Pixel Art Generation.
 - `POST /api/generate` local generation endpoint and smoke coverage that checks generated PNG dimensions.
 - Optional real imagegen smoke through `npm run imagegen:smoke`.
 

@@ -5,6 +5,7 @@ import {
   ArrowRight,
   Brush,
   CheckCircle2,
+  Copy,
   Download,
   FileArchive,
   FileImage,
@@ -75,6 +76,15 @@ const languageOptions: Array<{ id: Language; label: string }> = [
 
 type WorkflowMode = "image-generate" | "image-edit" | "sprite-generate" | "sprite-edit";
 
+interface PromptExample {
+  id: string;
+  category: Record<Language, string>;
+  title: Record<Language, string>;
+  prompt: string;
+  negativePrompt: string;
+  notes: string;
+}
+
 interface PendingCodexJob {
   id: string;
   path: string;
@@ -133,6 +143,14 @@ const uiCopy = {
     moveFrameRight: "Move frame right",
     removeFrame: "Remove frame",
     noFrames: "No frames",
+    promptExamples: "Prompt Examples",
+    promptExamplesTitle: "Prompt Examples",
+    promptExamplesIntro: "Pixel-art prompts tuned for Codex imagegen.",
+    copyPrompt: "Copy Prompt",
+    usePrompt: "Use Prompt",
+    promptCopied: "Prompt copied",
+    promptCopyFailed: "Could not copy prompt",
+    promptExampleApplied: "Prompt example loaded into Pixel Art Generation",
     statusUsesImport: "uses Import or drag and drop",
     statusCodexJobWritten: "Codex job written",
     statusCodexJobError: "Could not create Codex handoff job",
@@ -219,6 +237,14 @@ const uiCopy = {
     moveFrameRight: "フレームを右へ移動",
     removeFrame: "フレーム削除",
     noFrames: "フレームなし",
+    promptExamples: "プロンプト例",
+    promptExamplesTitle: "プロンプト例",
+    promptExamplesIntro: "Codex imagegen向けのピクセルアートprompt例です。",
+    copyPrompt: "プロンプトをコピー",
+    usePrompt: "この例を使う",
+    promptCopied: "プロンプトをコピーしました",
+    promptCopyFailed: "プロンプトをコピーできませんでした",
+    promptExampleApplied: "プロンプト例をピクセルアート生成へ入れました",
     statusUsesImport: "はImportまたはドラッグ&ドロップを使います",
     statusCodexJobWritten: "Codexジョブを書き込みました",
     statusCodexJobError: "Codex handoffジョブを作成できませんでした",
@@ -395,6 +421,63 @@ const workflowOptions: Array<{
   }
 ];
 
+const promptExamples: PromptExample[] = [
+  {
+    id: "clockwork-mushroom-courier",
+    category: { en: "Character", ja: "キャラクター" },
+    title: { en: "Clockwork Mushroom Courier", ja: "ぜんまい茸の配達人" },
+    prompt:
+      "Create one original pixel-art game asset concept image: a tiny clockwork mushroom courier carrying a glowing blue delivery satchel through a rainy neon forest, crisp readable silhouette, 16-bit pixel-art inspired rendering, transparent-game-asset feel, teal rain highlights, warm amber satchel glow, no readable text, no logo, no watermark, no numbers.",
+    negativePrompt: "text, logo, watermark, numbers, photorealistic face, blurry silhouette, placeholder geometric-only output",
+    notes: "Prompt-only image generation. Keep the silhouette readable at game-asset scale and avoid any readable symbols."
+  },
+  {
+    id: "forest-mage-idle",
+    category: { en: "Character", ja: "キャラクター" },
+    title: { en: "Forest Mage Idle Sprite", ja: "森の魔法使いアイドル" },
+    prompt:
+      "Create a single full-body pixel-art character asset: a small forest mage with a leaf hood, carved wooden staff, soft green cloak, amber charm, friendly confident pose, idle-animation ready stance, clear feet contact, centered subject, transparent-background feel, 32-bit fantasy RPG palette, crisp silhouette, no readable text, no logo, no watermark.",
+    negativePrompt: "cropped feet, extra arms, text, logo, watermark, blurry edges, realistic skin, busy background",
+    notes: "Character should be easy to cut out and animate later. Keep pose neutral, balanced, and readable."
+  },
+  {
+    id: "ember-slime-companion",
+    category: { en: "Creature", ja: "クリーチャー" },
+    title: { en: "Ember Slime Companion", ja: "火種スライム" },
+    prompt:
+      "Create a cute pixel-art creature asset: a small ember slime companion with a warm orange core, tiny charcoal feet, two expressive glowing eyes, faint heat shimmer, simple rounded body, readable silhouette on transparent-background feel, collectible monster game style, clean 16-bit pixel-art inspired rendering, no text, no logo, no watermark.",
+    negativePrompt: "scary horror, text, logo, watermark, photorealistic fire, over-detailed smoke, cropped body",
+    notes: "Creature design should be simple enough for idle, hop, and attack animation variants."
+  },
+  {
+    id: "crystal-export-station",
+    category: { en: "Prop", ja: "小物" },
+    title: { en: "Crystal Export Station", ja: "水晶の書き出し台" },
+    prompt:
+      "Create a pixel-art game prop asset: a compact crystal export station made of mossy stone and brass rails, three amber crystals glowing above small sockets, teal interface sparks, fantasy workshop mood, isometric-front readable angle, transparent-background feel, crisp edge clusters, no readable text, no logo, no watermark, no numbers.",
+    negativePrompt: "letters, labels, UI words, logo, watermark, photorealism, cluttered background, broken perspective",
+    notes: "Prop should read clearly as a small interactive workstation and fit beside character sprites."
+  },
+  {
+    id: "rainy-neon-forest-tile",
+    category: { en: "Environment", ja: "背景" },
+    title: { en: "Rainy Neon Forest Tile", ja: "雨のネオン森タイル" },
+    prompt:
+      "Create a pixel-art environment tile concept: rainy neon forest ground with wet stone path, cyan puddle reflections, small purple mushrooms, dark green leaves, warm lantern glints, seamless game-map tile mood, top-down three-quarter RPG perspective, no characters, no readable text, no logo, no watermark.",
+    negativePrompt: "characters, text, logo, watermark, flat plain grass, photorealistic rain, unreadable clutter",
+    notes: "Keep it tile-friendly with no large unique landmark in the center."
+  },
+  {
+    id: "sprite-sheet-workbench",
+    category: { en: "Scene", ja: "シーン" },
+    title: { en: "Sprite-Sheet Workbench", ja: "スプライト作業台" },
+    prompt:
+      "Create a pixel-art inspired production-tool scene: a cozy fantasy sprite-sheet workbench with glowing teal grid panels, tiny frame thumbnails, amber export crystals, pinned annotation marks, wooden desk, mossy stone walls, friendly maker mood, crisp readable composition, no readable text, no logo, no watermark, no numbers.",
+    negativePrompt: "readable UI text, letters, numbers, logo, watermark, photorealistic monitor, blurry composition",
+    notes: "Use this when testing whether complex production-tool concepts survive the imagegen prompt."
+  }
+];
+
 function App() {
   const [history, setHistory] = useState<HistoryItem[]>(() => loadHistory());
   const [frames, setFrames] = useState<SpriteFrame[]>(() => loadFrames());
@@ -403,6 +486,7 @@ function App() {
   const [activeActionName, setActiveActionName] = useState("idle");
   const [language, setLanguage] = useState<Language>(loadLanguage);
   const [workflowMode, setWorkflowMode] = useState<WorkflowMode | null>(null);
+  const [showPromptExamples, setShowPromptExamples] = useState(false);
   const [providerId, setProviderId] = useState<ProviderId>("codex-handoff");
   const [providers, setProviders] = useState<ProviderStatus[]>(fallbackProviders);
   const [runnerPreflight, setRunnerPreflight] = useState<CodexRunnerPreflight | null>(null);
@@ -1023,6 +1107,7 @@ function App() {
   function beginWorkflow(mode: WorkflowMode) {
     const option = workflowOptions.find((item) => item.id === mode);
     setWorkflowMode(mode);
+    setShowPromptExamples(false);
     if (option) setProviderId(option.provider);
     if (mode === "image-edit") setTool("brush");
     if (mode === "image-generate") setTool("select");
@@ -1037,6 +1122,38 @@ function App() {
     setStatus(workflowCopy[language][mode].status);
   }
 
+  async function copyPromptExample(example: PromptExample) {
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(example.prompt);
+      } else {
+        const textarea = document.createElement("textarea");
+        textarea.value = example.prompt;
+        textarea.setAttribute("readonly", "");
+        textarea.style.position = "fixed";
+        textarea.style.opacity = "0";
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand("copy");
+        document.body.removeChild(textarea);
+      }
+      setStatus(copy.promptCopied);
+    } catch {
+      setStatus(copy.promptCopyFailed);
+    }
+  }
+
+  function usePromptExample(example: PromptExample) {
+    setPrompt(example.prompt);
+    setNegativePrompt(example.negativePrompt);
+    setJobNotes(example.notes);
+    setWorkflowMode("image-generate");
+    setShowPromptExamples(false);
+    setProviderId("codex-handoff");
+    setTool("select");
+    setStatus(copy.promptExampleApplied);
+  }
+
   const codexProvider = providers.find((provider) => provider.id === "codex-handoff");
   const activeWorkflowCopy = workflowMode ? workflowCopy[language][workflowMode] : null;
   const activeWorkflowFormCopy = workflowMode ? workflowFormCopy[language][workflowMode] : null;
@@ -1048,8 +1165,27 @@ function App() {
   const showAnimationControls = workflowMode === "sprite-generate";
   const showAnnotationToolbar = SHOW_LOW_PRIORITY_CONTROLS || workflowMode === "image-edit";
 
+  if (showPromptExamples) {
+    return (
+      <PromptExamplesPage
+        language={language}
+        onBack={() => setShowPromptExamples(false)}
+        onCopy={copyPromptExample}
+        onLanguageChange={setLanguage}
+        onUse={usePromptExample}
+      />
+    );
+  }
+
   if (!workflowMode) {
-    return <GuidedStart language={language} onLanguageChange={setLanguage} onSelect={beginWorkflow} />;
+    return (
+      <GuidedStart
+        language={language}
+        onLanguageChange={setLanguage}
+        onPromptExamples={() => setShowPromptExamples(true)}
+        onSelect={beginWorkflow}
+      />
+    );
   }
 
   return (
@@ -1065,6 +1201,10 @@ function App() {
           <LanguageSelect language={language} label={copy.language} onChange={setLanguage} />
           <button className="guided-link" onClick={() => setWorkflowMode(null)}>
             {copy.guidedStart}
+          </button>
+          <button className="guided-link" onClick={() => setShowPromptExamples(true)}>
+            <FileJson size={14} aria-hidden="true" />
+            {copy.promptExamples}
           </button>
           {SHOW_LOW_PRIORITY_CONTROLS && (
             <>
@@ -1771,10 +1911,12 @@ function QcLine({ ok, label, value }: { ok: boolean; label: string; value: strin
 function GuidedStart({
   language,
   onLanguageChange,
+  onPromptExamples,
   onSelect
 }: {
   language: Language;
   onLanguageChange: (language: Language) => void;
+  onPromptExamples: () => void;
   onSelect: (mode: WorkflowMode) => void;
 }) {
   const copy = uiCopy[language];
@@ -1789,6 +1931,10 @@ function GuidedStart({
         </div>
         <div className="project-strip">
           <LanguageSelect language={language} label={copy.language} onChange={onLanguageChange} />
+          <button className="guided-link" onClick={onPromptExamples}>
+            <FileJson size={14} aria-hidden="true" />
+            {copy.promptExamples}
+          </button>
         </div>
       </header>
 
@@ -1817,6 +1963,74 @@ function GuidedStart({
           <div className="guided-note">
             <AlertTriangle size={16} aria-hidden="true" />
             <span>{copy.guidedNote}</span>
+          </div>
+        </section>
+      </main>
+    </div>
+  );
+}
+
+function PromptExamplesPage({
+  language,
+  onBack,
+  onCopy,
+  onLanguageChange,
+  onUse
+}: {
+  language: Language;
+  onBack: () => void;
+  onCopy: (example: PromptExample) => Promise<void>;
+  onLanguageChange: (language: Language) => void;
+  onUse: (example: PromptExample) => void;
+}) {
+  const copy = uiCopy[language];
+  return (
+    <div className="prompt-shell">
+      <header className="topbar">
+        <div className="brand">
+          <Grid3X3 size={18} aria-hidden="true" />
+          <strong>Image Cockpit for Codex Workflows</strong>
+          <span>{copy.promptExamples}</span>
+          <small>{copy.localCodexHandoff}</small>
+        </div>
+        <div className="project-strip">
+          <LanguageSelect language={language} label={copy.language} onChange={onLanguageChange} />
+          <button className="guided-link" onClick={onBack}>
+            <ArrowLeft size={14} aria-hidden="true" />
+            {copy.guidedStart}
+          </button>
+        </div>
+      </header>
+
+      <main className="prompt-main">
+        <section className="prompt-panel">
+          <div className="prompt-library-heading">
+            <strong>{copy.promptExamplesTitle}</strong>
+            <span>{copy.promptExamplesIntro}</span>
+          </div>
+
+          <div className="prompt-grid">
+            {promptExamples.map((example) => (
+              <article key={example.id} className="prompt-card">
+                <div className="prompt-card-meta">
+                  <small>{example.category[language]}</small>
+                </div>
+                <h2>{example.title[language]}</h2>
+                <p className="prompt-card-text">{example.prompt}</p>
+                <p className="prompt-card-negative">{example.negativePrompt}</p>
+                <small className="prompt-card-note">{example.notes}</small>
+                <div className="prompt-actions">
+                  <button onClick={() => void onCopy(example)}>
+                    <Copy size={15} aria-hidden="true" />
+                    {copy.copyPrompt}
+                  </button>
+                  <button className="primary-button" onClick={() => onUse(example)}>
+                    <ImagePlus size={15} aria-hidden="true" />
+                    {copy.usePrompt}
+                  </button>
+                </div>
+              </article>
+            ))}
           </div>
         </section>
       </main>

@@ -2,6 +2,12 @@
 
 更新日: 2026-06-23
 
+## Readable Update: Prompt Examples
+
+- Add a separate Prompt Examples page before public release review.
+- Keep the page focused on two actions: copy a tuned pixel-art prompt, or load it directly into Pixel Art Generation.
+- Treat Prompt Examples as support for the primary quality question: whether complex pixel-art prompts can reliably return useful generated images through local Codex imagegen.
+
 ## いまの状態
 
 このプロジェクトは、v0.1.0初回公開後に、ピクセルアート生成とアニメーション生成へプロダクト軸を絞っている段階です。
