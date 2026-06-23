@@ -12,6 +12,7 @@
 - Pixel Art Generation / Animation Generation tabs and a four-step Animation Generation flow with upload, motion selection or prompt entry, generation, and animated GIF / animated WebP / sprite sheet downloads.
 - `POST /api/generate` local generation endpoint and smoke coverage that checks generated PNG dimensions.
 - Optional real imagegen smoke through `npm run imagegen:smoke`.
+- Public privacy guard in release audit, plus environment-neutral Codex CLI evidence paths in public docs.
 
 ### Notes
 

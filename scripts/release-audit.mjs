@@ -4,6 +4,7 @@ import { extname, join } from "node:path";
 
 const root = process.cwd();
 const failures = [];
+const privacyTextExtensions = new Set(["", ".css", ".html", ".js", ".json", ".md", ".mjs", ".ts", ".tsx", ".txt", ".yaml", ".yml"]);
 
 const requiredFiles = [
   "README.md",
@@ -98,6 +99,7 @@ checkPackageJson();
 checkEnvExample();
 checkGitignore();
 checkTrackedFiles();
+checkPublicPrivacy();
 checkNoDirectOpenAiIntegration();
 checkWorkflowIds();
 checkPendingJobCoverage();
@@ -213,6 +215,60 @@ function checkTrackedFiles() {
       ) {
         failures.push(`Generated or local-only path is tracked: ${file}`);
       }
+    });
+}
+
+function checkPublicPrivacy() {
+  const tracked = git(["ls-files"]);
+  if (tracked === null) return;
+
+  const windowsUserPathPattern = new RegExp(["C:", "\\\\", "Users", "\\\\"].join(""), "i");
+  const workspaceDrivePathPattern = new RegExp(["D:", "\\\\", "codex", "\\\\"].join(""), "i");
+  const localAppDataCodexRuntimePattern = new RegExp(
+    [
+      "%LOCALAPPDATA%",
+      "\\\\",
+      "OpenAI",
+      "\\\\",
+      "Codex",
+      "\\\\",
+      "bin",
+      "\\\\",
+      "(?!<runtime-id>|\\.\\.\\.)[A-Za-z0-9_-]{6,}",
+      "\\\\",
+      "codex\\.exe"
+    ].join(""),
+    "i"
+  );
+  const blockedLiterals = [
+    { label: "personal Windows user name", value: ["na", "kaya"].join("") },
+    { label: "observed local Codex runtime id", value: ["38dff", "8711e296435"].join("") }
+  ];
+
+  tracked
+    .split(/\r?\n/)
+    .filter(Boolean)
+    .filter((file) => file !== "scripts/release-audit.mjs")
+    .filter((file) => isPrivacyAuditedTextFile(file))
+    .forEach((file) => {
+      const text = readText(file);
+      if (!text) return;
+
+      if (windowsUserPathPattern.test(text)) {
+        failures.push(`Public privacy guard found a Windows user profile path in ${file}`);
+      }
+      if (workspaceDrivePathPattern.test(text)) {
+        failures.push(`Public privacy guard found a local workspace drive path in ${file}`);
+      }
+      if (localAppDataCodexRuntimePattern.test(text)) {
+        failures.push(`Public privacy guard found a concrete Codex runtime path in ${file}`);
+      }
+
+      blockedLiterals.forEach(({ label, value }) => {
+        if (text.includes(value)) {
+          failures.push(`Public privacy guard found ${label} in ${file}`);
+        }
+      });
     });
 }
 
@@ -664,6 +720,10 @@ function git(args) {
 function isAuditedTextFile(file) {
   if (file === "package.json" || file === ".env.example") return true;
   return [".js", ".mjs", ".ts", ".tsx"].includes(extname(file));
+}
+
+function isPrivacyAuditedTextFile(file) {
+  return privacyTextExtensions.has(extname(file));
 }
 
 function escapeRegExp(value) {
