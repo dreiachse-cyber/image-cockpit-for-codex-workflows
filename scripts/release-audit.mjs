@@ -312,7 +312,9 @@ function checkWorkflowIds() {
     "Pixel Art Generation",
     "Image Editing",
     "Animation Generation",
-    "Start screen should show three workflow options",
+    "Initial screen should open the Pixel Art Generation workspace",
+    "Initial screen should not show Guided Start options",
+    "selectWorkflowTab",
     "Route: Codex Handoff",
     "5-direction chroma-key sprite sheet",
     "Generate Pixel Art",
@@ -387,7 +389,7 @@ function checkWorkflowIds() {
     "persisted 512x512 frame size after reload"
   ].forEach((marker) => {
     if (!uiSmokeText.includes(marker)) {
-      failures.push(`UI smoke should cover guided workflow review: ${marker}`);
+      failures.push(`UI smoke should cover workspace workflow review: ${marker}`);
     }
   });
 

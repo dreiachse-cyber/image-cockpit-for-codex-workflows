@@ -192,8 +192,6 @@ interface ImageEditComparison {
 const uiCopy = {
   en: {
     language: "Language",
-    guidedStart: "Start",
-    localCodexHandoff: "local Codex handoff",
     project: "Project: Forest Mage",
     openWorkspace: "Open workspace",
     settings: "Settings",
@@ -329,16 +327,10 @@ const uiCopy = {
     addFrame: "Add Frame",
     annotatedPng: "Annotated PNG",
     jobNotes: "Edit Notes",
-    jobNotesPlaceholder: "What should Codex preserve, fix, crop, split, or export?",
-    guidedQuestion: "Choose what to make",
-    guidedIntro: "Generate pixel art, edit an image with numbered regions, or animate a selected pixel-art source.",
-    guidedNote:
-      "No direct OpenAI API calls from this app. Pixel art generation, image editing, and animation generation use the local Codex handoff."
+    jobNotesPlaceholder: "What should Codex preserve, fix, crop, split, or export?"
   },
   ja: {
     language: "言語",
-    guidedStart: "スタート",
-    localCodexHandoff: "ローカルCodex受け渡し",
     project: "プロジェクト: Forest Mage",
     openWorkspace: "ワークスペースを開く",
     settings: "設定",
@@ -474,11 +466,7 @@ const uiCopy = {
     addFrame: "フレーム追加",
     annotatedPng: "注釈PNG",
     jobNotes: "編集メモ",
-    jobNotesPlaceholder: "Codexに残してほしい点、直してほしい点、切り出し方、出力形式を書きます",
-    guidedQuestion: "作りたいものを選んでください",
-    guidedIntro: "ピクセルアート生成、番号付き範囲での画像編集、選択したピクセルアートのアニメーション生成を行えます。",
-    guidedNote:
-      "このアプリ自体はOpenAI APIを直接呼びません。ピクセルアート生成、画像編集、アニメーション生成はいずれもローカルCodex受け渡しで行います。"
+    jobNotesPlaceholder: "Codexに残してほしい点、直してほしい点、切り出し方、出力形式を書きます"
   }
 } satisfies Record<Language, Record<string, string>>;
 
@@ -713,7 +701,7 @@ function App() {
   const [activeActionName, setActiveActionName] = useState("idle");
   const [language, setLanguage] = useState<Language>(loadLanguage);
   const [storageHydrated, setStorageHydrated] = useState(false);
-  const [workflowMode, setWorkflowMode] = useState<WorkflowMode | null>(null);
+  const [workflowMode, setWorkflowMode] = useState<WorkflowMode>("image-generate");
   const [showPromptExamples, setShowPromptExamples] = useState(false);
   const [providerId, setProviderId] = useState<ProviderId>("codex-handoff");
   const [motionInputMode, setMotionInputMode] = useState<MotionInputMode>("prompt");
@@ -1833,8 +1821,8 @@ function App() {
   }
 
   const codexProvider = providers.find((provider) => provider.id === "codex-handoff");
-  const activeWorkflowCopy = workflowMode ? workflowCopy[language][workflowMode] : null;
-  const activeWorkflowFormCopy = workflowMode ? workflowFormCopy[language][workflowMode] : null;
+  const activeWorkflowCopy = workflowCopy[language][workflowMode];
+  const activeWorkflowFormCopy = workflowFormCopy[language][workflowMode];
   const codexQueueCopy = codexJobQueueLabels(language);
   const runningCodexJobCount = codexJobs.filter((job) => job.state === "running").length;
   const shouldQueueCodexJob = providerId === "codex-handoff" && runningCodexJobCount >= MAX_ACTIVE_CODEX_JOBS;
@@ -1855,30 +1843,17 @@ function App() {
   const showAnnotationToolbar = isImageEditWorkflow;
   const showSpriteActionsPanel = SHOW_SPRITE_ACTIONS_PANEL;
 
-  if (!workflowMode) {
-    return (
-      <GuidedStart
-        language={language}
-        onLanguageChange={setLanguage}
-        onSelect={beginWorkflow}
-      />
-    );
-  }
-
   return (
     <div className="app-shell">
       <header className="topbar">
         <div className="brand">
           <Grid3X3 size={18} aria-hidden="true" />
           <strong>Image Cockpit for Codex Workflows</strong>
-          <span>{activeWorkflowCopy?.label}</span>
+          <span>{activeWorkflowCopy.label}</span>
           <small>v0.1.0</small>
         </div>
         <div className="project-strip">
           <LanguageSelect language={language} label={copy.language} onChange={setLanguage} />
-          <button className="guided-link" onClick={() => setWorkflowMode(null)}>
-            {copy.guidedStart}
-          </button>
           {SHOW_LOW_PRIORITY_CONTROLS && (
             <>
               <span>{copy.project}</span>
@@ -1898,8 +1873,8 @@ function App() {
           <PanelTitle index="1" title={copy.workflowPanelTitle} />
           <div className="workflow-summary">
             <small>{copy.currentWorkflow}</small>
-            <strong>{activeWorkflowCopy?.label}</strong>
-            <span>{activeWorkflowCopy?.detail}</span>
+            <strong>{activeWorkflowCopy.label}</strong>
+            <span>{activeWorkflowCopy.detail}</span>
             <em>{copy.selectedProvider}: {providerLabel(providerId, language)}</em>
             {providerId === "codex-handoff" && (
               <em className={`runner-pill runner-${runnerPreflight?.state ?? "checking"}`}>
@@ -1908,7 +1883,7 @@ function App() {
               </em>
             )}
           </div>
-          {workflowMode && <WorkflowTabs language={language} activeMode={workflowMode} onSelect={beginWorkflow} />}
+          <WorkflowTabs language={language} activeMode={workflowMode} onSelect={beginWorkflow} />
           {providerId === "codex-handoff" && codexJobs.length > 0 && (
             <CodexJobShelf jobs={codexJobs} maxActive={MAX_ACTIVE_CODEX_JOBS} language={language} />
           )}
@@ -3284,62 +3259,6 @@ function WorkflowTabs({
         );
       })}
     </nav>
-  );
-}
-
-function GuidedStart({
-  language,
-  onLanguageChange,
-  onSelect
-}: {
-  language: Language;
-  onLanguageChange: (language: Language) => void;
-  onSelect: (mode: WorkflowMode) => void;
-}) {
-  const copy = uiCopy[language];
-  return (
-    <div className="guided-shell">
-      <header className="topbar">
-        <div className="brand">
-          <Grid3X3 size={18} aria-hidden="true" />
-          <strong>Image Cockpit for Codex Workflows</strong>
-          <span>{copy.guidedStart}</span>
-          <small>{copy.localCodexHandoff}</small>
-        </div>
-        <div className="project-strip">
-          <LanguageSelect language={language} label={copy.language} onChange={onLanguageChange} />
-        </div>
-      </header>
-
-      <main className="guided-main">
-        <section className="guided-panel">
-          <div className="guided-copy">
-            <strong>{copy.guidedQuestion}</strong>
-            <span>{copy.guidedIntro}</span>
-          </div>
-
-          <div className="guided-options">
-            {workflowOptions.map((option) => {
-              const optionCopy = workflowCopy[language][option.id];
-              return (
-                <button key={option.id} className="guided-option" onClick={() => onSelect(option.id)}>
-                  <WorkflowIcon mode={option.id} />
-                  <span>
-                    <strong>{optionCopy.label}</strong>
-                    <small>{optionCopy.detail}</small>
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-
-          <div className="guided-note">
-            <AlertTriangle size={16} aria-hidden="true" />
-            <span>{copy.guidedNote}</span>
-          </div>
-        </section>
-      </main>
-    </div>
   );
 }
 

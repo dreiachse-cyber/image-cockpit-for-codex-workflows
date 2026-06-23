@@ -93,15 +93,17 @@ try {
     `
   });
   await cdp.send("Page.navigate", { url: `http://127.0.0.1:${vitePort}/` });
-  await waitForEval(() => `document.querySelectorAll(".guided-option").length === 3`, "Guided Start options");
+  await waitForEval(
+    () => `document.body.innerText.includes("Pixel Art Generation") && Boolean(document.querySelector(".source-panel > .workflow-tabs"))`,
+    "initial Pixel Art Generation workspace"
+  );
 
-  await assertGuidedStart();
+  await assertInitialWorkspace();
   await assertLanguageSwitch();
   await assertPromptExamples();
   await assertCodexQueue();
   await assertImageEditing();
   await assertWorkflow({
-    index: 0,
     label: "Pixel Art Generation",
     route: "Route: Codex Handoff",
     buttons: ["Generate Pixel Art"],
@@ -113,7 +115,6 @@ try {
     expectedCanvasPreviewModeAfterExercise: "result"
   });
   await assertWorkflow({
-    index: 2,
     label: "Animation Generation",
     route: "Route: Codex Handoff",
     buttons: ["Upload Pixel Art", "Generate Animation", "Animated GIF", "Animated WebP", "Sprite Sheet"],
@@ -140,14 +141,17 @@ try {
   await rm(tempRoot, { recursive: true, force: true });
 }
 
-async function assertGuidedStart() {
+async function assertInitialWorkspace() {
   const snapshot = await pageSnapshot();
-  assert(snapshot.guidedOptions.length === 3, "Start screen should show three workflow options");
-  ["Pixel Art Generation", "Image Editing", "Animation Generation"].forEach((label) => {
-    assert(snapshot.text.includes(label), `Guided Start missing ${label}`);
-  });
-  assert(snapshot.text.includes("No direct OpenAI API calls"), "Guided Start should state the local-first boundary");
-  await maybeCapture("guided-start");
+  assert(snapshot.guidedOptions.length === 0, "Initial screen should not show Guided Start options");
+  assert(!snapshot.buttons.includes("Start"), "Initial workspace should not expose the old Start button");
+  assert(snapshot.text.includes("Pixel Art Generation"), "Initial screen should open the Pixel Art Generation workspace");
+  assert(snapshot.buttons.includes("Pixel Art Generation"), "Initial workspace should expose Pixel Art Generation tab");
+  assert(snapshot.buttons.includes("Image Editing"), "Initial workspace should expose Image Editing tab");
+  assert(snapshot.buttons.includes("Animation Generation"), "Initial workspace should expose Animation Generation tab");
+  assert(snapshot.workflowTabsInsidePanel, "Initial workspace should place workflow tabs under 1. Workflow");
+  assert(snapshot.canvasVisible, "Initial workspace should render the preview canvas immediately");
+  await maybeCapture("initial-workspace");
 }
 
 async function assertLanguageSwitch() {
@@ -156,17 +160,17 @@ async function assertLanguageSwitch() {
     select.value = "ja";
     select.dispatchEvent(new Event("change", { bubbles: true }));
   })()`);
-  await waitForEval(() => `document.body.innerText.includes("作りたいものを選んでください")`, "Japanese Guided Start copy");
+  await waitForEval(() => `document.body.innerText.includes("ピクセルアートの生成")`, "Japanese workspace copy");
   await evaluate(`(() => {
     const select = document.querySelector(".language-control select");
     select.value = "en";
     select.dispatchEvent(new Event("change", { bubbles: true }));
   })()`);
-  await waitForEval(() => `document.body.innerText.includes("Choose what to make")`, "English Guided Start copy");
+  await waitForEval(() => `document.body.innerText.includes("Pixel Art Generation")`, "English workspace copy");
 }
 
 async function assertPromptExamples() {
-  await clickGuidedOption(0);
+  await selectWorkflowTab("Pixel Art Generation");
   await waitForEval(() => `document.body.innerText.includes("Pixel Art Generation")`, "Pixel Art Generation for prompt examples");
   const triggerPlacement = await evaluate(`(() => {
     const trigger = document.querySelector(".prompt-example-trigger");
@@ -194,12 +198,11 @@ async function assertPromptExamples() {
   const modalClosed = await evaluate(`!document.querySelector(".prompt-modal")`);
   assert(modalClosed, "Use Prompt should close the Prompt Examples modal");
 
-  await evaluate(`document.querySelector(".guided-link")?.click()`);
-  await waitForEval(() => `document.querySelectorAll(".guided-option").length === 3`, "return to Guided Start after Prompt Examples");
+  await selectWorkflowTab("Pixel Art Generation");
 }
 
 async function assertCodexQueue() {
-  await clickGuidedOption(0);
+  await selectWorkflowTab("Pixel Art Generation");
   await waitForEval(() => `document.body.innerText.includes("Pixel Art Generation")`, "Pixel Art Generation for Codex queue");
   await evaluate(`document.querySelector("textarea").value = "queue smoke pixel hero"; document.querySelector("textarea").dispatchEvent(new Event("input", { bubbles: true }))`);
 
@@ -220,12 +223,11 @@ async function assertCodexQueue() {
 
   await waitForEval(() => `document.querySelectorAll(".codex-job-row").length === 0`, "Codex queue drains after results return", 18000);
   await assertNoBrowserErrors("Codex queue");
-  await evaluate(`document.querySelector(".guided-link")?.click()`);
-  await waitForEval(() => `document.querySelectorAll(".guided-option").length === 3`, "return to Guided Start after Codex queue");
+  await selectWorkflowTab("Pixel Art Generation");
 }
 
 async function assertImageEditing() {
-  await clickGuidedOption(1);
+  await selectWorkflowTab("Image Editing");
   await waitForEval(() => `document.body.innerText.includes("Image Editing")`, "Image Editing workflow");
   let snapshot = await pageSnapshot();
   assert(snapshot.summary.includes("Route: Codex Handoff"), "Image Editing should use Codex Handoff");
@@ -264,12 +266,10 @@ async function assertImageEditing() {
   assert(snapshot.canvasPreviewMode === "edit", `Image Editing should keep edit canvas mode after import, got ${snapshot.canvasPreviewMode}`);
   await assertNoBrowserErrors("Image Editing");
   await maybeCapture("image-editing-before-after");
-  await evaluate(`document.querySelector(".guided-link")?.click()`);
-  await waitForEval(() => `document.querySelectorAll(".guided-option").length === 3`, "return to Guided Start after Image Editing");
+  await selectWorkflowTab("Pixel Art Generation");
 }
 
 async function assertWorkflow({
-  index,
   label,
   route,
   buttons,
@@ -288,7 +288,7 @@ async function assertWorkflow({
   expectedAnnotationToolbarVisible = false,
   reloadAfterExercise = false
 }) {
-  await clickGuidedOption(index);
+  await selectWorkflowTab(label);
   await waitForEval(() => `document.body.innerText.includes(${JSON.stringify(label)})`, label);
   const snapshot = await pageSnapshot();
   assert(snapshot.text.includes(label), `${label} should be visible after selection`);
@@ -373,20 +373,24 @@ async function assertWorkflow({
     if (reloadAfterExercise) {
       await delay(500);
       await cdp.send("Page.reload", { ignoreCache: true });
-      await waitForEval(() => `document.querySelectorAll(".guided-option").length === 3`, `${label} reload returned to Guided Start`);
-      await clickGuidedOption(index);
+      await waitForEval(() => `document.body.innerText.includes("Pixel Art Generation")`, `${label} reload returned to initial workspace`);
+      await selectWorkflowTab(label);
       await waitForEval(() => `document.body.innerText.includes("Animation frames ready")`, `${label} persisted animation frames after reload`);
       await waitForEval(() => `document.body.innerText.includes("512x512")`, `${label} persisted 512x512 frame size after reload`);
       await assertNoBrowserErrors(`${label} reload persistence`);
     }
   }
   await maybeCapture(label.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, ""));
-  await evaluate(`document.querySelector(".guided-link")?.click()`);
-  await waitForEval(() => `document.querySelectorAll(".guided-option").length === 3`, "return to Guided Start");
+  await selectWorkflowTab("Pixel Art Generation");
 }
 
-async function clickGuidedOption(index) {
-  await evaluate(`document.querySelectorAll(".guided-option")[${index}]?.click()`);
+async function selectWorkflowTab(label) {
+  await evaluate(`(() => {
+    const button = Array.from(document.querySelectorAll(".workflow-tabs button")).find((item) => item.innerText.replace(/\\s+/g, " ").trim() === ${JSON.stringify(label)});
+    if (!button) throw new Error("Workflow tab not found: ${label}");
+    button.click();
+  })()`);
+  await waitForEval(() => `document.body.innerText.includes(${JSON.stringify(label)})`, `${label} workflow tab`);
 }
 
 async function dragCanvasRegion() {
