@@ -44,6 +44,8 @@ import type {
   GridSettings,
   HistoryItem,
   CodexJobResponse,
+  CodexOutboxImportResponse,
+  CodexOutboxResult,
   ProviderId,
   ProviderStatus,
   SpriteAction,
@@ -77,6 +79,12 @@ const uiCopy = {
     statusUsesImport: "uses Import or drag and drop",
     statusCodexJobWritten: "Codex job written",
     statusCodexJobError: "Could not create Codex handoff job",
+    statusInboxEmpty: "No image files found in the Codex outbox",
+    statusInboxImported: "Imported from Local Inbox",
+    statusInboxError: "Could not import from Local Inbox",
+    createCodexJob: "Create Codex Job",
+    importLatest: "Import Latest",
+    importFile: "Import File",
     guidedQuestion: "What do you want to do?",
     guidedIntro: "Choose one workflow. The cockpit will open with the right tools and provider preselected.",
     guidedNote:
@@ -93,6 +101,12 @@ const uiCopy = {
     statusUsesImport: "はImportまたはドラッグ&ドロップを使います",
     statusCodexJobWritten: "Codexジョブを書き込みました",
     statusCodexJobError: "Codex handoffジョブを作成できませんでした",
+    statusInboxEmpty: "Codex outboxに画像ファイルが見つかりません",
+    statusInboxImported: "Local Inboxから取り込みました",
+    statusInboxError: "Local Inboxから取り込めませんでした",
+    createCodexJob: "Codexジョブ作成",
+    importLatest: "最新を取り込み",
+    importFile: "ファイル取り込み",
     guidedQuestion: "あなたがしたいのは次のうちどれですか？",
     guidedIntro: "作業したい流れを選ぶと、必要なツールとproviderを選んだ状態でcockpitを開きます。",
     guidedNote:
@@ -385,9 +399,13 @@ function App() {
   }
 
   async function handleGenerate() {
-    if (providerId === "local-file" || providerId === "local-inbox") {
+    if (providerId === "local-file") {
       setStatus(`${providerLabel(providerId, language)} ${copy.statusUsesImport}`);
       fileInputRef.current?.click();
+      return;
+    }
+    if (providerId === "local-inbox") {
+      await importLatestOutboxResult();
       return;
     }
     setIsBusy(true);
@@ -414,6 +432,44 @@ function App() {
       setStatus(`${copy.statusCodexJobWritten}: ${data.path}`);
     } catch (error) {
       setStatus(error instanceof Error ? error.message : copy.statusCodexJobError);
+    } finally {
+      setIsBusy(false);
+    }
+  }
+
+  async function importLatestOutboxResult() {
+    setIsBusy(true);
+    try {
+      const listResponse = await fetch("/api/codex/results");
+      if (!listResponse.ok) throw new Error(await listResponse.text());
+      const listData = (await listResponse.json()) as { outboxPath: string; results: CodexOutboxResult[] };
+      const latest = listData.results[0];
+      if (!latest) {
+        setStatus(`${copy.statusInboxEmpty}: ${listData.outboxPath}`);
+        return;
+      }
+
+      const importResponse = await fetch(`/api/codex/results/${encodeURIComponent(latest.name)}`);
+      if (!importResponse.ok) throw new Error(await importResponse.text());
+      const imported = (await importResponse.json()) as CodexOutboxImportResponse;
+      const image = await loadImage(imported.dataUrl);
+      const item: HistoryItem = {
+        id: createId("hist"),
+        name: imported.name,
+        dataUrl: imported.dataUrl,
+        provider: "local-inbox",
+        prompt,
+        seed,
+        size: `${image.width}x${image.height}`,
+        createdAt: new Date().toISOString(),
+        adopted: false,
+        source: "inbox"
+      };
+      setHistory((current) => [item, ...current]);
+      setSelectedId(item.id);
+      setStatus(`${copy.statusInboxImported}: ${imported.name}`);
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : copy.statusInboxError);
     } finally {
       setIsBusy(false);
     }
@@ -679,12 +735,12 @@ function App() {
 
           <div className="button-row">
             <button className="primary-button" onClick={() => void handleGenerate()} disabled={isBusy}>
-              {isBusy ? <Loader2 className="spin" size={17} aria-hidden="true" /> : <ImagePlus size={17} aria-hidden="true" />}
-              {providerId === "codex-handoff" ? "Create Codex Job" : "Import"}
+              <PrimaryActionIcon providerId={providerId} isBusy={isBusy} />
+              {primaryActionLabel(providerId, copy)}
             </button>
             <button className="secondary-button" onClick={() => fileInputRef.current?.click()}>
               <Upload size={17} aria-hidden="true" />
-              Import
+              {copy.importFile}
             </button>
           </div>
           <input
@@ -1051,6 +1107,19 @@ function LanguageSelect({
   );
 }
 
+function PrimaryActionIcon({ providerId, isBusy }: { providerId: ProviderId; isBusy: boolean }) {
+  if (isBusy) return <Loader2 className="spin" size={17} aria-hidden="true" />;
+  if (providerId === "local-file") return <Upload size={17} aria-hidden="true" />;
+  if (providerId === "local-inbox") return <Archive size={17} aria-hidden="true" />;
+  return <ImagePlus size={17} aria-hidden="true" />;
+}
+
+function primaryActionLabel(providerId: ProviderId, copy: Record<string, string>) {
+  if (providerId === "codex-handoff") return copy.createCodexJob;
+  if (providerId === "local-inbox") return copy.importLatest;
+  return copy.importFile;
+}
+
 function NumberField({ label, value, onChange }: { label: string; value: number; onChange: (value: number) => void }) {
   return (
     <label className="field number-field">
@@ -1314,7 +1383,7 @@ function providerMessage(provider: ProviderStatus, language: Language) {
   if (language === "ja") {
     if (provider.id === "local-file") return "このマシン上の画像を使います";
     if (provider.id === "codex-handoff") return "Codexが拾うローカルジョブを書き込みます";
-    return "Codexから戻った結果を取り込みます";
+    return "Codex outboxの最新画像を取り込みます";
   }
   return provider.message;
 }

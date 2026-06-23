@@ -12,7 +12,7 @@ export interface HistoryItem {
   size: string;
   createdAt: string;
   adopted: boolean;
-  source: "sample" | "import" | "generate" | "annotated";
+  source: "sample" | "import" | "generate" | "annotated" | "inbox";
 }
 
 export interface SpriteFrame {
@@ -67,4 +67,16 @@ export interface CodexJobResponse {
   path: string;
   inboxPath: string;
   createdAt: string;
+}
+
+export interface CodexOutboxResult {
+  name: string;
+  path: string;
+  size: number;
+  modifiedAt: string;
+  mimeType: string;
+}
+
+export interface CodexOutboxImportResponse extends CodexOutboxResult {
+  dataUrl: string;
 }

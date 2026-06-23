@@ -56,6 +56,10 @@ npm test
 npm run build
 ```
 
+## Roadmap
+
+See `docs/roadmap/release-roadmap.md` for the path from the current private MVP to the first public release.
+
 ## Assets And Data
 
 - No API key is required by this app.

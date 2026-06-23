@@ -1,11 +1,12 @@
-import { mkdir, readdir, writeFile } from "node:fs/promises";
+import { mkdir, readFile, readdir, stat, writeFile } from "node:fs/promises";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
-import { join, resolve } from "node:path";
+import { extname, join, resolve, sep } from "node:path";
 
 const port = Number(process.env.IMAGE_COCKPIT_API_PORT ?? 8787);
 const handoffRoot = resolve(process.env.IMAGE_COCKPIT_HANDOFF_DIR ?? "codex-handoff");
 const inboxDir = join(handoffRoot, "inbox");
 const outboxDir = join(handoffRoot, "outbox");
+const resultRoutePrefix = "/api/codex/results/";
 
 type CodexJobRequest = {
   prompt?: string;
@@ -34,8 +35,10 @@ const server = createServer(async (request, response) => {
 
   try {
     await ensureHandoffDirs();
+    const requestUrl = new URL(request.url ?? "/", `http://${request.headers.host ?? "127.0.0.1"}`);
+    const pathname = requestUrl.pathname;
 
-    if (request.method === "GET" && request.url === "/api/providers") {
+    if (request.method === "GET" && pathname === "/api/providers") {
       sendJson(response, 200, {
         providers: [
           { id: "local-file", label: "Local File", enabled: true, message: "Use images from this machine" },
@@ -58,7 +61,7 @@ const server = createServer(async (request, response) => {
       return;
     }
 
-    if (request.method === "GET" && request.url === "/api/codex/jobs") {
+    if (request.method === "GET" && pathname === "/api/codex/jobs") {
       const files = await readdir(inboxDir);
       sendJson(response, 200, {
         inboxPath: inboxDir,
@@ -67,7 +70,35 @@ const server = createServer(async (request, response) => {
       return;
     }
 
-    if (request.method === "POST" && request.url === "/api/codex/jobs") {
+    if (request.method === "GET" && pathname === "/api/codex/results") {
+      sendJson(response, 200, {
+        outboxPath: outboxDir,
+        results: (await listOutboxResults()).slice(0, 20)
+      });
+      return;
+    }
+
+    if (request.method === "GET" && pathname.startsWith(resultRoutePrefix)) {
+      const name = decodeURIComponent(pathname.slice(resultRoutePrefix.length));
+      const filePath = resolveOutboxFile(name);
+      const mimeType = mimeTypeForImage(name);
+      if (!filePath || !mimeType) {
+        sendJson(response, 400, { error: "Unsupported or unsafe outbox file" });
+        return;
+      }
+      const [bytes, fileStat] = await Promise.all([readFile(filePath), stat(filePath)]);
+      sendJson(response, 200, {
+        name,
+        path: filePath,
+        size: fileStat.size,
+        modifiedAt: fileStat.mtime.toISOString(),
+        mimeType,
+        dataUrl: `data:${mimeType};base64,${bytes.toString("base64")}`
+      });
+      return;
+    }
+
+    if (request.method === "POST" && pathname === "/api/codex/jobs") {
       const body = (await readJson(request)) as CodexJobRequest;
       if (!body.prompt?.trim()) {
         sendJson(response, 400, { error: "Prompt is required for a Codex handoff job" });
@@ -127,6 +158,46 @@ server.listen(port, "127.0.0.1", () => {
 async function ensureHandoffDirs() {
   await mkdir(inboxDir, { recursive: true });
   await mkdir(outboxDir, { recursive: true });
+}
+
+async function listOutboxResults() {
+  const entries = await readdir(outboxDir, { withFileTypes: true });
+  const results = await Promise.all(
+    entries
+      .filter((entry) => entry.isFile())
+      .map(async (entry) => {
+        const mimeType = mimeTypeForImage(entry.name);
+        if (!mimeType) return null;
+        const filePath = join(outboxDir, entry.name);
+        const fileStat = await stat(filePath);
+        return {
+          name: entry.name,
+          path: filePath,
+          size: fileStat.size,
+          modifiedAt: fileStat.mtime.toISOString(),
+          mimeType
+        };
+      })
+  );
+  return results
+    .filter((result): result is NonNullable<(typeof results)[number]> => Boolean(result))
+    .sort((a, b) => Date.parse(b.modifiedAt) - Date.parse(a.modifiedAt));
+}
+
+function resolveOutboxFile(name: string) {
+  if (!name || name.includes("/") || name.includes("\\") || name.includes("..")) return null;
+  const filePath = resolve(outboxDir, name);
+  const root = outboxDir.endsWith(sep) ? outboxDir : `${outboxDir}${sep}`;
+  return filePath.startsWith(root) ? filePath : null;
+}
+
+function mimeTypeForImage(name: string) {
+  const extension = extname(name).toLowerCase();
+  if (extension === ".png") return "image/png";
+  if (extension === ".jpg" || extension === ".jpeg") return "image/jpeg";
+  if (extension === ".webp") return "image/webp";
+  if (extension === ".gif") return "image/gif";
+  return null;
 }
 
 function readJson(request: IncomingMessage) {
