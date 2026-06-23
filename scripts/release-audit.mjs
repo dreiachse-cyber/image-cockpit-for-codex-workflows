@@ -249,16 +249,13 @@ function checkWorkflowIds() {
   });
 
   [
-    "1. Image Generation",
-    "2. Image Editing",
-    "3. Sprite Sheet Generation",
-    "4. Sprite Sheet Editing",
-    "Guided Start should show four workflow options",
-    "Route: Codex Handoff",
+    "Pixel Art Generation",
+    "Animation Generation",
+    "Start screen should show two workflow options",
     "Route: Local Generator",
-    "Route: Local Inbox",
-    "Transparency Cleanup",
-    "Export Sprite"
+    "Generate Pixel Art",
+    "Generate Animation",
+    "Animation generated"
   ].forEach((marker) => {
     if (!uiSmokeText.includes(marker)) {
       failures.push(`UI smoke should cover guided workflow review: ${marker}`);
@@ -383,7 +380,7 @@ function checkCoreLocalization() {
     "copy.exportMetadataJson",
     "formatImagesImportedStatus",
     "formatFramesAddedStatus",
-    "キャンバスと注釈",
+    "プレビュー",
     "スプライト書き出し",
     "スプライトパッケージ書き出し"
   ].forEach((marker) => {

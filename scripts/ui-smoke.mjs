@@ -64,42 +64,28 @@ try {
     `
   });
   await cdp.send("Page.navigate", { url: `http://127.0.0.1:${vitePort}/` });
-  await waitForEval(() => `document.querySelectorAll(".guided-option").length === 4`, "Guided Start options");
+  await waitForEval(() => `document.querySelectorAll(".guided-option").length === 2`, "Guided Start options");
 
   await assertGuidedStart();
   await assertLanguageSwitch();
   await assertWorkflow({
     index: 0,
-    label: "1. Image Generation",
+    label: "Pixel Art Generation",
     route: "Route: Local Generator",
-    buttons: ["Generate Image", "Import Latest", "Import File"],
-    requiredText: ["Image Prompt", "Generation Notes", "Canvas & Grid"],
-    exerciseButton: "Generate Image",
+    buttons: ["Generate Pixel Art", "Import Latest", "Import File"],
+    requiredText: ["Pixel Art Prompt", "Generation Notes", "Preview"],
+    exerciseButton: "Generate Pixel Art",
     expectedAfterExercise: "Generated locally"
   });
   await assertWorkflow({
     index: 1,
-    label: "2. Image Editing",
-    route: "Route: Codex Handoff",
-    buttons: ["Create Codex Job", "Import Latest", "Import File"],
-    requiredText: ["Edit Prompt", "Edit Notes", "Canvas & Annotation"]
-  });
-  await assertWorkflow({
-    index: 2,
-    label: "3. Sprite Sheet Generation",
+    label: "Animation Generation",
     route: "Route: Local Generator",
-    buttons: ["Generate Sprite Sheet", "Import Latest", "Import File"],
-    requiredText: ["Sheet Prompt", "Sheet Notes", "Frame W", "Frame H", "Show Grid"],
+    buttons: ["Generate Animation", "Import Latest", "Import File"],
+    requiredText: ["Animation Prompt", "Animation Notes", "Frame W", "Frame H", "Show Grid"],
     exactButtonCounts: { "Import File": 1 },
-    exerciseButton: "Generate Sprite Sheet",
-    expectedAfterExercise: "Generated locally"
-  });
-  await assertWorkflow({
-    index: 3,
-    label: "4. Sprite Sheet Editing",
-    route: "Route: Local Inbox",
-    buttons: ["Import Latest", "Import File"],
-    requiredText: ["Sprite Prompt", "Sprite Notes", "Transparency Cleanup", "Export Sprite", "Export Sheet (PNG)"]
+    exerciseButton: "Generate Animation",
+    expectedAfterExercise: "Animation generated"
   });
 
   console.log("UI smoke passed.");
@@ -113,8 +99,8 @@ try {
 
 async function assertGuidedStart() {
   const snapshot = await pageSnapshot();
-  assert(snapshot.guidedOptions.length === 4, "Guided Start should show four workflow options");
-  ["1. Image Generation", "2. Image Editing", "3. Sprite Sheet Generation", "4. Sprite Sheet Editing"].forEach((label) => {
+  assert(snapshot.guidedOptions.length === 2, "Start screen should show two workflow options");
+  ["Pixel Art Generation", "Animation Generation"].forEach((label) => {
     assert(snapshot.text.includes(label), `Guided Start missing ${label}`);
   });
   assert(snapshot.text.includes("No direct OpenAI API calls"), "Guided Start should state the local-first boundary");
@@ -127,13 +113,13 @@ async function assertLanguageSwitch() {
     select.value = "ja";
     select.dispatchEvent(new Event("change", { bubbles: true }));
   })()`);
-  await waitForEval(() => `document.body.innerText.includes("あなたがしたいのは次のうちどれですか？")`, "Japanese Guided Start copy");
+  await waitForEval(() => `document.body.innerText.includes("作りたいものを選んでください")`, "Japanese Guided Start copy");
   await evaluate(`(() => {
     const select = document.querySelector(".language-control select");
     select.value = "en";
     select.dispatchEvent(new Event("change", { bubbles: true }));
   })()`);
-  await waitForEval(() => `document.body.innerText.includes("What do you want to do?")`, "English Guided Start copy");
+  await waitForEval(() => `document.body.innerText.includes("Choose what to make")`, "English Guided Start copy");
 }
 
 async function assertWorkflow({ index, label, route, buttons, requiredText, exactButtonCounts = {}, exerciseButton, expectedAfterExercise }) {
@@ -159,7 +145,7 @@ async function assertWorkflow({ index, label, route, buttons, requiredText, exac
   }
   await maybeCapture(label.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, ""));
   await evaluate(`document.querySelector(".guided-link")?.click()`);
-  await waitForEval(() => `document.querySelectorAll(".guided-option").length === 4`, "return to Guided Start");
+  await waitForEval(() => `document.querySelectorAll(".guided-option").length === 2`, "return to Guided Start");
 }
 
 async function clickGuidedOption(index) {

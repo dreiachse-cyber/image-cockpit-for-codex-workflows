@@ -64,6 +64,7 @@ const CANVAS_HEIGHT = 520;
 const LANGUAGE_STORAGE_KEY = "image-cockpit.language";
 const PENDING_CODEX_JOB_STORAGE_KEY = "image-cockpit.pendingCodexJob";
 const SHOW_LOW_PRIORITY_CONTROLS = false;
+const ANIMATION_FRAME_COUNT = 8;
 
 type Language = "ja" | "en";
 
@@ -89,15 +90,15 @@ interface ImportLatestOptions {
 const uiCopy = {
   en: {
     language: "Language",
-    guidedStart: "Guided Start",
+    guidedStart: "Start",
     localCodexHandoff: "local Codex handoff",
     project: "Project: Forest Mage",
     openWorkspace: "Open workspace",
     settings: "Settings",
     localWorkspace: "Local workspace",
     workflowPanelTitle: "Workflow",
-    canvasGridTitle: "Canvas & Grid",
-    canvasAnnotationTitle: "Canvas & Annotation",
+    canvasGridTitle: "Animation Setup",
+    canvasAnnotationTitle: "Preview",
     canvasEmpty: "Import an image or generate one locally to start",
     columns: "Columns",
     rows: "Rows",
@@ -140,6 +141,8 @@ const uiCopy = {
     statusInboxError: "Could not import from Local Inbox",
     statusLocalGenerated: "Generated locally",
     statusLocalGenerateError: "Could not generate locally",
+    statusAnimationSourceRequired: "Upload or select a pixel-art source before generating animation",
+    statusAnimationGenerated: "Animation generated",
     statusCodexJobPending: "Waiting for Codex to return an image",
     statusCodexRunnerUnavailable: "Codex runner unavailable. Return an outbox image, then use Import Latest",
     statusCodexRunnerFailed: "Codex runner stopped before returning an image",
@@ -151,8 +154,8 @@ const uiCopy = {
     statusSelectedAsFrame: "Selected image added as a sprite frame",
     statusChromaApplied: "Chroma key applied to selected frame",
     createCodexJob: "Create Codex Job",
-    generateLocalImage: "Generate Image",
-    generateLocalSprite: "Generate Sprite Sheet",
+    generateLocalImage: "Generate Pixel Art",
+    generateLocalSprite: "Generate Animation",
     waitingForCodexResult: "Waiting for Codex Result",
     importLatest: "Import Latest",
     importFile: "Import File",
@@ -166,22 +169,22 @@ const uiCopy = {
     annotatedPng: "Annotated PNG",
     jobNotes: "Edit Notes",
     jobNotesPlaceholder: "What should Codex preserve, fix, crop, split, or export?",
-    guidedQuestion: "What do you want to do?",
-    guidedIntro: "Choose one workflow. The cockpit will open with the right tools and provider preselected.",
+    guidedQuestion: "Choose what to make",
+    guidedIntro: "Pixel art first, then animation from a selected pixel-art source.",
     guidedNote:
       "No direct OpenAI API calls. Images can be generated locally, while Codex handoff jobs stay available for external processing."
   },
   ja: {
     language: "言語",
-    guidedStart: "ガイド開始",
+    guidedStart: "スタート",
     localCodexHandoff: "ローカルCodex受け渡し",
     project: "プロジェクト: Forest Mage",
     openWorkspace: "ワークスペースを開く",
     settings: "設定",
     localWorkspace: "ローカルワークスペース",
     workflowPanelTitle: "ワークフロー",
-    canvasGridTitle: "キャンバスとグリッド",
-    canvasAnnotationTitle: "キャンバスと注釈",
+    canvasGridTitle: "アニメーション設定",
+    canvasAnnotationTitle: "プレビュー",
     canvasEmpty: "画像を取り込むかローカル生成して開始",
     columns: "列",
     rows: "行",
@@ -224,6 +227,8 @@ const uiCopy = {
     statusInboxError: "Local Inboxから取り込めませんでした",
     statusLocalGenerated: "ローカル生成しました",
     statusLocalGenerateError: "ローカル生成できませんでした",
+    statusAnimationSourceRequired: "アニメーション生成の前にピクセルアートをアップロードするか、生成結果を選択してください",
+    statusAnimationGenerated: "アニメーションを生成しました",
     statusCodexJobPending: "Codexから画像が戻るのを待っています",
     statusCodexRunnerUnavailable: "Codex runner起動不可。outboxへ画像を戻したらImport Latestを押してください",
     statusCodexRunnerFailed: "Codex runnerが画像を返す前に停止しました",
@@ -235,8 +240,8 @@ const uiCopy = {
     statusSelectedAsFrame: "選択画像をスプライトフレームに追加しました",
     statusChromaApplied: "選択フレームにクロマキーを適用しました",
     createCodexJob: "Codexジョブ作成",
-    generateLocalImage: "画像生成",
-    generateLocalSprite: "スプライトシート生成",
+    generateLocalImage: "ピクセルアート生成",
+    generateLocalSprite: "アニメーション生成",
     waitingForCodexResult: "Codex結果待ち",
     importLatest: "最新を取り込み",
     importFile: "ファイル取り込み",
@@ -250,8 +255,8 @@ const uiCopy = {
     annotatedPng: "注釈PNG",
     jobNotes: "編集メモ",
     jobNotesPlaceholder: "Codexに残してほしい点、直してほしい点、切り出し方、出力形式を書きます",
-    guidedQuestion: "あなたがしたいのは次のうちどれですか？",
-    guidedIntro: "作業したい流れを選ぶと、必要なツールとproviderを選んだ状態でcockpitを開きます。",
+    guidedQuestion: "作りたいものを選んでください",
+    guidedIntro: "まずピクセルアートを作り、選択したピクセルアートからアニメーションを生成します。",
     guidedNote:
       "このアプリはOpenAI APIを直接呼びません。画像はローカル生成でき、Codex受け渡しも外部処理用に残しています。"
   }
@@ -260,9 +265,9 @@ const uiCopy = {
 const workflowCopy: Record<Language, Record<WorkflowMode, { label: string; detail: string; status: string }>> = {
   en: {
     "image-generate": {
-      label: "1. Image Generation",
+      label: "Pixel Art Generation",
       detail: "Generate a local PNG from a prompt and add it to the cockpit.",
-      status: "Generate a local PNG from the prompt"
+      status: "Generate pixel art from the prompt"
     },
     "image-edit": {
       label: "2. Image Editing",
@@ -270,9 +275,9 @@ const workflowCopy: Record<Language, Record<WorkflowMode, { label: string; detai
       status: "Annotate the image, then create a Codex handoff job with the edit notes"
     },
     "sprite-generate": {
-      label: "3. Sprite Sheet Generation",
-      detail: "Generate a local sprite sheet and split it into timeline frames.",
-      status: "Generate a sprite sheet, then split the grid into timeline frames"
+      label: "Animation Generation",
+      detail: "Upload or select pixel art, then generate an animation sheet and timeline frames.",
+      status: "Upload or select pixel art, then generate animation frames"
     },
     "sprite-edit": {
       label: "4. Sprite Sheet Editing",
@@ -282,9 +287,9 @@ const workflowCopy: Record<Language, Record<WorkflowMode, { label: string; detai
   },
   ja: {
     "image-generate": {
-      label: "1. 画像生成",
+      label: "ピクセルアートの生成",
       detail: "プロンプトからローカルPNGを生成し、cockpitへ追加します。",
-      status: "プロンプトからローカルPNGを生成します"
+      status: "プロンプトからピクセルアートを生成します"
     },
     "image-edit": {
       label: "2. 画像編集",
@@ -292,9 +297,9 @@ const workflowCopy: Record<Language, Record<WorkflowMode, { label: string; detai
       status: "画像に注釈を入れてから、編集メモつきのCodex受け渡しジョブを作成します"
     },
     "sprite-generate": {
-      label: "3. スプライトシート生成",
-      detail: "ローカルでスプライトシートを生成し、フレームへ分割します。",
-      status: "スプライトシートを生成して、グリッドからタイムラインフレームへ分割します"
+      label: "アニメーションの生成",
+      detail: "ピクセルアートをアップロードまたは選択し、アニメーションシートとframesを生成します。",
+      status: "ピクセルアートをアップロードまたは選択して、アニメーションframesを生成します"
     },
     "sprite-edit": {
       label: "4. スプライトシート編集",
@@ -310,7 +315,7 @@ const workflowFormCopy: Record<
 > = {
   en: {
     "image-generate": {
-      promptLabel: "Image Prompt",
+      promptLabel: "Pixel Art Prompt",
       negativeLabel: "Negative Prompt",
       notesLabel: "Generation Notes",
       notesPlaceholder: "Style, aspect, transparency, sprite-readiness, or output details"
@@ -322,10 +327,10 @@ const workflowFormCopy: Record<
       notesPlaceholder: "What should Codex preserve, fix, crop, split, or export?"
     },
     "sprite-generate": {
-      promptLabel: "Sheet Prompt",
+      promptLabel: "Animation Prompt",
       negativeLabel: "Avoid",
-      notesLabel: "Sheet Notes",
-      notesPlaceholder: "Frame count, grid shape, motion, transparency, or export details"
+      notesLabel: "Animation Notes",
+      notesPlaceholder: "Motion preset, timing, pose, bounce, or export details"
     },
     "sprite-edit": {
       promptLabel: "Sprite Prompt",
@@ -336,7 +341,7 @@ const workflowFormCopy: Record<
   },
   ja: {
     "image-generate": {
-      promptLabel: "画像プロンプト",
+      promptLabel: "ピクセルアートプロンプト",
       negativeLabel: "避けたい要素",
       notesLabel: "生成メモ",
       notesPlaceholder: "画風、比率、透過、スプライト化しやすさ、出力条件を書きます"
@@ -348,10 +353,10 @@ const workflowFormCopy: Record<
       notesPlaceholder: "Codexに残してほしい点、直してほしい点、切り出し方、出力形式を書きます"
     },
     "sprite-generate": {
-      promptLabel: "シートプロンプト",
+      promptLabel: "アニメーションプロンプト",
       negativeLabel: "避けたい要素",
-      notesLabel: "シートメモ",
-      notesPlaceholder: "フレーム数、grid、動作、透過、出力条件を書きます"
+      notesLabel: "アニメーションメモ",
+      notesPlaceholder: "動き、タイミング、ポーズ、揺れ、出力条件を書きます"
     },
     "sprite-edit": {
       promptLabel: "スプライトプロンプト",
@@ -385,16 +390,8 @@ const workflowOptions: Array<{
     provider: "local-generator"
   },
   {
-    id: "image-edit",
-    provider: "codex-handoff"
-  },
-  {
     id: "sprite-generate",
     provider: "local-generator"
-  },
-  {
-    id: "sprite-edit",
-    provider: "local-inbox"
   }
 ];
 
@@ -725,6 +722,11 @@ function App() {
   async function generateLocally() {
     setIsBusy(true);
     try {
+      if (workflowMode === "sprite-generate") {
+        await generateAnimationFromSelectedPixelArt();
+        return;
+      }
+
       const response = await fetch("/api/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -765,33 +767,49 @@ function App() {
       setHistory((current) => [...imported, ...current]);
       setSelectedId(imported[0].id);
 
-      if (workflowMode === "sprite-generate") {
-        const newFrames = await splitImageIntoFrames(
-          imported[0].dataUrl,
-          imported[0].name.replace(/\.[^.]+$/, ""),
-          grid,
-          imported[0].id,
-          activeAction.cell
-        );
-        setFrames((current) => [...current, ...newFrames]);
-        setActions((current) =>
-          current.map((action) =>
-            action.name === activeAction.name
-              ? { ...action, frameIds: [...action.frameIds, ...newFrames.map((frame) => frame.id)] }
-              : action
-          )
-        );
-        setSelectedFrameId(newFrames[0]?.id ?? selectedFrameId);
-        setStatus(`${copy.statusLocalGenerated}: ${imported[0].name}. ${formatFramesAddedStatus(newFrames.length, activeAction.name, language)}`);
-        return;
-      }
-
       setStatus(`${copy.statusLocalGenerated}: ${imported.map((item) => item.name).join(", ")}`);
     } catch (error) {
       setStatus(error instanceof Error ? error.message : copy.statusLocalGenerateError);
     } finally {
       setIsBusy(false);
     }
+  }
+
+  async function generateAnimationFromSelectedPixelArt() {
+    if (!isAnimationSource(selected)) {
+      setStatus(copy.statusAnimationSourceRequired);
+      fileInputRef.current?.click();
+      return;
+    }
+
+    const animationGrid = { columns: ANIMATION_FRAME_COUNT, rows: 1, gutter: 0 };
+    const sheetDataUrl = await renderAnimationSheet(selected.dataUrl, activeAction.cell, activeAction.name);
+    const sheetName = `${selected.name.replace(/\.[^.]+$/, "")}_${activeAction.name}_animation_sheet.png`;
+    const item: HistoryItem = {
+      id: createId("hist"),
+      name: sheetName,
+      dataUrl: sheetDataUrl,
+      provider: "local-generator",
+      prompt,
+      seed,
+      size: `${activeAction.cell.width * ANIMATION_FRAME_COUNT}x${activeAction.cell.height}`,
+      createdAt: new Date().toISOString(),
+      adopted: false,
+      source: "generate"
+    };
+    const newFrames = await splitImageIntoFrames(sheetDataUrl, sheetName.replace(/\.[^.]+$/, ""), animationGrid, item.id, activeAction.cell);
+
+    setGrid(animationGrid);
+    setHistory((current) => [item, ...current]);
+    setSelectedId(item.id);
+    setFrames((current) => [...current, ...newFrames]);
+    setActions((current) =>
+      current.map((action) =>
+        action.name === activeAction.name ? { ...action, frameIds: newFrames.map((frame) => frame.id) } : action
+      )
+    );
+    setSelectedFrameId(newFrames[0]?.id ?? "");
+    setStatus(`${copy.statusAnimationGenerated}: ${sheetName}. ${formatFramesAddedStatus(newFrames.length, activeAction.name, language)}`);
   }
 
   async function importLatestOutboxResult(options: ImportLatestOptions = {}) {
@@ -1008,7 +1026,14 @@ function App() {
     if (option) setProviderId(option.provider);
     if (mode === "image-edit") setTool("brush");
     if (mode === "image-generate") setTool("select");
-    if (mode === "sprite-edit") setActiveActionName("idle");
+    if (mode === "sprite-generate" || mode === "sprite-edit") {
+      setActiveActionName("idle");
+      setGrid({ columns: ANIMATION_FRAME_COUNT, rows: 1, gutter: 0 });
+    }
+    if (mode === "sprite-generate" && !isAnimationSource(selected)) {
+      setStatus(copy.statusAnimationSourceRequired);
+      return;
+    }
     setStatus(workflowCopy[language][mode].status);
   }
 
@@ -1016,9 +1041,12 @@ function App() {
   const activeWorkflowCopy = workflowMode ? workflowCopy[language][workflowMode] : null;
   const activeWorkflowFormCopy = workflowMode ? workflowFormCopy[language][workflowMode] : null;
   const isWaitingForCodexResult = providerId === "codex-handoff" && Boolean(pendingCodexJob);
-  const primaryActionDisabled = isBusy || isWaitingForCodexResult;
+  const animationSourceReady = workflowMode !== "sprite-generate" || isAnimationSource(selected);
+  const primaryActionDisabled = isBusy || isWaitingForCodexResult || !animationSourceReady;
   const showFrameGridControls = SHOW_LOW_PRIORITY_CONTROLS || workflowMode === "sprite-generate" || workflowMode === "sprite-edit";
   const showSpriteTuningControls = SHOW_LOW_PRIORITY_CONTROLS || workflowMode === "sprite-edit";
+  const showAnimationControls = workflowMode === "sprite-generate";
+  const showAnnotationToolbar = SHOW_LOW_PRIORITY_CONTROLS || workflowMode === "image-edit";
 
   if (!workflowMode) {
     return <GuidedStart language={language} onLanguageChange={setLanguage} onSelect={beginWorkflow} />;
@@ -1192,15 +1220,15 @@ function App() {
             </>
           )}
 
-          <SectionLabel title={copy.canvasGridTitle} />
-          <div className="field-row">
-            <NumberField label={copy.columns} value={grid.columns} onChange={(columns) => setGrid({ ...grid, columns })} />
-            <NumberField label={copy.rows} value={grid.rows} onChange={(rows) => setGrid({ ...grid, rows })} />
-          </div>
-          <button className="secondary-button full" onClick={() => void splitSelectedToTimeline()} disabled={!selected || isBusy}>
-            <Scissors size={16} aria-hidden="true" />
-            {copy.splitSheet}
-          </button>
+          {showAnimationControls && (
+            <>
+              <SectionLabel title={copy.canvasGridTitle} />
+              <div className="field-row">
+                <NumberField label={copy.columns} value={grid.columns} onChange={(columns) => setGrid({ ...grid, columns })} />
+                <NumberField label={copy.rows} value={grid.rows} onChange={(rows) => setGrid({ ...grid, rows })} />
+              </div>
+            </>
+          )}
 
           {showFrameGridControls && (
             <>
@@ -1247,29 +1275,19 @@ function App() {
         <section className="workspace">
           <div className="panel canvas-panel">
             <PanelTitle index="2" title={copy.canvasAnnotationTitle} />
-            <div className="toolbar">
-              <ToolButton active={tool === "select"} title={copy.selectTool} onClick={() => setTool("select")} icon={<MousePointer2 size={18} />} />
-              <ToolButton active={tool === "brush"} title={copy.brushTool} onClick={() => setTool("brush")} icon={<Brush size={18} />} />
-              <ToolButton active={tool === "rect"} title={copy.rectangleTool} onClick={() => setTool("rect")} icon={<Square size={18} />} />
-              <ToolButton active={tool === "arrow"} title={copy.arrowTool} onClick={() => setTool("arrow")} icon={<MoveUpRight size={18} />} />
-              <span className="toolbar-separator" />
-              <button className="icon-text-button" title={copy.exportAnnotationTitle} onClick={() => void exportAnnotatedPng()} disabled={!selected}>
-                <Download size={17} aria-hidden="true" />
-                {copy.annotatedPng}
-              </button>
-              {SHOW_LOW_PRIORITY_CONTROLS && (
-                <>
-                  <button className="icon-text-button" title={copy.splitGridTitle} onClick={() => void splitSelectedToTimeline()} disabled={!selected || isBusy}>
-                    <Scissors size={17} aria-hidden="true" />
-                    Split Grid
-                  </button>
-                  <button className="icon-text-button" title={copy.useAsFrameTitle} onClick={() => void addSelectedAsFrame()} disabled={!selected}>
-                    <Plus size={17} aria-hidden="true" />
-                    Use as Frame
-                  </button>
-                </>
-              )}
-            </div>
+            {showAnnotationToolbar && (
+              <div className="toolbar">
+                <ToolButton active={tool === "select"} title={copy.selectTool} onClick={() => setTool("select")} icon={<MousePointer2 size={18} />} />
+                <ToolButton active={tool === "brush"} title={copy.brushTool} onClick={() => setTool("brush")} icon={<Brush size={18} />} />
+                <ToolButton active={tool === "rect"} title={copy.rectangleTool} onClick={() => setTool("rect")} icon={<Square size={18} />} />
+                <ToolButton active={tool === "arrow"} title={copy.arrowTool} onClick={() => setTool("arrow")} icon={<MoveUpRight size={18} />} />
+                <span className="toolbar-separator" />
+                <button className="icon-text-button" title={copy.exportAnnotationTitle} onClick={() => void exportAnnotatedPng()} disabled={!selected}>
+                  <Download size={17} aria-hidden="true" />
+                  {copy.annotatedPng}
+                </button>
+              </div>
+            )}
             <div
               className="canvas-stage"
               onDragOver={(event) => event.preventDefault()}
@@ -1569,6 +1587,110 @@ function primaryActionLabel(
   if (providerId === "codex-handoff") return copy.createCodexJob;
   if (providerId === "local-inbox") return copy.importLatest;
   return copy.importFile;
+}
+
+function isAnimationSource(item?: HistoryItem) {
+  return Boolean(item && item.source !== "sample");
+}
+
+async function renderAnimationSheet(sourceDataUrl: string, cell: SpriteAction["cell"], actionName: string) {
+  const source = await loadImage(sourceDataUrl);
+  const canvas = document.createElement("canvas");
+  canvas.width = cell.width * ANIMATION_FRAME_COUNT;
+  canvas.height = cell.height;
+  const context = canvas.getContext("2d");
+  if (!context) throw new Error("Could not create animation canvas.");
+  context.clearRect(0, 0, canvas.width, canvas.height);
+  context.imageSmoothingEnabled = false;
+
+  for (let frame = 0; frame < ANIMATION_FRAME_COUNT; frame += 1) {
+    drawAnimationFrame(context, source, cell, actionName, frame);
+  }
+
+  return canvas.toDataURL("image/png");
+}
+
+function drawAnimationFrame(
+  context: CanvasRenderingContext2D,
+  source: HTMLImageElement,
+  cell: SpriteAction["cell"],
+  actionName: string,
+  frame: number
+) {
+  const phase = (frame / ANIMATION_FRAME_COUNT) * Math.PI * 2;
+  const x = frame * cell.width;
+  const scale = Math.min((cell.width * 0.74) / source.width, (cell.height * 0.76) / source.height);
+  const width = Math.max(1, Math.round(source.width * scale));
+  const height = Math.max(1, Math.round(source.height * scale));
+  const preset = animationPreset(actionName, phase, frame);
+  const centerX = x + cell.width / 2 + preset.x;
+  const centerY = cell.height / 2 + preset.y;
+
+  context.save();
+  context.globalAlpha = 0.2;
+  context.fillStyle = "#1c2028";
+  context.beginPath();
+  context.ellipse(x + cell.width / 2, cell.height * 0.86, cell.width * 0.22, cell.height * 0.035, 0, 0, Math.PI * 2);
+  context.fill();
+  context.restore();
+
+  context.save();
+  context.translate(centerX, centerY);
+  context.rotate(preset.rotate);
+  context.scale(preset.scaleX, preset.scaleY);
+  context.drawImage(source, -width / 2, -height / 2, width, height);
+  context.restore();
+
+  if (preset.accent) {
+    context.save();
+    context.globalAlpha = 0.55;
+    context.fillStyle = preset.accent;
+    context.fillRect(x + cell.width * 0.18 + frame, cell.height * 0.18, 3, 3);
+    context.fillRect(x + cell.width * 0.74 - frame * 0.5, cell.height * 0.28, 2, 2);
+    context.restore();
+  }
+}
+
+function animationPreset(actionName: string, phase: number, frame: number) {
+  if (actionName === "walk") {
+    return {
+      x: Math.sin(phase) * 4,
+      y: Math.abs(Math.sin(phase)) * -5,
+      rotate: Math.sin(phase) * 0.05,
+      scaleX: frame % 2 === 0 ? 1 : 0.96,
+      scaleY: frame % 2 === 0 ? 1 : 1.04,
+      accent: ""
+    };
+  }
+  if (actionName === "cast") {
+    return {
+      x: 0,
+      y: -3 - Math.sin(phase) * 4,
+      rotate: Math.sin(phase) * 0.03,
+      scaleX: 1 + Math.sin(phase) * 0.03,
+      scaleY: 1 + Math.cos(phase) * 0.03,
+      accent: "#f2d778"
+    };
+  }
+  if (actionName === "attack") {
+    const thrust = frame < ANIMATION_FRAME_COUNT / 2 ? frame : ANIMATION_FRAME_COUNT - frame;
+    return {
+      x: thrust * 2.5,
+      y: Math.sin(phase) * -2,
+      rotate: -0.08 + thrust * 0.018,
+      scaleX: 1 + thrust * 0.018,
+      scaleY: 1 - thrust * 0.01,
+      accent: "#ff7a59"
+    };
+  }
+  return {
+    x: 0,
+    y: Math.sin(phase) * -4,
+    rotate: Math.sin(phase) * 0.025,
+    scaleX: 1 + Math.sin(phase) * 0.02,
+    scaleY: 1 - Math.sin(phase) * 0.02,
+    accent: ""
+  };
 }
 
 function workflowUsesSelectedImage(mode: WorkflowMode | null) {

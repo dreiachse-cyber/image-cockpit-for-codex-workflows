@@ -2,7 +2,7 @@
 
 Local image production cockpit for Codex-era workflows.
 
-This project is unofficial and not affiliated with OpenAI. It is a local workspace for reviewing, annotating, comparing, correcting, and turning Codex-produced or locally imported images into production assets such as sprite sheets.
+This project is unofficial and not affiliated with OpenAI. It is a local workspace for generating pixel art, then turning selected pixel-art assets into animation frames and sprite sheets.
 
 ![Image Cockpit MVP demo](docs/demo/mvp-demo.gif)
 
@@ -10,7 +10,7 @@ This project is unofficial and not affiliated with OpenAI. It is a local workspa
 
 Image Cockpit is designed to run on a local machine where Codex is installed. The app itself does not call OpenAI APIs and does not require an API key.
 
-For the fastest local loop, the app also includes a built-in procedural PNG generator. It is local and deterministic, meant to make the image generation and sprite sheet generation workflows runnable end-to-end without external services. It is not a replacement for a dedicated AI image model.
+For the fastest local loop, the app also includes a built-in procedural PNG generator. It is local and deterministic, meant to make pixel art generation and pixel-art-to-animation generation runnable end-to-end without external services. It is not a replacement for a dedicated AI image model.
 
 Instead, the cockpit writes local handoff jobs for Codex:
 
@@ -33,16 +33,12 @@ Manual handoff steps are documented in `docs/usage/manual-handoff.md`.
 
 ## MVP Flow
 
-- Choose a starting workflow from Guided Start: image generation, image editing, sprite sheet generation, or sprite sheet editing.
-- Generate a local PNG from the image generation workflow.
-- Generate a local sprite sheet PNG from the sprite sheet generation workflow and split it into timeline frames.
-- Import local images or use the included original sample sprite sheet.
+- Choose one of two starting workflows: pixel art generation, or animation generation.
+- Generate a local pixel-art PNG from a prompt.
+- Upload or select a pixel-art source before generating animation.
+- Generate animation frames from that pixel-art source; a sprite sheet is produced as part of the process.
 - Select history items and review them on the canvas.
-- Draw annotations with brush, rectangle, or arrow tools.
-- Add edit notes, then create a Codex handoff job from the prompt, selected image asset, annotations, workflow, grid, and sprite context.
-- Image generation jobs stay prompt-only by default, while image editing jobs include the selected source image and annotations.
-- Split a sheet into sprite frames with grid controls.
-- Reorder frames in the timeline and edit action metadata.
+- Reorder frames in the timeline and review action metadata.
 - Run lightweight QC checks for size consistency, transparency, duplicates, and anchor placement.
 - Export a PNG sprite sheet, frame ZIP, GIF, and sprite metadata JSON.
 
@@ -135,7 +131,7 @@ Optional local browser review smoke:
 npm run ui:smoke
 ```
 
-`npm run ui:smoke` starts the local API and Vite app with a temporary handoff folder, opens a headless Chrome/Edge session, verifies Guided Start shows the four workflows, clicks through each workflow, and checks the expected route and primary actions.
+`npm run ui:smoke` starts the local API and Vite app with a temporary handoff folder, opens a headless Chrome/Edge session, verifies the two-workflow start screen, clicks through pixel art generation and animation generation, and checks that both actions produce results.
 
 Optional real Codex runner smoke:
 
