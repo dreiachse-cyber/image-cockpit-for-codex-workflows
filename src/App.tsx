@@ -968,6 +968,12 @@ function App() {
               <PrimaryActionIcon providerId={providerId} isBusy={isBusy || isWaitingForCodexResult} />
               {primaryActionLabel(providerId, copy, isWaitingForCodexResult)}
             </button>
+            {providerId !== "local-inbox" && (
+              <button className="secondary-button" onClick={() => void importLatestOutboxResult()} disabled={isBusy}>
+                <Archive size={17} aria-hidden="true" />
+                {copy.importLatest}
+              </button>
+            )}
             <button className="secondary-button" onClick={() => fileInputRef.current?.click()}>
               <Upload size={17} aria-hidden="true" />
               {copy.importFile}

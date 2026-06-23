@@ -24,6 +24,7 @@
 - Guided Startから4大ワークフローへ入れる。
 - UIは低優先の細かい機能を既定非表示にし、主要操作を先に見せる。
 - Codex job作成後は、結果が戻るまで二重作成を防ぐ。
+- 簡素化UIでも `Import Latest` が見えるため、manual handoff後にprovider一覧を開かずLocal Inboxから取り込める。
 - handoff jobにworkflow種別、編集メモ、選択画像asset、注釈、grid、sprite contextが入る。
 - 画像生成jobはprompt中心にし、画像編集jobだけが選択画像assetと注釈を持つ。
 - local serverは `IMAGE_COCKPIT_CODEX_AUTORUN=1` のとき `codex exec` を起動する。
@@ -49,6 +50,7 @@ npm run release:audit
 - `/api/codex/jobs` smokeで、job JSONに `workflowMode=image-edit`、編集メモ、`annotationCount=1`、`selectedImage.assetPath` が入ることを確認。
 - `/api/codex/jobs` smokeで、`workflowMode=image-generate` のjobに選択画像asset、編集注釈、sprite contextが混入しないことを確認。
 - `/api/codex/results` smokeで、outbox画像の一覧表示、非画像除外、画像data URL取り込みを確認。
+- release auditで、簡素化UIがLocal Inbox import actionを露出していることを確認。
 - Chrome headlessでimage-edit desktop、sprite-edit desktop、sprite-edit mobileを確認し、sprite-edit mobileに横あふれがないことを確認。
 - `.github/workflows/ci.yml` でdoctor、typecheck、test、build、smoke、release auditを走らせるCI導線を追加。
 

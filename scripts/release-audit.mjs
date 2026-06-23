@@ -58,6 +58,7 @@ checkGitignore();
 checkTrackedFiles();
 checkNoDirectOpenAiIntegration();
 checkWorkflowIds();
+checkSimpleLocalInboxAction();
 checkCiWorkflow();
 checkReleaseDocs();
 
@@ -194,6 +195,21 @@ function checkWorkflowIds() {
   if (!smokeText.includes("/api/codex/results")) {
     failures.push("Smoke test should cover Local Inbox outbox result listing/import.");
   }
+}
+
+function checkSimpleLocalInboxAction() {
+  const appText = readText("src/App.tsx");
+  if (!appText) return;
+
+  [
+    'providerId !== "local-inbox"',
+    "importLatestOutboxResult()",
+    "{copy.importLatest}"
+  ].forEach((marker) => {
+    if (!appText.includes(marker)) {
+      failures.push(`Simplified UI should expose Local Inbox import action: ${marker}`);
+    }
+  });
 }
 
 function checkCiWorkflow() {

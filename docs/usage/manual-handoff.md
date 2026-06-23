@@ -85,7 +85,7 @@ Non-image notes can live next to the image for your own reference, but Image Coc
 
 ## 6. Import Through Local Inbox
 
-In the app, use Local Inbox / Import Latest to bring the returned image back into the cockpit.
+In the app, click `Import Latest` to bring the returned image back into the cockpit. The button is visible in the simple workflow screen even when the provider list is hidden.
 
 From there you can:
 
