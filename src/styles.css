@@ -1993,6 +1993,10 @@ button:disabled {
   --sample-duration: 0.62s;
 }
 
+.sample-run {
+  --sample-duration: 0.48s;
+}
+
 .sample-slow {
   --sample-duration: 1.25s;
 }

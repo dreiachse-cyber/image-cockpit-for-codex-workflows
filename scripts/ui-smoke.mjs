@@ -125,7 +125,7 @@ try {
     route: "Route: Codex Handoff",
     buttons: ["Upload Pixel Art", "Choose Animation", "Generate Animation", "Animated GIF", "Animated WebP"],
     hiddenButtons: ["Import Latest", "Import File", "5-Direction Sheet", "hatch-pet", "5-Direction hatch-pet"],
-    hiddenText: ["Sprite Actions", "Export Sprite", "Generation Method", "Hop Bounce", "Victory Cheer"],
+    hiddenText: ["Sprite Actions", "Export Sprite", "Generation Method", "Run Cycle", "Hop Bounce", "Victory Cheer"],
     requiredText: ["1. Upload Pixel Art", "2. Choose Motion", "3. Generate", "4. Download", "Selected animation", "Choose Animation", "Fixed cells: 256 x 256 px", "5-direction chroma-key sprite sheet"],
     exerciseButton: "Generate Animation",
     expectedAfterExercise: "Animation generated",
@@ -234,7 +234,8 @@ async function assertAnimationPresetExamples() {
   const snapshot = await pageSnapshot();
   assert(snapshot.text.includes("Pick an animated sample"), "Choose Animation intro should be visible");
   assert(snapshot.buttons.includes("Select Animation"), "Choose Animation should expose select buttons");
-  assert(snapshot.animationPresetSampleSprites === 9, `Choose Animation should show 9 animated sprite samples, got ${snapshot.animationPresetSampleSprites}`);
+  assert(snapshot.animationPresetSampleSprites === 10, `Choose Animation should show 10 animated sprite samples, got ${snapshot.animationPresetSampleSprites}`);
+  assert(snapshot.text.includes("Run Cycle"), "Choose Animation should include the Run Cycle animation card");
   assert(snapshot.text.includes("Victory Cheer"), "Choose Animation should include the added animation cards");
   assert(snapshot.promptRawTextBlocks === 0, `Choose Animation should hide raw prompt text, got ${snapshot.promptRawTextBlocks} raw blocks`);
   const animationName = await evaluate(`getComputedStyle(document.querySelector(".animation-sample-sprite")).animationName`);

@@ -709,7 +709,8 @@ const defaultActions: SpriteAction[] = [
   { name: "idle", fps: 12, loop: true, frameIds: [], cell: STANDARD_ANIMATION_CELL, anchor: STANDARD_ANIMATION_ANCHOR },
   { name: "walk", fps: 12, loop: true, frameIds: [], cell: STANDARD_ANIMATION_CELL, anchor: STANDARD_ANIMATION_ANCHOR },
   { name: "cast", fps: 10, loop: false, frameIds: [], cell: STANDARD_ANIMATION_CELL, anchor: STANDARD_ANIMATION_ANCHOR },
-  { name: "attack", fps: 10, loop: false, frameIds: [], cell: STANDARD_ANIMATION_CELL, anchor: STANDARD_ANIMATION_ANCHOR }
+  { name: "attack", fps: 10, loop: false, frameIds: [], cell: STANDARD_ANIMATION_CELL, anchor: STANDARD_ANIMATION_ANCHOR },
+  { name: "run", fps: 14, loop: true, frameIds: [], cell: STANDARD_ANIMATION_CELL, anchor: STANDARD_ANIMATION_ANCHOR }
 ];
 
 const animationPresetExamples: AnimationPresetExample[] = [
@@ -738,6 +739,19 @@ const animationPresetExamples: AnimationPresetExample[] = [
     },
     prompt: "walk cycle with clear alternating steps, steady baseline, readable arm swing, full-body side-readable motion",
     notes: "Preset example: keep the foot contact point consistent and avoid sliding, cropped feet, or pose drift."
+  },
+  {
+    id: "run-cycle",
+    actionName: "run",
+    previewClassName: "sample-row-walk sample-run",
+    category: { en: "Move", ja: "移動" },
+    title: { en: "Run Cycle", ja: "走行ループ" },
+    summary: {
+      en: "Fast alternating strides with clear airborne beats and arm drive.",
+      ja: "大きな歩幅、空中フレーム、強い腕振りが読める走りです。"
+    },
+    prompt: "run cycle with fast alternating strides, clear airborne frames, forward torso lean, strong opposite arm drive, readable foot crossover, full-body side-readable motion",
+    notes: "Preset example: show a real run with lift-off frames and longer stride than walking; avoid skating, tiny shuffling steps, cropped feet, or pose drift."
   },
   {
     id: "spell-cast",
@@ -842,6 +856,8 @@ function buildAnimationPresetMotionPrompt(preset: AnimationPresetExample) {
   const presetTitle = preset.title.en;
   const motionSheetLine = preset.id === "walk-cycle"
     ? "Create a walking animation sprite sheet."
+    : preset.id === "run-cycle"
+      ? "Create a running animation sprite sheet."
     : `Create a ${presetTitle.toLowerCase()} animation sprite sheet.`;
   const walkCycleGaitLines = preset.id === "walk-cycle"
     ? [
@@ -851,6 +867,14 @@ function buildAnimationPresetMotionPrompt(preset: AnimationPresetExample) {
         "Arms swing opposite the legs, the torso has a subtle walk bob, and the baseline remains stable without skating."
       ]
     : [];
+  const runCycleGaitLines = preset.id === "run-cycle"
+    ? [
+        "Running gait must be visible in every row, especially front three-quarter, side, and back three-quarter.",
+        "Use a true 8-frame run loop: frames 1 and 5 are opposite extended contact poses, frames 3 and 7 are airborne or near-airborne passing poses with both feet clearly switching sides, and frames 2, 4, 6, and 8 are smooth in-betweens.",
+        "For side and diagonal rows, the leading foot must swap across the row; do not keep the same leg in front, do not make a walking shuffle, and do not make a sliding pose cycle.",
+        "Add a clear forward torso lean, stronger opposite arm drive than walking, longer stride length, and a small vertical bounce while keeping the character centered inside each cell."
+      ]
+    : [];
 
   return [
     `Locked animation preset: ${presetTitle}.`,
@@ -858,6 +882,7 @@ function buildAnimationPresetMotionPrompt(preset: AnimationPresetExample) {
     "Deform/chibify the uploaded character into a compact full-body pixel-art sprite while preserving the original identity, outfit, palette, silhouette, and props.",
     motionSheetLine,
     ...walkCycleGaitLines,
+    ...runCycleGaitLines,
     `Use exactly ${ANIMATION_FRAME_COUNT} animation frames per direction.`,
     `The sprite sheet must be evenly divided into ${ANIMATION_DIRECTION_COUNT} rows x ${ANIMATION_FRAME_COUNT} columns: five direction rows and eight frame columns.`,
     `Each cell is fixed at exactly ${ANIMATION_CELL_SIZE}px x ${ANIMATION_CELL_SIZE}px; the complete sheet must be exactly ${ANIMATION_CELL_SIZE * ANIMATION_FRAME_COUNT}px x ${ANIMATION_CELL_SIZE * ANIMATION_DIRECTION_COUNT}px.`,
@@ -4069,6 +4094,16 @@ function animationPreset(actionName: string, phase: number, frame: number) {
       rotate: Math.sin(phase) * 0.05,
       scaleX: frame % 2 === 0 ? 1 : 0.96,
       scaleY: frame % 2 === 0 ? 1 : 1.04,
+      accent: ""
+    };
+  }
+  if (actionName === "run") {
+    return {
+      x: Math.sin(phase) * 7,
+      y: Math.abs(Math.sin(phase)) * -8,
+      rotate: -0.08 + Math.sin(phase) * 0.08,
+      scaleX: frame % 2 === 0 ? 1.05 : 0.93,
+      scaleY: frame % 2 === 0 ? 0.97 : 1.07,
       accent: ""
     };
   }
