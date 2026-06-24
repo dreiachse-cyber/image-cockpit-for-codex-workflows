@@ -2549,13 +2549,10 @@ function App() {
     ? `${selectedFrameForPreview.width}x${selectedFrameForPreview.height}`
     : selected?.size ?? "-";
   const selectedImageEditSourceName = selectedImageEditSource?.name ?? (!selectedAnimationExportReady ? selected?.derivedFromName : undefined);
-  const animationDownloadTitle = copy.animationStepDownloadTitle.replace(/^4\.\s*/, "");
   const showFrameGridControls = SHOW_LOW_PRIORITY_CONTROLS || workflowMode === "sprite-edit";
   const showSpriteTuningControls = SHOW_LOW_PRIORITY_CONTROLS || workflowMode === "sprite-edit";
   const showAnnotationToolbar = isImageEditWorkflow && !selectedIsAnimationResult;
   const showSpriteActionsPanel = SHOW_SPRITE_ACTIONS_PANEL;
-  const showImageDownloadPanel = !isAnimationWorkflow;
-  const selectedImageDownloadReady = Boolean(selected && !selectedIsAnimationResult);
   const animationGenerationModeBody = animationGenerationMode === "directional-hatch-pet"
     ? copy.animationDirectionalHatchPetBody
     : animationGenerationMode === "hatch-pet"
@@ -2576,6 +2573,15 @@ function App() {
     : selectedAnimationVariant === "hatch-pet"
       ? copy.hatchPetDownloadBody
       : copy.animationStepDownloadBody;
+  const selectedImageDownloadReady = Boolean(selected && !selectedIsAnimationResult);
+  const resultDownloadReady = Boolean(selected);
+  const resultDownloadIsAnimation = selectedAnimationExportReady;
+  const resultDownloadBody = resultDownloadIsAnimation ? selectedAnimationDownloadBody : copy.imageDownloadBody;
+  const resultDownloadStatus = !selected
+    ? copy.imageDownloadLocked
+    : resultDownloadIsAnimation
+      ? copy.animationReady
+      : copy.imageDownloadReady;
 
   return (
     <div className="app-shell">
@@ -3008,7 +3014,7 @@ function App() {
           )}
         </aside>
 
-        <section className={`workspace ${isAnimationWorkflow ? "with-animation-downloads" : ""} ${showImageDownloadPanel ? "with-image-downloads" : ""}`}>
+        <section className={`workspace with-downloads ${resultDownloadIsAnimation ? "showing-animation-result" : "showing-image-result"}`}>
           <div className={`panel canvas-panel ${showAnnotationToolbar ? "" : "without-toolbar"}`}>
             <PanelTitle index="2" title={copy.canvasAnnotationTitle} />
             {showAnnotationToolbar && (
@@ -3029,8 +3035,8 @@ function App() {
               }}
             >
               {previewMode === "result" && selected && (
-                <div className={`result-preview-frame ${isAnimationWorkflow && selectedAnimationExportReady ? "with-animation-previews" : ""}`}>
-                  {isAnimationWorkflow && selectedAnimationExportReady ? (
+                <div className={`result-preview-frame ${selectedAnimationExportReady ? "with-animation-previews" : ""}`}>
+                  {selectedAnimationExportReady ? (
                     <div className="animation-composite-preview">
                       <div className="animation-preview-card">
                         <strong>{copy.previewSpriteSheet}</strong>
@@ -3101,7 +3107,7 @@ function App() {
             </div>
             <div className="canvas-status">
               <span>{previewStatus}</span>
-              {isAnimationWorkflow && selectedAnimationExportReady && (
+              {selectedAnimationExportReady && (
                 <span className="animation-source-status">
                   {copy.animationGeneratedFrom}: {selectedAnimationSource?.name ?? selected?.derivedFromName ?? copy.animationSourceUnknown}
                 </span>
@@ -3121,44 +3127,16 @@ function App() {
               <span className="swatch" style={{ background: annotationColor }} />
             </div>
           </div>
-          {showImageDownloadPanel && (
-            <section className={`panel image-download-panel ${selectedImageDownloadReady ? "complete" : ""}`}>
-              <PanelTitle index="4" title={copy.imageDownloadTitle} />
-              <div className="image-download-body">
-                <div className="step-heading">
-                  <strong>{selected?.name ?? copy.imageDownloadTitle}</strong>
-                  <span>{copy.imageDownloadBody}</span>
-                </div>
-                <small className="step-kicker">
-                  {selectedImageDownloadReady ? copy.imageDownloadReady : copy.imageDownloadLocked}
-                </small>
-                <div className="download-grid image-download-grid">
-                  <button onClick={downloadSelectedImage} disabled={!selectedImageDownloadReady}>
-                    <FileImage size={16} aria-hidden="true" />
-                    {copy.downloadPng}
-                  </button>
-                  <button onClick={() => void downloadSelectedImageAnimation("gif")} disabled={!selectedImageDownloadReady}>
-                    <Film size={16} aria-hidden="true" />
-                    {copy.animatedGif}
-                  </button>
-                  <button onClick={() => void downloadSelectedImageAnimation("webp")} disabled={!selectedImageDownloadReady}>
-                    <FileArchive size={16} aria-hidden="true" />
-                    {copy.animatedWebP}
-                  </button>
-                </div>
+          <section className={`panel result-download-panel ${resultDownloadReady ? "complete" : ""} ${resultDownloadIsAnimation ? "animation-result-download" : "image-result-download"}`}>
+            <PanelTitle index="4" title={copy.imageDownloadTitle} />
+            <div className="result-download-body">
+              <div className="step-heading">
+                <strong>{selected?.name ?? copy.imageDownloadTitle}</strong>
+                <span>{resultDownloadBody}</span>
               </div>
-            </section>
-          )}
-          {isAnimationWorkflow && (
-            <section className={`panel animation-download-panel ${selectedAnimationExportReady ? "complete" : ""}`}>
-              <PanelTitle index="4" title={animationDownloadTitle} />
-              <div className="animation-download-body">
-                <div className="step-heading">
-                  <strong>{selected?.name ?? copy.animationStepDownloadTitle}</strong>
-                  <span>{selectedAnimationDownloadBody}</span>
-                </div>
-                {selectedAnimationExportReady && <small className="step-kicker">{copy.animationReady}</small>}
-                <div className="download-grid">
+              <small className="step-kicker">{resultDownloadStatus}</small>
+              {resultDownloadIsAnimation ? (
+                <div className="download-grid result-download-grid">
                   <button onClick={() => void exportDirectionalAnimations("gif")} disabled={!selectedAnimationExportReady}>
                     <Film size={16} aria-hidden="true" />
                     {copy.animatedGif}
@@ -3172,9 +3150,24 @@ function App() {
                     {copy.spriteSheetDownload}
                   </button>
                 </div>
-              </div>
-            </section>
-          )}
+              ) : (
+                <div className="download-grid result-download-grid">
+                  <button onClick={downloadSelectedImage} disabled={!selectedImageDownloadReady}>
+                    <FileImage size={16} aria-hidden="true" />
+                    {copy.downloadPng}
+                  </button>
+                  <button onClick={() => void downloadSelectedImageAnimation("gif")} disabled={!selectedImageDownloadReady}>
+                    <Film size={16} aria-hidden="true" />
+                    {copy.animatedGif}
+                  </button>
+                  <button onClick={() => void downloadSelectedImageAnimation("webp")} disabled={!selectedImageDownloadReady}>
+                    <FileArchive size={16} aria-hidden="true" />
+                    {copy.animatedWebP}
+                  </button>
+                </div>
+              )}
+            </div>
+          </section>
         </section>
 
         <aside className="panel history-panel">

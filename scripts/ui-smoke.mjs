@@ -123,7 +123,7 @@ try {
   await assertWorkflow({
     label: "Animation Generation",
     route: "Route: Codex Handoff",
-    buttons: ["Upload Pixel Art", "5-Direction Sheet", "hatch-pet", "5-Direction hatch-pet", "Generate Animation", "Animated GIF", "Animated WebP", "Sprite Sheet"],
+    buttons: ["Upload Pixel Art", "5-Direction Sheet", "hatch-pet", "5-Direction hatch-pet", "Generate Animation", "Animated GIF", "Animated WebP"],
     hiddenButtons: ["Import Latest", "Import File"],
     hiddenText: ["Sprite Actions", "Export Sprite"],
     requiredText: ["1. Upload Pixel Art", "Generation Method", "2. Choose Motion", "3. Generate", "4. Download", "Motion Prompt", "Prompt", "Preset", "5-direction chroma-key sprite sheet"],
@@ -167,7 +167,7 @@ async function assertInitialWorkspace() {
   assert(snapshot.buttons.includes("Animation Generation"), "Initial workspace should expose Animation Generation tab");
   assert(snapshot.workflowTabsInsidePanel, "Initial workspace should place workflow tabs under 1. Workflow");
   assert(snapshot.canvasVisible, "Initial workspace should render the preview canvas immediately");
-  assert(snapshot.imageDownloadPanelInWorkspace, "Initial workspace should place the image download card under the preview workspace");
+  assert(snapshot.resultDownloadPanelInWorkspace, "Initial workspace should place the result download card under the preview workspace");
   await maybeCapture("initial-workspace");
 }
 
@@ -339,7 +339,7 @@ async function assertImageEditing() {
   assert(snapshot.buttons.includes("PNG"), "Image Editing should expose the image PNG download action");
   assert(snapshot.buttons.includes("Animated GIF"), "Image Editing should expose the animated GIF download action");
   assert(snapshot.buttons.includes("Animated WebP"), "Image Editing should expose the animated WebP download action");
-  assert(snapshot.imageDownloadPanelInWorkspace, "Image Editing should place the image download card under the preview workspace");
+  assert(snapshot.resultDownloadPanelInWorkspace, "Image Editing should place the result download card under the preview workspace");
   assert(snapshot.annotationToolbarVisible, "Image Editing should show the rectangle selection toolbar");
   assert(snapshot.canvasPreviewMode === "edit", `Image Editing should use edit canvas mode, got ${snapshot.canvasPreviewMode}`);
   assert(snapshot.text.includes("Numbered edit regions"), "Image Editing should show numbered edit regions");
@@ -378,8 +378,8 @@ async function assertImageEditing() {
   assert(!snapshot.editCompareVisible, "Image Editing should not render the old Before / After compare card");
   assert(snapshot.imageEditSourceImages === 1, `Image Editing should show one edit source thumbnail under the preview, got ${snapshot.imageEditSourceImages}`);
   assert(snapshot.imageEditSourceStatus.includes("Edited from"), "Image Editing should show the edit source under the preview");
-  assert(snapshot.imageDownloadPanelInWorkspace, "Image Editing should keep the image download card under the preview after edit");
-  assert(snapshot.imageDownloadPanelComplete, "Image Editing should mark the selected edited image as downloadable");
+  assert(snapshot.resultDownloadPanelInWorkspace, "Image Editing should keep the result download card under the preview after edit");
+  assert(snapshot.resultDownloadPanelComplete, "Image Editing should mark the selected edited image as downloadable");
   assert(snapshot.canvasPreviewMode === "edit", `Image Editing should keep edit canvas mode after import, got ${snapshot.canvasPreviewMode}`);
   await assertNoBrowserErrors("Image Editing");
   await maybeCapture("image-editing-edit-source");
@@ -539,12 +539,12 @@ async function assertWorkflow({
   );
   assert(!snapshot.spriteBenchVisible, `${label} should keep the Sprite Actions panel hidden for now`);
   if (label === "Animation Generation") {
-    assert(snapshot.downloadPanelInWorkspace, "Animation Generation should place the download card under the preview workspace");
-    assert(!snapshot.downloadPanelInSource, "Animation Generation should not leave the download card in the left source panel");
+    assert(snapshot.resultDownloadPanelInWorkspace, "Animation Generation should place the shared download card under the preview workspace");
+    assert(!snapshot.resultDownloadPanelInSource, "Animation Generation should not leave the shared download card in the left source panel");
     assert(snapshot.animationPreviewImages === 0, "Animation Generation should not show stale animation preview images before a selected animation result exists");
   } else {
-    assert(snapshot.imageDownloadPanelInWorkspace, `${label} should place the image download card under the preview workspace`);
-    assert(!snapshot.downloadPanelInSource, `${label} should not put download cards in the left source panel`);
+    assert(snapshot.resultDownloadPanelInWorkspace, `${label} should place the shared download card under the preview workspace`);
+    assert(!snapshot.resultDownloadPanelInSource, `${label} should not put download cards in the left source panel`);
   }
   buttons.forEach((button) => {
     assert(snapshot.buttons.includes(button), `${label} missing action button: ${button}`);
@@ -601,7 +601,7 @@ async function assertWorkflow({
         postSnapshot.directionPreviewRows === expectedDirectionPreviewCount,
         `${label} should render ${expectedDirectionPreviewCount} directional preview row(s), got ${postSnapshot.directionPreviewRows}`
       );
-      assert(postSnapshot.downloadPanelInWorkspace, `${label} should keep the download panel visible under the preview`);
+      assert(postSnapshot.resultDownloadPanelInWorkspace, `${label} should keep the download panel visible under the preview`);
     }
     if (expectedCanvasPreviewModeAfterExercise) {
       await waitForEval(
@@ -618,9 +618,7 @@ async function assertWorkflow({
         assert(previewSnapshot.resultPreviewImages === 1, `${label} should render one selected result preview image, got ${previewSnapshot.resultPreviewImages}`);
         assert(previewSnapshot.resultPreviewLoaded, `${label} should load the selected result preview image`);
         assert(previewSnapshot.resultPreviewFrameHeight >= 240, `${label} result preview frame should be tall enough to inspect, got ${previewSnapshot.resultPreviewFrameHeight}`);
-        if (label !== "Animation Generation") {
-          assert(previewSnapshot.imageDownloadPanelComplete, `${label} should mark the selected image as downloadable`);
-        }
+        assert(previewSnapshot.resultDownloadPanelComplete, `${label} should mark the selected result as downloadable`);
       }
     }
     for (const button of postExerciseButtons) {
@@ -752,11 +750,10 @@ async function pageSnapshot() {
     resultPreviewLoaded: Boolean(document.querySelector(".result-preview-image")?.naturalWidth),
     resultPreviewFrameHeight: Math.round(document.querySelector(".result-preview-frame")?.getBoundingClientRect().height || 0),
     directionPreviewRows: document.querySelectorAll(".direction-preview-row").length,
-    downloadPanelInSource: Boolean(document.querySelector(".source-panel .animation-download-panel")),
-    downloadPanelInWorkspace: Boolean(document.querySelector(".workspace .animation-download-panel")),
-    imageDownloadPanelInWorkspace: Boolean(document.querySelector(".workspace .image-download-panel")),
-    imageDownloadPanelComplete: Boolean(document.querySelector(".workspace .image-download-panel.complete")),
-    animationSourceStatus: document.querySelector(".animation-download-source-status, .animation-source-status")?.innerText || "",
+    resultDownloadPanelInSource: Boolean(document.querySelector(".source-panel .result-download-panel")),
+    resultDownloadPanelInWorkspace: Boolean(document.querySelector(".workspace .result-download-panel")),
+    resultDownloadPanelComplete: Boolean(document.querySelector(".workspace .result-download-panel.complete")),
+    animationSourceStatus: document.querySelector(".animation-source-status")?.innerText || "",
     imageEditSourceStatus: document.querySelector(".image-edit-source-status")?.innerText || "",
     imageEditSourceImages: document.querySelectorAll(".image-edit-source-status img").length,
     finalEditNoticeVisible: Boolean(document.querySelector(".edit-final-notice")),
