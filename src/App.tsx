@@ -91,10 +91,17 @@ const HATCH_PET_STATE_ROWS = [
   { id: "running", frames: 6 },
   { id: "review", frames: 6 }
 ];
+const DIRECTIONAL_HATCH_PET_GRID: GridSettings = {
+  columns: HATCH_PET_GRID.columns,
+  rows: HATCH_PET_GRID.rows * ANIMATION_DIRECTION_COUNT,
+  gutter: 0
+};
+const DIRECTIONAL_HATCH_PET_RESULT_COUNT = ANIMATION_DIRECTION_COUNT;
+const DIRECTIONAL_HATCH_PET_PRIMARY_STATE = HATCH_PET_STATE_ROWS[0];
 
 type Language = "ja" | "en";
 type MotionInputMode = "prompt" | "preset";
-type AnimationGenerationMode = "standard" | "hatch-pet";
+type AnimationGenerationMode = "standard" | "hatch-pet" | "directional-hatch-pet";
 type AnimationChromaKeyName = "green" | "magenta";
 type CodexJobQueueState = "queued" | "running";
 
@@ -294,15 +301,20 @@ const uiCopy = {
     animationStandardSheetBody: "Generate the current 8 x 5 game-animation sprite sheet.",
     animationHatchPet: "hatch-pet",
     animationHatchPetBody: "Experimental Codex pet atlas: 8 x 9, 192 x 208 cells, pet.json-ready.",
+    animationDirectionalHatchPet: "5-Direction hatch-pet",
+    animationDirectionalHatchPetBody: "Generate five separate hatch-pet atlases, one for each direction.",
     animationStepMotionTitle: "2. Choose Motion",
     animationStepMotionBody: "Pick a preset or describe the motion you want.",
     animationStepGenerateTitle: "3. Generate",
     animationStepGenerateBody: "Send the uploaded source to Codex and generate a 5-direction chroma-key sprite sheet.",
     hatchPetGenerateBody: "Send the uploaded source to Codex and try the hatch-pet workflow for a Codex pet atlas.",
     hatchPetLockedSize: "hatch-pet locks the atlas to 1536 x 1872 with 192 x 208 cells.",
+    directionalHatchPetGenerateBody: "Send the uploaded source to Codex and generate five direction-specific hatch-pet atlases.",
+    directionalHatchPetLockedSize: "Creates 5 files, each 1536 x 1872 with 192 x 208 cells, then combines them for preview/export.",
     animationStepDownloadTitle: "4. Download",
     animationStepDownloadBody: "Preview and export the transparent animated GIF, animated WebP, and sprite sheet.",
     hatchPetDownloadBody: "Export each Codex pet state as animated GIF/WebP, or download the full pet atlas.",
+    directionalHatchPetDownloadBody: "Preview one animated state per direction, or download the combined 5-direction hatch-pet atlas.",
     uploadPixelArt: "Upload Pixel Art",
     selectedSource: "Selected source",
     noAnimationSource: "No pixel-art source uploaded yet",
@@ -470,15 +482,20 @@ const uiCopy = {
     animationStandardSheetBody: "現在の8 x 5ゲーム用アニメーションsprite sheetを生成します。",
     animationHatchPet: "hatch-pet",
     animationHatchPetBody: "実験版のCodex pet atlas。8 x 9、192 x 208セル、pet.json対応です。",
+    animationDirectionalHatchPet: "5方向hatch-pet",
+    animationDirectionalHatchPetBody: "5方向それぞれにhatch-pet atlasを生成します。",
     animationStepMotionTitle: "2. 動きを選ぶ",
     animationStepMotionBody: "プリセットを選ぶか、させたい動きをpromptで入力します。",
     animationStepGenerateTitle: "3. 生成する",
     animationStepGenerateBody: "アップロード画像からanimation sheetとtimeline framesを生成します。",
     hatchPetGenerateBody: "アップロード画像をCodexに渡し、hatch-pet工程でCodex pet atlasを試作します。",
     hatchPetLockedSize: "hatch-petは1536 x 1872、192 x 208セルに固定します。",
+    directionalHatchPetGenerateBody: "アップロード画像をCodexに渡し、方向別のhatch-pet atlasを5枚生成します。",
+    directionalHatchPetLockedSize: "1536 x 1872、192 x 208セルのatlasを5枚作り、preview/export用に結合します。",
     animationStepDownloadTitle: "4. ダウンロード",
     animationStepDownloadBody: "生成結果をanimated GIF、animated WebP、sprite sheetで書き出します。",
     hatchPetDownloadBody: "Codex petの各状態をアニメGIF/WebPで書き出し、全体atlasもダウンロードできます。",
+    directionalHatchPetDownloadBody: "方向ごとに代表stateをアニメGIF/WebPで確認し、結合済み5方向hatch-pet atlasもダウンロードできます。",
     uploadPixelArt: "ピクセルアートをアップロード",
     selectedSource: "選択中の元画像",
     noAnimationSource: "まだ元になるピクセルアートがありません",
@@ -968,8 +985,26 @@ function hatchPetSpriteAction(): SpriteAction {
   };
 }
 
+function directionalHatchPetSpriteAction(): SpriteAction {
+  return {
+    ...hatchPetSpriteAction(),
+    name: "5-direction-hatch-pet-atlas"
+  };
+}
+
+function isHatchPetLikeMode(mode: AnimationGenerationMode) {
+  return mode === "hatch-pet" || mode === "directional-hatch-pet";
+}
+
 function inferAnimationGenerationMode(actionFrames: SpriteFrame[]): AnimationGenerationMode {
   const firstFrame = actionFrames[0];
+  if (
+    actionFrames.length === DIRECTIONAL_HATCH_PET_GRID.columns * DIRECTIONAL_HATCH_PET_GRID.rows &&
+    firstFrame?.width === HATCH_PET_CELL.width &&
+    firstFrame?.height === HATCH_PET_CELL.height
+  ) {
+    return "directional-hatch-pet";
+  }
   if (
     actionFrames.length === HATCH_PET_GRID.columns * HATCH_PET_GRID.rows &&
     firstFrame?.width === HATCH_PET_CELL.width &&
@@ -1114,7 +1149,9 @@ function App() {
   const selectedIsAnimationResult = selectedAnimationExportReady;
   const selectedAnimationPreviewActions = useMemo(
     () =>
-      selectedAnimationVariant === "hatch-pet"
+      selectedAnimationVariant === "directional-hatch-pet"
+        ? buildDirectionalHatchPetPreviewActions(selectedAnimationAction, selectedAnimationFrames)
+        : selectedAnimationVariant === "hatch-pet"
         ? buildHatchPetStatePreviewActions(selectedAnimationAction, selectedAnimationFrames)
         : buildAnimationDirectionPreviewActions(selectedAnimationAction, selectedAnimationFrames),
     [selectedAnimationAction, selectedAnimationFrames, selectedAnimationVariant]
@@ -1534,12 +1571,21 @@ function App() {
     const isImageEditJob = workflowMode === "image-edit";
     const isAnimationJob = workflowMode === "sprite-generate";
     const isHatchPetAnimationJob = isAnimationJob && animationGenerationMode === "hatch-pet";
+    const isDirectionalHatchPetAnimationJob = isAnimationJob && animationGenerationMode === "directional-hatch-pet";
     const sourceImageForJob = isAnimationJob ? animationSource : selected;
-    const animationAction = isHatchPetAnimationJob
+    const animationAction = isDirectionalHatchPetAnimationJob
+      ? directionalHatchPetSpriteAction()
+      : isHatchPetAnimationJob
       ? hatchPetSpriteAction()
       : normalizeAnimationAction(activeAction);
-    const spriteGrid = isAnimationJob ? (isHatchPetAnimationJob ? HATCH_PET_GRID : ANIMATION_SHEET_GRID) : grid;
-    const spriteCell = isAnimationJob ? (isHatchPetAnimationJob ? HATCH_PET_CELL : animationAction.cell) : activeAction.cell;
+    const spriteGrid = isAnimationJob
+      ? isDirectionalHatchPetAnimationJob
+        ? DIRECTIONAL_HATCH_PET_GRID
+        : isHatchPetAnimationJob
+          ? HATCH_PET_GRID
+          : ANIMATION_SHEET_GRID
+      : grid;
+    const spriteCell = isAnimationJob ? (isHatchPetLikeMode(animationGenerationMode) ? HATCH_PET_CELL : animationAction.cell) : activeAction.cell;
     const spriteFrameCount = spriteGrid.columns * spriteGrid.rows;
 
     if (isImageEditJob && selectedIsAnimationResult) {
@@ -1562,7 +1608,13 @@ function App() {
     }
 
     const codexPrompt = isAnimationJob
-      ? isHatchPetAnimationJob
+      ? isDirectionalHatchPetAnimationJob
+        ? buildDirectionalHatchPetCodexPrompt({
+            sourceName: sourceImageForJob?.name ?? "",
+            motionPrompt: prompt,
+            chromaKey: chromaDecision.key
+          })
+        : isHatchPetAnimationJob
         ? buildHatchPetCodexPrompt({
             sourceName: sourceImageForJob?.name ?? "",
             motionPrompt: prompt,
@@ -1583,7 +1635,13 @@ function App() {
           })
         : prompt;
     const codexJobNotes = isAnimationJob
-      ? isHatchPetAnimationJob
+      ? isDirectionalHatchPetAnimationJob
+        ? buildDirectionalHatchPetCodexNotes({
+            userNotes: jobNotes,
+            chromaKey: chromaDecision.key,
+            chromaReason: chromaDecision.reason
+          })
+        : isHatchPetAnimationJob
         ? buildHatchPetCodexNotes({
             userNotes: jobNotes,
             chromaKey: chromaDecision.key,
@@ -1609,7 +1667,11 @@ function App() {
       negativePrompt,
       jobNotes: codexJobNotes,
       seed,
-      size: isAnimationJob ? `${spriteCell.width * spriteGrid.columns}x${spriteCell.height * spriteGrid.rows}` : size,
+      size: isDirectionalHatchPetAnimationJob
+        ? `${HATCH_PET_CELL.width * HATCH_PET_GRID.columns}x${HATCH_PET_CELL.height * HATCH_PET_GRID.rows} x ${DIRECTIONAL_HATCH_PET_RESULT_COUNT}`
+        : isAnimationJob
+          ? `${spriteCell.width * spriteGrid.columns}x${spriteCell.height * spriteGrid.rows}`
+          : size,
       count,
       quality,
       selectedImageName: includeSelectedImage ? sourceImageForJob?.name ?? "" : "",
@@ -1623,7 +1685,13 @@ function App() {
       cell: includeSpriteContext ? spriteCell : null,
       chromaKey: isAnimationJob ? chromaDecision.key.name : "",
       spriteVariant: isAnimationJob ? animationGenerationMode : undefined,
-      directions: isAnimationJob ? (isHatchPetAnimationJob ? HATCH_PET_STATE_ROWS.map((row) => row.id) : ANIMATION_DIRECTIONS) : [],
+      directions: isAnimationJob
+        ? isDirectionalHatchPetAnimationJob
+          ? ANIMATION_DIRECTIONS
+          : isHatchPetAnimationJob
+            ? HATCH_PET_STATE_ROWS.map((row) => row.id)
+            : ANIMATION_DIRECTIONS
+        : [],
       label: codexJobLabel(workflowMode, prompt, isAnimationJob ? animationAction.name : undefined),
       resultWorkflowMode: workflowMode ?? undefined,
       resultActionName: isAnimationJob ? animationAction.name : undefined,
@@ -1895,6 +1963,106 @@ function App() {
     setStatus(`${copy.statusAnimationGenerated}: ${item.name}. ${formatFramesAddedStatus(newFrames.length, actionName, language)}`);
   }
 
+  async function importDirectionalHatchPetResults(importedResults: CodexOutboxImportResponse[], pendingJob: CodexJobQueueItem) {
+    const actionName = pendingJob.actionName ?? directionalHatchPetSpriteAction().name;
+    const chromaKey = animationChromaKeys[pendingJob.chromaKey ?? animationChromaKey];
+    const transparentAtlases = await Promise.all(
+      importedResults.map((result) => createTransparentSpriteSheetDataUrl(result.dataUrl, chromaKey))
+    );
+    const combinedDataUrl = await composeDirectionalHatchPetSheet(transparentAtlases);
+    const image = await loadImage(combinedDataUrl);
+    const itemName = `${pendingJob.id}-directional-hatch-pet-atlas.png`;
+    const item: HistoryItem = {
+      id: createId("hist"),
+      name: itemName,
+      dataUrl: combinedDataUrl,
+      provider: "local-inbox",
+      prompt,
+      seed,
+      size: `${image.width}x${image.height}`,
+      createdAt: new Date().toISOString(),
+      adopted: false,
+      source: "generate",
+      derivedFromId: pendingJob.sourceImageId,
+      derivedFromName: pendingJob.sourceImageName
+    };
+    const newFrames = await splitImageIntoFrames(combinedDataUrl, itemName.replace(/\.[^.]+$/, ""), DIRECTIONAL_HATCH_PET_GRID, item.id, HATCH_PET_CELL);
+    if (newFrames.length === 0) throw new Error("Returned directional hatch-pet atlases could not be split into frames.");
+
+    setAnimationGenerationMode("directional-hatch-pet");
+    setAnimationChromaKey(chromaKey.name);
+    setGrid(DIRECTIONAL_HATCH_PET_GRID);
+    setHistory((current) => [item, ...current]);
+    setSelectedId(item.id);
+    setFrames((current) => [...current, ...newFrames]);
+    setActiveActionName(actionName);
+    setActions((current) =>
+      current.some((action) => action.name === actionName)
+        ? current.map((action) =>
+            action.name === actionName
+              ? { ...action, cell: HATCH_PET_CELL, frameIds: newFrames.map((frame) => frame.id) }
+              : action
+          )
+        : [...current, { ...directionalHatchPetSpriteAction(), frameIds: newFrames.map((frame) => frame.id) }]
+    );
+    setSelectedFrameId("");
+    setStatus(`${copy.statusAnimationGenerated}: ${item.name}. ${formatFramesAddedStatus(newFrames.length, actionName, language)}`);
+  }
+
+  async function fetchOutboxResult(name: string) {
+    const importResponse = await fetch(`/api/codex/results/${encodeURIComponent(name)}`);
+    if (!importResponse.ok) throw new Error(await importResponse.text());
+    return (await importResponse.json()) as CodexOutboxImportResponse;
+  }
+
+  function selectDirectionalHatchPetResults(results: CodexOutboxResult[], jobId: string) {
+    const staticImageResults = results.filter((result) => result.mimeType !== "image/gif");
+    const sheetCandidates = staticImageResults.filter((result) => !/(?:animated|animation|gif|preview)/i.test(result.name));
+    const sortedResults = (sheetCandidates.length >= DIRECTIONAL_HATCH_PET_RESULT_COUNT ? sheetCandidates : staticImageResults)
+      .slice()
+      .sort((left, right) => left.name.localeCompare(right.name));
+    const byDirection = ANIMATION_DIRECTIONS.map((_, index) =>
+      sortedResults.find((result) => directionIndexFromResultName(result.name, jobId) === index)
+    );
+    if (byDirection.every(Boolean)) return byDirection.filter((result): result is CodexOutboxResult => Boolean(result));
+    return sortedResults.slice(0, DIRECTIONAL_HATCH_PET_RESULT_COUNT);
+  }
+
+  function directionIndexFromResultName(name: string, jobId: string) {
+    const normalized = name
+      .toLowerCase()
+      .replace(jobId.toLowerCase(), "")
+      .replace(/\.[^.]+$/, "")
+      .replace(/[_\s]+/g, "-");
+    const numericMatch = normalized.match(/direction-(\d{1,2})/);
+    if (numericMatch) {
+      const index = Number(numericMatch[1]) - 1;
+      if (index >= 0 && index < ANIMATION_DIRECTION_COUNT) return index;
+    }
+    const directionSlugs = ANIMATION_DIRECTIONS.map((direction) => direction.replace(/\s+/g, "-"));
+    const matchedSlug = directionSlugs
+      .slice()
+      .sort((left, right) => right.length - left.length)
+      .find((slug) => normalized.includes(slug));
+    return matchedSlug ? directionSlugs.indexOf(matchedSlug) : -1;
+  }
+
+  async function composeDirectionalHatchPetSheet(dataUrls: string[]) {
+    const atlasWidth = HATCH_PET_CELL.width * HATCH_PET_GRID.columns;
+    const atlasHeight = HATCH_PET_CELL.height * HATCH_PET_GRID.rows;
+    const canvas = document.createElement("canvas");
+    canvas.width = atlasWidth;
+    canvas.height = atlasHeight * DIRECTIONAL_HATCH_PET_RESULT_COUNT;
+    const context = canvas.getContext("2d");
+    if (!context) throw new Error("Could not compose directional hatch-pet atlas.");
+    context.clearRect(0, 0, canvas.width, canvas.height);
+    for (let index = 0; index < DIRECTIONAL_HATCH_PET_RESULT_COUNT; index += 1) {
+      const image = await loadImage(dataUrls[index]);
+      context.drawImage(image, 0, index * atlasHeight, atlasWidth, atlasHeight);
+    }
+    return canvas.toDataURL("image/png");
+  }
+
   async function importLatestOutboxResult(options: ImportLatestOptions = {}) {
     if (!options.background) setIsBusy(true);
     try {
@@ -1903,18 +2071,29 @@ function App() {
       if (!listResponse.ok) throw new Error(await listResponse.text());
       const listData = (await listResponse.json()) as { outboxPath: string; results: CodexOutboxResult[] };
       const newerThanTime = options.newerThan ? Date.parse(options.newerThan) : Number.NEGATIVE_INFINITY;
-      const latest = listData.results.find((result) => {
+      const jobResults = listData.results.filter((result) => {
         if (Date.parse(result.modifiedAt) < newerThanTime) return false;
         return pendingJob ? result.name.startsWith(`${pendingJob.id}-`) : true;
       });
+      if (pendingJob?.workflowMode === "sprite-generate" && pendingJob.spriteVariant === "directional-hatch-pet") {
+        const directionalResults = selectDirectionalHatchPetResults(jobResults, pendingJob.id);
+        if (directionalResults.length < DIRECTIONAL_HATCH_PET_RESULT_COUNT) {
+          if (!options.quietEmpty) setStatus(`${copy.statusInboxEmpty}: ${listData.outboxPath}`);
+          return false;
+        }
+        const importedResults = await Promise.all(directionalResults.map((result) => fetchOutboxResult(result.name)));
+        await importDirectionalHatchPetResults(importedResults, pendingJob);
+        removeCodexJob(pendingJob.id);
+        return true;
+      }
+
+      const latest = jobResults[0];
       if (!latest) {
         if (!options.quietEmpty) setStatus(`${copy.statusInboxEmpty}: ${listData.outboxPath}`);
         return false;
       }
 
-      const importResponse = await fetch(`/api/codex/results/${encodeURIComponent(latest.name)}`);
-      if (!importResponse.ok) throw new Error(await importResponse.text());
-      const imported = (await importResponse.json()) as CodexOutboxImportResponse;
+      const imported = await fetchOutboxResult(latest.name);
       if (pendingJob?.workflowMode === "sprite-generate") {
         await importAnimationSheetResult(imported, pendingJob);
         removeCodexJob(pendingJob.id);
@@ -2282,7 +2461,9 @@ function App() {
       setShowCenter(true);
       setGrid(
         mode === "sprite-generate"
-          ? animationGenerationMode === "hatch-pet"
+          ? animationGenerationMode === "directional-hatch-pet"
+            ? DIRECTIONAL_HATCH_PET_GRID
+            : animationGenerationMode === "hatch-pet"
             ? HATCH_PET_GRID
             : ANIMATION_SHEET_GRID
           : { columns: ANIMATION_FRAME_COUNT, rows: 1, gutter: 0 }
@@ -2375,6 +2556,26 @@ function App() {
   const showSpriteActionsPanel = SHOW_SPRITE_ACTIONS_PANEL;
   const showImageDownloadPanel = !isAnimationWorkflow;
   const selectedImageDownloadReady = Boolean(selected && !selectedIsAnimationResult);
+  const animationGenerationModeBody = animationGenerationMode === "directional-hatch-pet"
+    ? copy.animationDirectionalHatchPetBody
+    : animationGenerationMode === "hatch-pet"
+      ? copy.animationHatchPetBody
+      : copy.animationStandardSheetBody;
+  const animationGenerateBody = animationGenerationMode === "directional-hatch-pet"
+    ? copy.directionalHatchPetGenerateBody
+    : animationGenerationMode === "hatch-pet"
+      ? copy.hatchPetGenerateBody
+      : copy.animationStepGenerateBody;
+  const animationLockedSizeNote = animationGenerationMode === "directional-hatch-pet"
+    ? copy.directionalHatchPetLockedSize
+    : animationGenerationMode === "hatch-pet"
+      ? copy.hatchPetLockedSize
+      : "";
+  const selectedAnimationDownloadBody = selectedAnimationVariant === "directional-hatch-pet"
+    ? copy.directionalHatchPetDownloadBody
+    : selectedAnimationVariant === "hatch-pet"
+      ? copy.hatchPetDownloadBody
+      : copy.animationStepDownloadBody;
 
   return (
     <div className="app-shell">
@@ -2448,9 +2649,9 @@ function App() {
               <section className="animation-step">
                 <div className="step-heading">
                   <strong>{copy.animationMethodTitle}</strong>
-                  <span>{animationGenerationMode === "hatch-pet" ? copy.animationHatchPetBody : copy.animationStandardSheetBody}</span>
+                  <span>{animationGenerationModeBody}</span>
                 </div>
-                <div className="motion-mode-tabs">
+                <div className="motion-mode-tabs generation-mode-tabs">
                   <button
                     className={animationGenerationMode === "standard" ? "active" : ""}
                     onClick={() => {
@@ -2469,6 +2670,16 @@ function App() {
                     }}
                   >
                     {copy.animationHatchPet}
+                  </button>
+                  <button
+                    className={animationGenerationMode === "directional-hatch-pet" ? "active" : ""}
+                    onClick={() => {
+                      setAnimationGenerationMode("directional-hatch-pet");
+                      setGrid(DIRECTIONAL_HATCH_PET_GRID);
+                      setActiveActionName("idle");
+                    }}
+                  >
+                    {copy.animationDirectionalHatchPet}
                   </button>
                 </div>
               </section>
@@ -2535,10 +2746,10 @@ function App() {
               <section className="animation-step">
                 <div className="step-heading">
                   <strong>{copy.animationStepGenerateTitle}</strong>
-                  <span>{animationGenerationMode === "hatch-pet" ? copy.hatchPetGenerateBody : copy.animationStepGenerateBody}</span>
+                  <span>{animationGenerateBody}</span>
                 </div>
-                {animationGenerationMode === "hatch-pet" ? (
-                  <small className="step-kicker">{copy.hatchPetLockedSize}</small>
+                {isHatchPetLikeMode(animationGenerationMode) ? (
+                  <small className="step-kicker">{animationLockedSizeNote}</small>
                 ) : (
                   <div className="field-row compact-row">
                     <NumberField label={copy.frameWidth} value={activeAction.cell.width} min={MIN_ANIMATION_CELL_SIZE} onChange={(width) => updateCell(width, activeAction.cell.height)} />
@@ -2944,7 +3155,7 @@ function App() {
               <div className="animation-download-body">
                 <div className="step-heading">
                   <strong>{selected?.name ?? copy.animationStepDownloadTitle}</strong>
-                  <span>{selectedAnimationVariant === "hatch-pet" ? copy.hatchPetDownloadBody : copy.animationStepDownloadBody}</span>
+                  <span>{selectedAnimationDownloadBody}</span>
                 </div>
                 {selectedAnimationExportReady && <small className="step-kicker">{copy.animationReady}</small>}
                 <div className="download-grid">
@@ -3503,6 +3714,24 @@ function buildHatchPetStatePreviewActions(action: SpriteAction, actionFrames: Sp
   }).filter((preview) => preview.action.frameIds.length > 0);
 }
 
+function buildDirectionalHatchPetPreviewActions(action: SpriteAction, actionFrames: SpriteFrame[]) {
+  const framesPerDirection = HATCH_PET_GRID.columns * HATCH_PET_GRID.rows;
+  return ANIMATION_DIRECTIONS.map((directionId, directionIndex) => {
+    const directionStart = directionIndex * framesPerDirection;
+    const stateStart = directionStart;
+    const rowFrames = actionFrames.slice(stateStart, stateStart + DIRECTIONAL_HATCH_PET_PRIMARY_STATE.frames);
+    return {
+      directionId,
+      action: {
+        ...action,
+        name: `${action.name}_${directionId.replace(/\s+/g, "-")}_${DIRECTIONAL_HATCH_PET_PRIMARY_STATE.id}`,
+        fps: 6,
+        frameIds: rowFrames.map((frame) => frame.id)
+      }
+    };
+  }).filter((preview) => preview.action.frameIds.length > 0);
+}
+
 function animationDirectionLabel(directionId: string, language: Language) {
   const labels = uiCopy[language] as Record<string, string>;
   if (directionId === "front") return labels.previewFront;
@@ -3649,6 +3878,54 @@ function buildHatchPetCodexNotes({
     `Temporary chroma-key decision: ${chromaKey.name} ${chromaKey.hex}. ${chromaReason}`,
     "Final output should be transparent PNG/WebP, with unused cells fully transparent and no hidden colored residue.",
     "Return at least the final spritesheet image to the outbox with the job id filename prefix; include pet.json as a sidecar when available."
+  ].filter(Boolean).join("\n");
+}
+
+function buildDirectionalHatchPetCodexPrompt({
+  sourceName,
+  motionPrompt,
+  chromaKey
+}: {
+  sourceName: string;
+  motionPrompt: string;
+  chromaKey: AnimationChromaKey;
+}) {
+  const concept = motionPrompt.trim() || "make this uploaded character into a five-direction Codex pet atlas set with clear idle-ready movement";
+  return [
+    `Use the uploaded source image "${sourceName}" as the canonical character reference.`,
+    "Create a 5-direction hatch-pet set: one separate Codex pet atlas for each direction.",
+    `Required directions and filename suffixes: ${ANIMATION_DIRECTIONS.map((direction, index) => `direction-${String(index + 1).padStart(2, "0")}-${direction.replace(/\s+/g, "-")}`).join(", ")}.`,
+    "For each direction, try the installed hatch-pet workflow/scripts when available: canonical identity lock, row-strip generation, atlas composition, validation, contact sheet, and preview generation.",
+    "Do not return only one giant combined sheet. Return five final spritesheet PNG/WebP files, each using the job id filename prefix plus its direction suffix.",
+    `Pet concept and motion guidance: ${concept}.`,
+    "Each direction atlas must contain the same Codex pet state contract: idle, running-right, running-left, waving, jumping, failed, waiting, running, review.",
+    `Each atlas must be 8 columns x 9 rows, 1536x1872 pixels total, ${HATCH_PET_CELL.width}x${HATCH_PET_CELL.height} per cell, transparent background, transparent unused cells.`,
+    `Use ${chromaKey.label} (${chromaKey.hex}) only as a temporary removable row-generation background when needed; final atlases should be transparent.`,
+    "Keep identity consistent across all five directions: face, body shape, palette, outfit, prop design, outline thickness, and pixel density must match.",
+    "Avoid text, logos, UI, scenery, shadows, speed lines, detached effects, cropped parts, repeated guide marks, white backgrounds, black backgrounds, and nontransparent residue.",
+    "Before returning, inspect all five contact sheets and row previews. Reject direction drift, identity drift, cropped bodies, missing feet, wrong state semantics, static idle, and size popping."
+  ].join(" ");
+}
+
+function buildDirectionalHatchPetCodexNotes({
+  userNotes,
+  chromaKey,
+  chromaReason
+}: {
+  userNotes: string;
+  chromaKey: AnimationChromaKey;
+  chromaReason: string;
+}) {
+  return [
+    userNotes.trim(),
+    "Directional hatch-pet workflow: create five separate hatch-pet atlases from the selected source image, one per direction, instead of a single 5-direction game sheet.",
+    `Required direction order: ${ANIMATION_DIRECTIONS.join(", ")}.`,
+    `Each returned atlas: ${HATCH_PET_GRID.columns} columns x ${HATCH_PET_GRID.rows} rows, ${HATCH_PET_CELL.width}x${HATCH_PET_CELL.height} per cell, 1536x1872 total.`,
+    `Rows and intended frame counts per atlas: ${HATCH_PET_STATE_ROWS.map((row) => `${row.id}=${row.frames}`).join(", ")}.`,
+    `The app will combine those five images into an internal ${DIRECTIONAL_HATCH_PET_GRID.columns} x ${DIRECTIONAL_HATCH_PET_GRID.rows} atlas for preview/export after import.`,
+    `Temporary chroma-key decision: ${chromaKey.name} ${chromaKey.hex}. ${chromaReason}`,
+    "Final outputs should be transparent PNG/WebP files, with unused cells fully transparent and no hidden colored residue.",
+    "Return exactly five final spritesheet images to the outbox with the job id filename prefix and direction suffixes; include pet.json sidecars only as optional extras."
   ].filter(Boolean).join("\n");
 }
 

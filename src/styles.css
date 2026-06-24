@@ -850,6 +850,10 @@ button {
   padding: 3px;
 }
 
+.generation-mode-tabs {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
 .motion-mode-tabs button {
   min-height: 30px;
   border: 0;
@@ -859,6 +863,7 @@ button {
   font-size: 12px;
   font-weight: 800;
   cursor: pointer;
+  white-space: normal;
 }
 
 .motion-mode-tabs button.active {
@@ -2249,6 +2254,10 @@ button:disabled {
 
   .animation-download-panel .direction-preview-list {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .generation-mode-tabs {
+    grid-template-columns: 1fr;
   }
 
   .animation-composite-preview .direction-preview-list {

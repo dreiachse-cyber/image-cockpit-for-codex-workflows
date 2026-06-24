@@ -196,6 +196,36 @@ async function runManualHandoffSmoke() {
       "hatch-pet job should instruct Codex to use the hatch-pet workflow"
     );
 
+    const directionalHatchPetJob = await postJson(port, "/api/codex/jobs", {
+      workflowMode: "sprite-generate",
+      prompt: "Smoke test 5-direction hatch-pet atlas set generation",
+      negativePrompt: "text, logo, shadows",
+      jobNotes: "Directional hatch-pet workflow. Return exactly five final spritesheet images to the outbox with the job id filename prefix and direction suffixes.",
+      selectedImageName: "tiny.png",
+      selectedImageSize: "1x1",
+      selectedImageSource: "sample",
+      selectedImageDataUrl: tinyPng,
+      grid: { columns: 8, rows: 45, gutter: 0 },
+      action: "5-direction-hatch-pet-atlas",
+      frames: 360,
+      cell: { width: 192, height: 208 },
+      chromaKey: "green",
+      spriteVariant: "directional-hatch-pet",
+      directions: ["front", "back", "back three-quarter", "front three-quarter", "side"]
+    });
+    const directionalHatchPetJobJson = JSON.parse(await readFile(directionalHatchPetJob.path, "utf8"));
+    assert(directionalHatchPetJobJson.workflowMode === "sprite-generate", "directional hatch-pet job should use sprite generation workflow");
+    assert(directionalHatchPetJobJson.spriteContext.variant === "directional-hatch-pet", "directional hatch-pet job should include the directional hatch-pet variant");
+    assert(directionalHatchPetJobJson.spriteContext.frames === 360, "directional hatch-pet job should include 360 atlas cells");
+    assert(directionalHatchPetJobJson.spriteContext.grid.rows === 45, "directional hatch-pet job should combine five 9-row atlases internally");
+    assert(directionalHatchPetJobJson.spriteContext.cell.width === 192, "directional hatch-pet job should include 192px cell width");
+    assert(directionalHatchPetJobJson.spriteContext.directions.length === 5, "directional hatch-pet job should include five directions");
+    assert(
+      directionalHatchPetJobJson.jobNotes.includes("five separate hatch-pet atlases") ||
+        directionalHatchPetJobJson.jobNotes.includes("exactly five final spritesheet images"),
+      "directional hatch-pet job should instruct Codex to return five atlas images"
+    );
+
     const spriteEditJob = await postJson(port, "/api/codex/jobs", {
       workflowMode: "sprite-edit",
       prompt: "Smoke test sprite sheet editing",
