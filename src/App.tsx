@@ -1594,8 +1594,9 @@ function App() {
     const includeSpriteContext = workflowUsesSpriteContext(workflowMode);
     const isImageEditJob = workflowMode === "image-edit";
     const isAnimationJob = workflowMode === "sprite-generate";
-    const isHatchPetAnimationJob = isAnimationJob && animationGenerationMode === "hatch-pet";
-    const isDirectionalHatchPetAnimationJob = isAnimationJob && animationGenerationMode === "directional-hatch-pet";
+    const animationJobGenerationMode: AnimationGenerationMode = "standard";
+    const isHatchPetAnimationJob = false;
+    const isDirectionalHatchPetAnimationJob = false;
     const sourceImageForJob = isAnimationJob ? animationSource : selected;
     const animationAction = isDirectionalHatchPetAnimationJob
       ? directionalHatchPetSpriteAction()
@@ -1609,7 +1610,7 @@ function App() {
           ? HATCH_PET_GRID
           : ANIMATION_SHEET_GRID
       : grid;
-    const spriteCell = isAnimationJob ? (isHatchPetLikeMode(animationGenerationMode) ? HATCH_PET_CELL : animationAction.cell) : activeAction.cell;
+    const spriteCell = isAnimationJob ? (isHatchPetLikeMode(animationJobGenerationMode) ? HATCH_PET_CELL : animationAction.cell) : activeAction.cell;
     const spriteFrameCount = spriteGrid.columns * spriteGrid.rows;
     const animationMotionPrompt = isAnimationJob ? buildAnimationPresetMotionPrompt(selectedAnimationPreset) : "";
     const animationPresetNotes = isAnimationJob ? buildAnimationPresetNotes(selectedAnimationPreset) : "";
@@ -1710,7 +1711,7 @@ function App() {
       frames: includeSpriteContext ? spriteFrameCount : 0,
       cell: includeSpriteContext ? spriteCell : null,
       chromaKey: isAnimationJob ? chromaDecision.key.name : "",
-      spriteVariant: isAnimationJob ? animationGenerationMode : undefined,
+      spriteVariant: isAnimationJob ? animationJobGenerationMode : undefined,
       directions: isAnimationJob
         ? isDirectionalHatchPetAnimationJob
           ? ANIMATION_DIRECTIONS
@@ -1724,7 +1725,7 @@ function App() {
       resultGrid: isAnimationJob ? spriteGrid : undefined,
       resultCell: isAnimationJob ? spriteCell : undefined,
       resultChromaKey: isAnimationJob ? chromaDecision.key.name : undefined,
-      resultSpriteVariant: isAnimationJob ? animationGenerationMode : undefined,
+      resultSpriteVariant: isAnimationJob ? animationJobGenerationMode : undefined,
       resultSourceImageId: isImageEditJob || isAnimationJob ? sourceImageForJob?.id : undefined,
       resultSourceImageName: isImageEditJob || isAnimationJob ? sourceImageForJob?.name : undefined
     };
@@ -2481,16 +2482,13 @@ function App() {
       setShowCenter(true);
     }
     if (mode === "sprite-generate" || mode === "sprite-edit") {
+      if (mode === "sprite-generate") setAnimationGenerationMode("standard");
       setActiveActionName(mode === "sprite-generate" ? selectedAnimationPreset.actionName : "idle");
       setShowGrid(true);
       setShowCenter(true);
       setGrid(
         mode === "sprite-generate"
-          ? animationGenerationMode === "directional-hatch-pet"
-            ? DIRECTIONAL_HATCH_PET_GRID
-            : animationGenerationMode === "hatch-pet"
-            ? HATCH_PET_GRID
-            : ANIMATION_SHEET_GRID
+          ? ANIMATION_SHEET_GRID
           : { columns: ANIMATION_FRAME_COUNT, rows: 1, gutter: 0 }
       );
       setActions((current) => normalizeAnimationActions(current));
@@ -2545,6 +2543,7 @@ function App() {
         : normalizeAnimationActions([...current, defaultAction])
     ));
     setSelectedAnimationPresetId(example.id);
+    setAnimationGenerationMode("standard");
     setActiveActionName(example.actionName);
     setGrid(ANIMATION_SHEET_GRID);
   }
@@ -2580,21 +2579,8 @@ function App() {
   const showSpriteTuningControls = SHOW_LOW_PRIORITY_CONTROLS || workflowMode === "sprite-edit";
   const showAnnotationToolbar = isImageEditWorkflow && !selectedIsAnimationResult;
   const showSpriteActionsPanel = SHOW_SPRITE_ACTIONS_PANEL;
-  const animationGenerationModeBody = animationGenerationMode === "directional-hatch-pet"
-    ? copy.animationDirectionalHatchPetBody
-    : animationGenerationMode === "hatch-pet"
-      ? copy.animationHatchPetBody
-      : copy.animationStandardSheetBody;
-  const animationGenerateBody = animationGenerationMode === "directional-hatch-pet"
-    ? copy.directionalHatchPetGenerateBody
-    : animationGenerationMode === "hatch-pet"
-      ? copy.hatchPetGenerateBody
-      : copy.animationStepGenerateBody;
-  const animationLockedSizeNote = animationGenerationMode === "directional-hatch-pet"
-    ? copy.directionalHatchPetLockedSize
-    : animationGenerationMode === "hatch-pet"
-      ? copy.hatchPetLockedSize
-      : copy.animationStandardLockedSize;
+  const animationGenerateBody = copy.animationStepGenerateBody;
+  const animationLockedSizeNote = copy.animationStandardLockedSize;
   const selectedAnimationDownloadBody = selectedAnimationVariant === "directional-hatch-pet"
     ? copy.directionalHatchPetDownloadBody
     : selectedAnimationVariant === "hatch-pet"
@@ -2676,45 +2662,6 @@ function App() {
                   ) : (
                     <span>{copy.noAnimationSource}</span>
                   )}
-                </div>
-              </section>
-
-              <section className="animation-step">
-                <div className="step-heading">
-                  <strong>{copy.animationMethodTitle}</strong>
-                  <span>{animationGenerationModeBody}</span>
-                </div>
-                <div className="motion-mode-tabs generation-mode-tabs">
-                  <button
-                    className={animationGenerationMode === "standard" ? "active" : ""}
-                    onClick={() => {
-                      setAnimationGenerationMode("standard");
-                      setGrid(ANIMATION_SHEET_GRID);
-                      setActiveActionName(selectedAnimationPreset.actionName);
-                    }}
-                  >
-                    {copy.animationStandardSheet}
-                  </button>
-                  <button
-                    className={animationGenerationMode === "hatch-pet" ? "active" : ""}
-                    onClick={() => {
-                      setAnimationGenerationMode("hatch-pet");
-                      setGrid(HATCH_PET_GRID);
-                      setActiveActionName("idle");
-                    }}
-                  >
-                    {copy.animationHatchPet}
-                  </button>
-                  <button
-                    className={animationGenerationMode === "directional-hatch-pet" ? "active" : ""}
-                    onClick={() => {
-                      setAnimationGenerationMode("directional-hatch-pet");
-                      setGrid(DIRECTIONAL_HATCH_PET_GRID);
-                      setActiveActionName("idle");
-                    }}
-                  >
-                    {copy.animationDirectionalHatchPet}
-                  </button>
                 </div>
               </section>
 

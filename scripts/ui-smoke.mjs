@@ -112,7 +112,7 @@ try {
     route: "Route: Codex Handoff",
     buttons: ["Generate Pixel Art", "PNG", "Animated GIF", "Animated WebP"],
     hiddenButtons: ["Import Latest", "Import File"],
-    hiddenText: ["Sprite Actions", "Export Sprite"],
+    hiddenText: ["Sprite Actions", "Export Sprite", "Generation Method"],
     requiredText: ["Pixel Art Prompt", "Generation Notes", "Preview", "Generation can take a few minutes."],
     exerciseButton: "Generate Pixel Art",
     expectedAfterExercise: "Imported from Local Inbox",
@@ -123,15 +123,11 @@ try {
   await assertWorkflow({
     label: "Animation Generation",
     route: "Route: Codex Handoff",
-    buttons: ["Upload Pixel Art", "5-Direction Sheet", "hatch-pet", "5-Direction hatch-pet", "Generate Animation", "Animated GIF", "Animated WebP"],
-    hiddenButtons: ["Import Latest", "Import File"],
-    hiddenText: ["Sprite Actions", "Export Sprite"],
-    requiredText: ["1. Upload Pixel Art", "Generation Method", "2. Choose Motion", "3. Generate", "4. Download", "Preset", "Walk Cycle", "Hop Bounce", "Fixed cells: 256 x 256 px", "5-direction chroma-key sprite sheet"],
+    buttons: ["Upload Pixel Art", "Generate Animation", "Animated GIF", "Animated WebP"],
+    hiddenButtons: ["Import Latest", "Import File", "5-Direction Sheet", "hatch-pet", "5-Direction hatch-pet"],
+    hiddenText: ["Sprite Actions", "Export Sprite", "Generation Method"],
+    requiredText: ["1. Upload Pixel Art", "2. Choose Motion", "3. Generate", "4. Download", "Preset", "Walk Cycle", "Hop Bounce", "Fixed cells: 256 x 256 px", "5-direction chroma-key sprite sheet"],
     preExerciseButtonChecks: [
-      { button: "hatch-pet", expectedText: "hatch-pet locks the atlas" },
-      { button: "5-Direction hatch-pet", expectedText: "Creates 5 files" },
-      { button: "5-Direction hatch-pet", expectedText: "Generate five separate hatch-pet atlases" },
-      { button: "5-Direction Sheet", expectedText: "Fixed cells: 256 x 256 px" },
       { button: "Walk Cycle Move", expectedText: "Walk Cycle" }
     ],
     exerciseButton: "Generate Animation",
