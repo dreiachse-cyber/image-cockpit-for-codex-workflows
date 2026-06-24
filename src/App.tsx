@@ -306,7 +306,7 @@ const uiCopy = {
     imageEditGeneratedFrom: "Edited from",
     imageEditSourceUnknown: "Edit source not recorded",
     imageDownloadTitle: "Download",
-    imageDownloadBody: "Export the image currently shown in the preview.",
+    imageDownloadBody: "Export the image currently shown in the preview as PNG, animated GIF, or animated WebP.",
     imageDownloadReady: "Selected image ready",
     imageDownloadLocked: "Select or generate an image before downloading.",
     downloadPng: "PNG",
@@ -474,7 +474,7 @@ const uiCopy = {
     imageEditGeneratedFrom: "編集元",
     imageEditSourceUnknown: "編集元画像が記録されていません",
     imageDownloadTitle: "ダウンロード",
-    imageDownloadBody: "プレビューに表示している画像を書き出します。",
+    imageDownloadBody: "プレビューに表示している画像をPNG、アニメGIF、アニメWebPで書き出します。",
     imageDownloadReady: "選択中の画像を書き出せます",
     imageDownloadLocked: "画像を生成または選択するとダウンロードできます。",
     downloadPng: "PNG",
@@ -711,6 +711,71 @@ const animationPresetExamples: AnimationPresetExample[] = [
     },
     prompt: "quick attack animation with anticipation, clean slash arc, follow-through, recovery frame, stable full-body silhouette",
     notes: "Preset example: keep weapon trails inside the cell, do not crop the slash, and keep scale consistent."
+  },
+  {
+    id: "hop-bounce",
+    actionName: "walk",
+    previewClassName: "sample-row-walk sample-fast",
+    category: { en: "Hop", ja: "跳ね" },
+    title: { en: "Hop Bounce", ja: "ホップバウンス" },
+    summary: {
+      en: "Light bouncing motion for small creatures or playful characters.",
+      ja: "小さなキャラや軽い雰囲気に向いた跳ねる動きです。"
+    },
+    prompt: "short hop bounce loop with clear squash-and-stretch feel, stable landing, centered full-body silhouette",
+    notes: "Preset example: make the rise and landing readable, keep the baseline stable after each hop, and do not crop the feet."
+  },
+  {
+    id: "dash-start",
+    actionName: "walk",
+    previewClassName: "sample-row-walk sample-fast sample-reverse",
+    category: { en: "Move", ja: "移動" },
+    title: { en: "Dash Start", ja: "ダッシュ開始" },
+    summary: {
+      en: "Fast lean-forward start with readable acceleration frames.",
+      ja: "前傾と加速が読める、素早い走り出しです。"
+    },
+    prompt: "dash start animation with forward lean, quick foot push-off, acceleration smear kept inside the cell, recovery to run-ready pose",
+    notes: "Preset example: keep the character inside every cell, make the first push-off frame clear, and avoid stretching beyond the frame boundary."
+  },
+  {
+    id: "guard-stance",
+    actionName: "idle",
+    previewClassName: "sample-row-idle sample-slow",
+    category: { en: "Guard", ja: "防御" },
+    title: { en: "Guard Stance", ja: "ガード姿勢" },
+    summary: {
+      en: "Defensive ready pose with small breathing and equipment sway.",
+      ja: "防御姿勢を保ちつつ、呼吸と装備だけが少し動きます。"
+    },
+    prompt: "guard stance loop with raised arms or shield-ready posture, subtle breathing, small equipment sway, stable feet",
+    notes: "Preset example: keep the pose defensive but readable, with minimal body travel and no cropped hands or weapon."
+  },
+  {
+    id: "hit-react",
+    actionName: "attack",
+    previewClassName: "sample-row-attack sample-fast sample-reverse",
+    category: { en: "React", ja: "リアクション" },
+    title: { en: "Hit React", ja: "被弾リアクション" },
+    summary: {
+      en: "Brief recoil, impact pose, and return to balance.",
+      ja: "短いのけぞり、衝撃姿勢、体勢復帰の流れです。"
+    },
+    prompt: "hit reaction animation with brief recoil, clear impact pose, small recovery step, no gore, stable full-body read",
+    notes: "Preset example: make the recoil readable without moving the character out of the cell; avoid extreme deformation."
+  },
+  {
+    id: "victory-cheer",
+    actionName: "cast",
+    previewClassName: "sample-row-cast sample-slow",
+    category: { en: "Emote", ja: "感情" },
+    title: { en: "Victory Cheer", ja: "勝利ポーズ" },
+    summary: {
+      en: "Celebration lift, sparkle beat, and relaxed return pose.",
+      ja: "持ち上げ、きらめき、戻り姿勢がある勝利モーションです。"
+    },
+    prompt: "victory cheer animation with small celebratory lift, bright sparkle beat, happy readable pose, and relaxed return frame",
+    notes: "Preset example: keep celebration effects simple, contained inside each cell, and separated from the character silhouette."
   }
 ];
 
@@ -1779,9 +1844,36 @@ function App() {
     if (!selected || selectedIsAnimationResult) return;
     const blob = dataUrlToBlob(selected.dataUrl);
     const extension = blob.type.includes("webp") ? "webp" : blob.type.includes("jpeg") ? "jpg" : "png";
-    const baseName = selected.name.replace(/\.[^.]+$/, "") || "image-cockpit-result";
-    const safeName = baseName.replace(/[<>:"/\\|?*\x00-\x1F]+/g, "-");
-    downloadBlob(blob, `${safeName}.${extension}`);
+    downloadBlob(blob, `${selectedImageSafeBaseName(selected)}.${extension}`);
+  }
+
+  async function downloadSelectedImageAnimation(format: "gif" | "webp") {
+    if (!selected || selectedIsAnimationResult) return;
+    const image = await loadImage(selected.dataUrl);
+    const width = image.naturalWidth || image.width;
+    const height = image.naturalHeight || image.height;
+    const frameId = `${selected.id}-still-frame`;
+    const frame: SpriteFrame = {
+      id: frameId,
+      name: selected.name,
+      dataUrl: selected.dataUrl,
+      width,
+      height,
+      sourceId: selected.id,
+      index: 0
+    };
+    const action: SpriteAction = {
+      name: selectedImageSafeBaseName(selected),
+      fps: 1,
+      loop: true,
+      frameIds: [frameId],
+      cell: { width, height },
+      anchor: { x: Math.round(width / 2), y: Math.round(height * 0.92) }
+    };
+    const blob = format === "gif"
+      ? await createGifBlob([frame], action)
+      : await createAnimatedWebpBlob([frame], action);
+    downloadBlob(blob, `${action.name}.${format}`);
   }
 
   async function addSelectedAsFrame() {
@@ -2601,6 +2693,14 @@ function App() {
                     <FileImage size={16} aria-hidden="true" />
                     {copy.downloadPng}
                   </button>
+                  <button onClick={() => void downloadSelectedImageAnimation("gif")} disabled={!selectedImageDownloadReady}>
+                    <Film size={16} aria-hidden="true" />
+                    {copy.animatedGif}
+                  </button>
+                  <button onClick={() => void downloadSelectedImageAnimation("webp")} disabled={!selectedImageDownloadReady}>
+                    <FileArchive size={16} aria-hidden="true" />
+                    {copy.animatedWebP}
+                  </button>
                 </div>
               </div>
             </section>
@@ -2879,6 +2979,11 @@ function PanelTitle({ index, title }: { index: string; title: string }) {
       <strong>{index}. {title}</strong>
     </div>
   );
+}
+
+function selectedImageSafeBaseName(item: Pick<HistoryItem, "name">) {
+  const baseName = item.name.replace(/\.[^.]+$/, "") || "image-cockpit-result";
+  return baseName.replace(/[<>:"/\\|?*\x00-\x1F]+/g, "-");
 }
 
 function SectionLabel({ title }: { title: string }) {

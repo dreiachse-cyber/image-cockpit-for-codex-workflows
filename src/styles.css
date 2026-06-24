@@ -539,7 +539,7 @@ button {
 .image-download-body {
   min-height: 0;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(150px, 210px);
+  grid-template-columns: minmax(0, 1fr) minmax(300px, 390px);
   align-items: end;
   gap: 10px;
   overflow: auto;
@@ -558,6 +558,14 @@ button {
 .image-download-grid {
   grid-column: 2;
   grid-row: 1 / span 2;
+  align-self: center;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.image-download-grid button {
+  justify-content: center;
+  min-width: 0;
+  padding: 0 8px;
 }
 
 .animation-source-status {
@@ -1931,6 +1939,8 @@ button:disabled {
 
 .animation-sample-sprite {
   --sample-y: 0%;
+  --sample-duration: 0.92s;
+  --sample-direction: normal;
   width: min(76%, 148px);
   aspect-ratio: 1 / 1;
   border-radius: 4px;
@@ -1940,7 +1950,8 @@ button:disabled {
   background-position: 0 var(--sample-y);
   background-size: 800% 400%;
   image-rendering: pixelated;
-  animation: animation-sample-frames 0.92s steps(7) infinite;
+  animation: animation-sample-frames var(--sample-duration) steps(7) infinite;
+  animation-direction: var(--sample-direction);
   box-shadow: 0 8px 22px rgb(23 33 27 / 18%);
 }
 
@@ -1958,6 +1969,18 @@ button:disabled {
 
 .sample-row-attack {
   --sample-y: 100%;
+}
+
+.sample-fast {
+  --sample-duration: 0.62s;
+}
+
+.sample-slow {
+  --sample-duration: 1.25s;
+}
+
+.sample-reverse {
+  --sample-direction: reverse;
 }
 
 @keyframes animation-sample-frames {
