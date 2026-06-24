@@ -123,13 +123,10 @@ try {
   await assertWorkflow({
     label: "Animation Generation",
     route: "Route: Codex Handoff",
-    buttons: ["Upload Pixel Art", "Generate Animation", "Animated GIF", "Animated WebP"],
+    buttons: ["Upload Pixel Art", "Choose Animation", "Generate Animation", "Animated GIF", "Animated WebP"],
     hiddenButtons: ["Import Latest", "Import File", "5-Direction Sheet", "hatch-pet", "5-Direction hatch-pet"],
-    hiddenText: ["Sprite Actions", "Export Sprite", "Generation Method"],
-    requiredText: ["1. Upload Pixel Art", "2. Choose Motion", "3. Generate", "4. Download", "Preset", "Walk Cycle", "Hop Bounce", "Fixed cells: 256 x 256 px", "5-direction chroma-key sprite sheet"],
-    preExerciseButtonChecks: [
-      { button: "Walk Cycle Move", expectedText: "Walk Cycle" }
-    ],
+    hiddenText: ["Sprite Actions", "Export Sprite", "Generation Method", "Hop Bounce", "Victory Cheer"],
+    requiredText: ["1. Upload Pixel Art", "2. Choose Motion", "3. Generate", "4. Download", "Selected animation", "Choose Animation", "Fixed cells: 256 x 256 px", "5-direction chroma-key sprite sheet"],
     exerciseButton: "Generate Animation",
     expectedAfterExercise: "Animation generated",
     expectedAfterExerciseText: ["Animation frames ready", "Generated from", "Directional Previews", "GIF Preview", "Sprite Sheet Preview", "Animated WebP", "256 x 256 px"],
@@ -221,36 +218,40 @@ async function assertAnimationPresetExamples() {
   await waitForEval(() => `document.body.innerText.includes("Animation Generation")`, "Animation Generation for preset examples");
   const noFreePrompt = await evaluate(`document.querySelectorAll(".animation-step textarea").length === 0`);
   assert(noFreePrompt, "Animation Generation should not expose free-form motion prompt textareas");
+  const selectorSummary = await evaluate(`document.querySelector(".selected-animation-card")?.innerText.replace(/\\s+/g, " ").trim() || ""`);
+  assert(selectorSummary.includes("Selected animation"), `Animation card should show selected animation summary, got ${selectorSummary}`);
+  assert(selectorSummary.length > "Selected animation".length, `Animation card should include the selected animation details, got ${selectorSummary}`);
+  assert(!selectorSummary.includes("Hop Bounce"), "Animation card should not show unselected animation options");
   const triggerPlacement = await evaluate(`(() => {
-    const presets = document.querySelector(".motion-presets");
+    const selectedCard = document.querySelector(".selected-animation-card");
     const trigger = document.querySelector(".animation-preset-example-trigger");
-    return Boolean(trigger && presets && presets.nextElementSibling === trigger);
+    return Boolean(trigger && selectedCard && selectedCard.nextElementSibling === trigger);
   })()`);
-  assert(triggerPlacement, "Animation Preset Examples trigger should sit directly below the preset buttons");
+  assert(triggerPlacement, "Choose Animation trigger should sit directly below the selected animation card");
 
-  await clickButtonByText("Preset Examples");
-  await waitForEval(() => `document.querySelector(".animation-preset-modal")?.innerText.includes("Idle Breathing Loop")`, "Animation Preset Examples modal");
+  await clickButtonByText("Choose Animation");
+  await waitForEval(() => `document.querySelector(".animation-preset-modal")?.innerText.includes("Idle Breathing Loop")`, "Choose Animation modal");
   const snapshot = await pageSnapshot();
-  assert(snapshot.text.includes("Pick an animated sample"), "Animation Preset Examples intro should be visible");
-  assert(snapshot.buttons.includes("Use Preset"), "Animation Preset Examples should expose use buttons");
-  assert(snapshot.animationPresetSampleSprites === 9, `Animation Preset Examples should show 9 animated sprite samples, got ${snapshot.animationPresetSampleSprites}`);
-  assert(snapshot.text.includes("Victory Cheer"), "Animation Preset Examples should include the added preset cards");
-  assert(snapshot.promptRawTextBlocks === 0, `Animation Preset Examples should hide raw prompt text, got ${snapshot.promptRawTextBlocks} raw blocks`);
+  assert(snapshot.text.includes("Pick an animated sample"), "Choose Animation intro should be visible");
+  assert(snapshot.buttons.includes("Select Animation"), "Choose Animation should expose select buttons");
+  assert(snapshot.animationPresetSampleSprites === 9, `Choose Animation should show 9 animated sprite samples, got ${snapshot.animationPresetSampleSprites}`);
+  assert(snapshot.text.includes("Victory Cheer"), "Choose Animation should include the added animation cards");
+  assert(snapshot.promptRawTextBlocks === 0, `Choose Animation should hide raw prompt text, got ${snapshot.promptRawTextBlocks} raw blocks`);
   const animationName = await evaluate(`getComputedStyle(document.querySelector(".animation-sample-sprite")).animationName`);
-  assert(animationName && animationName !== "none", "Animation Preset Examples samples should be animated");
+  assert(animationName && animationName !== "none", "Choose Animation samples should be animated");
   await maybeCapture("animation-preset-examples-modal");
 
-  await clickButtonByText("Use Preset");
+  await clickButtonByText("Select Animation");
   await waitForEval(
-    () => `document.body.innerText.includes("Animation preset loaded")`,
-    "Animation preset loaded"
+    () => `document.body.innerText.includes("Animation selected")`,
+    "Animation selected"
   );
-  const selectedPreset = await evaluate(`document.querySelector(".motion-presets button.active")?.innerText.replace(/\\s+/g, " ").trim() || ""`);
-  assert(selectedPreset.includes("Idle Breathing Loop"), `Use Preset should select Idle Breathing Loop, got ${selectedPreset}`);
+  const selectedPreset = await evaluate(`document.querySelector(".selected-animation-card")?.innerText.replace(/\\s+/g, " ").trim() || ""`);
+  assert(selectedPreset.includes("Idle Breathing Loop"), `Select Animation should update the selected animation card, got ${selectedPreset}`);
   const stillNoFreePrompt = await evaluate(`document.querySelectorAll(".animation-step textarea").length === 0`);
-  assert(stillNoFreePrompt, "Use Preset should keep free-form motion prompt textareas hidden");
+  assert(stillNoFreePrompt, "Select Animation should keep free-form motion prompt textareas hidden");
   const modalClosed = await evaluate(`!document.querySelector(".animation-preset-modal")`);
-  assert(modalClosed, "Use Preset should close the Animation Preset Examples modal");
+  assert(modalClosed, "Select Animation should close the Choose Animation modal");
 
   await selectWorkflowTab("Pixel Art Generation");
 }

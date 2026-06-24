@@ -320,12 +320,13 @@ const uiCopy = {
     uploadPixelArt: "Upload Pixel Art",
     selectedSource: "Selected source",
     noAnimationSource: "No pixel-art source uploaded yet",
-    motionPreset: "Preset",
-    animationPresetExamples: "Preset Examples",
-    animationPresetExamplesTitle: "Animation Preset Examples",
-    animationPresetExamplesIntro: "Pick an animated sample, then load the matching motion preset.",
-    useAnimationPreset: "Use Preset",
-    animationPresetExampleApplied: "Animation preset loaded",
+    motionPreset: "Selected animation",
+    chooseAnimation: "Choose Animation",
+    animationPresetExamples: "Choose Animation",
+    animationPresetExamplesTitle: "Choose Animation",
+    animationPresetExamplesIntro: "Pick an animated sample, then use it as the motion preset.",
+    useAnimationPreset: "Select Animation",
+    animationPresetExampleApplied: "Animation selected",
     generationMayTakeMinutes: "Generation can take a few minutes.",
     animationReady: "Animation frames ready",
     animatedGif: "Animated GIF",
@@ -496,12 +497,13 @@ const uiCopy = {
     uploadPixelArt: "ピクセルアートをアップロード",
     selectedSource: "選択中の元画像",
     noAnimationSource: "まだ元になるピクセルアートがありません",
-    motionPreset: "プリセット",
-    animationPresetExamples: "プリセット例",
-    animationPresetExamplesTitle: "アニメーションプリセット例",
-    animationPresetExamplesIntro: "動いているサンプルを見て、対応するプリセットを入力できます。",
-    useAnimationPreset: "このプリセットを使う",
-    animationPresetExampleApplied: "アニメーションプリセットを入力しました",
+    motionPreset: "選択中のアニメーション",
+    chooseAnimation: "アニメーションを選ぶ",
+    animationPresetExamples: "アニメーションを選ぶ",
+    animationPresetExamplesTitle: "アニメーションを選ぶ",
+    animationPresetExamplesIntro: "動いているサンプルを見て、使うアニメーションを選びます。",
+    useAnimationPreset: "このアニメーションを選ぶ",
+    animationPresetExampleApplied: "アニメーションを選択しました",
     generationMayTakeMinutes: "生成は数分かかります",
     animationReady: "アニメーションframes準備完了",
     animatedGif: "アニメGIF",
@@ -2670,22 +2672,15 @@ function App() {
                   <strong>{copy.animationStepMotionTitle}</strong>
                   <span>{copy.animationStepMotionBody}</span>
                 </div>
-                <small className="step-kicker">{copy.motionPreset}</small>
-                <div className="motion-presets motion-preset-library">
-                  {animationPresetExamples.map((example) => (
-                    <button
-                      key={example.id}
-                      className={example.id === selectedAnimationPreset.id ? "active" : ""}
-                      onClick={() => selectAnimationPreset(example)}
-                    >
-                      <span>{example.title[language]}</span>
-                      <small>{example.category[language]}</small>
-                    </button>
-                  ))}
+                <div className="selected-animation-card">
+                  <small className="step-kicker">{copy.motionPreset}</small>
+                  <strong>{selectedAnimationPreset.title[language]}</strong>
+                  <span>{selectedAnimationPreset.summary[language]}</span>
+                  <em>{selectedAnimationPreset.category[language]}</em>
                 </div>
                 <button className="prompt-example-trigger animation-preset-example-trigger" onClick={() => setShowAnimationPresetExamples(true)}>
                   <Film size={15} aria-hidden="true" />
-                  {copy.animationPresetExamples}
+                  {copy.chooseAnimation}
                 </button>
               </section>
 

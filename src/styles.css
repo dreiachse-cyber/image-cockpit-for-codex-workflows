@@ -777,50 +777,37 @@ button {
   line-height: 1.35;
 }
 
-.motion-presets {
+.selected-animation-card {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 6px;
-}
-
-.motion-presets button {
-  min-height: 30px;
+  gap: 4px;
   border: 1px solid var(--line);
   border-radius: 5px;
   background: #f8faf8;
-  color: #28342c;
+  padding: 9px 10px;
+}
+
+.selected-animation-card strong {
+  color: #17211b;
+  font-size: 14px;
+  line-height: 1.2;
+}
+
+.selected-animation-card span {
+  color: #516258;
   font-size: 12px;
-  font-weight: 700;
-  cursor: pointer;
+  line-height: 1.35;
 }
 
-.motion-preset-library {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-}
-
-.motion-preset-library button {
-  min-height: 50px;
-  display: grid;
-  align-content: center;
-  gap: 3px;
-  padding: 6px;
-  line-height: 1.15;
-}
-
-.motion-preset-library button small {
-  color: #66746b;
-  font-size: 10px;
-  font-weight: 700;
-}
-
-.motion-presets button.active {
-  border-color: var(--green);
+.selected-animation-card em {
+  justify-self: start;
+  border: 1px solid #b9dbc6;
+  border-radius: 999px;
   background: var(--green-soft);
   color: #0f5d31;
-}
-
-.motion-presets button.active small {
-  color: #0f5d31;
+  padding: 2px 7px;
+  font-size: 10px;
+  font-style: normal;
+  font-weight: 800;
 }
 
 .motion-mode-tabs {
