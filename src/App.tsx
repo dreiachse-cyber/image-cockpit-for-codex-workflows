@@ -150,7 +150,6 @@ interface AnimationDirectionPreview {
   id: string;
   label: string;
   gifUrl: string;
-  webpUrl: string;
 }
 
 interface PendingCodexJob {
@@ -1336,23 +1335,17 @@ function App() {
 
     Promise.all(
       selectedAnimationPreviewActions.map(async ({ directionId, action }) => {
-        const [gifBlob, webpBlob] = await Promise.all([
-          createGifBlob(frames, action),
-          createAnimatedWebpBlob(frames, action)
-        ]);
+        const gifBlob = await createGifBlob(frames, action);
         const gifUrl = URL.createObjectURL(gifBlob);
-        const webpUrl = URL.createObjectURL(webpBlob);
         if (cancelled) {
           URL.revokeObjectURL(gifUrl);
-          URL.revokeObjectURL(webpUrl);
           return null;
         }
-        objectUrls.push(gifUrl, webpUrl);
+        objectUrls.push(gifUrl);
         return {
           id: directionId,
           label: animationDirectionLabel(directionId, language),
-          gifUrl,
-          webpUrl
+          gifUrl
         };
       })
     )
@@ -3038,14 +3031,11 @@ function App() {
                 <div className={`result-preview-frame ${selectedAnimationExportReady ? "with-animation-previews" : ""}`}>
                   {selectedAnimationExportReady ? (
                     <div className="animation-composite-preview">
-                      <div className="animation-preview-card">
-                        <strong>{copy.previewSpriteSheet}</strong>
-                        <div className="animation-preview sheet-preview">
-                          <img className="result-preview-image" src={selected.dataUrl} alt="" />
-                        </div>
-                      </div>
                       <div className="animation-preview-card direction-preview-card">
-                        <strong>{copy.directionalPreviews}</strong>
+                        <div className="animation-preview-card-heading">
+                          <strong>{copy.directionalPreviews}</strong>
+                          <small>{copy.previewGif}</small>
+                        </div>
                         {isAnimationPreviewBuilding ? (
                           <div className="animation-preview compact-animation-preview">{copy.animationPreviewsBuilding}</div>
                         ) : animationDirectionPreviews.length > 0 ? (
@@ -3053,19 +3043,8 @@ function App() {
                             {animationDirectionPreviews.map((preview) => (
                               <div className="direction-preview-row" key={preview.id}>
                                 <span>{preview.label}</span>
-                                <div className="direction-preview-media">
-                                  <div className="direction-preview-slot">
-                                    <small>{copy.previewGif}</small>
-                                    <div className="animation-preview compact-animation-preview">
-                                      <img src={preview.gifUrl} alt="" />
-                                    </div>
-                                  </div>
-                                  <div className="direction-preview-slot">
-                                    <small>{copy.previewWebP}</small>
-                                    <div className="animation-preview compact-animation-preview">
-                                      <img src={preview.webpUrl} alt="" />
-                                    </div>
-                                  </div>
+                                <div className="animation-preview direction-gif-preview">
+                                  <img src={preview.gifUrl} alt="" />
                                 </div>
                               </div>
                             ))}
@@ -3073,6 +3052,12 @@ function App() {
                         ) : (
                           <div className="animation-preview compact-animation-preview">{copy.noFrames}</div>
                         )}
+                      </div>
+                      <div className="animation-preview-card sprite-sheet-preview-card">
+                        <strong>{copy.previewSpriteSheet}</strong>
+                        <div className="animation-preview sheet-preview">
+                          <img className="result-preview-image" src={selected.dataUrl} alt="" />
+                        </div>
                       </div>
                     </div>
                   ) : (

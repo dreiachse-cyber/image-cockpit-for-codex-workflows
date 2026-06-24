@@ -137,11 +137,11 @@ try {
     ],
     exerciseButton: "Generate Animation",
     expectedAfterExercise: "Animation generated",
-    expectedAfterExerciseText: ["Animation frames ready", "Generated from", "Directional Previews", "GIF Preview", "WebP Preview", "Sprite Sheet Preview", "Animated WebP", "512x512"],
+    expectedAfterExerciseText: ["Animation frames ready", "Generated from", "Directional Previews", "GIF Preview", "Sprite Sheet Preview", "Animated WebP", "512x512"],
     postExerciseButtons: ["Animated WebP", "Sprite Sheet"],
     expectedCanvasPreviewModeAfterExercise: "result",
-    expectedPreviewImages: 11,
-    expectedAnimationPreviewImagesAfterExercise: 11,
+    expectedPreviewImages: 6,
+    expectedAnimationPreviewImagesAfterExercise: 6,
     expectedDirectionPreviewCount: 5,
     reloadAfterExercise: true
   });
