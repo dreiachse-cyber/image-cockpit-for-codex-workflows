@@ -139,6 +139,13 @@ interface AnimationPresetExample {
   notes: string;
 }
 
+interface AnimationDirectionPreview {
+  id: string;
+  label: string;
+  gifUrl: string;
+  webpUrl: string;
+}
+
 interface PendingCodexJob {
   id: string;
   path: string;
@@ -1026,6 +1033,8 @@ function App() {
   const [isBusy, setIsBusy] = useState(false);
   const [codexJobs, setCodexJobs] = useState<CodexJobQueueItem[]>(() => loadPendingCodexJobs());
   const gifPreviewUrl = "";
+  const [animationDirectionPreviews, setAnimationDirectionPreviews] = useState<AnimationDirectionPreview[]>([]);
+  const [isAnimationPreviewBuilding, setIsAnimationPreviewBuilding] = useState(false);
   const [animationChromaKey, setAnimationChromaKey] = useState<AnimationChromaKeyName>("green");
   const [imageEditComparison, setImageEditComparison] = useState<ImageEditComparison | null>(null);
   const [codexFailureNotices, setCodexFailureNotices] = useState<CodexFailureNotice[]>([]);
@@ -1103,6 +1112,13 @@ function App() {
     selected && selected.source === "generate" && selectedAnimationFrames.length > 0
   );
   const selectedIsAnimationResult = selectedAnimationExportReady;
+  const selectedAnimationPreviewActions = useMemo(
+    () =>
+      selectedAnimationVariant === "hatch-pet"
+        ? buildHatchPetStatePreviewActions(selectedAnimationAction, selectedAnimationFrames)
+        : buildAnimationDirectionPreviewActions(selectedAnimationAction, selectedAnimationFrames),
+    [selectedAnimationAction, selectedAnimationFrames, selectedAnimationVariant]
+  );
 
   const selectedAnimationSource = useMemo(
     () =>
@@ -1268,6 +1284,62 @@ function App() {
     grid,
     tool
   ]);
+
+  useEffect(() => {
+    if (!selectedAnimationExportReady || selectedAnimationPreviewActions.length === 0) {
+      setAnimationDirectionPreviews([]);
+      setIsAnimationPreviewBuilding(false);
+      return;
+    }
+
+    let cancelled = false;
+    const objectUrls: string[] = [];
+    setAnimationDirectionPreviews([]);
+    setIsAnimationPreviewBuilding(true);
+
+    Promise.all(
+      selectedAnimationPreviewActions.map(async ({ directionId, action }) => {
+        const [gifBlob, webpBlob] = await Promise.all([
+          createGifBlob(frames, action),
+          createAnimatedWebpBlob(frames, action)
+        ]);
+        const gifUrl = URL.createObjectURL(gifBlob);
+        const webpUrl = URL.createObjectURL(webpBlob);
+        if (cancelled) {
+          URL.revokeObjectURL(gifUrl);
+          URL.revokeObjectURL(webpUrl);
+          return null;
+        }
+        objectUrls.push(gifUrl, webpUrl);
+        return {
+          id: directionId,
+          label: animationDirectionLabel(directionId, language),
+          gifUrl,
+          webpUrl
+        };
+      })
+    )
+      .then((previews) => {
+        if (!cancelled) {
+          setAnimationDirectionPreviews(
+            previews.filter((preview): preview is AnimationDirectionPreview => Boolean(preview))
+          );
+        }
+      })
+      .catch(() => {
+        objectUrls.forEach((url) => URL.revokeObjectURL(url));
+        objectUrls.length = 0;
+        if (!cancelled) setAnimationDirectionPreviews([]);
+      })
+      .finally(() => {
+        if (!cancelled) setIsAnimationPreviewBuilding(false);
+      });
+
+    return () => {
+      cancelled = true;
+      objectUrls.forEach((url) => URL.revokeObjectURL(url));
+    };
+  }, [frames, language, selectedAnimationExportReady, selectedAnimationPreviewActions]);
 
   useEffect(() => {
     const runningJobs = codexJobs.filter((job) => job.state === "running");
@@ -1914,10 +1986,7 @@ function App() {
 
   async function exportDirectionalAnimations(format: "gif" | "webp") {
     if (!selectedAnimationExportReady) return;
-    const directionActions = selectedAnimationVariant === "hatch-pet"
-      ? buildHatchPetStatePreviewActions(selectedAnimationAction, selectedAnimationFrames)
-      : buildAnimationDirectionPreviewActions(selectedAnimationAction, selectedAnimationFrames);
-    for (const { directionId, action } of directionActions) {
+    for (const { directionId, action } of selectedAnimationPreviewActions) {
       const blob = format === "gif"
         ? await createGifBlob(frames, action)
         : await createAnimatedWebpBlob(frames, action);
@@ -2749,8 +2818,49 @@ function App() {
               }}
             >
               {previewMode === "result" && selected && (
-                <div className="result-preview-frame">
-                  <img className="result-preview-image" src={selected.dataUrl} alt="" />
+                <div className={`result-preview-frame ${isAnimationWorkflow && selectedAnimationExportReady ? "with-animation-previews" : ""}`}>
+                  {isAnimationWorkflow && selectedAnimationExportReady ? (
+                    <div className="animation-composite-preview">
+                      <div className="animation-preview-card">
+                        <strong>{copy.previewSpriteSheet}</strong>
+                        <div className="animation-preview sheet-preview">
+                          <img className="result-preview-image" src={selected.dataUrl} alt="" />
+                        </div>
+                      </div>
+                      <div className="animation-preview-card direction-preview-card">
+                        <strong>{copy.directionalPreviews}</strong>
+                        {isAnimationPreviewBuilding ? (
+                          <div className="animation-preview compact-animation-preview">{copy.animationPreviewsBuilding}</div>
+                        ) : animationDirectionPreviews.length > 0 ? (
+                          <div className="direction-preview-list">
+                            {animationDirectionPreviews.map((preview) => (
+                              <div className="direction-preview-row" key={preview.id}>
+                                <span>{preview.label}</span>
+                                <div className="direction-preview-media">
+                                  <div className="direction-preview-slot">
+                                    <small>{copy.previewGif}</small>
+                                    <div className="animation-preview compact-animation-preview">
+                                      <img src={preview.gifUrl} alt="" />
+                                    </div>
+                                  </div>
+                                  <div className="direction-preview-slot">
+                                    <small>{copy.previewWebP}</small>
+                                    <div className="animation-preview compact-animation-preview">
+                                      <img src={preview.webpUrl} alt="" />
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="animation-preview compact-animation-preview">{copy.noFrames}</div>
+                        )}
+                      </div>
+                    </div>
+                  ) : (
+                    <img className="result-preview-image" src={selected.dataUrl} alt="" />
+                  )}
                 </div>
               )}
               <canvas

@@ -135,11 +135,12 @@ try {
     ],
     exerciseButton: "Generate Animation",
     expectedAfterExercise: "Animation generated",
-    expectedAfterExerciseText: ["Animation frames ready", "Generated from", "Animated WebP", "512x512"],
+    expectedAfterExerciseText: ["Animation frames ready", "Generated from", "Directional Previews", "GIF Preview", "WebP Preview", "Sprite Sheet Preview", "Animated WebP", "512x512"],
     postExerciseButtons: ["Animated WebP", "Sprite Sheet"],
     expectedCanvasPreviewModeAfterExercise: "result",
-    expectedDownloadPreviewImagesAfterExercise: 0,
-    expectedDirectionPreviewCount: 0,
+    expectedPreviewImages: 11,
+    expectedAnimationPreviewImagesAfterExercise: 11,
+    expectedDirectionPreviewCount: 5,
     reloadAfterExercise: true
   });
   await assertAnimationResultNotEditable();
@@ -513,7 +514,7 @@ async function assertWorkflow({
   expectedAfterExerciseText = [],
   postExerciseButtons = [],
   expectedPreviewImages = 0,
-  expectedDownloadPreviewImagesAfterExercise,
+  expectedAnimationPreviewImagesAfterExercise,
   expectedDirectionPreviewCount = 0,
   expectedCanvasPreviewModeAfterExercise = "",
   expectedAnnotationToolbarVisible = false,
@@ -538,7 +539,7 @@ async function assertWorkflow({
   if (label === "Animation Generation") {
     assert(snapshot.downloadPanelInWorkspace, "Animation Generation should place the download card under the preview workspace");
     assert(!snapshot.downloadPanelInSource, "Animation Generation should not leave the download card in the left source panel");
-    assert(snapshot.animationPreviewImages === 0, "Animation Generation should not show stale download preview images before a selected animation result exists");
+    assert(snapshot.animationPreviewImages === 0, "Animation Generation should not show stale animation preview images before a selected animation result exists");
   } else {
     assert(snapshot.imageDownloadPanelInWorkspace, `${label} should place the image download card under the preview workspace`);
     assert(!snapshot.downloadPanelInSource, `${label} should not put download cards in the left source panel`);
@@ -588,11 +589,11 @@ async function assertWorkflow({
       );
       assert(directionSnapshot.animationSourceStatus.includes("Generated from"), `${label} should show the generated-from source under the preview`);
     }
-    if (typeof expectedDownloadPreviewImagesAfterExercise === "number") {
+    if (typeof expectedAnimationPreviewImagesAfterExercise === "number") {
       const postSnapshot = await pageSnapshot();
       assert(
-        postSnapshot.animationPreviewImages === expectedDownloadPreviewImagesAfterExercise,
-        `${label} should render ${expectedDownloadPreviewImagesAfterExercise} download preview image(s), got ${postSnapshot.animationPreviewImages}`
+        postSnapshot.animationPreviewImages === expectedAnimationPreviewImagesAfterExercise,
+        `${label} should render ${expectedAnimationPreviewImagesAfterExercise} animation preview image(s), got ${postSnapshot.animationPreviewImages}`
       );
       assert(
         postSnapshot.directionPreviewRows === expectedDirectionPreviewCount,

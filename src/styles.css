@@ -1301,6 +1301,61 @@ button:disabled {
   image-rendering: pixelated;
 }
 
+.result-preview-frame.with-animation-previews {
+  display: block;
+  padding: 8px;
+  overflow: auto;
+}
+
+.animation-composite-preview {
+  min-height: 100%;
+  display: grid;
+  grid-template-columns: minmax(190px, 0.72fr) minmax(0, 1.6fr);
+  align-items: stretch;
+  gap: 10px;
+}
+
+.animation-composite-preview .animation-preview-card {
+  min-height: 0;
+}
+
+.animation-composite-preview .animation-preview-card > strong {
+  min-height: 16px;
+}
+
+.animation-composite-preview .direction-preview-list {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  align-content: start;
+}
+
+.animation-composite-preview .direction-preview-media {
+  grid-template-columns: 1fr 1fr;
+}
+
+.animation-composite-preview .animation-preview {
+  min-height: 102px;
+  padding: 6px;
+}
+
+.animation-composite-preview .animation-preview.sheet-preview {
+  min-height: calc(100% - 21px);
+}
+
+.animation-composite-preview .animation-preview.sheet-preview img {
+  max-width: 100%;
+  max-height: 100%;
+}
+
+.animation-composite-preview .compact-animation-preview {
+  min-height: 82px;
+  padding: 4px;
+}
+
+.animation-composite-preview .compact-animation-preview img {
+  max-width: 100%;
+  max-height: 72px;
+}
+
 .split-popover {
   position: absolute;
   top: 20px;
@@ -2122,6 +2177,14 @@ button:disabled {
     grid-template-columns: 1fr;
   }
 
+  .animation-composite-preview {
+    grid-template-columns: 1fr;
+  }
+
+  .animation-composite-preview .direction-preview-list {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
   .sprite-bench {
     grid-template-rows: auto auto auto;
   }
@@ -2186,6 +2249,14 @@ button:disabled {
 
   .animation-download-panel .direction-preview-list {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .animation-composite-preview .direction-preview-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .animation-composite-preview .direction-preview-media {
+    grid-template-columns: 1fr;
   }
 
   .animation-source-status,
