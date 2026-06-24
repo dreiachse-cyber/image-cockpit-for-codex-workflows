@@ -1956,6 +1956,8 @@ button:disabled {
 }
 
 .animation-sample-sprite {
+  --sample-image: url("/samples/forest-mage-sheet.png");
+  --sample-sheet-rows: 400%;
   --sample-y: 0%;
   --sample-duration: 0.92s;
   --sample-direction: normal;
@@ -1963,10 +1965,10 @@ button:disabled {
   aspect-ratio: 1 / 1;
   border-radius: 4px;
   background-color: #050807;
-  background-image: url("/samples/forest-mage-sheet.png");
+  background-image: var(--sample-image);
   background-repeat: no-repeat;
   background-position: 0 var(--sample-y);
-  background-size: 800% 400%;
+  background-size: 800% var(--sample-sheet-rows);
   image-rendering: pixelated;
   animation: animation-sample-frames var(--sample-duration) steps(7) infinite;
   animation-direction: var(--sample-direction);
@@ -1987,6 +1989,12 @@ button:disabled {
 
 .sample-row-attack {
   --sample-y: 100%;
+}
+
+.sample-run-sheet {
+  --sample-image: url("/samples/run-cycle-sheet.png");
+  --sample-sheet-rows: 500%;
+  --sample-y: 50%;
 }
 
 .sample-fast {

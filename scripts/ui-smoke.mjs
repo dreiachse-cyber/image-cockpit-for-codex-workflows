@@ -236,6 +236,17 @@ async function assertAnimationPresetExamples() {
   assert(snapshot.buttons.includes("Select Animation"), "Choose Animation should expose select buttons");
   assert(snapshot.animationPresetSampleSprites === 10, `Choose Animation should show 10 animated sprite samples, got ${snapshot.animationPresetSampleSprites}`);
   assert(snapshot.text.includes("Run Cycle"), "Choose Animation should include the Run Cycle animation card");
+  const runCycleUsesGeneratedSheet = await evaluate(`(() => {
+    const cards = [...document.querySelectorAll(".animation-preset-card")];
+    const card = cards.find((item) => item.innerText.includes("Run Cycle"));
+    const sprite = card?.querySelector(".animation-sample-sprite");
+    if (!sprite) return false;
+    const style = getComputedStyle(sprite);
+    return sprite.classList.contains("sample-run-sheet")
+      && style.backgroundImage.includes("run-cycle-sheet.png")
+      && style.backgroundSize.includes("500%");
+  })()`);
+  assert(runCycleUsesGeneratedSheet, "Run Cycle card should use the generated run-cycle sprite sheet sample");
   assert(snapshot.text.includes("Victory Cheer"), "Choose Animation should include the added animation cards");
   assert(snapshot.promptRawTextBlocks === 0, `Choose Animation should hide raw prompt text, got ${snapshot.promptRawTextBlocks} raw blocks`);
   const animationName = await evaluate(`getComputedStyle(document.querySelector(".animation-sample-sprite")).animationName`);

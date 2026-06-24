@@ -743,7 +743,7 @@ const animationPresetExamples: AnimationPresetExample[] = [
   {
     id: "run-cycle",
     actionName: "run",
-    previewClassName: "sample-row-walk sample-run",
+    previewClassName: "sample-run-sheet sample-run",
     category: { en: "Move", ja: "移動" },
     title: { en: "Run Cycle", ja: "走行ループ" },
     summary: {
