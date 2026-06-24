@@ -398,7 +398,10 @@ function checkWorkflowIds() {
     "5-Direction hatch-pet",
     "Creates 5 files",
     "2. Choose Motion",
-    "Additional Prompt (optional)",
+    "Walk Cycle",
+    "Hop Bounce",
+    "Fixed cells: 256 x 256 px",
+    "Animation Generation should not expose free-form motion prompt textareas",
     "Preset Examples",
     "Animation Preset Examples",
     "Animation Preset Examples modal",
@@ -443,9 +446,9 @@ function checkWorkflowIds() {
     "animationSourceStatus",
     "persisted generated-from source after reload",
     "regenerated animation previews after reload",
-    "512x512",
+    "256 x 256 px",
     "persisted animation frames after reload",
-    "persisted 512x512 frame size after reload"
+    "persisted 256 x 256 px frame size after reload"
   ].forEach((marker) => {
     if (!uiSmokeText.includes(marker)) {
       failures.push(`UI smoke should cover workspace workflow review: ${marker}`);

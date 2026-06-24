@@ -794,9 +794,32 @@ button {
   cursor: pointer;
 }
 
+.motion-preset-library {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.motion-preset-library button {
+  min-height: 50px;
+  display: grid;
+  align-content: center;
+  gap: 3px;
+  padding: 6px;
+  line-height: 1.15;
+}
+
+.motion-preset-library button small {
+  color: #66746b;
+  font-size: 10px;
+  font-weight: 700;
+}
+
 .motion-presets button.active {
   border-color: var(--green);
   background: var(--green-soft);
+  color: #0f5d31;
+}
+
+.motion-presets button.active small {
   color: #0f5d31;
 }
 

@@ -126,18 +126,17 @@ try {
     buttons: ["Upload Pixel Art", "5-Direction Sheet", "hatch-pet", "5-Direction hatch-pet", "Generate Animation", "Animated GIF", "Animated WebP"],
     hiddenButtons: ["Import Latest", "Import File"],
     hiddenText: ["Sprite Actions", "Export Sprite"],
-    requiredText: ["1. Upload Pixel Art", "Generation Method", "2. Choose Motion", "3. Generate", "4. Download", "Motion Prompt", "Prompt", "Preset", "5-direction chroma-key sprite sheet"],
+    requiredText: ["1. Upload Pixel Art", "Generation Method", "2. Choose Motion", "3. Generate", "4. Download", "Preset", "Walk Cycle", "Hop Bounce", "Fixed cells: 256 x 256 px", "5-direction chroma-key sprite sheet"],
     preExerciseButtonChecks: [
       { button: "hatch-pet", expectedText: "hatch-pet locks the atlas" },
       { button: "5-Direction hatch-pet", expectedText: "Creates 5 files" },
       { button: "5-Direction hatch-pet", expectedText: "Generate five separate hatch-pet atlases" },
-      { button: "5-Direction Sheet", expectedText: "5-direction chroma-key sprite sheet" },
-      { button: "Preset", expectedText: "Additional Prompt (optional)" },
-      { button: "Prompt", expectedText: "Motion Prompt" }
+      { button: "5-Direction Sheet", expectedText: "Fixed cells: 256 x 256 px" },
+      { button: "Walk Cycle Move", expectedText: "Walk Cycle" }
     ],
     exerciseButton: "Generate Animation",
     expectedAfterExercise: "Animation generated",
-    expectedAfterExerciseText: ["Animation frames ready", "Generated from", "Directional Previews", "GIF Preview", "Sprite Sheet Preview", "Animated WebP", "512x512"],
+    expectedAfterExerciseText: ["Animation frames ready", "Generated from", "Directional Previews", "GIF Preview", "Sprite Sheet Preview", "Animated WebP", "256 x 256 px"],
     postExerciseButtons: ["Animated WebP", "Sprite Sheet"],
     expectedCanvasPreviewModeAfterExercise: "result",
     expectedPreviewImages: 6,
@@ -224,8 +223,8 @@ async function assertPromptExamples() {
 async function assertAnimationPresetExamples() {
   await selectWorkflowTab("Animation Generation");
   await waitForEval(() => `document.body.innerText.includes("Animation Generation")`, "Animation Generation for preset examples");
-  await clickButtonByText("Preset");
-  await waitForEval(() => `document.body.innerText.includes("Additional Prompt (optional)")`, "Animation preset tab");
+  const noFreePrompt = await evaluate(`document.querySelectorAll(".animation-step textarea").length === 0`);
+  assert(noFreePrompt, "Animation Generation should not expose free-form motion prompt textareas");
   const triggerPlacement = await evaluate(`(() => {
     const presets = document.querySelector(".motion-presets");
     const trigger = document.querySelector(".animation-preset-example-trigger");
@@ -251,9 +250,9 @@ async function assertAnimationPresetExamples() {
     "Animation preset loaded"
   );
   const selectedPreset = await evaluate(`document.querySelector(".motion-presets button.active")?.innerText.replace(/\\s+/g, " ").trim() || ""`);
-  assert(selectedPreset === "idle", `Use Preset should select idle, got ${selectedPreset}`);
-  const loadedPrompt = await evaluate(`document.querySelector(".animation-step textarea")?.value || ""`);
-  assert(loadedPrompt.includes("idle breathing loop"), "Use Preset should load the preset motion prompt");
+  assert(selectedPreset.includes("Idle Breathing Loop"), `Use Preset should select Idle Breathing Loop, got ${selectedPreset}`);
+  const stillNoFreePrompt = await evaluate(`document.querySelectorAll(".animation-step textarea").length === 0`);
+  assert(stillNoFreePrompt, "Use Preset should keep free-form motion prompt textareas hidden");
   const modalClosed = await evaluate(`!document.querySelector(".animation-preset-modal")`);
   assert(modalClosed, "Use Preset should close the Animation Preset Examples modal");
 
@@ -633,7 +632,7 @@ async function assertWorkflow({
       await selectWorkflowTab(label);
       await waitForEval(() => `document.body.innerText.includes("Animation frames ready")`, `${label} persisted animation frames after reload`);
       await waitForEval(() => `document.body.innerText.includes("Generated from")`, `${label} persisted generated-from source after reload`);
-      await waitForEval(() => `document.body.innerText.includes("512x512")`, `${label} persisted 512x512 frame size after reload`);
+      await waitForEval(() => `document.body.innerText.includes("256 x 256 px")`, `${label} persisted 256 x 256 px frame size after reload`);
       if (expectedPreviewImages > 0) {
         await waitForEval(
           () => `document.querySelectorAll(".animation-preview img").length >= ${expectedPreviewImages}`,
@@ -932,8 +931,8 @@ if (job.workflowMode !== "sprite-generate") {
 
 const columns = Number(job.spriteContext?.grid?.columns || 8);
 const rows = Number(job.spriteContext?.grid?.rows || 5);
-const cellWidth = Number(job.spriteContext?.cell?.width || 512);
-const cellHeight = Number(job.spriteContext?.cell?.height || 512);
+const cellWidth = Number(job.spriteContext?.cell?.width || 256);
+const cellHeight = Number(job.spriteContext?.cell?.height || 256);
 const width = columns * cellWidth;
 const height = rows * cellHeight;
 const chroma = job.spriteContext?.chromaKey === "magenta" ? [255, 0, 255, 255] : [0, 255, 0, 255];

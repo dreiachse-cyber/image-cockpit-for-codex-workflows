@@ -147,7 +147,7 @@ async function runManualHandoffSmoke() {
       cell: { width: 512, height: 512 },
       chromaKey: "green",
       spriteVariant: "standard",
-      directions: ["front", "back", "back three-quarter", "front three-quarter", "side"]
+      directions: ["front", "front three-quarter", "side", "back three-quarter", "back"]
     });
     const spriteGenerateJobJson = JSON.parse(await readFile(spriteGenerateJob.path, "utf8"));
     assert(spriteGenerateJobJson.workflowMode === "sprite-generate", "sprite generation job should include workflowMode");
@@ -211,7 +211,7 @@ async function runManualHandoffSmoke() {
       cell: { width: 192, height: 208 },
       chromaKey: "green",
       spriteVariant: "directional-hatch-pet",
-      directions: ["front", "back", "back three-quarter", "front three-quarter", "side"]
+      directions: ["front", "front three-quarter", "side", "back three-quarter", "back"]
     });
     const directionalHatchPetJobJson = JSON.parse(await readFile(directionalHatchPetJob.path, "utf8"));
     assert(directionalHatchPetJobJson.workflowMode === "sprite-generate", "directional hatch-pet job should use sprite generation workflow");

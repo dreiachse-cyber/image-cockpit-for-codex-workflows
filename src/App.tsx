@@ -71,13 +71,16 @@ const SHOW_LOW_PRIORITY_CONTROLS = false;
 const SHOW_SPRITE_ACTIONS_PANEL = false;
 const ANIMATION_FRAME_COUNT = 8;
 const ANIMATION_DIRECTION_COUNT = 5;
-const MIN_ANIMATION_CELL_SIZE = 512;
+const ANIMATION_CELL_SIZE = 256;
+const MIN_ANIMATION_CELL_SIZE = ANIMATION_CELL_SIZE;
 const MAX_ACTIVE_CODEX_JOBS = 2;
 export const INITIAL_HISTORY_RENDER_COUNT = 100;
 export const HISTORY_RENDER_BATCH_SIZE = 20;
 const HISTORY_SCROLL_LOAD_THRESHOLD_PX = 160;
 const ANIMATION_SHEET_GRID: GridSettings = { columns: ANIMATION_FRAME_COUNT, rows: ANIMATION_DIRECTION_COUNT, gutter: 0 };
-const ANIMATION_DIRECTIONS = ["front", "back", "back three-quarter", "front three-quarter", "side"];
+const ANIMATION_DIRECTIONS = ["front", "front three-quarter", "side", "back three-quarter", "back"];
+const STANDARD_ANIMATION_CELL: SpriteAction["cell"] = { width: ANIMATION_CELL_SIZE, height: ANIMATION_CELL_SIZE };
+const STANDARD_ANIMATION_ANCHOR = { x: Math.round(ANIMATION_CELL_SIZE / 2), y: Math.round(ANIMATION_CELL_SIZE * 0.92) };
 const HATCH_PET_CELL: SpriteAction["cell"] = { width: 192, height: 208 };
 const HATCH_PET_GRID: GridSettings = { columns: 8, rows: 9, gutter: 0 };
 const HATCH_PET_STATE_ROWS = [
@@ -100,7 +103,6 @@ const DIRECTIONAL_HATCH_PET_RESULT_COUNT = ANIMATION_DIRECTION_COUNT;
 const DIRECTIONAL_HATCH_PET_PRIMARY_STATE = HATCH_PET_STATE_ROWS[0];
 
 type Language = "ja" | "en";
-type MotionInputMode = "prompt" | "preset";
 type AnimationGenerationMode = "standard" | "hatch-pet" | "directional-hatch-pet";
 type AnimationChromaKeyName = "green" | "magenta";
 type CodexJobQueueState = "queued" | "running";
@@ -297,13 +299,14 @@ const uiCopy = {
     animationStepSourceBody: "Use a pixel-art image you generated or imported as the animation source.",
     animationMethodTitle: "Generation Method",
     animationStandardSheet: "5-Direction Sheet",
-    animationStandardSheetBody: "Generate the current 8 x 5 game-animation sprite sheet.",
+    animationStandardSheetBody: "Generate a fixed 5 rows x 8 columns game-animation sprite sheet.",
+    animationStandardLockedSize: "Fixed cells: 256 x 256 px. Output sheet: 2048 x 1280 px.",
     animationHatchPet: "hatch-pet",
     animationHatchPetBody: "Experimental Codex pet atlas: 8 x 9, 192 x 208 cells, pet.json-ready.",
     animationDirectionalHatchPet: "5-Direction hatch-pet",
     animationDirectionalHatchPetBody: "Generate five separate hatch-pet atlases, one for each direction.",
     animationStepMotionTitle: "2. Choose Motion",
-    animationStepMotionBody: "Pick a preset or describe the motion you want.",
+    animationStepMotionBody: "Pick one locked animation preset.",
     animationStepGenerateTitle: "3. Generate",
     animationStepGenerateBody: "Send the uploaded source to Codex and generate a 5-direction chroma-key sprite sheet.",
     hatchPetGenerateBody: "Send the uploaded source to Codex and try the hatch-pet workflow for a Codex pet atlas.",
@@ -317,18 +320,12 @@ const uiCopy = {
     uploadPixelArt: "Upload Pixel Art",
     selectedSource: "Selected source",
     noAnimationSource: "No pixel-art source uploaded yet",
-    motionPrompt: "Motion Prompt",
-    motionPromptPlaceholder: "Example: idle breathing loop with gentle robe sway and staff glow",
     motionPreset: "Preset",
-    motionPromptTab: "Prompt",
-    motionPresetTab: "Preset",
     animationPresetExamples: "Preset Examples",
     animationPresetExamplesTitle: "Animation Preset Examples",
     animationPresetExamplesIntro: "Pick an animated sample, then load the matching motion preset.",
     useAnimationPreset: "Use Preset",
     animationPresetExampleApplied: "Animation preset loaded",
-    motionPresetAdditionalPrompt: "Additional Prompt (optional)",
-    motionPresetAdditionalPromptPlaceholder: "Optional: add robe sway, foot timing, effects, or mood.",
     generationMayTakeMinutes: "Generation can take a few minutes.",
     animationReady: "Animation frames ready",
     animatedGif: "Animated GIF",
@@ -478,13 +475,14 @@ const uiCopy = {
     animationStepSourceBody: "生成または取り込んだピクセルアートをアニメーション元にします。",
     animationMethodTitle: "生成方式",
     animationStandardSheet: "5方向シート",
-    animationStandardSheetBody: "現在の8 x 5ゲーム用アニメーションsprite sheetを生成します。",
+    animationStandardSheetBody: "5行 x 8列固定のゲーム用アニメーションsprite sheetを生成します。",
+    animationStandardLockedSize: "1セルは256 x 256 px固定です。出力シートは2048 x 1280 pxです。",
     animationHatchPet: "hatch-pet",
     animationHatchPetBody: "実験版のCodex pet atlas。8 x 9、192 x 208セル、pet.json対応です。",
     animationDirectionalHatchPet: "5方向hatch-pet",
     animationDirectionalHatchPetBody: "5方向それぞれにhatch-pet atlasを生成します。",
     animationStepMotionTitle: "2. 動きを選ぶ",
-    animationStepMotionBody: "プリセットを選ぶか、させたい動きをpromptで入力します。",
+    animationStepMotionBody: "固定プリセットから動きを選びます。",
     animationStepGenerateTitle: "3. 生成する",
     animationStepGenerateBody: "アップロード画像からanimation sheetとtimeline framesを生成します。",
     hatchPetGenerateBody: "アップロード画像をCodexに渡し、hatch-pet工程でCodex pet atlasを試作します。",
@@ -498,18 +496,12 @@ const uiCopy = {
     uploadPixelArt: "ピクセルアートをアップロード",
     selectedSource: "選択中の元画像",
     noAnimationSource: "まだ元になるピクセルアートがありません",
-    motionPrompt: "動きのprompt",
-    motionPromptPlaceholder: "例: idle breathing loop with gentle robe sway and staff glow",
     motionPreset: "プリセット",
-    motionPromptTab: "Prompt",
-    motionPresetTab: "プリセット",
     animationPresetExamples: "プリセット例",
     animationPresetExamplesTitle: "アニメーションプリセット例",
     animationPresetExamplesIntro: "動いているサンプルを見て、対応するプリセットを入力できます。",
     useAnimationPreset: "このプリセットを使う",
     animationPresetExampleApplied: "アニメーションプリセットを入力しました",
-    motionPresetAdditionalPrompt: "追加prompt（任意）",
-    motionPresetAdditionalPromptPlaceholder: "任意: 揺れ、足運び、エフェクト、雰囲気などを追加できます。",
     generationMayTakeMinutes: "生成は数分かかります",
     animationReady: "アニメーションframes準備完了",
     animatedGif: "アニメGIF",
@@ -709,11 +701,13 @@ const workflowFormCopy: Record<
   }
 };
 
+const DEFAULT_ANIMATION_PRESET_ID = "walk-cycle";
+
 const defaultActions: SpriteAction[] = [
-  { name: "idle", fps: 12, loop: true, frameIds: [], cell: { width: 512, height: 512 }, anchor: { x: 256, y: 472 } },
-  { name: "walk", fps: 12, loop: true, frameIds: [], cell: { width: 512, height: 512 }, anchor: { x: 256, y: 472 } },
-  { name: "cast", fps: 10, loop: false, frameIds: [], cell: { width: 512, height: 512 }, anchor: { x: 256, y: 472 } },
-  { name: "attack", fps: 10, loop: false, frameIds: [], cell: { width: 512, height: 512 }, anchor: { x: 256, y: 472 } }
+  { name: "idle", fps: 12, loop: true, frameIds: [], cell: STANDARD_ANIMATION_CELL, anchor: STANDARD_ANIMATION_ANCHOR },
+  { name: "walk", fps: 12, loop: true, frameIds: [], cell: STANDARD_ANIMATION_CELL, anchor: STANDARD_ANIMATION_ANCHOR },
+  { name: "cast", fps: 10, loop: false, frameIds: [], cell: STANDARD_ANIMATION_CELL, anchor: STANDARD_ANIMATION_ANCHOR },
+  { name: "attack", fps: 10, loop: false, frameIds: [], cell: STANDARD_ANIMATION_CELL, anchor: STANDARD_ANIMATION_ANCHOR }
 ];
 
 const animationPresetExamples: AnimationPresetExample[] = [
@@ -836,6 +830,51 @@ const animationPresetExamples: AnimationPresetExample[] = [
   }
 ];
 
+function getAnimationPresetById(id: string): AnimationPresetExample {
+  return animationPresetExamples.find((example) => example.id === id)
+    ?? animationPresetExamples.find((example) => example.id === DEFAULT_ANIMATION_PRESET_ID)
+    ?? animationPresetExamples[0]!;
+}
+
+function buildAnimationPresetMotionPrompt(preset: AnimationPresetExample) {
+  const presetTitle = preset.title.en;
+  const motionSheetLine = preset.id === "walk-cycle"
+    ? "Create a walking animation sprite sheet."
+    : `Create a ${presetTitle.toLowerCase()} animation sprite sheet.`;
+  const walkCycleGaitLines = preset.id === "walk-cycle"
+    ? [
+        "Walking gait must be visible in every row, especially front three-quarter, side, and back three-quarter.",
+        "Use a true 8-frame walk loop: frame 1 left foot forward/right foot back contact, frame 3 passing pose with legs crossing near the body center, frame 5 right foot forward/left foot back contact, frame 7 passing pose, with frames 2, 4, 6, and 8 as smooth in-betweens.",
+        "For side and diagonal rows, the leading foot must swap across the row; do not keep the same leg in front in all frames, and do not make a sliding idle shuffle.",
+        "Arms swing opposite the legs, the torso has a subtle walk bob, and the baseline remains stable without skating."
+      ]
+    : [];
+
+  return [
+    `Locked animation preset: ${presetTitle}.`,
+    `Preset motion details: ${preset.prompt}.`,
+    "Deform/chibify the uploaded character into a compact full-body pixel-art sprite while preserving the original identity, outfit, palette, silhouette, and props.",
+    motionSheetLine,
+    ...walkCycleGaitLines,
+    `Use exactly ${ANIMATION_FRAME_COUNT} animation frames per direction.`,
+    `The sprite sheet must be evenly divided into ${ANIMATION_DIRECTION_COUNT} rows x ${ANIMATION_FRAME_COUNT} columns: five direction rows and eight frame columns.`,
+    `Each cell is fixed at exactly ${ANIMATION_CELL_SIZE}px x ${ANIMATION_CELL_SIZE}px; the complete sheet must be exactly ${ANIMATION_CELL_SIZE * ANIMATION_FRAME_COUNT}px x ${ANIMATION_CELL_SIZE * ANIMATION_DIRECTION_COUNT}px.`,
+    `Direction rows from top to bottom: ${ANIMATION_DIRECTIONS.join(", ")}.`,
+    "When the sheet is sliced into equal 256px cells, neighboring frames above, below, left, or right must not intrude into the current cell.",
+    "Prefer a transparent background. If true transparency is not available during generation, use only the flat chroma-key color requested elsewhere in this job.",
+    "Reject and regenerate before returning if any cell has cropped hair, a cut-off head, missing feet, duplicated heads, body fragments, a changed character, nonuniform scale, or a non-flat background."
+  ].join(" ");
+}
+
+function buildAnimationPresetNotes(preset: AnimationPresetExample) {
+  return [
+    `Locked animation preset: ${preset.title.en} (${preset.id}).`,
+    preset.notes,
+    `Standard sheet contract: ${ANIMATION_DIRECTION_COUNT} rows x ${ANIMATION_FRAME_COUNT} columns, ${ANIMATION_CELL_SIZE}px x ${ANIMATION_CELL_SIZE}px per cell, direction rows are ${ANIMATION_DIRECTIONS.join(", ")}.`,
+    "No free-form user motion prompt was supplied; use the locked preset and the strict sheet contract only."
+  ].join("\n");
+}
+
 const fallbackProviders: ProviderStatus[] = [
   { id: "local-file", label: "Local File", enabled: true, message: "Use images from this machine" },
   { id: "local-generator", label: "Local Generator", enabled: true, message: "Generate local PNG images" },
@@ -954,22 +993,10 @@ function normalizeAnimationActions(actions: SpriteAction[]) {
 }
 
 function normalizeAnimationAction(action: SpriteAction): SpriteAction {
-  const width = Math.max(MIN_ANIMATION_CELL_SIZE, action.cell.width);
-  const height = Math.max(MIN_ANIMATION_CELL_SIZE, action.cell.height);
-  const scaleX = width / Math.max(1, action.cell.width);
-  const scaleY = height / Math.max(1, action.cell.height);
-  const cellChanged = width !== action.cell.width || height !== action.cell.height;
-  const anchor = cellChanged
-    ? {
-        x: clampInteger(Math.round(action.anchor.x * scaleX), 0, width),
-        y: clampInteger(Math.round(action.anchor.y * scaleY), 0, height)
-      }
-    : action.anchor;
-
   return {
     ...action,
-    cell: { width, height },
-    anchor
+    cell: STANDARD_ANIMATION_CELL,
+    anchor: STANDARD_ANIMATION_ANCHOR
   };
 }
 
@@ -1035,14 +1062,14 @@ function App() {
   const [frames, setFrames] = useState<SpriteFrame[]>(() => loadFrames());
   const [actions, setActions] = useState<SpriteAction[]>(() => normalizeAnimationActions(loadActions(defaultActions)));
   const [selectedId, setSelectedId] = useState<string>("");
-  const [activeActionName, setActiveActionName] = useState("idle");
+  const [activeActionName, setActiveActionName] = useState("walk");
+  const [selectedAnimationPresetId, setSelectedAnimationPresetId] = useState(DEFAULT_ANIMATION_PRESET_ID);
   const [language, setLanguage] = useState<Language>(loadLanguage);
   const [storageHydrated, setStorageHydrated] = useState(false);
   const [workflowMode, setWorkflowMode] = useState<WorkflowMode>("image-generate");
   const [showPromptExamples, setShowPromptExamples] = useState(false);
   const [showAnimationPresetExamples, setShowAnimationPresetExamples] = useState(false);
   const [providerId, setProviderId] = useState<ProviderId>("codex-handoff");
-  const [motionInputMode, setMotionInputMode] = useState<MotionInputMode>("prompt");
   const [animationGenerationMode, setAnimationGenerationMode] = useState<AnimationGenerationMode>("standard");
   const [animationSourceId, setAnimationSourceId] = useState("");
   const [providers, setProviders] = useState<ProviderStatus[]>(fallbackProviders);
@@ -1107,6 +1134,10 @@ function App() {
   const activeAction = useMemo(
     () => actions.find((action) => action.name === activeActionName) ?? actions[0],
     [actions, activeActionName]
+  );
+  const selectedAnimationPreset = useMemo(
+    () => getAnimationPresetById(selectedAnimationPresetId),
+    [selectedAnimationPresetId]
   );
 
   const actionFrames = useMemo(
@@ -1580,6 +1611,8 @@ function App() {
       : grid;
     const spriteCell = isAnimationJob ? (isHatchPetLikeMode(animationGenerationMode) ? HATCH_PET_CELL : animationAction.cell) : activeAction.cell;
     const spriteFrameCount = spriteGrid.columns * spriteGrid.rows;
+    const animationMotionPrompt = isAnimationJob ? buildAnimationPresetMotionPrompt(selectedAnimationPreset) : "";
+    const animationPresetNotes = isAnimationJob ? buildAnimationPresetNotes(selectedAnimationPreset) : "";
 
     if (isImageEditJob && selectedIsAnimationResult) {
       setStatus(copy.statusAnimationFinalNotEditable);
@@ -1604,18 +1637,18 @@ function App() {
       ? isDirectionalHatchPetAnimationJob
         ? buildDirectionalHatchPetCodexPrompt({
             sourceName: sourceImageForJob?.name ?? "",
-            motionPrompt: prompt,
+            motionPrompt: animationMotionPrompt,
             chromaKey: chromaDecision.key
           })
         : isHatchPetAnimationJob
         ? buildHatchPetCodexPrompt({
             sourceName: sourceImageForJob?.name ?? "",
-            motionPrompt: prompt,
+            motionPrompt: animationMotionPrompt,
             chromaKey: chromaDecision.key
           })
         : buildAnimationCodexPrompt({
             sourceName: sourceImageForJob?.name ?? "",
-            motionPrompt: prompt,
+            motionPrompt: animationMotionPrompt,
             actionName: animationAction.name,
             chromaKey: chromaDecision.key,
             cell: spriteCell
@@ -1630,18 +1663,18 @@ function App() {
     const codexJobNotes = isAnimationJob
       ? isDirectionalHatchPetAnimationJob
         ? buildDirectionalHatchPetCodexNotes({
-            userNotes: jobNotes,
+            userNotes: animationPresetNotes,
             chromaKey: chromaDecision.key,
             chromaReason: chromaDecision.reason
           })
         : isHatchPetAnimationJob
         ? buildHatchPetCodexNotes({
-            userNotes: jobNotes,
+            userNotes: animationPresetNotes,
             chromaKey: chromaDecision.key,
             chromaReason: chromaDecision.reason
           })
         : buildAnimationCodexNotes({
-            userNotes: jobNotes,
+            userNotes: animationPresetNotes,
             chromaKey: chromaDecision.key,
             chromaReason: chromaDecision.reason,
             grid: spriteGrid,
@@ -1685,7 +1718,7 @@ function App() {
             ? HATCH_PET_STATE_ROWS.map((row) => row.id)
             : ANIMATION_DIRECTIONS
         : [],
-      label: codexJobLabel(workflowMode, prompt, isAnimationJob ? animationAction.name : undefined),
+      label: codexJobLabel(workflowMode, isAnimationJob ? animationMotionPrompt : prompt, isAnimationJob ? animationAction.name : undefined),
       resultWorkflowMode: workflowMode ?? undefined,
       resultActionName: isAnimationJob ? animationAction.name : undefined,
       resultGrid: isAnimationJob ? spriteGrid : undefined,
@@ -2448,8 +2481,7 @@ function App() {
       setShowCenter(true);
     }
     if (mode === "sprite-generate" || mode === "sprite-edit") {
-      setActiveActionName("idle");
-      setMotionInputMode("prompt");
+      setActiveActionName(mode === "sprite-generate" ? selectedAnimationPreset.actionName : "idle");
       setShowGrid(true);
       setShowCenter(true);
       setGrid(
@@ -2505,20 +2537,22 @@ function App() {
     setStatus(copy.promptExampleApplied);
   }
 
-  function useAnimationPresetExample(example: AnimationPresetExample) {
+  function selectAnimationPreset(example: AnimationPresetExample) {
     const defaultAction = defaultActions.find((action) => action.name === example.actionName);
     setActions((current) => (
       current.some((action) => action.name === example.actionName) || !defaultAction
         ? current
         : normalizeAnimationActions([...current, defaultAction])
     ));
-    setWorkflowMode("sprite-generate");
-    setProviderId("codex-handoff");
-    setMotionInputMode("preset");
+    setSelectedAnimationPresetId(example.id);
     setActiveActionName(example.actionName);
     setGrid(ANIMATION_SHEET_GRID);
-    setPrompt(example.prompt);
-    setJobNotes(example.notes);
+  }
+
+  function useAnimationPresetExample(example: AnimationPresetExample) {
+    selectAnimationPreset(example);
+    setWorkflowMode("sprite-generate");
+    setProviderId("codex-handoff");
     setShowAnimationPresetExamples(false);
     setStatus(`${copy.animationPresetExampleApplied}: ${example.title[language]}`);
   }
@@ -2560,7 +2594,7 @@ function App() {
     ? copy.directionalHatchPetLockedSize
     : animationGenerationMode === "hatch-pet"
       ? copy.hatchPetLockedSize
-      : "";
+      : copy.animationStandardLockedSize;
   const selectedAnimationDownloadBody = selectedAnimationVariant === "directional-hatch-pet"
     ? copy.directionalHatchPetDownloadBody
     : selectedAnimationVariant === "hatch-pet"
@@ -2656,6 +2690,7 @@ function App() {
                     onClick={() => {
                       setAnimationGenerationMode("standard");
                       setGrid(ANIMATION_SHEET_GRID);
+                      setActiveActionName(selectedAnimationPreset.actionName);
                     }}
                   >
                     {copy.animationStandardSheet}
@@ -2688,58 +2723,23 @@ function App() {
                   <strong>{copy.animationStepMotionTitle}</strong>
                   <span>{copy.animationStepMotionBody}</span>
                 </div>
-                <div className="motion-mode-tabs">
-                  <button className={motionInputMode === "prompt" ? "active" : ""} onClick={() => setMotionInputMode("prompt")}>
-                    {copy.motionPromptTab}
-                  </button>
-                  <button className={motionInputMode === "preset" ? "active" : ""} onClick={() => setMotionInputMode("preset")}>
-                    {copy.motionPresetTab}
-                  </button>
-                </div>
-                {motionInputMode === "preset" ? (
-                  <>
-                    <small className="step-kicker">{copy.motionPreset}</small>
-                    <div className="motion-presets">
-                      {actions.map((action) => (
-                        <button
-                          key={action.name}
-                          className={action.name === activeAction.name ? "active" : ""}
-                          onClick={() => {
-                            setActiveActionName(action.name);
-                            setGrid(ANIMATION_SHEET_GRID);
-                          }}
-                        >
-                          {action.name}
-                        </button>
-                      ))}
-                    </div>
-                    <button className="prompt-example-trigger animation-preset-example-trigger" onClick={() => setShowAnimationPresetExamples(true)}>
-                      <Film size={15} aria-hidden="true" />
-                      {copy.animationPresetExamples}
+                <small className="step-kicker">{copy.motionPreset}</small>
+                <div className="motion-presets motion-preset-library">
+                  {animationPresetExamples.map((example) => (
+                    <button
+                      key={example.id}
+                      className={example.id === selectedAnimationPreset.id ? "active" : ""}
+                      onClick={() => selectAnimationPreset(example)}
+                    >
+                      <span>{example.title[language]}</span>
+                      <small>{example.category[language]}</small>
                     </button>
-                    <label className="field compact-field">
-                      <span>{copy.motionPresetAdditionalPrompt}</span>
-                      <textarea
-                        value={prompt}
-                        onChange={(event) => setPrompt(event.target.value)}
-                        maxLength={1200}
-                        placeholder={copy.motionPresetAdditionalPromptPlaceholder}
-                      />
-                      <small>{prompt.length} / 1200</small>
-                    </label>
-                  </>
-                ) : (
-                  <label className="field compact-field">
-                    <span>{copy.motionPrompt}</span>
-                    <textarea
-                      value={prompt}
-                      onChange={(event) => setPrompt(event.target.value)}
-                      maxLength={1200}
-                      placeholder={copy.motionPromptPlaceholder}
-                    />
-                    <small>{prompt.length} / 1200</small>
-                  </label>
-                )}
+                  ))}
+                </div>
+                <button className="prompt-example-trigger animation-preset-example-trigger" onClick={() => setShowAnimationPresetExamples(true)}>
+                  <Film size={15} aria-hidden="true" />
+                  {copy.animationPresetExamples}
+                </button>
               </section>
 
               <section className="animation-step">
@@ -2747,14 +2747,7 @@ function App() {
                   <strong>{copy.animationStepGenerateTitle}</strong>
                   <span>{animationGenerateBody}</span>
                 </div>
-                {isHatchPetLikeMode(animationGenerationMode) ? (
-                  <small className="step-kicker">{animationLockedSizeNote}</small>
-                ) : (
-                  <div className="field-row compact-row">
-                    <NumberField label={copy.frameWidth} value={activeAction.cell.width} min={MIN_ANIMATION_CELL_SIZE} onChange={(width) => updateCell(width, activeAction.cell.height)} />
-                    <NumberField label={copy.frameHeight} value={activeAction.cell.height} min={MIN_ANIMATION_CELL_SIZE} onChange={(height) => updateCell(activeAction.cell.width, height)} />
-                  </div>
-                )}
+                <small className="step-kicker">{animationLockedSizeNote}</small>
                 <button className="primary-button full" onClick={() => void handleGenerate()} disabled={primaryActionDisabled}>
                   <PrimaryActionIcon providerId={providerId} isBusy={isBusy} />
                   {shouldQueueCodexJob ? codexQueueCopy.queueAction : copy.generateLocalSprite}
@@ -3771,9 +3764,10 @@ function buildAnimationCodexPrompt({
 }) {
   const motion = motionPrompt.trim() || actionName;
   return [
+    "このキャラクターをデフォルメして、スプライトシートにして画像生成してほしい。",
     `Use the uploaded source image "${sourceName}" as the character reference.`,
     `Extract only the single character and create a strict pixel-art sprite sheet of that same character ${motion}.`,
-    `Canvas and grid are strict: ${ANIMATION_FRAME_COUNT} columns by ${ANIMATION_DIRECTION_COUNT} rows, no gutters, no extra outer margin, exactly ${ANIMATION_FRAME_COUNT * ANIMATION_DIRECTION_COUNT} cells total.`,
+    `Canvas and grid are strict: ${ANIMATION_DIRECTION_COUNT} rows by ${ANIMATION_FRAME_COUNT} columns, no gutters, no extra outer margin, exactly ${ANIMATION_FRAME_COUNT * ANIMATION_DIRECTION_COUNT} cells total.`,
     `Create exactly ${ANIMATION_DIRECTION_COUNT} direction rows in this order from top to bottom: ${ANIMATION_DIRECTIONS.join(", ")}.`,
     `Each direction row must contain exactly ${ANIMATION_FRAME_COUNT} animation frames from left to right.`,
     `Each cell must be exactly ${cell.width}x${cell.height} pixels; the full sheet target is ${cell.width * ANIMATION_FRAME_COUNT}x${cell.height * ANIMATION_DIRECTION_COUNT} pixels.`,
@@ -3781,7 +3775,7 @@ function buildAnimationCodexPrompt({
     "Keep at least 10% empty chroma-key padding inside every cell above the head, below the feet, and on both sides.",
     "Do not crop the head, feet, hair, weapon, or effects. Do not let body parts cross cell borders. Do not place heads or body fragments under the feet.",
     "Use consistent character scale, baseline, foot contact point, silhouette size, palette, outfit, and pixel density across all 40 cells.",
-    `Use a flat ${chromaKey.label} background (${chromaKey.hex}) in every cell; do not use gradients, scenery, shadows, UI, text, logos, watermarks, letters, or numbers.`,
+    `Prefer a transparent background in every cell. If true transparency is not available during generation, use a flat ${chromaKey.label} background (${chromaKey.hex}) in every cell; do not use black, white, gradients, scenery, shadows, UI, text, logos, watermarks, letters, or numbers.`,
     "Do not add drawn grid lines unless they are the exact chroma-key color and removable; the app will split the image by the strict cell grid.",
     "Quality gate before returning: inspect all 40 cells and regenerate if any cell is cropped, has missing feet, has a cut-off head, contains multiple heads, has a head below the feet, has a different character, or uses a non-flat background.",
     "Return one complete raster sprite sheet PNG or WebP using the job id filename prefix."
