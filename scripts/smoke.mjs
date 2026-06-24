@@ -146,6 +146,7 @@ async function runManualHandoffSmoke() {
       frames: 8,
       cell: { width: 512, height: 512 },
       chromaKey: "green",
+      spriteVariant: "standard",
       directions: ["front", "back", "back three-quarter", "front three-quarter", "side"]
     });
     const spriteGenerateJobJson = JSON.parse(await readFile(spriteGenerateJob.path, "utf8"));
@@ -156,12 +157,43 @@ async function runManualHandoffSmoke() {
     assert(spriteGenerateJobJson.spriteContext.action === "idle", "sprite generation job should include action");
     assert(spriteGenerateJobJson.spriteContext.cell.width === 512, "sprite generation job should include cell size");
     assert(spriteGenerateJobJson.spriteContext.chromaKey === "green", "sprite generation job should include chroma key");
+    assert(spriteGenerateJobJson.spriteContext.variant === "standard", "sprite generation job should include the standard variant");
     assert(spriteGenerateJobJson.spriteContext.directions.length === 5, "sprite generation job should include five direction rows");
     assert(spriteGenerateJobJson.selectedImage.assetPath, "sprite generation job should attach the source image");
     assert(spriteGenerateJobJson.annotationContext.annotationCount === 0, "sprite generation job should not carry edit annotations");
     assert(
       spriteGenerateJobJson.notes.some((note) => note.includes("built-in image_gen")),
       "sprite generation job should instruct Codex to use built-in image generation"
+    );
+
+    const hatchPetJob = await postJson(port, "/api/codex/jobs", {
+      workflowMode: "sprite-generate",
+      prompt: "Smoke test hatch-pet atlas generation with a canonical base identity",
+      negativePrompt: "text, logo, shadows",
+      jobNotes: "Experimental hatch-pet sprite workflow. Expected atlas: 8 columns x 9 rows, 192x208 per cell, 1536x1872 total.",
+      selectedImageName: "tiny.png",
+      selectedImageSize: "1x1",
+      selectedImageSource: "sample",
+      selectedImageDataUrl: tinyPng,
+      grid: { columns: 8, rows: 9, gutter: 0 },
+      action: "hatch-pet-atlas",
+      frames: 72,
+      cell: { width: 192, height: 208 },
+      chromaKey: "magenta",
+      spriteVariant: "hatch-pet",
+      directions: ["idle", "running-right", "running-left", "waving", "jumping", "failed", "waiting", "running", "review"]
+    });
+    const hatchPetJobJson = JSON.parse(await readFile(hatchPetJob.path, "utf8"));
+    assert(hatchPetJobJson.workflowMode === "sprite-generate", "hatch-pet job should still use sprite generation workflow");
+    assert(hatchPetJobJson.spriteContext.variant === "hatch-pet", "hatch-pet job should include hatch-pet variant");
+    assert(hatchPetJobJson.spriteContext.frames === 72, "hatch-pet job should include 72 atlas cells");
+    assert(hatchPetJobJson.spriteContext.cell.width === 192, "hatch-pet job should include 192px cell width");
+    assert(hatchPetJobJson.spriteContext.cell.height === 208, "hatch-pet job should include 208px cell height");
+    assert(hatchPetJobJson.spriteContext.grid.rows === 9, "hatch-pet job should include 9 state rows");
+    assert(hatchPetJobJson.spriteContext.directions.includes("review"), "hatch-pet job should include Codex pet state rows");
+    assert(
+      hatchPetJobJson.jobNotes.includes("hatch-pet"),
+      "hatch-pet job should instruct Codex to use the hatch-pet workflow"
     );
 
     const spriteEditJob = await postJson(port, "/api/codex/jobs", {

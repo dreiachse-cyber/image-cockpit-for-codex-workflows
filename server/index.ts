@@ -53,6 +53,7 @@ type CodexJobRequest = {
   frames?: number;
   cell?: unknown;
   chromaKey?: string;
+  spriteVariant?: string;
   directions?: unknown;
 };
 
@@ -279,6 +280,7 @@ const server = createServer(async (request, response) => {
           grid: includeSpriteContext ? body.grid ?? null : null,
           cell: includeSpriteContext ? body.cell ?? null : null,
           chromaKey: includeSpriteContext ? body.chromaKey ?? "" : "",
+          variant: includeSpriteContext ? body.spriteVariant ?? "standard" : "",
           directions: includeSpriteContext && Array.isArray(body.directions) ? body.directions : []
         },
         returnTo: {
@@ -752,6 +754,7 @@ function buildCodexRunnerPrompt(job: { id: string; path: string }) {
     "For workflowMode=sprite-generate, inspect selectedImage.assetPath, then use imagegen / built-in image_gen when available to create one complete chroma-key sprite sheet from the source character image. Never create a procedural placeholder or SVG.",
     "For workflowMode=sprite-generate, follow spriteContext.grid, spriteContext.cell, spriteContext.directions, and spriteContext.chromaKey exactly. Keep one full-body character centered inside each strict cell with padding, no cropping, no duplicated heads, and no body parts crossing cells. Return one usable PNG or WebP sprite sheet with the job id filename prefix.",
     "For workflowMode=sprite-generate, inspect all cells before writing the final file and retry if any head is cut off, feet are missing, a head appears below feet, scale changes wildly, or the background is not flat chroma key.",
+    "For workflowMode=sprite-generate with spriteContext.variant=hatch-pet, use the installed hatch-pet skill/scripts when available. Build a Codex pet atlas with 8 columns x 9 rows, 192x208 cells, 1536x1872 total, transparent unused cells, contact-sheet QA, and final spritesheet PNG/WebP returned with the job id filename prefix. Include pet.json as a sidecar if produced.",
     "Use jobNotes, annotationContext, and spriteContext only when those fields are populated for the workflow.",
     `Write final image result files only into this outbox directory: ${outboxDir}`,
     `Use this filename prefix for returned assets: ${job.id}`,

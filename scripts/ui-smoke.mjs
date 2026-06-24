@@ -123,11 +123,16 @@ try {
   await assertWorkflow({
     label: "Animation Generation",
     route: "Route: Codex Handoff",
-    buttons: ["Upload Pixel Art", "Generate Animation", "Animated GIF", "Animated WebP", "Sprite Sheet"],
+    buttons: ["Upload Pixel Art", "5-Direction Sheet", "hatch-pet", "Generate Animation", "Animated GIF", "Animated WebP", "Sprite Sheet"],
     hiddenButtons: ["Import Latest", "Import File"],
     hiddenText: ["Sprite Actions", "Export Sprite"],
-    requiredText: ["1. Upload Pixel Art", "2. Choose Motion", "3. Generate", "4. Download", "Motion Prompt", "Prompt", "Preset", "5-direction chroma-key sprite sheet"],
-    preExerciseButtonChecks: [{ button: "Preset", expectedText: "Additional Prompt (optional)" }, { button: "Prompt", expectedText: "Motion Prompt" }],
+    requiredText: ["1. Upload Pixel Art", "Generation Method", "2. Choose Motion", "3. Generate", "4. Download", "Motion Prompt", "Prompt", "Preset", "5-direction chroma-key sprite sheet"],
+    preExerciseButtonChecks: [
+      { button: "hatch-pet", expectedText: "hatch-pet locks the atlas" },
+      { button: "5-Direction Sheet", expectedText: "5-direction chroma-key sprite sheet" },
+      { button: "Preset", expectedText: "Additional Prompt (optional)" },
+      { button: "Prompt", expectedText: "Motion Prompt" }
+    ],
     exerciseButton: "Generate Animation",
     expectedAfterExercise: "Animation generated",
     expectedAfterExerciseText: ["Animation frames ready", "Generated from", "Animated WebP", "512x512"],

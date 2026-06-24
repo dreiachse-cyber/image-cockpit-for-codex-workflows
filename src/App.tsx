@@ -78,9 +78,23 @@ export const HISTORY_RENDER_BATCH_SIZE = 20;
 const HISTORY_SCROLL_LOAD_THRESHOLD_PX = 160;
 const ANIMATION_SHEET_GRID: GridSettings = { columns: ANIMATION_FRAME_COUNT, rows: ANIMATION_DIRECTION_COUNT, gutter: 0 };
 const ANIMATION_DIRECTIONS = ["front", "back", "back three-quarter", "front three-quarter", "side"];
+const HATCH_PET_CELL: SpriteAction["cell"] = { width: 192, height: 208 };
+const HATCH_PET_GRID: GridSettings = { columns: 8, rows: 9, gutter: 0 };
+const HATCH_PET_STATE_ROWS = [
+  { id: "idle", frames: 6 },
+  { id: "running-right", frames: 8 },
+  { id: "running-left", frames: 8 },
+  { id: "waving", frames: 4 },
+  { id: "jumping", frames: 5 },
+  { id: "failed", frames: 8 },
+  { id: "waiting", frames: 6 },
+  { id: "running", frames: 6 },
+  { id: "review", frames: 6 }
+];
 
 type Language = "ja" | "en";
 type MotionInputMode = "prompt" | "preset";
+type AnimationGenerationMode = "standard" | "hatch-pet";
 type AnimationChromaKeyName = "green" | "magenta";
 type CodexJobQueueState = "queued" | "running";
 
@@ -135,6 +149,7 @@ interface PendingCodexJob {
   grid?: GridSettings;
   cell?: SpriteAction["cell"];
   chromaKey?: AnimationChromaKeyName;
+  spriteVariant?: AnimationGenerationMode;
   sourceImageId?: string;
   sourceImageName?: string;
 }
@@ -158,6 +173,7 @@ interface CodexJobDraft {
   frames: number;
   cell: SpriteAction["cell"] | null;
   chromaKey: AnimationChromaKeyName | "";
+  spriteVariant?: AnimationGenerationMode;
   directions: string[];
   label: string;
   resultWorkflowMode?: WorkflowMode;
@@ -165,6 +181,7 @@ interface CodexJobDraft {
   resultGrid?: GridSettings;
   resultCell?: SpriteAction["cell"];
   resultChromaKey?: AnimationChromaKeyName;
+  resultSpriteVariant?: AnimationGenerationMode;
   resultSourceImageId?: string;
   resultSourceImageName?: string;
 }
@@ -182,6 +199,7 @@ interface CodexJobQueueItem {
   grid?: GridSettings;
   cell?: SpriteAction["cell"];
   chromaKey?: AnimationChromaKeyName;
+  spriteVariant?: AnimationGenerationMode;
   sourceImageId?: string;
   sourceImageName?: string;
 }
@@ -264,12 +282,20 @@ const uiCopy = {
     promptExampleApplied: "Prompt example loaded into Pixel Art Generation",
     animationStepSourceTitle: "1. Upload Pixel Art",
     animationStepSourceBody: "Use a pixel-art image you generated or imported as the animation source.",
+    animationMethodTitle: "Generation Method",
+    animationStandardSheet: "5-Direction Sheet",
+    animationStandardSheetBody: "Generate the current 8 x 5 game-animation sprite sheet.",
+    animationHatchPet: "hatch-pet",
+    animationHatchPetBody: "Experimental Codex pet atlas: 8 x 9, 192 x 208 cells, pet.json-ready.",
     animationStepMotionTitle: "2. Choose Motion",
     animationStepMotionBody: "Pick a preset or describe the motion you want.",
     animationStepGenerateTitle: "3. Generate",
     animationStepGenerateBody: "Send the uploaded source to Codex and generate a 5-direction chroma-key sprite sheet.",
+    hatchPetGenerateBody: "Send the uploaded source to Codex and try the hatch-pet workflow for a Codex pet atlas.",
+    hatchPetLockedSize: "hatch-pet locks the atlas to 1536 x 1872 with 192 x 208 cells.",
     animationStepDownloadTitle: "4. Download",
     animationStepDownloadBody: "Preview and export the transparent animated GIF, animated WebP, and sprite sheet.",
+    hatchPetDownloadBody: "Export each Codex pet state as animated GIF/WebP, or download the full pet atlas.",
     uploadPixelArt: "Upload Pixel Art",
     selectedSource: "Selected source",
     noAnimationSource: "No pixel-art source uploaded yet",
@@ -432,12 +458,20 @@ const uiCopy = {
     promptExampleApplied: "プロンプト例をピクセルアート生成へ入れました",
     animationStepSourceTitle: "1. ピクセルアートをアップロード",
     animationStepSourceBody: "生成または取り込んだピクセルアートをアニメーション元にします。",
+    animationMethodTitle: "生成方式",
+    animationStandardSheet: "5方向シート",
+    animationStandardSheetBody: "現在の8 x 5ゲーム用アニメーションsprite sheetを生成します。",
+    animationHatchPet: "hatch-pet",
+    animationHatchPetBody: "実験版のCodex pet atlas。8 x 9、192 x 208セル、pet.json対応です。",
     animationStepMotionTitle: "2. 動きを選ぶ",
     animationStepMotionBody: "プリセットを選ぶか、させたい動きをpromptで入力します。",
     animationStepGenerateTitle: "3. 生成する",
     animationStepGenerateBody: "アップロード画像からanimation sheetとtimeline framesを生成します。",
+    hatchPetGenerateBody: "アップロード画像をCodexに渡し、hatch-pet工程でCodex pet atlasを試作します。",
+    hatchPetLockedSize: "hatch-petは1536 x 1872、192 x 208セルに固定します。",
     animationStepDownloadTitle: "4. ダウンロード",
     animationStepDownloadBody: "生成結果をanimated GIF、animated WebP、sprite sheetで書き出します。",
+    hatchPetDownloadBody: "Codex petの各状態をアニメGIF/WebPで書き出し、全体atlasもダウンロードできます。",
     uploadPixelArt: "ピクセルアートをアップロード",
     selectedSource: "選択中の元画像",
     noAnimationSource: "まだ元になるピクセルアートがありません",
@@ -916,6 +950,29 @@ function normalizeAnimationAction(action: SpriteAction): SpriteAction {
   };
 }
 
+function hatchPetSpriteAction(): SpriteAction {
+  return {
+    name: "hatch-pet-atlas",
+    fps: 8,
+    loop: true,
+    frameIds: [],
+    cell: HATCH_PET_CELL,
+    anchor: { x: Math.round(HATCH_PET_CELL.width / 2), y: Math.round(HATCH_PET_CELL.height * 0.92) }
+  };
+}
+
+function inferAnimationGenerationMode(actionFrames: SpriteFrame[]): AnimationGenerationMode {
+  const firstFrame = actionFrames[0];
+  if (
+    actionFrames.length === HATCH_PET_GRID.columns * HATCH_PET_GRID.rows &&
+    firstFrame?.width === HATCH_PET_CELL.width &&
+    firstFrame?.height === HATCH_PET_CELL.height
+  ) {
+    return "hatch-pet";
+  }
+  return "standard";
+}
+
 function clampInteger(value: number, min: number, max: number) {
   return Math.max(min, Math.min(max, Math.round(value)));
 }
@@ -945,6 +1002,7 @@ function App() {
   const [showAnimationPresetExamples, setShowAnimationPresetExamples] = useState(false);
   const [providerId, setProviderId] = useState<ProviderId>("codex-handoff");
   const [motionInputMode, setMotionInputMode] = useState<MotionInputMode>("prompt");
+  const [animationGenerationMode, setAnimationGenerationMode] = useState<AnimationGenerationMode>("standard");
   const [animationSourceId, setAnimationSourceId] = useState("");
   const [providers, setProviders] = useState<ProviderStatus[]>(fallbackProviders);
   const [runnerPreflight, setRunnerPreflight] = useState<CodexRunnerPreflight | null>(null);
@@ -1040,6 +1098,7 @@ function App() {
     };
   }, [activeAction, selected, selectedAnimationFrames]);
 
+  const selectedAnimationVariant = inferAnimationGenerationMode(selectedAnimationFrames);
   const selectedAnimationExportReady = Boolean(
     selected && selected.source === "generate" && selectedAnimationFrames.length > 0
   );
@@ -1402,10 +1461,13 @@ function App() {
     const includeSpriteContext = workflowUsesSpriteContext(workflowMode);
     const isImageEditJob = workflowMode === "image-edit";
     const isAnimationJob = workflowMode === "sprite-generate";
+    const isHatchPetAnimationJob = isAnimationJob && animationGenerationMode === "hatch-pet";
     const sourceImageForJob = isAnimationJob ? animationSource : selected;
-    const animationAction = normalizeAnimationAction(activeAction);
-    const spriteGrid = isAnimationJob ? ANIMATION_SHEET_GRID : grid;
-    const spriteCell = isAnimationJob ? animationAction.cell : activeAction.cell;
+    const animationAction = isHatchPetAnimationJob
+      ? hatchPetSpriteAction()
+      : normalizeAnimationAction(activeAction);
+    const spriteGrid = isAnimationJob ? (isHatchPetAnimationJob ? HATCH_PET_GRID : ANIMATION_SHEET_GRID) : grid;
+    const spriteCell = isAnimationJob ? (isHatchPetAnimationJob ? HATCH_PET_CELL : animationAction.cell) : activeAction.cell;
     const spriteFrameCount = spriteGrid.columns * spriteGrid.rows;
 
     if (isImageEditJob && selectedIsAnimationResult) {
@@ -1428,13 +1490,19 @@ function App() {
     }
 
     const codexPrompt = isAnimationJob
-      ? buildAnimationCodexPrompt({
-          sourceName: sourceImageForJob?.name ?? "",
-          motionPrompt: prompt,
-          actionName: animationAction.name,
-          chromaKey: chromaDecision.key,
-          cell: spriteCell
-        })
+      ? isHatchPetAnimationJob
+        ? buildHatchPetCodexPrompt({
+            sourceName: sourceImageForJob?.name ?? "",
+            motionPrompt: prompt,
+            chromaKey: chromaDecision.key
+          })
+        : buildAnimationCodexPrompt({
+            sourceName: sourceImageForJob?.name ?? "",
+            motionPrompt: prompt,
+            actionName: animationAction.name,
+            chromaKey: chromaDecision.key,
+            cell: spriteCell
+          })
       : isImageEditJob
         ? buildImageEditCodexPrompt({
             prompt,
@@ -1443,13 +1511,19 @@ function App() {
           })
         : prompt;
     const codexJobNotes = isAnimationJob
-      ? buildAnimationCodexNotes({
-          userNotes: jobNotes,
-          chromaKey: chromaDecision.key,
-          chromaReason: chromaDecision.reason,
-          grid: spriteGrid,
-          cell: spriteCell
-        })
+      ? isHatchPetAnimationJob
+        ? buildHatchPetCodexNotes({
+            userNotes: jobNotes,
+            chromaKey: chromaDecision.key,
+            chromaReason: chromaDecision.reason
+          })
+        : buildAnimationCodexNotes({
+            userNotes: jobNotes,
+            chromaKey: chromaDecision.key,
+            chromaReason: chromaDecision.reason,
+            grid: spriteGrid,
+            cell: spriteCell
+          })
       : isImageEditJob
         ? buildImageEditCodexNotes({
             userNotes: jobNotes,
@@ -1476,13 +1550,15 @@ function App() {
       frames: includeSpriteContext ? spriteFrameCount : 0,
       cell: includeSpriteContext ? spriteCell : null,
       chromaKey: isAnimationJob ? chromaDecision.key.name : "",
-      directions: isAnimationJob ? ANIMATION_DIRECTIONS : [],
+      spriteVariant: isAnimationJob ? animationGenerationMode : undefined,
+      directions: isAnimationJob ? (isHatchPetAnimationJob ? HATCH_PET_STATE_ROWS.map((row) => row.id) : ANIMATION_DIRECTIONS) : [],
       label: codexJobLabel(workflowMode, prompt, isAnimationJob ? animationAction.name : undefined),
       resultWorkflowMode: workflowMode ?? undefined,
       resultActionName: isAnimationJob ? animationAction.name : undefined,
       resultGrid: isAnimationJob ? spriteGrid : undefined,
       resultCell: isAnimationJob ? spriteCell : undefined,
       resultChromaKey: isAnimationJob ? chromaDecision.key.name : undefined,
+      resultSpriteVariant: isAnimationJob ? animationGenerationMode : undefined,
       resultSourceImageId: isImageEditJob || isAnimationJob ? sourceImageForJob?.id : undefined,
       resultSourceImageName: isImageEditJob || isAnimationJob ? sourceImageForJob?.name : undefined
     };
@@ -1505,6 +1581,7 @@ function App() {
         grid: draft.resultGrid,
         cell: draft.resultCell,
         chromaKey: draft.resultChromaKey,
+        spriteVariant: draft.resultSpriteVariant,
         sourceImageId: draft.resultSourceImageId,
         sourceImageName: draft.resultSourceImageName
       }
@@ -1537,6 +1614,7 @@ function App() {
           frames: draft.frames,
           cell: draft.cell,
           chromaKey: draft.chromaKey,
+          spriteVariant: draft.spriteVariant,
           directions: draft.directions
         })
       });
@@ -1559,6 +1637,7 @@ function App() {
           grid: draft.resultGrid,
           cell: draft.resultCell,
           chromaKey: draft.resultChromaKey,
+          spriteVariant: draft.resultSpriteVariant,
           sourceImageId: draft.resultSourceImageId,
           sourceImageName: draft.resultSourceImageName
         };
@@ -1700,15 +1779,18 @@ function App() {
 
   async function importAnimationSheetResult(imported: CodexOutboxImportResponse, pendingJob: CodexJobQueueItem) {
     const actionName = pendingJob.actionName ?? activeAction.name;
+    const spriteVariant = pendingJob.spriteVariant ?? "standard";
     const spriteGrid = pendingJob.grid ?? ANIMATION_SHEET_GRID;
     const spriteCell = pendingJob.cell ?? normalizeAnimationAction(activeAction).cell;
     const chromaKey = animationChromaKeys[pendingJob.chromaKey ?? animationChromaKey];
-    const transparentSheetDataUrl = await createTransparentSpriteSheetDataUrl(imported.dataUrl, chromaKey);
+    const transparentSheetDataUrl = spriteVariant === "hatch-pet"
+      ? imported.dataUrl
+      : await createTransparentSpriteSheetDataUrl(imported.dataUrl, chromaKey);
     const image = await loadImage(transparentSheetDataUrl);
     const baseName = imported.name.replace(/\.[^.]+$/, "");
     const item: HistoryItem = {
       id: createId("hist"),
-      name: `${baseName}_transparent.png`,
+      name: spriteVariant === "hatch-pet" ? imported.name : `${baseName}_transparent.png`,
       dataUrl: transparentSheetDataUrl,
       provider: "local-inbox",
       prompt,
@@ -1723,7 +1805,8 @@ function App() {
     const newFrames = await splitImageIntoFrames(transparentSheetDataUrl, baseName, spriteGrid, item.id, spriteCell);
     if (newFrames.length === 0) throw new Error("Returned sprite sheet could not be split into frames.");
 
-    setAnimationChromaKey(chromaKey.name);
+    setAnimationGenerationMode(spriteVariant);
+    if (spriteVariant !== "hatch-pet") setAnimationChromaKey(chromaKey.name);
     setGrid(spriteGrid);
     setHistory((current) => [item, ...current]);
     setSelectedId(item.id);
@@ -1831,7 +1914,9 @@ function App() {
 
   async function exportDirectionalAnimations(format: "gif" | "webp") {
     if (!selectedAnimationExportReady) return;
-    const directionActions = buildAnimationDirectionPreviewActions(selectedAnimationAction, selectedAnimationFrames);
+    const directionActions = selectedAnimationVariant === "hatch-pet"
+      ? buildHatchPetStatePreviewActions(selectedAnimationAction, selectedAnimationFrames)
+      : buildAnimationDirectionPreviewActions(selectedAnimationAction, selectedAnimationFrames);
     for (const { directionId, action } of directionActions) {
       const blob = format === "gif"
         ? await createGifBlob(frames, action)
@@ -2126,7 +2211,13 @@ function App() {
       setMotionInputMode("prompt");
       setShowGrid(true);
       setShowCenter(true);
-      setGrid(mode === "sprite-generate" ? ANIMATION_SHEET_GRID : { columns: ANIMATION_FRAME_COUNT, rows: 1, gutter: 0 });
+      setGrid(
+        mode === "sprite-generate"
+          ? animationGenerationMode === "hatch-pet"
+            ? HATCH_PET_GRID
+            : ANIMATION_SHEET_GRID
+          : { columns: ANIMATION_FRAME_COUNT, rows: 1, gutter: 0 }
+      );
       setActions((current) => normalizeAnimationActions(current));
     }
     if (mode === "sprite-generate") {
@@ -2287,6 +2378,34 @@ function App() {
 
               <section className="animation-step">
                 <div className="step-heading">
+                  <strong>{copy.animationMethodTitle}</strong>
+                  <span>{animationGenerationMode === "hatch-pet" ? copy.animationHatchPetBody : copy.animationStandardSheetBody}</span>
+                </div>
+                <div className="motion-mode-tabs">
+                  <button
+                    className={animationGenerationMode === "standard" ? "active" : ""}
+                    onClick={() => {
+                      setAnimationGenerationMode("standard");
+                      setGrid(ANIMATION_SHEET_GRID);
+                    }}
+                  >
+                    {copy.animationStandardSheet}
+                  </button>
+                  <button
+                    className={animationGenerationMode === "hatch-pet" ? "active" : ""}
+                    onClick={() => {
+                      setAnimationGenerationMode("hatch-pet");
+                      setGrid(HATCH_PET_GRID);
+                      setActiveActionName("idle");
+                    }}
+                  >
+                    {copy.animationHatchPet}
+                  </button>
+                </div>
+              </section>
+
+              <section className="animation-step">
+                <div className="step-heading">
                   <strong>{copy.animationStepMotionTitle}</strong>
                   <span>{copy.animationStepMotionBody}</span>
                 </div>
@@ -2347,12 +2466,16 @@ function App() {
               <section className="animation-step">
                 <div className="step-heading">
                   <strong>{copy.animationStepGenerateTitle}</strong>
-                  <span>{copy.animationStepGenerateBody}</span>
+                  <span>{animationGenerationMode === "hatch-pet" ? copy.hatchPetGenerateBody : copy.animationStepGenerateBody}</span>
                 </div>
-                <div className="field-row compact-row">
-                  <NumberField label={copy.frameWidth} value={activeAction.cell.width} min={MIN_ANIMATION_CELL_SIZE} onChange={(width) => updateCell(width, activeAction.cell.height)} />
-                  <NumberField label={copy.frameHeight} value={activeAction.cell.height} min={MIN_ANIMATION_CELL_SIZE} onChange={(height) => updateCell(activeAction.cell.width, height)} />
-                </div>
+                {animationGenerationMode === "hatch-pet" ? (
+                  <small className="step-kicker">{copy.hatchPetLockedSize}</small>
+                ) : (
+                  <div className="field-row compact-row">
+                    <NumberField label={copy.frameWidth} value={activeAction.cell.width} min={MIN_ANIMATION_CELL_SIZE} onChange={(width) => updateCell(width, activeAction.cell.height)} />
+                    <NumberField label={copy.frameHeight} value={activeAction.cell.height} min={MIN_ANIMATION_CELL_SIZE} onChange={(height) => updateCell(activeAction.cell.width, height)} />
+                  </div>
+                )}
                 <button className="primary-button full" onClick={() => void handleGenerate()} disabled={primaryActionDisabled}>
                   <PrimaryActionIcon providerId={providerId} isBusy={isBusy} />
                   {shouldQueueCodexJob ? codexQueueCopy.queueAction : copy.generateLocalSprite}
@@ -2711,7 +2834,7 @@ function App() {
               <div className="animation-download-body">
                 <div className="step-heading">
                   <strong>{selected?.name ?? copy.animationStepDownloadTitle}</strong>
-                  <span>{copy.animationStepDownloadBody}</span>
+                  <span>{selectedAnimationVariant === "hatch-pet" ? copy.hatchPetDownloadBody : copy.animationStepDownloadBody}</span>
                 </div>
                 {selectedAnimationExportReady && <small className="step-kicker">{copy.animationReady}</small>}
                 <div className="download-grid">
@@ -3254,6 +3377,22 @@ function buildAnimationDirectionPreviewActions(action: SpriteAction, actionFrame
   }).filter((preview) => preview.action.frameIds.length > 0);
 }
 
+function buildHatchPetStatePreviewActions(action: SpriteAction, actionFrames: SpriteFrame[]) {
+  return HATCH_PET_STATE_ROWS.map((state, rowIndex) => {
+    const rowStart = rowIndex * HATCH_PET_GRID.columns;
+    const rowFrames = actionFrames.slice(rowStart, rowStart + state.frames);
+    return {
+      directionId: state.id,
+      action: {
+        ...action,
+        name: `${action.name}_${state.id}`,
+        fps: state.id === "idle" || state.id === "waiting" || state.id === "review" ? 6 : 8,
+        frameIds: rowFrames.map((frame) => frame.id)
+      }
+    };
+  }).filter((preview) => preview.action.frameIds.length > 0);
+}
+
 function animationDirectionLabel(directionId: string, language: Language) {
   const labels = uiCopy[language] as Record<string, string>;
   if (directionId === "front") return labels.previewFront;
@@ -3353,6 +3492,53 @@ function buildAnimationCodexNotes({
     `Direction rows: ${ANIMATION_DIRECTIONS.join(", ")}.`,
     "Cell QA is mandatory: one full-body character per cell, consistent baseline and scale, 10% inner padding, no cropping, no duplicated heads, no body fragments under feet, no character parts crossing cell borders.",
     "The generated sheet should keep the chroma key background simple and flat so the app can remove it reliably."
+  ].filter(Boolean).join("\n");
+}
+
+function buildHatchPetCodexPrompt({
+  sourceName,
+  motionPrompt,
+  chromaKey
+}: {
+  sourceName: string;
+  motionPrompt: string;
+  chromaKey: AnimationChromaKey;
+}) {
+  const concept = motionPrompt.trim() || "make this uploaded character into a compact Codex pet with calm idle, movement, waiting, working, failed, and review states";
+  return [
+    `Use the uploaded source image "${sourceName}" as the canonical character reference.`,
+    "Try the installed hatch-pet workflow for a Codex-compatible custom pet atlas.",
+    "If the hatch-pet skill is available, use its deterministic scripts for run preparation, atlas geometry, validation, contact sheet, and preview generation.",
+    "Use Codex imagegen / built-in image_gen only through the hatch-pet or imagegen workflow for visual generation; do not call external APIs directly.",
+    `Pet concept and motion guidance: ${concept}.`,
+    "Create the same character across the full Codex pet state contract: idle, running-right, running-left, waving, jumping, failed, waiting, running, review.",
+    `Final atlas must be 8 columns x 9 rows, 1536x1872 pixels total, ${HATCH_PET_CELL.width}x${HATCH_PET_CELL.height} per cell, transparent background, transparent unused cells.`,
+    `Use ${chromaKey.label} (${chromaKey.hex}) only as a temporary removable row-generation background when needed; the final atlas should be transparent.`,
+    "Keep a canonical base identity first, then generate each row from that identity so face, body shape, palette, outfit, prop design, and pixel density stay consistent.",
+    "Avoid text, logos, UI, scenery, shadows, speed lines, detached effects, cropped parts, repeated guide marks, white backgrounds, black backgrounds, and nontransparent residue.",
+    "Before returning, inspect the contact sheet and row previews. Reject identity drift, cropped bodies, missing feet, wrong state semantics, static idle, and size popping.",
+    "Return the final spritesheet PNG or WebP to the outbox using the job id filename prefix. If pet.json is produced, return it as a sidecar too."
+  ].join(" ");
+}
+
+function buildHatchPetCodexNotes({
+  userNotes,
+  chromaKey,
+  chromaReason
+}: {
+  userNotes: string;
+  chromaKey: AnimationChromaKey;
+  chromaReason: string;
+}) {
+  return [
+    userNotes.trim(),
+    "Experimental hatch-pet sprite workflow: create a Codex pet atlas from the selected source image, using the local hatch-pet skill/scripts when available.",
+    "Reference process: first lock a canonical base identity, then generate row strips, validate frames, compose the atlas, and visually QA the contact sheet/previews.",
+    `Expected atlas: ${HATCH_PET_GRID.columns} columns x ${HATCH_PET_GRID.rows} rows, ${HATCH_PET_CELL.width}x${HATCH_PET_CELL.height} per cell, 1536x1872 total.`,
+    `Rows and intended frame counts: ${HATCH_PET_STATE_ROWS.map((row) => `${row.id}=${row.frames}`).join(", ")}.`,
+    `Temporary chroma-key decision: ${chromaKey.name} ${chromaKey.hex}. ${chromaReason}`,
+    "Final output should be transparent PNG/WebP, with unused cells fully transparent and no hidden colored residue.",
+    "Return at least the final spritesheet image to the outbox with the job id filename prefix; include pet.json as a sidecar when available."
   ].filter(Boolean).join("\n");
 }
 
@@ -4061,6 +4247,7 @@ function savePendingCodexJobs(jobs: CodexJobQueueItem[]) {
         grid: job.grid,
         cell: job.cell,
         chromaKey: job.chromaKey,
+        spriteVariant: job.spriteVariant,
         sourceImageId: job.sourceImageId,
         sourceImageName: job.sourceImageName
       }));
