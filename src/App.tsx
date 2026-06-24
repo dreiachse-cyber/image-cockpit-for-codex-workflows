@@ -154,6 +154,10 @@ interface AnimationDirectionPreview {
   gifUrl: string;
 }
 
+interface FrameSplitOptions {
+  normalizeOpaqueBounds?: boolean;
+}
+
 interface PendingCodexJob {
   id: string;
   path: string;
@@ -862,9 +866,10 @@ function buildAnimationPresetMotionPrompt(preset: AnimationPresetExample) {
   const walkCycleGaitLines = preset.id === "walk-cycle"
     ? [
         "Walking gait must be visible in every row, especially front three-quarter, side, and back three-quarter.",
-        "Use a true 8-frame walk loop: frame 1 left foot forward/right foot back contact, frame 3 passing pose with legs crossing near the body center, frame 5 right foot forward/left foot back contact, frame 7 passing pose, with frames 2, 4, 6, and 8 as smooth in-betweens.",
-        "For side and diagonal rows, the leading foot must swap across the row; do not keep the same leg in front in all frames, and do not make a sliding idle shuffle.",
-        "Arms swing opposite the legs, the torso has a subtle walk bob, and the baseline remains stable without skating."
+        "Use a true 8-frame walk loop: frame 1 left foot forward/right foot back contact, frame 2 weight shift, frame 3 passing pose with both legs crossing near the body center, frame 4 right foot reaching forward, frame 5 right foot forward/left foot back contact, frame 6 weight shift, frame 7 passing pose, frame 8 left foot reaching forward back into frame 1.",
+        "For side and diagonal rows, the front foot must visibly alternate left-right-left-right across the row; frame 1 and frame 5 must be visibly different silhouettes, not mirrored clothing sway.",
+        "Show the rear foot lifting from the ground on passing frames, show knee bend and toe contact on contact frames, and keep the feet on a stable ground line without skating.",
+        "Arms swing opposite the legs, the torso has a subtle walk bob, and the cloak or hair secondary motion must not be the only visible movement."
       ]
     : [];
   const runCycleGaitLines = preset.id === "run-cycle"
@@ -888,6 +893,7 @@ function buildAnimationPresetMotionPrompt(preset: AnimationPresetExample) {
     `Each cell is fixed at exactly ${ANIMATION_CELL_SIZE}px x ${ANIMATION_CELL_SIZE}px; the complete sheet must be exactly ${ANIMATION_CELL_SIZE * ANIMATION_FRAME_COUNT}px x ${ANIMATION_CELL_SIZE * ANIMATION_DIRECTION_COUNT}px.`,
     `Direction rows from top to bottom: ${ANIMATION_DIRECTIONS.join(", ")}.`,
     "When the sheet is sliced into equal 256px cells, neighboring frames above, below, left, or right must not intrude into the current cell.",
+    "Keep each character centered in its own cell with the feet landing on the same visual ground line; do not make the character drift up, down, left, or right between frames.",
     "Prefer a transparent background. If true transparency is not available during generation, use only the flat chroma-key color requested elsewhere in this job.",
     "Reject and regenerate before returning if any cell has cropped hair, a cut-off head, missing feet, duplicated heads, body fragments, a changed character, nonuniform scale, or a non-flat background."
   ].join(" ");
@@ -1956,7 +1962,9 @@ function App() {
       derivedFromId: source.id,
       derivedFromName: source.name
     };
-    const newFrames = await splitImageIntoFrames(sheetDataUrl, sheetName.replace(/\.[^.]+$/, ""), animationGrid, item.id, animationAction.cell);
+    const newFrames = await splitImageIntoFrames(sheetDataUrl, sheetName.replace(/\.[^.]+$/, ""), animationGrid, item.id, animationAction.cell, {
+      normalizeOpaqueBounds: true
+    });
 
     setGrid(animationGrid);
     setHistory((current) => [item, ...current]);
@@ -1996,7 +2004,9 @@ function App() {
       derivedFromId: pendingJob.sourceImageId,
       derivedFromName: pendingJob.sourceImageName
     };
-    const newFrames = await splitImageIntoFrames(transparentSheetDataUrl, baseName, spriteGrid, item.id, spriteCell);
+    const newFrames = await splitImageIntoFrames(transparentSheetDataUrl, baseName, spriteGrid, item.id, spriteCell, {
+      normalizeOpaqueBounds: spriteVariant === "standard"
+    });
     if (newFrames.length === 0) throw new Error("Returned sprite sheet could not be split into frames.");
 
     setAnimationGenerationMode(spriteVariant);
@@ -3740,6 +3750,7 @@ function buildAnimationCodexPrompt({
     `Each cell must be exactly ${cell.width}x${cell.height} pixels; the full sheet target is ${cell.width * ANIMATION_FRAME_COUNT}x${cell.height * ANIMATION_DIRECTION_COUNT} pixels.`,
     "Every cell must contain exactly one full-body character, centered inside that cell, with the entire head, hair, hands, weapon, clothing, and both feet visible.",
     "Keep at least 10% empty chroma-key padding inside every cell above the head, below the feet, and on both sides.",
+    "The character center and foot baseline must stay aligned across all frames in the same row; do not drift left, right, up, or down between frames.",
     "Do not crop the head, feet, hair, weapon, or effects. Do not let body parts cross cell borders. Do not place heads or body fragments under the feet.",
     "Use consistent character scale, baseline, foot contact point, silhouette size, palette, outfit, and pixel density across all 40 cells.",
     `Prefer a transparent background in every cell. If true transparency is not available during generation, use a flat ${chromaKey.label} background (${chromaKey.hex}) in every cell; do not use black, white, gradients, scenery, shadows, UI, text, logos, watermarks, letters, or numbers.`,
@@ -4372,12 +4383,13 @@ async function splitImageIntoFrames(
   baseName: string,
   grid: GridSettings,
   sourceId?: string,
-  targetCell?: { width: number; height: number }
+  targetCell?: { width: number; height: number },
+  options: FrameSplitOptions = {}
 ): Promise<SpriteFrame[]> {
   const image = await loadImage(dataUrl);
   const cells = calculateGridCells(image.width, image.height, grid);
   const canvas = document.createElement("canvas");
-  const context = canvas.getContext("2d");
+  const context = canvas.getContext("2d", { willReadFrequently: true });
   if (!context) return [];
   return cells.map((cell) => {
     const width = targetCell?.width ?? cell.width;
@@ -4386,6 +4398,7 @@ async function splitImageIntoFrames(
     canvas.height = height;
     context.clearRect(0, 0, width, height);
     context.drawImage(image, cell.x, cell.y, cell.width, cell.height, 0, 0, width, height);
+    if (options.normalizeOpaqueBounds) normalizeFrameOpaqueBounds(context, width, height);
     return {
       id: createId("frame"),
       name: `${baseName}_${String(cell.index).padStart(3, "0")}.png`,
@@ -4396,6 +4409,184 @@ async function splitImageIntoFrames(
       index: cell.index
     };
   });
+}
+
+interface OpaqueBounds {
+  minX: number;
+  minY: number;
+  maxX: number;
+  maxY: number;
+  count: number;
+}
+
+interface OpaqueComponent extends OpaqueBounds {
+  id: number;
+  centerX: number;
+  centerY: number;
+}
+
+const FRAME_ALPHA_THRESHOLD = 12;
+
+function normalizeFrameOpaqueBounds(context: CanvasRenderingContext2D, width: number, height: number) {
+  const imageData = context.getImageData(0, 0, width, height);
+  const { labels, components } = labelOpaqueComponents(imageData, width, height);
+  const primary = selectPrimaryOpaqueComponent(components, width, height);
+  if (!primary || primary.count < 64) return;
+
+  const keepComponents = new Uint8Array(components.length);
+  components.forEach((component) => {
+    if (shouldKeepFrameComponent(component, primary, width, height)) keepComponents[component.id] = 1;
+  });
+
+  const cleaned = new ImageData(new Uint8ClampedArray(imageData.data), width, height);
+  const data = cleaned.data;
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      const index = y * width + x;
+      const offset = (y * width + x) * 4;
+      const label = labels[index];
+      if (data[offset + 3] <= FRAME_ALPHA_THRESHOLD || label < 0 || keepComponents[label] !== 1) {
+        data[offset + 3] = 0;
+      }
+    }
+  }
+
+  const bounds = findOpaqueBounds(cleaned, width, height);
+  if (!bounds || bounds.count < 64) return;
+
+  const sourceCanvas = document.createElement("canvas");
+  sourceCanvas.width = width;
+  sourceCanvas.height = height;
+  const sourceContext = sourceCanvas.getContext("2d");
+  if (!sourceContext) return;
+  sourceContext.putImageData(cleaned, 0, 0);
+
+  const cropWidth = bounds.maxX - bounds.minX + 1;
+  const cropHeight = bounds.maxY - bounds.minY + 1;
+  const targetX = clampNumber(Math.round(width / 2 - cropWidth / 2), 0, Math.max(0, width - cropWidth));
+  const targetFootY = Math.round(height * 0.9);
+  const targetY = clampNumber(targetFootY - cropHeight, 0, Math.max(0, height - cropHeight));
+
+  context.clearRect(0, 0, width, height);
+  context.drawImage(sourceCanvas, bounds.minX, bounds.minY, cropWidth, cropHeight, targetX, targetY, cropWidth, cropHeight);
+}
+
+function findOpaqueBounds(imageData: ImageData, width: number, height: number): OpaqueBounds | null {
+  const data = imageData.data;
+  let minX = width;
+  let minY = height;
+  let maxX = -1;
+  let maxY = -1;
+  let count = 0;
+
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      const alpha = data[(y * width + x) * 4 + 3];
+      if (alpha <= FRAME_ALPHA_THRESHOLD) continue;
+      minX = Math.min(minX, x);
+      minY = Math.min(minY, y);
+      maxX = Math.max(maxX, x);
+      maxY = Math.max(maxY, y);
+      count += 1;
+    }
+  }
+
+  return count > 0 ? { minX, minY, maxX, maxY, count } : null;
+}
+
+function labelOpaqueComponents(imageData: ImageData, width: number, height: number) {
+  const data = imageData.data;
+  const visited = new Uint8Array(width * height);
+  const labels = new Int32Array(width * height);
+  labels.fill(-1);
+  const stack = new Int32Array(width * height);
+  const components: OpaqueComponent[] = [];
+
+  for (let start = 0; start < width * height; start += 1) {
+    if (visited[start] || data[start * 4 + 3] <= FRAME_ALPHA_THRESHOLD) continue;
+
+    const id = components.length;
+    let stackLength = 0;
+    stack[stackLength] = start;
+    stackLength += 1;
+    visited[start] = 1;
+    labels[start] = id;
+    let minX = width;
+    let minY = height;
+    let maxX = -1;
+    let maxY = -1;
+    let count = 0;
+    let sumX = 0;
+    let sumY = 0;
+
+    while (stackLength > 0) {
+      stackLength -= 1;
+      const index = stack[stackLength];
+      const x = index % width;
+      const y = Math.floor(index / width);
+      minX = Math.min(minX, x);
+      minY = Math.min(minY, y);
+      maxX = Math.max(maxX, x);
+      maxY = Math.max(maxY, y);
+      count += 1;
+      sumX += x;
+      sumY += y;
+
+      for (let dy = -1; dy <= 1; dy += 1) {
+        for (let dx = -1; dx <= 1; dx += 1) {
+          if (dx === 0 && dy === 0) continue;
+          const nextX = x + dx;
+          const nextY = y + dy;
+          if (nextX < 0 || nextX >= width || nextY < 0 || nextY >= height) continue;
+          const nextIndex = nextY * width + nextX;
+          if (visited[nextIndex] || data[nextIndex * 4 + 3] <= FRAME_ALPHA_THRESHOLD) continue;
+          visited[nextIndex] = 1;
+          labels[nextIndex] = id;
+          stack[stackLength] = nextIndex;
+          stackLength += 1;
+        }
+      }
+    }
+
+    components.push({ id, minX, minY, maxX, maxY, count, centerX: sumX / count, centerY: sumY / count });
+  }
+
+  return { labels, components };
+}
+
+function selectPrimaryOpaqueComponent(components: OpaqueComponent[], width: number, height: number): OpaqueComponent | null {
+  let best: OpaqueComponent | null = null;
+  let bestScore = -Infinity;
+  const centerX = width / 2;
+  const centerY = height / 2;
+
+  components.forEach((component) => {
+    if (component.count < 16) return;
+    const distanceFromCellCenter = Math.hypot(component.centerX - centerX, component.centerY - centerY);
+    const score = component.count - distanceFromCellCenter * 1.25;
+    if (score > bestScore) {
+      bestScore = score;
+      best = component;
+    }
+  });
+
+  return best;
+}
+
+function shouldKeepFrameComponent(component: OpaqueComponent, primary: OpaqueComponent, width: number, height: number) {
+  if (component.id === primary.id) return true;
+  if (component.count < 12) return false;
+  const horizontalGap = Math.max(0, Math.max(primary.minX - component.maxX, component.minX - primary.maxX));
+  const verticalGap = Math.max(0, Math.max(primary.minY - component.maxY, component.minY - primary.maxY));
+  const nearHorizontally = horizontalGap <= Math.round(width * 0.12);
+  const nearVertically = verticalGap <= Math.round(height * 0.08);
+  const notStrayBelow = component.centerY <= primary.maxY + Math.round(height * 0.08);
+  const notStrayAbove = component.centerY >= primary.minY - Math.round(height * 0.08);
+  return nearHorizontally && nearVertically && notStrayBelow && notStrayAbove;
+}
+
+function clampNumber(value: number, min: number, max: number) {
+  return Math.min(max, Math.max(min, value));
 }
 
 function drawCheckerboard(context: CanvasRenderingContext2D, width: number, height: number, size: number) {

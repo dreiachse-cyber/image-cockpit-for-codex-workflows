@@ -135,6 +135,7 @@ try {
     expectedPreviewImages: 6,
     expectedAnimationPreviewImagesAfterExercise: 6,
     expectedDirectionPreviewCount: 5,
+    expectedNormalizedAnimationFrames: true,
     reloadAfterExercise: true
   });
   await assertAnimationResultNotEditable();
@@ -528,6 +529,7 @@ async function assertWorkflow({
   expectedDirectionPreviewCount = 0,
   expectedCanvasPreviewModeAfterExercise = "",
   expectedAnnotationToolbarVisible = false,
+  expectedNormalizedAnimationFrames = false,
   reloadAfterExercise = false
 }) {
   await selectWorkflowTab(label);
@@ -611,6 +613,9 @@ async function assertWorkflow({
       );
       assert(postSnapshot.resultDownloadPanelInWorkspace, `${label} should keep the download panel visible under the preview`);
     }
+    if (expectedNormalizedAnimationFrames) {
+      await assertNormalizedAnimationFrames(label);
+    }
     if (expectedCanvasPreviewModeAfterExercise) {
       await waitForEval(
         () => `document.querySelector("canvas")?.dataset.previewMode === ${JSON.stringify(expectedCanvasPreviewModeAfterExercise)}`,
@@ -653,6 +658,98 @@ async function assertWorkflow({
   }
   await maybeCapture(label.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, ""));
   await selectWorkflowTab("Pixel Art Generation");
+}
+
+async function assertNormalizedAnimationFrames(label) {
+  const metrics = await evaluate(`(async () => {
+    const readState = (key) => new Promise((resolve, reject) => {
+      const request = indexedDB.open("image-cockpit-local-state", 1);
+      request.onerror = () => reject(request.error || new Error("Could not open IndexedDB"));
+      request.onsuccess = () => {
+        const db = request.result;
+        const transaction = db.transaction("state", "readonly");
+        const getRequest = transaction.objectStore("state").get(key);
+        getRequest.onsuccess = () => {
+          db.close();
+          resolve(getRequest.result || []);
+        };
+        getRequest.onerror = () => {
+          db.close();
+          reject(getRequest.error || new Error("Could not read IndexedDB"));
+        };
+      };
+    });
+    const loadImage = (src) => new Promise((resolve, reject) => {
+      const image = new Image();
+      image.onload = () => resolve(image);
+      image.onerror = () => reject(new Error("Could not load frame image"));
+      image.src = src;
+    });
+    const frames = await readState("image-cockpit.v3.frames");
+    const groups = new Map();
+    frames
+      .filter((frame) => frame.width === 256 && frame.height === 256 && frame.sourceId)
+      .forEach((frame) => {
+        const group = groups.get(frame.sourceId) || [];
+        group.push(frame);
+        groups.set(frame.sourceId, group);
+      });
+    const targetFrames = [...groups.values()]
+      .sort((left, right) => right.length - left.length)
+      .find((group) => group.length >= 40);
+    if (!targetFrames) return { ok: false, reason: "missing generated animation frame group" };
+    const canvas = document.createElement("canvas");
+    canvas.width = 256;
+    canvas.height = 256;
+    const context = canvas.getContext("2d", { willReadFrequently: true });
+    if (!context) return { ok: false, reason: "missing canvas context" };
+    const sampleFrames = targetFrames.slice(0, 12);
+    const bboxes = [];
+    for (const frame of sampleFrames) {
+      const image = await loadImage(frame.dataUrl);
+      context.clearRect(0, 0, 256, 256);
+      context.drawImage(image, 0, 0, 256, 256);
+      const data = context.getImageData(0, 0, 256, 256).data;
+      let minX = 256;
+      let minY = 256;
+      let maxX = -1;
+      let maxY = -1;
+      let count = 0;
+      for (let y = 0; y < 256; y += 1) {
+        for (let x = 0; x < 256; x += 1) {
+          if (data[(y * 256 + x) * 4 + 3] <= 12) continue;
+          minX = Math.min(minX, x);
+          minY = Math.min(minY, y);
+          maxX = Math.max(maxX, x);
+          maxY = Math.max(maxY, y);
+          count += 1;
+        }
+      }
+      if (count > 0) {
+        bboxes.push({
+          centerDelta: Math.abs(((minX + maxX + 1) / 2) - 128),
+          bottom: maxY + 1,
+          count
+        });
+      }
+    }
+    const maxCenterDelta = bboxes.length > 0 ? Math.max(...bboxes.map((box) => box.centerDelta)) : Infinity;
+    const minBottom = bboxes.length > 0 ? Math.min(...bboxes.map((box) => box.bottom)) : 0;
+    const maxBottom = bboxes.length > 0 ? Math.max(...bboxes.map((box) => box.bottom)) : 0;
+    return {
+      ok: bboxes.length >= 10 && maxCenterDelta <= 12 && minBottom >= 214 && maxBottom <= 238,
+      frameCount: targetFrames.length,
+      measured: bboxes.length,
+      expectedSampleFrames: sampleFrames.length,
+      maxCenterDelta,
+      minBottom,
+      maxBottom
+    };
+  })()`);
+  assert(
+    metrics.ok,
+    `${label} should normalize animation frame cutouts around center and footline: ${JSON.stringify(metrics)}`
+  );
 }
 
 async function selectWorkflowTab(label) {

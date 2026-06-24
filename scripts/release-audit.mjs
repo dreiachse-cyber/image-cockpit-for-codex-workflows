@@ -418,6 +418,9 @@ function checkWorkflowIds() {
     "Choose Animation should show 10 animated sprite samples",
     "Choose Animation should include the Run Cycle animation card",
     "Run Cycle card should use the generated run-cycle sprite sheet sample",
+    "expectedNormalizedAnimationFrames",
+    "assertNormalizedAnimationFrames",
+    "should normalize animation frame cutouts around center and footline",
     "Victory Cheer",
     "Animation selected",
     "preExerciseButtonChecks",
@@ -462,6 +465,12 @@ function checkWorkflowIds() {
   ["SHOW_SPRITE_ACTIONS_PANEL", "without-sprite-actions"].forEach((marker) => {
     if (!appText.includes(marker)) {
       failures.push(`App should keep Sprite Actions panel behind the temporary visibility flag: ${marker}`);
+    }
+  });
+
+  ["normalizeOpaqueBounds", "normalizeFrameOpaqueBounds", "selectPrimaryOpaqueComponent"].forEach((marker) => {
+    if (!appText.includes(marker)) {
+      failures.push(`App should normalize generated animation frame cutouts: ${marker}`);
     }
   });
 
