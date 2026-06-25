@@ -416,7 +416,7 @@ function checkWorkflowIds() {
     "animation-sample-sprite",
     "Choose Animation should show 1 verified animated sprite sample",
     "Choose Animation should include the Run Cycle animation card",
-    "Run Cycle card should use the generated run-cycle sprite sheet sample",
+    "Run Cycle card should use the generated run-cycle sprite sheet sample with ping-pong playback",
     "expectedNormalizedAnimationFrames",
     "assertNormalizedAnimationFrames",
     "should normalize animation frame cutouts around center and footline",

@@ -247,9 +247,10 @@ async function assertAnimationPresetExamples() {
     const style = getComputedStyle(sprite);
     return sprite.classList.contains("sample-run-sheet")
       && style.backgroundImage.includes("run-cycle-sheet.png")
-      && style.backgroundSize.includes("500%");
+      && style.backgroundSize.includes("500%")
+      && style.animationDirection === "alternate";
   })()`);
-  assert(runCycleUsesGeneratedSheet, "Run Cycle card should use the generated run-cycle sprite sheet sample");
+  assert(runCycleUsesGeneratedSheet, "Run Cycle card should use the generated run-cycle sprite sheet sample with ping-pong playback");
   assert(snapshot.promptRawTextBlocks === 0, `Choose Animation should hide raw prompt text, got ${snapshot.promptRawTextBlocks} raw blocks`);
   const animationName = await evaluate(`getComputedStyle(document.querySelector(".animation-sample-sprite")).animationName`);
   assert(animationName && animationName !== "none", "Choose Animation samples should be animated");
