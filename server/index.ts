@@ -29,6 +29,8 @@ const codexExecArgs = parseJsonStringArray("IMAGE_COCKPIT_CODEX_EXEC_ARGS_JSON",
   codexSandbox,
   "-"
 ]);
+const runnerStaleTimeoutMs = parsePositiveNumber("IMAGE_COCKPIT_CODEX_STALE_MS", 15 * 60 * 1000);
+const runnerStaleLogIdleMs = parsePositiveNumber("IMAGE_COCKPIT_CODEX_STALE_LOG_IDLE_MS", 5 * 60 * 1000);
 const resultRoutePrefix = "/api/codex/results/";
 const runnerPreflightTimeoutMs = 4000;
 
@@ -645,6 +647,13 @@ function parseJsonStringArray(envKey: string, fallback: string[]) {
   return fallback;
 }
 
+function parsePositiveNumber(envKey: string, fallback: number) {
+  const rawValue = process.env[envKey];
+  if (!rawValue) return fallback;
+  const parsed = Number(rawValue);
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : fallback;
+}
+
 function codexRunnerSetupHint(error?: unknown) {
   if (error && typeof error === "object" && "code" in error) {
     const code = (error as NodeJS.ErrnoException).code;
@@ -786,11 +795,11 @@ async function writeRunnerStatus(status: CodexRunnerStatus) {
 
 async function getRunnerStatus(jobId: string): Promise<CodexRunnerStatus> {
   const liveStatus = runnerStatuses.get(jobId);
-  if (liveStatus) return enrichRunnerStatus(liveStatus);
+  if (liveStatus) return enrichRunnerStatus(await normalizeRunningStatus(liveStatus));
 
   const statusPath = join(statusDir, `${jobId}.json`);
   try {
-    return enrichRunnerStatus(JSON.parse(await readFile(statusPath, "utf8")) as CodexRunnerStatus);
+    return enrichRunnerStatus(await normalizeRunningStatus(JSON.parse(await readFile(statusPath, "utf8")) as CodexRunnerStatus));
   } catch {
     return enrichRunnerStatus({
       jobId,
@@ -798,6 +807,49 @@ async function getRunnerStatus(jobId: string): Promise<CodexRunnerStatus> {
       message: "No runner status has been recorded for this job.",
       statusPath
     });
+  }
+}
+
+async function normalizeRunningStatus(status: CodexRunnerStatus): Promise<CodexRunnerStatus> {
+  if (status.state !== "running") return status;
+
+  if (await hasOutboxImageForJob(status.jobId)) {
+    return {
+      ...status,
+      state: "completed",
+      message: "Codex returned an image while runner status was still running.",
+      finishedAt: new Date().toISOString(),
+      exitCode: null
+    };
+  }
+
+  if (!(await isRunnerStatusStale(status))) return status;
+
+  return {
+    ...status,
+    state: "failed",
+    message: "Codex runner timed out after log output stopped; no outbox result was returned.",
+    finishedAt: new Date().toISOString(),
+    exitCode: null
+  };
+}
+
+async function isRunnerStatusStale(status: CodexRunnerStatus) {
+  if (runnerStaleTimeoutMs <= 0) return false;
+
+  const startedAtMs = status.startedAt ? Date.parse(status.startedAt) : NaN;
+  if (!Number.isFinite(startedAtMs)) return false;
+
+  const now = Date.now();
+  if (now - startedAtMs < runnerStaleTimeoutMs) return false;
+
+  if (!status.logPath) return true;
+
+  try {
+    const logStats = await stat(status.logPath);
+    return now - logStats.mtimeMs >= runnerStaleLogIdleMs;
+  } catch {
+    return true;
   }
 }
 
@@ -835,13 +887,19 @@ async function getJobDiagnostic(status: CodexRunnerStatus): Promise<CodexJobDiag
 }
 
 function classifyFailureKind(status: CodexRunnerStatus, text: string, hasReturnedImage: boolean): CodexFailureKind | null {
+  if (status.state === "completed" && !hasReturnedImage) return "no_image_returned";
+  if (
+    !hasReturnedImage &&
+    matchesAny(text, ["stale", "timed out", "no outbox result", "without returning an outbox image", "no returned image was found"])
+  ) {
+    return "no_image_returned";
+  }
   if (matchesAny(text, ["policy", "safety", "content policy", "disallowed", "not allowed", "blocked", "moderation", "cannot comply", "can't help"])) {
     return "policy_or_safety";
   }
   if (matchesAny(text, ["imagegen unavailable", "image generation unavailable", "built-in image_gen unavailable", "tool unavailable", "image_gen unavailable"])) {
     return "imagegen_unavailable";
   }
-  if (status.state === "completed" && !hasReturnedImage) return "no_image_returned";
   if (status.state === "failed" || status.state === "unavailable") return "runner_failed";
   if (status.state === "unknown") return "unknown";
   return null;
@@ -876,7 +934,7 @@ function diagnosticForKind(kind: CodexFailureKind): Omit<CodexJobDiagnostic, "si
     return {
       kind,
       title: "No image returned",
-      userMessage: "Codex runner completed, but no returned image was found.",
+      userMessage: "Codex runner finished or stopped, but no returned image was found.",
       suggestion: "Retry the job, or place a returned image with the job id prefix in the outbox."
     };
   }
