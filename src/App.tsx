@@ -5339,7 +5339,7 @@ async function chooseAnimationChromaKey(sourceDataUrl: string) {
   }
 
   const ratio = opaque > 0 ? greenPixels / opaque : 0;
-  if (greenPixels >= 80 && ratio >= 0.015) {
+  if (greenPixels >= 160 && ratio >= 0.008) {
     return {
       key: animationChromaKeys.magenta,
       reason: `Detected green in the extracted character (${Math.round(ratio * 1000) / 10}% of opaque pixels), so magenta was selected.`
@@ -5683,13 +5683,14 @@ function isChromaPixel(data: Uint8ClampedArray, offset: number) {
   return green || blue || magenta;
 }
 
-function isCharacterGreenPixel(data: Uint8ClampedArray, offset: number) {
+export function isCharacterGreenPixel(data: Uint8ClampedArray, offset: number) {
   const r = data[offset];
   const g = data[offset + 1];
   const b = data[offset + 2];
-  const saturatedGreen = g > 95 && g > r * 1.18 && g > b * 1.18;
-  const naturalGreen = g > 72 && g >= r + 18 && g >= b + 14 && r < 150;
-  return saturatedGreen || naturalGreen;
+  const saturatedGreen = g > 95 && g > r * 1.14 && g > b * 1.14;
+  const naturalGreen = g > 68 && g >= r + 8 && g >= b + 16 && r < 170 && b < 140;
+  const oliveGreen = g >= 58 && g >= r + 4 && g >= b + 18 && r < 170 && b < 115;
+  return saturatedGreen || naturalGreen || oliveGreen;
 }
 
 function removeChromaKeyPixels(
@@ -5708,10 +5709,7 @@ function removeChromaKeyPixels(
     const dg = data[offset + 1] - chromaKey.rgb.g;
     const db = data[offset + 2] - chromaKey.rgb.b;
     const closeToKey = dr * dr + dg * dg + db * db <= tolerance * tolerance;
-    const semanticKey =
-      chromaKey.name === "green"
-        ? data[offset + 1] > 120 && data[offset + 1] > data[offset] * 1.25 && data[offset + 1] > data[offset + 2] * 1.25
-        : data[offset] > 150 && data[offset + 2] > 130 && data[offset + 1] < Math.min(data[offset], data[offset + 2]) * 0.72;
+    const semanticKey = isStrictChromaResiduePixel(data, offset, chromaKey.name);
     if (closeToKey || semanticKey) data[offset + 3] = 0;
   }
 
@@ -6439,7 +6437,7 @@ function frameTinyComponentThreshold(width: number, height: number) {
   return Math.max(12, Math.round(width * height * 0.00065));
 }
 
-function isFrameChromaResiduePixel(
+export function isFrameChromaResiduePixel(
   data: Uint8ClampedArray,
   offset: number,
   residueChromaKey: FrameResidueChromaKey = "both"
@@ -6451,9 +6449,24 @@ function isFrameChromaResiduePixel(
   const b = data[offset + 2];
   const checkGreen = residueChromaKey === "green" || residueChromaKey === "both";
   const checkMagenta = residueChromaKey === "magenta" || residueChromaKey === "both";
-  const greenResidue = g > 30 && g >= r + 2 && g >= b + 2 && g > r * 1.02 && g > b * 1.02;
-  const magentaResidue = r > 95 && b > 90 && g < Math.min(r, b) * 0.8;
+  const greenResidue = isStrictChromaResidueColor(r, g, b, "green");
+  const magentaResidue = isStrictChromaResidueColor(r, g, b, "magenta");
   return (checkGreen && greenResidue) || (checkMagenta && magentaResidue);
+}
+
+function isStrictChromaResiduePixel(data: Uint8ClampedArray, offset: number, chromaKey: AnimationChromaKeyName) {
+  return isStrictChromaResidueColor(data[offset], data[offset + 1], data[offset + 2], chromaKey);
+}
+
+function isStrictChromaResidueColor(r: number, g: number, b: number, chromaKey: AnimationChromaKeyName) {
+  if (chromaKey === "green") {
+    const pureDarkGreen = g >= 96 && r <= 56 && b <= 56 && g >= r + 45 && g >= b + 45;
+    const brightKeyGreen = g >= 150 && r <= 112 && b <= 112 && g >= r + 70 && g >= b + 70;
+    return pureDarkGreen || brightKeyGreen;
+  }
+  const pureDarkMagenta = r >= 96 && b >= 96 && g <= 56 && r >= g + 45 && b >= g + 45;
+  const brightKeyMagenta = r >= 150 && b >= 150 && g <= 112 && r >= g + 70 && b >= g + 70;
+  return pureDarkMagenta || brightKeyMagenta;
 }
 
 function removeFrameEdgeResiduePixels(
@@ -6523,10 +6536,10 @@ function despillFrameEdgePixels(
       const r = source[offset];
       const g = source[offset + 1];
       const b = source[offset + 2];
-      if (checkGreen && g > 30 && g >= r + 2 && g >= b + 2) {
+      if (checkGreen && isStrictChromaResidueColor(r, g, b, "green")) {
         data[offset + 1] = Math.min(g, Math.max(r, b));
       }
-      if (checkMagenta && r > 95 && b > 90 && g < Math.min(r, b) * 0.8) {
+      if (checkMagenta && isStrictChromaResidueColor(r, g, b, "magenta")) {
         const limit = Math.max(g, Math.round((r + b) / 4));
         data[offset] = Math.min(r, limit);
         data[offset + 2] = Math.min(b, limit);

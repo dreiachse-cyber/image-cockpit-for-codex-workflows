@@ -4,6 +4,8 @@ import {
   getVisibleHistoryCount,
   HISTORY_RENDER_BATCH_SIZE,
   INITIAL_HISTORY_RENDER_COUNT,
+  isCharacterGreenPixel,
+  isFrameChromaResiduePixel,
   isOutboxResultForJob,
   isLikelyFrameGarbageComponent,
   resolveInitialLanguage,
@@ -88,6 +90,19 @@ describe("Codex outbox job result matching", () => {
 });
 
 describe("animation frame cleanup", () => {
+  it("detects olive-green character palettes so animation jobs avoid green chroma key", () => {
+    expect(isCharacterGreenPixel(pixelData(56, 72, 24), 0)).toBe(true);
+    expect(isCharacterGreenPixel(pixelData(64, 80, 24), 0)).toBe(true);
+    expect(isCharacterGreenPixel(pixelData(140, 104, 44), 0)).toBe(false);
+  });
+
+  it("does not treat normal green costume pixels as chroma residue", () => {
+    expect(isFrameChromaResiduePixel(pixelData(56, 72, 24), 0, "green")).toBe(false);
+    expect(isFrameChromaResiduePixel(pixelData(64, 80, 24), 0, "green")).toBe(false);
+    expect(isFrameChromaResiduePixel(pixelData(0, 255, 0), 0, "green")).toBe(true);
+    expect(isFrameChromaResiduePixel(pixelData(42, 220, 38), 0, "green")).toBe(true);
+  });
+
   it("drops tiny chroma residue near a generated sprite footline", () => {
     const primary = makeComponent(1, 82, 38, 172, 224, 4100);
     const residue = makeComponent(2, 165, 220, 176, 226, 38, { chromaResidueCount: 34, softAlphaCount: 12 });
@@ -109,6 +124,10 @@ function makeStatus(state: CodexRunnerStatus["state"]): CodexRunnerStatus {
     state,
     message: `${state} runner`
   };
+}
+
+function pixelData(r: number, g: number, b: number, a = 255) {
+  return new Uint8ClampedArray([r, g, b, a]);
 }
 
 function makeComponent(
