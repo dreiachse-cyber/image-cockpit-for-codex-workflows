@@ -714,7 +714,7 @@ const defaultActions: SpriteAction[] = [
   { name: "walk", fps: 12, loop: true, frameIds: [], cell: STANDARD_ANIMATION_CELL, anchor: STANDARD_ANIMATION_ANCHOR },
   { name: "cast", fps: 10, loop: false, frameIds: [], cell: STANDARD_ANIMATION_CELL, anchor: STANDARD_ANIMATION_ANCHOR },
   { name: "attack", fps: 10, loop: false, frameIds: [], cell: STANDARD_ANIMATION_CELL, anchor: STANDARD_ANIMATION_ANCHOR },
-  { name: "run", fps: 14, loop: true, frameIds: [], cell: STANDARD_ANIMATION_CELL, anchor: STANDARD_ANIMATION_ANCHOR }
+  { name: "run", fps: 20, loop: true, playbackMode: "ping-pong-reverse", frameIds: [], cell: STANDARD_ANIMATION_CELL, anchor: STANDARD_ANIMATION_ANCHOR }
 ];
 
 const animationPresetExamples: AnimationPresetExample[] = [
@@ -728,8 +728,8 @@ const animationPresetExamples: AnimationPresetExample[] = [
       en: "Fast alternating strides with clear airborne beats and arm drive.",
       ja: "大きな歩幅、空中フレーム、強い腕振りが読める走りです。"
     },
-    prompt: "run cycle with fast alternating strides, clear airborne frames, forward torso lean, strong opposite arm drive, explicit right-front and left-front foot crossover passing frames, full-body side-readable motion",
-    notes: "Preset example: show a real run with lift-off frames, two explicit crossover passing frames, and longer stride than walking; avoid skating, tiny shuffling steps, cropped feet, or pose drift."
+    prompt: "run cycle half-cycle with the left foot traveling from back to front and the right foot traveling from front to back, clear crossover passing frames, forward torso lean, strong opposite arm drive, full-body side-readable motion",
+    notes: "Preset example: generate eight source frames for one half-cycle; the app appends the reverse order for 16-frame GIF/WebP playback. Avoid skating, tiny shuffling steps, cropped feet, or pose drift."
   }
 ];
 
@@ -758,9 +758,11 @@ function buildAnimationPresetMotionPrompt(preset: AnimationPresetExample) {
   const runCycleGaitLines = preset.id === "run-cycle"
     ? [
         "Running gait must be visible in every row, especially front three-quarter, side, and back three-quarter.",
-        "Use a true 8-frame run loop: frame 1 right foot forward extended contact / left foot back push-off, frame 2 feet move closer with the left knee tucking under the body, frame 3 left leg crosses in front of the body while the right leg trails in a passing pose, frame 4 left foot reaches forward in an airborne stride, frame 5 left foot forward extended contact / right foot back push-off, frame 6 feet move closer with the right knee tucking under the body, frame 7 right leg crosses in front of the body while the left leg trails in a passing pose, frame 8 right foot reaches forward in an airborne stride back into frame 1.",
-        "For side and diagonal rows, frames 3 and 7 are mandatory crossover passing frames: one left-front crossover and one right-front crossover. Do not skip these frames, do not hide them behind clothing, and do not replace them with two open-leg stride poses.",
-        "The leading foot must swap across the row; do not keep the same leg in front, do not make a walking shuffle, and do not make a sliding pose cycle.",
+        "Use the 8 generated source frames as one half-cycle, not a complete two-step loop: the left foot must travel from back to front while the right foot travels from front to back.",
+        "The app will append the same 8 source frames in reverse order during GIF/WebP playback to create a 16-frame ping-pong run cycle, so do not squeeze both left-front and right-front halves into the 8 source frames.",
+        "Source frame plan: frame 1 left foot far back / right foot far front extended stride, frame 2 both feet move closer, frame 3 feet gather under the body and begin to cross, frame 4 left leg crosses in front of the right leg in a clear passing pose, frame 5 left foot is now visibly leading, frame 6 left foot reaches farther forward while the right foot pushes back, frame 7 left foot extended forward / right foot back airborne stride, frame 8 clean endpoint with left foot fully forward and right foot fully back.",
+        "For side and diagonal rows, frame 4 is a mandatory left-front crossover passing frame. The reversed playback will create the matching right-front crossover. Do not skip the crossover, do not hide it behind clothing, and do not replace it with open-leg stride poses.",
+        "The leading foot must visibly change from right-front at frame 1 to left-front at frame 8; do not keep the same leg in front, do not make a walking shuffle, and do not make a sliding pose cycle.",
         "Add a clear forward torso lean, stronger opposite arm drive than walking, longer stride length, and a small vertical bounce while keeping the character centered inside each cell."
       ]
     : [];
@@ -910,8 +912,11 @@ function normalizeAnimationActions(actions: SpriteAction[]) {
 }
 
 function normalizeAnimationAction(action: SpriteAction): SpriteAction {
+  const defaultAction = defaultActions.find((item) => item.name === action.name);
   return {
     ...action,
+    fps: action.name === "run" && action.fps === 14 ? defaultAction?.fps ?? action.fps : action.fps,
+    playbackMode: action.name === "run" ? "ping-pong-reverse" : action.playbackMode,
     cell: STANDARD_ANIMATION_CELL,
     anchor: STANDARD_ANIMATION_ANCHOR
   };
@@ -979,7 +984,7 @@ function App() {
   const [frames, setFrames] = useState<SpriteFrame[]>(() => loadFrames());
   const [actions, setActions] = useState<SpriteAction[]>(() => normalizeAnimationActions(loadActions(defaultActions)));
   const [selectedId, setSelectedId] = useState<string>("");
-  const [activeActionName, setActiveActionName] = useState("walk");
+  const [activeActionName, setActiveActionName] = useState("run");
   const [selectedAnimationPresetId, setSelectedAnimationPresetId] = useState(DEFAULT_ANIMATION_PRESET_ID);
   const [language, setLanguage] = useState<Language>(loadLanguage);
   const [storageHydrated, setStorageHydrated] = useState(false);

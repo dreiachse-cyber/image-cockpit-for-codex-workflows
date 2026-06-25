@@ -101,6 +101,14 @@ export function buildSpriteMetadata(
   };
 }
 
+export function resolvePlaybackFrameIds(action: SpriteAction) {
+  if (action.playbackMode !== "ping-pong-reverse" || action.frameIds.length < 2) {
+    return action.frameIds;
+  }
+
+  return [...action.frameIds, ...action.frameIds.slice().reverse()];
+}
+
 export function applyChromaKey(
   input: Uint8ClampedArray,
   key: { r: number; g: number; b: number },

@@ -2,7 +2,7 @@ import { applyPalette, GIFEncoder, quantize } from "gifenc";
 import JSZip from "jszip";
 import type { SpriteAction, SpriteFrame } from "../types";
 import { canvasToBlob, dataUrlToBlob, downloadBlob, loadImage } from "./image";
-import { buildSpriteMetadata, packSpriteSheet } from "./sprite";
+import { buildSpriteMetadata, packSpriteSheet, resolvePlaybackFrameIds } from "./sprite";
 
 export async function createSpriteSheetBlob(frames: SpriteFrame[], action: SpriteAction, columns?: number) {
   const ordered = action.frameIds
@@ -43,7 +43,7 @@ export async function exportFramesZip(frames: SpriteFrame[], action: SpriteActio
 }
 
 export async function createGifBlob(frames: SpriteFrame[], action: SpriteAction) {
-  const ordered = action.frameIds
+  const ordered = resolvePlaybackFrameIds(action)
     .map((frameId) => frames.find((frame) => frame.id === frameId))
     .filter((frame): frame is SpriteFrame => Boolean(frame));
   if (ordered.length === 0) throw new Error("No frames to export");
@@ -87,7 +87,7 @@ export async function exportGif(frames: SpriteFrame[], action: SpriteAction) {
 }
 
 export async function createAnimatedWebpBlob(frames: SpriteFrame[], action: SpriteAction) {
-  const ordered = action.frameIds
+  const ordered = resolvePlaybackFrameIds(action)
     .map((frameId) => frames.find((frame) => frame.id === frameId))
     .filter((frame): frame is SpriteFrame => Boolean(frame));
   if (ordered.length === 0) throw new Error("No frames to export");

@@ -31,6 +31,7 @@ export interface SpriteAction {
   name: string;
   fps: number;
   loop: boolean;
+  playbackMode?: "normal" | "ping-pong-reverse";
   frameIds: string[];
   cell: {
     width: number;
