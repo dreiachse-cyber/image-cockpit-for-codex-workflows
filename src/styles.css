@@ -2491,6 +2491,54 @@ button:disabled {
   --sample-y: 50%;
 }
 
+.sample-attack-sheet {
+  --sample-image: url("/samples/basic-attack-sheet.png");
+  --sample-sheet-rows: 500%;
+  --sample-y: 50%;
+}
+
+.sample-hurt-sheet {
+  --sample-image: url("/samples/hurt-reaction-sheet.png");
+  --sample-sheet-rows: 500%;
+  --sample-y: 25%;
+}
+
+.sample-death-sheet {
+  --sample-image: url("/samples/death-downed-sheet.png");
+  --sample-sheet-rows: 500%;
+  --sample-y: 50%;
+}
+
+.sample-cast-sheet {
+  --sample-image: url("/samples/spell-cast-sheet.png");
+  --sample-sheet-rows: 500%;
+  --sample-y: 25%;
+}
+
+.sample-jump-sheet {
+  --sample-image: url("/samples/jump-hop-sheet.png");
+  --sample-sheet-rows: 500%;
+  --sample-y: 50%;
+}
+
+.sample-guard-sheet {
+  --sample-image: url("/samples/guard-block-sheet.png");
+  --sample-sheet-rows: 500%;
+  --sample-y: 25%;
+}
+
+.sample-cheer-sheet {
+  --sample-image: url("/samples/victory-cheer-sheet.png");
+  --sample-sheet-rows: 500%;
+  --sample-y: 25%;
+}
+
+.sample-interact-sheet {
+  --sample-image: url("/samples/interact-pickup-sheet.png");
+  --sample-sheet-rows: 500%;
+  --sample-y: 50%;
+}
+
 .sample-fast {
   --sample-duration: 0.62s;
 }
@@ -2506,6 +2554,19 @@ button:disabled {
 .sample-run {
   --sample-duration: 0.4s;
   --sample-direction: alternate;
+}
+
+.sample-attack,
+.sample-hurt,
+.sample-guard,
+.sample-interact {
+  --sample-duration: 0.72s;
+}
+
+.sample-cast,
+.sample-cheer,
+.sample-jump {
+  --sample-duration: 0.86s;
 }
 
 .sample-slow {

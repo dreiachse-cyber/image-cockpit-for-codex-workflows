@@ -1,0 +1,24 @@
+{
+  "preset": "spell-cast",
+  "jobId": "codex-job-2026-06-25T21-19-09-276Z",
+  "sample": "public/samples/spell-cast-sheet.png",
+  "qaDir": "docs/qa/official-spell-cast",
+  "mechanicalErrors": [],
+  "mechanicalWarnings": [
+    "row 1 frame 1: tight padding [66, 43, 40, 7]",
+    "row 1 frame 2: tight padding [23, 21, 40, 7]",
+    "row 1 frame 3: tight padding [69, 44, 55, 7]",
+    "row 1 frame 4: tight padding [57, 46, 56, 7]",
+    "row 3 frame 5: tight padding [8, 35, 4, 31]",
+    "row 5 frame 5: tight padding [43, 44, 4, 31]"
+  ],
+  "framesChecked": 40,
+  "imageSize": [
+    2048,
+    1280
+  ],
+  "cell": [
+    256,
+    256
+  ]
+}

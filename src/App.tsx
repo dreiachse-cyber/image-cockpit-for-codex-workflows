@@ -1896,12 +1896,18 @@ const DEFAULT_ANIMATION_PRESET_ID = "idle-breathing";
 const defaultActions: SpriteAction[] = [
   { name: "idle", fps: 12, loop: true, frameIds: [], cell: STANDARD_ANIMATION_CELL, anchor: STANDARD_ANIMATION_ANCHOR },
   { name: "walk", fps: 12, loop: true, frameIds: [], cell: STANDARD_ANIMATION_CELL, anchor: STANDARD_ANIMATION_ANCHOR },
+  { name: "attack", fps: 12, loop: false, frameIds: [], cell: STANDARD_ANIMATION_CELL, anchor: STANDARD_ANIMATION_ANCHOR },
+  { name: "hurt", fps: 12, loop: false, frameIds: [], cell: STANDARD_ANIMATION_CELL, anchor: STANDARD_ANIMATION_ANCHOR },
+  { name: "death", fps: 8, loop: false, frameIds: [], cell: STANDARD_ANIMATION_CELL, anchor: STANDARD_ANIMATION_ANCHOR },
   { name: "cast", fps: 10, loop: false, frameIds: [], cell: STANDARD_ANIMATION_CELL, anchor: STANDARD_ANIMATION_ANCHOR },
-  { name: "attack", fps: 10, loop: false, frameIds: [], cell: STANDARD_ANIMATION_CELL, anchor: STANDARD_ANIMATION_ANCHOR },
+  { name: "jump", fps: 12, loop: false, frameIds: [], cell: STANDARD_ANIMATION_CELL, anchor: STANDARD_ANIMATION_ANCHOR },
+  { name: "guard", fps: 10, loop: false, frameIds: [], cell: STANDARD_ANIMATION_CELL, anchor: STANDARD_ANIMATION_ANCHOR },
+  { name: "cheer", fps: 10, loop: true, frameIds: [], cell: STANDARD_ANIMATION_CELL, anchor: STANDARD_ANIMATION_ANCHOR },
+  { name: "interact", fps: 10, loop: false, frameIds: [], cell: STANDARD_ANIMATION_CELL, anchor: STANDARD_ANIMATION_ANCHOR },
   { name: "run", fps: 20, loop: true, playbackMode: "ping-pong-reverse", frameIds: [], cell: STANDARD_ANIMATION_CELL, anchor: STANDARD_ANIMATION_ANCHOR }
 ];
 
-const animationPresetExamples: AnimationPresetExample[] = [
+const animationPresetCatalog: AnimationPresetExample[] = [
   {
     id: "idle-breathing",
     actionName: "idle",
@@ -1940,8 +1946,244 @@ const animationPresetExamples: AnimationPresetExample[] = [
     },
     prompt: "run cycle half-cycle with the left foot traveling from back to front and the right foot traveling from front to back, legs far apart then approaching, feet-together passing moment, legs separating into the opposite stride, forward torso lean, strong opposite arm drive, full-body side-readable motion",
     notes: "Preset example: generate eight source frames for one half-cycle; the app appends the reverse order for 16-frame GIF/WebP playback. The half-cycle must show legs far apart, approaching, feet together under the body, separating again, and far apart in the opposite stride. Avoid skating, tiny shuffling steps, cropped feet, or pose drift."
+  },
+  {
+    id: "basic-attack",
+    actionName: "attack",
+    previewClassName: "sample-attack-sheet sample-attack",
+    category: { en: "Combat", ja: "戦闘" },
+    title: { en: "Basic Attack", ja: "基本攻撃" },
+    summary: {
+      en: "Eight-frame forward attack with anticipation, impact, follow-through, and recovery.",
+      ja: "構え、溜め、打撃、フォロースルー、戻りが読める8フレーム攻撃です。"
+    },
+    prompt: "basic forward attack with ready pose, anticipation, wind-up, strike, clear impact pose, follow-through, recovery, small contained weapon or hand motion, readable attack direction, no large effects",
+    notes: "Official preset: generate eight source frames as one non-looping basic attack. The action must work for armed or unarmed characters; any slash or hit effect must remain small and must not hide the body, feet, or cell edges."
+  },
+  {
+    id: "hurt-reaction",
+    actionName: "hurt",
+    previewClassName: "sample-hurt-sheet sample-hurt",
+    category: { en: "Combat", ja: "戦闘" },
+    title: { en: "Hurt Reaction", ja: "被弾リアクション" },
+    summary: {
+      en: "Short hit reaction with recoil, stagger, and a clean return to stance.",
+      ja: "被弾、のけぞり、踏ん張り、復帰が読める短いリアクションです。"
+    },
+    prompt: "hurt reaction with small hit spark, upper body recoil, head jolt, body bending back, staggered foot brace, regain balance, settle back to ready, no gore",
+    notes: "Official preset: generate eight source frames as one non-looping hurt reaction. Use clear recoil and stagger without blood, wounds, dismemberment, or horror imagery."
+  },
+  {
+    id: "death-downed",
+    actionName: "death",
+    previewClassName: "sample-death-sheet sample-slow",
+    category: { en: "Combat", ja: "戦闘" },
+    title: { en: "Death / Downed", ja: "ダウン" },
+    summary: {
+      en: "Non-gory downed animation that collapses into a readable defeated pose.",
+      ja: "流血なしで、倒れ込みから戦闘不能ポーズまで読めるダウンです。"
+    },
+    prompt: "non-gory defeated downed animation with hit, collapse, falling or kneeling, contact, downed pose, settle, final still, final still, compact body inside cell",
+    notes: "Official preset: generate eight source frames as one non-looping downed animation. Prefer kneeling, collapsing, or slumped defeated poses over a full sideways corpse so all directions stay readable inside the cell. No gore, blood, wounds, dismemberment, or horror detail."
+  },
+  {
+    id: "spell-cast",
+    actionName: "cast",
+    previewClassName: "sample-cast-sheet sample-cast",
+    category: { en: "Magic / Skill", ja: "魔法 / スキル" },
+    title: { en: "Spell Cast", ja: "詠唱 / 発動" },
+    summary: {
+      en: "Raise, charge, release, and recover with small contained magic effects.",
+      ja: "手元や杖先の小さなエフェクトで、詠唱から発動まで読める動きです。"
+    },
+    prompt: "spell cast animation with ready stance, raise hand or staff, magic charge, brighter charge, compact release, follow-through, settle, return ready, small contained effect",
+    notes: "Official preset: generate eight source frames as one non-looping spell cast. Effects must stay near the hand or staff tip and must not cover the body, feet, or cell boundaries."
+  },
+  {
+    id: "jump-hop",
+    actionName: "jump",
+    previewClassName: "sample-jump-sheet sample-jump",
+    category: { en: "Move", ja: "移動" },
+    title: { en: "Jump / Hop", ja: "ジャンプ" },
+    summary: {
+      en: "Small in-place jump with crouch, rise, apex, landing, and settle.",
+      ja: "しゃがみ、踏み切り、頂点、着地、戻りが読める小さなその場ジャンプです。"
+    },
+    prompt: "small in-place jump hop with crouch, push-off, rising, apex, falling, landing, squash settle, ready pose, stable landing baseline, generous top padding",
+    notes: "Official preset: generate eight source frames as one non-looping jump. Keep it compact and in-place; add generous top padding so hair, hat, staff, or ears never touch the cell top."
+  },
+  {
+    id: "guard-block",
+    actionName: "guard",
+    previewClassName: "sample-guard-sheet sample-guard",
+    category: { en: "Combat", ja: "戦闘" },
+    title: { en: "Guard / Block", ja: "ガード" },
+    summary: {
+      en: "Raise guard, brace, absorb a hit, and recover without hiding the character.",
+      ja: "防御を構え、受け止め、戻るまでが読めるガード動作です。"
+    },
+    prompt: "guard block animation with ready pose, raise guard, brace, hold, absorb impact, slight recoil, recover, guard or ready end, arms weapon shield or body stance reads as defense",
+    notes: "Official preset: generate eight source frames as one guard/block action. It should read as defense even without a shield; do not hide the face and torso completely behind props."
+  },
+  {
+    id: "victory-cheer",
+    actionName: "cheer",
+    previewClassName: "sample-cheer-sheet sample-cheer",
+    category: { en: "Emotion / Social", ja: "感情 / ソーシャル" },
+    title: { en: "Victory Cheer", ja: "勝利ポーズ" },
+    summary: {
+      en: "Loopable cheer or wave with a small celebratory bounce.",
+      ja: "小さな跳ね、手振り、勝利ポーズが読めるループ向け動作です。"
+    },
+    prompt: "victory cheer loop with ready pose, arm raises, cheerful peak, small bounce, wave or held pose, settle, smile pose, loop bridge, no big jump",
+    notes: "Official preset: generate eight source frames as one loopable victory cheer or wave. Keep it distinct from jump-hop by using arm/pose expression and only a small bounce."
+  },
+  {
+    id: "interact-pickup",
+    actionName: "interact",
+    previewClassName: "sample-interact-sheet sample-interact",
+    category: { en: "Utility", ja: "ユーティリティ" },
+    title: { en: "Interact / Pickup", ja: "調べる / 拾う" },
+    summary: {
+      en: "Look, reach, bend, pick up or inspect, then return to ready.",
+      ja: "見る、手を伸ばす、拾う/調べる、戻るまでが読める汎用インタラクトです。"
+    },
+    prompt: "interact pickup animation with ready pose, look down or forward, reach, bend or pickup, hold or inspect small item, return, settle, ready pose, compact readable hands",
+    notes: "Official preset: generate eight source frames as one non-looping interact/pickup action. Keep any item small and avoid deep crouches that crush the character silhouette."
   }
 ];
+
+const verifiedAnimationPresetIds = new Set([
+  "idle-breathing",
+  "walk-cycle",
+  "run-cycle",
+  "basic-attack",
+  "hurt-reaction",
+  "death-downed",
+  "spell-cast",
+  "jump-hop",
+  "guard-block",
+  "victory-cheer",
+  "interact-pickup"
+]);
+const animationPresetExamples = animationPresetCatalog.filter((example) => verifiedAnimationPresetIds.has(example.id));
+
+const animationPresetMotionSheetLines: Record<string, string> = {
+  "idle-breathing": "Create an idle breathing / ready stance animation sprite sheet.",
+  "walk-cycle": "Create a walking animation sprite sheet.",
+  "run-cycle": "Create a running animation sprite sheet.",
+  "basic-attack": "Create a basic forward attack animation sprite sheet.",
+  "hurt-reaction": "Create a hurt / hit reaction animation sprite sheet.",
+  "death-downed": "Create a non-gory downed / defeated animation sprite sheet.",
+  "spell-cast": "Create a spell casting / skill activation animation sprite sheet.",
+  "jump-hop": "Create a compact in-place jump / hop animation sprite sheet.",
+  "guard-block": "Create a guard / block animation sprite sheet.",
+  "victory-cheer": "Create a victory cheer / wave animation sprite sheet.",
+  "interact-pickup": "Create an interact / pickup animation sprite sheet."
+};
+
+const animationPresetMotionPromptLines: Record<string, string[]> = {
+  "idle-breathing": [
+    "Idle breathing must read as a ready stance in every row, not as movement through space.",
+    "Use the 8 generated source frames as one complete normal loop, not a ping-pong half-cycle.",
+    "Frame plan: frame 1 neutral ready stance; frame 2 slight inhale with chest and shoulders rising; frame 3 hair, hood, clothing, and backpack follow upward subtly; frame 4 top of breath while the body stays centered; frame 5 exhale begins; frame 6 shoulders settle and cloth/hair lag slightly; frame 7 return toward neutral; frame 8 clean bridge back to frame 1.",
+    "Both feet must stay planted on the same exact foot baseline in all eight frames. Do not step, walk, run, hop, slide, lift a foot, or change the stance width.",
+    "The motion should be visible but restrained: tiny shoulder/chest rise, small head or hair settle, and light clothing/backpack follow-through. Do not use large bounce as a substitute for breathing.",
+    "For diagonal and side rows, preserve the same stance silhouette and foot positions across the row; only the breathing and secondary motion should change.",
+    "The back row must remain a true straight rear idle stance with a centered backpack/back silhouette and no face details."
+  ],
+  "walk-cycle": [
+    "Walking gait must be visible in every row, especially front three-quarter, side, and back three-quarter.",
+    "Use the 8 generated source frames as one complete walk loop, not a ping-pong half-cycle.",
+    "Frame plan: frame 1 left foot forward / right foot back contact; frame 2 body settles downward over the planted foot; frame 3 passing pose with both feet close under the hips and the rear foot lifting; frame 4 right foot reaches forward with toe-first contact about to happen; frame 5 right foot forward / left foot back contact; frame 6 body settles downward over the planted foot; frame 7 passing pose with both feet close under the hips and the rear foot lifting; frame 8 left foot reaches forward and reconnects cleanly into frame 1.",
+    "For side and diagonal rows, the visible front foot must alternate left-right-left-right across the row; frame 1 and frame 5 must be clearly different contact silhouettes, not only mirrored clothing sway.",
+    "Keep the walk slower and more grounded than running: no airborne frame, no long leap, no strong forward lean, and at least one foot must stay visually near the ground in every frame.",
+    "Show knee bend and toe contact on contact frames, show the rear foot lifting on passing frames, and keep the feet on a stable ground line without skating.",
+    "Arms swing opposite the legs, the torso has a subtle walk bob, and hair or clothing secondary motion must support the gait rather than replace visible leg movement."
+  ],
+  "run-cycle": [
+    "Running gait must be visible in every row, especially front three-quarter, side, and back three-quarter.",
+    "Use the 8 generated source frames as one half-cycle, not a complete two-step loop: the left foot must travel from back to front while the right foot travels from front to back.",
+    "The app will append the same 8 source frames in reverse order during GIF/WebP playback to create a 16-frame ping-pong run cycle, so do not squeeze both left-front and right-front halves into the 8 source frames.",
+    "The 8 source frames must express five clear gait phases: legs far apart, legs approaching, feet together under the body, legs starting to separate with the opposite foot taking the lead, and legs far apart again in the opposite stride.",
+    "Source frame plan: frame 1 left foot far back / right foot far front extended stride; frame 2 the stride narrows and both feet move toward the body center; frame 3 both feet are close together directly under the hips, knees bent, one foot just passing the other; frame 4 the feet overlap or cross at the body center with the left foot beginning to pass in front; frame 5 the legs start separating again and the left foot is clearly taking the lead; frame 6 left foot reaches forward while the right foot pushes back; frame 7 left foot extended forward / right foot back airborne stride; frame 8 clean endpoint with left foot fully forward and right foot fully back.",
+    "For side and diagonal rows, frames 3 and 4 are mandatory feet-together / crossover passing frames. The reversed playback will create the matching opposite-foot passing frames. Do not skip the feet-together moment, do not hide it behind clothing, and do not replace it with only open-leg airborne stride poses.",
+    "The leading foot must visibly change from right-front at frame 1 to left-front at frame 8; do not keep the same leg in front, do not make a walking shuffle, and do not make a sliding pose cycle.",
+    "Add a clear forward torso lean, stronger opposite arm drive than walking, longer stride length, and a small vertical bounce while keeping the character centered inside each cell."
+  ],
+  "basic-attack": [
+    "The action must read as a generic forward attack in every row, using the character's existing weapon when visible or a compact punch/slash when no weapon is visible.",
+    "Use the 8 generated source frames as one non-looping action, not a ping-pong cycle.",
+    "Frame plan: frame 1 ready stance; frame 2 anticipation with weight shift; frame 3 wind-up with arm, weapon, or body pulled back; frame 4 fast strike; frame 5 clear impact pose; frame 6 follow-through; frame 7 recover; frame 8 ready-ish end pose.",
+    "Keep the attack direction readable in side and diagonal rows; the strike should travel forward from the character, not randomly upward or backward.",
+    "Any slash, punch arc, hit spark, or weapon trail must be small, transparent-friendly, and contained well inside the 256px cell.",
+    "Do not let effects hide the feet, face, weapon, or torso; do not let a sword, staff, arm, or effect cross into neighboring cells.",
+    "Back row must show the same attack from a true rear view without face details."
+  ],
+  "hurt-reaction": [
+    "The action must read as a brief hit reaction in every row, not as an attack, dance, death, or jump.",
+    "Use the 8 generated source frames as one non-looping action, not a loop.",
+    "Frame plan: frame 1 neutral ready stance; frame 2 tiny hit spark or recoil start; frame 3 upper body bends back and head jolts; frame 4 peak recoil; frame 5 stagger with one foot bracing; frame 6 regain balance; frame 7 settle; frame 8 ready pose.",
+    "Make the recoil readable through torso angle, head movement, shoulder lift, and a bracing foot while keeping the character centered.",
+    "Use no blood, wounds, gore, broken limbs, dismemberment, or horror injury detail.",
+    "The body must never collapse fully to the ground; reserve downed poses for the Death / Downed preset.",
+    "Back row must stay true rear-facing while showing the same backward/side recoil through silhouette and shoulders."
+  ],
+  "death-downed": [
+    "The action must read as a game-style defeated or downed animation, non-gory and compact.",
+    "Use the 8 generated source frames as one non-looping action that ends in a mostly still downed pose.",
+    "Frame plan: frame 1 hit or loss of balance; frame 2 collapse begins; frame 3 falling or kneeling; frame 4 body contacts ground or low crouch; frame 5 downed pose; frame 6 settle; frame 7 final still; frame 8 final still.",
+    "Prefer kneeling, slumped, seated, or compact fallen poses over a full sideways corpse because all directions must remain readable and inside the cell.",
+    "The final downed pose may be lower than ready stance, but the full head, hands, outfit, and feet must remain inside the same 256px cell with padding.",
+    "Use no blood, gore, wounds, dismemberment, horror detail, bones, or dead-body realism.",
+    "Back row must be a true rear view of the same downed motion, not a copied diagonal row."
+  ],
+  "spell-cast": [
+    "The action must read as spell casting or skill activation in every row.",
+    "Use the 8 generated source frames as one non-looping cast action, not a continuous idle loop.",
+    "Frame plan: frame 1 ready stance; frame 2 raise hand, staff, or focus; frame 3 compact charge begins; frame 4 brighter charge; frame 5 release; frame 6 follow-through; frame 7 settle; frame 8 ready pose.",
+    "Effects must stay near the hand, staff tip, book, or small focus point and must remain compact enough to preserve the character silhouette.",
+    "Do not add large circles, giant beams, huge explosions, screen-filling particles, readable magic letters, UI symbols, or text.",
+    "Keep feet and body baseline stable; casting is not a jump or walking animation.",
+    "Back row must show rear-facing casting with no face details."
+  ],
+  "jump-hop": [
+    "The action must read as a small in-place jump or hop in every row.",
+    "Use the 8 generated source frames as one non-looping jump action, not a running leap.",
+    "Frame plan: frame 1 ready stance; frame 2 crouch and squash; frame 3 push-off; frame 4 rising; frame 5 apex; frame 6 falling; frame 7 landing with squash; frame 8 settle back to ready.",
+    "Keep horizontal movement very small; the character should return to the same foot baseline and same cell center by frame 8.",
+    "Add extra empty padding above the highest frame so hair, hat, ears, staff, weapons, and props never touch or cross the top cell edge.",
+    "Do not make a dash, long leap, flying pose, attack, or victory cheer.",
+    "Back row must be true rear-facing while showing the same crouch, rise, landing, and settle."
+  ],
+  "guard-block": [
+    "The action must read as guarding, bracing, or blocking in every row, even for characters without shields.",
+    "Use the 8 generated source frames as one non-looping guard action with a readable hold moment.",
+    "Frame plan: frame 1 ready stance; frame 2 raise guard with arms, weapon, staff, shield, or body stance; frame 3 brace; frame 4 hold; frame 5 absorb a small impact; frame 6 slight recoil; frame 7 recover; frame 8 guard or ready end pose.",
+    "The guard should not completely hide the face, torso, or character identity; keep the silhouette readable.",
+    "Any impact spark or shield effect must be tiny and contained inside the cell.",
+    "Do not turn the guard into an attack swing, spell cast, death pose, or cheer.",
+    "Back row must stay true rear-facing and show the same defensive brace through shoulders, arms, weapon, shield, or stance."
+  ],
+  "victory-cheer": [
+    "The action must read as a victory cheer, wave, or celebratory pose in every row.",
+    "Use the 8 generated source frames as one loopable normal animation, not a ping-pong half-cycle.",
+    "Frame plan: frame 1 ready pose; frame 2 arm begins rising; frame 3 cheer peak; frame 4 small celebratory bounce; frame 5 wave or held pose; frame 6 settle; frame 7 smile or proud pose; frame 8 clean loop bridge back to frame 1.",
+    "Use expressive arms, head, clothing, and a small bounce; do not make a large jump because Jump / Hop is a separate preset.",
+    "Keep both feet or landing baseline stable enough that the loop does not look like walking or running.",
+    "Avoid confetti clouds, text, trophy labels, UI symbols, or large effects that hide the character.",
+    "Back row must stay true rear-facing and read through arms, shoulders, and silhouette."
+  ],
+  "interact-pickup": [
+    "The action must read as a generic interact, inspect, pickup, or use-object motion in every row.",
+    "Use the 8 generated source frames as one non-looping utility action.",
+    "Frame plan: frame 1 ready stance; frame 2 look down or forward; frame 3 reach; frame 4 bend or pickup; frame 5 hold, check, or press a small item; frame 6 return upward; frame 7 settle; frame 8 ready pose.",
+    "Keep hands and upper body readable; any item should be small and should not become a second character or cluttered prop.",
+    "Do not crouch so deeply that the head, hands, feet, or prop become cropped or crushed.",
+    "Do not turn the interaction into an attack, spell cast, cheer, or death pose.",
+    "Back row must stay true rear-facing and express the same inspect/reach/pickup motion through silhouette."
+  ]
+};
 
 function getAnimationPresetById(id: string): AnimationPresetExample {
   return animationPresetExamples.find((example) => example.id === id)
@@ -1951,56 +2193,15 @@ function getAnimationPresetById(id: string): AnimationPresetExample {
 
 function buildAnimationPresetMotionPrompt(preset: AnimationPresetExample) {
   const presetTitle = preset.title.en;
-  const motionSheetLine = preset.id === "idle-breathing"
-    ? "Create an idle breathing / ready stance animation sprite sheet."
-    : preset.id === "walk-cycle"
-      ? "Create a walking animation sprite sheet."
-      : preset.id === "run-cycle"
-        ? "Create a running animation sprite sheet."
-        : `Create a ${presetTitle.toLowerCase()} animation sprite sheet.`;
-  const idleBreathingLines = preset.id === "idle-breathing"
-    ? [
-        "Idle breathing must read as a ready stance in every row, not as movement through space.",
-        "Use the 8 generated source frames as one complete normal loop, not a ping-pong half-cycle.",
-        "Frame plan: frame 1 neutral ready stance; frame 2 slight inhale with chest and shoulders rising; frame 3 hair, hood, clothing, and backpack follow upward subtly; frame 4 top of breath while the body stays centered; frame 5 exhale begins; frame 6 shoulders settle and cloth/hair lag slightly; frame 7 return toward neutral; frame 8 clean bridge back to frame 1.",
-        "Both feet must stay planted on the same exact foot baseline in all eight frames. Do not step, walk, run, hop, slide, lift a foot, or change the stance width.",
-        "The motion should be visible but restrained: tiny shoulder/chest rise, small head or hair settle, and light clothing/backpack follow-through. Do not use large bounce as a substitute for breathing.",
-        "For diagonal and side rows, preserve the same stance silhouette and foot positions across the row; only the breathing and secondary motion should change.",
-        "The back row must remain a true straight rear idle stance with a centered backpack/back silhouette and no face details."
-      ]
-    : [];
-  const walkCycleGaitLines = preset.id === "walk-cycle"
-    ? [
-        "Walking gait must be visible in every row, especially front three-quarter, side, and back three-quarter.",
-        "Use the 8 generated source frames as one complete walk loop, not a ping-pong half-cycle.",
-        "Frame plan: frame 1 left foot forward / right foot back contact; frame 2 body settles downward over the planted foot; frame 3 passing pose with both feet close under the hips and the rear foot lifting; frame 4 right foot reaches forward with toe-first contact about to happen; frame 5 right foot forward / left foot back contact; frame 6 body settles downward over the planted foot; frame 7 passing pose with both feet close under the hips and the rear foot lifting; frame 8 left foot reaches forward and reconnects cleanly into frame 1.",
-        "For side and diagonal rows, the visible front foot must alternate left-right-left-right across the row; frame 1 and frame 5 must be clearly different contact silhouettes, not only mirrored clothing sway.",
-        "Keep the walk slower and more grounded than running: no airborne frame, no long leap, no strong forward lean, and at least one foot must stay visually near the ground in every frame.",
-        "Show knee bend and toe contact on contact frames, show the rear foot lifting on passing frames, and keep the feet on a stable ground line without skating.",
-        "Arms swing opposite the legs, the torso has a subtle walk bob, and hair or clothing secondary motion must support the gait rather than replace visible leg movement."
-      ]
-    : [];
-  const runCycleGaitLines = preset.id === "run-cycle"
-    ? [
-        "Running gait must be visible in every row, especially front three-quarter, side, and back three-quarter.",
-        "Use the 8 generated source frames as one half-cycle, not a complete two-step loop: the left foot must travel from back to front while the right foot travels from front to back.",
-        "The app will append the same 8 source frames in reverse order during GIF/WebP playback to create a 16-frame ping-pong run cycle, so do not squeeze both left-front and right-front halves into the 8 source frames.",
-        "The 8 source frames must express five clear gait phases: legs far apart, legs approaching, feet together under the body, legs starting to separate with the opposite foot taking the lead, and legs far apart again in the opposite stride.",
-        "Source frame plan: frame 1 left foot far back / right foot far front extended stride; frame 2 the stride narrows and both feet move toward the body center; frame 3 both feet are close together directly under the hips, knees bent, one foot just passing the other; frame 4 the feet overlap or cross at the body center with the left foot beginning to pass in front; frame 5 the legs start separating again and the left foot is clearly taking the lead; frame 6 left foot reaches forward while the right foot pushes back; frame 7 left foot extended forward / right foot back airborne stride; frame 8 clean endpoint with left foot fully forward and right foot fully back.",
-        "For side and diagonal rows, frames 3 and 4 are mandatory feet-together / crossover passing frames. The reversed playback will create the matching opposite-foot passing frames. Do not skip the feet-together moment, do not hide it behind clothing, and do not replace it with only open-leg airborne stride poses.",
-        "The leading foot must visibly change from right-front at frame 1 to left-front at frame 8; do not keep the same leg in front, do not make a walking shuffle, and do not make a sliding pose cycle.",
-        "Add a clear forward torso lean, stronger opposite arm drive than walking, longer stride length, and a small vertical bounce while keeping the character centered inside each cell."
-      ]
-    : [];
+  const motionSheetLine = animationPresetMotionSheetLines[preset.id] ?? `Create a ${presetTitle.toLowerCase()} animation sprite sheet.`;
+  const presetSpecificLines = animationPresetMotionPromptLines[preset.id] ?? [];
 
   return [
     `Locked animation preset: ${presetTitle}.`,
     `Preset motion details: ${preset.prompt}.`,
     "Deform/chibify the uploaded character into a compact full-body pixel-art sprite while preserving the original identity, outfit, palette, silhouette, and props.",
     motionSheetLine,
-    ...idleBreathingLines,
-    ...walkCycleGaitLines,
-    ...runCycleGaitLines,
+    ...presetSpecificLines,
     `Use exactly ${ANIMATION_FRAME_COUNT} animation frames per direction.`,
     `The sprite sheet must be evenly divided into ${ANIMATION_DIRECTION_COUNT} rows x ${ANIMATION_FRAME_COUNT} columns: five direction rows and eight frame columns.`,
     `Each cell is fixed at exactly ${ANIMATION_CELL_SIZE}px x ${ANIMATION_CELL_SIZE}px; the complete sheet must be exactly ${ANIMATION_CELL_SIZE * ANIMATION_FRAME_COUNT}px x ${ANIMATION_CELL_SIZE * ANIMATION_DIRECTION_COUNT}px.`,
@@ -2016,9 +2217,15 @@ function buildAnimationPresetMotionPrompt(preset: AnimationPresetExample) {
 }
 
 function buildAnimationPresetNotes(preset: AnimationPresetExample) {
+  const presetSpecificLines = animationPresetMotionPromptLines[preset.id] ?? [];
   return [
     `Locked animation preset: ${preset.title.en} (${preset.id}).`,
     preset.notes,
+    ...(
+      presetSpecificLines.length > 0
+        ? ["Final prompt contract:", ...presetSpecificLines.map((line) => `- ${line}`)]
+        : []
+    ),
     `Standard sheet contract: ${ANIMATION_DIRECTION_COUNT} rows x ${ANIMATION_FRAME_COUNT} columns, ${ANIMATION_CELL_SIZE}px x ${ANIMATION_CELL_SIZE}px per cell, direction rows are ${ANIMATION_DIRECTIONS.join(", ")}.`,
     "Direction identity note: the back row is a true straight rear view, not back three-quarter; no face, side profile, or looking-over-shoulder pose should appear in that row.",
     "Framing note: every direction row must keep the full hair silhouette and both feet visible with clear padding inside each cell.",
@@ -6634,6 +6841,71 @@ function animationPreset(actionName: string, phase: number, frame: number) {
       scaleX: 1 + thrust * 0.018,
       scaleY: 1 - thrust * 0.01,
       accent: "#ff7a59"
+    };
+  }
+  if (actionName === "hurt") {
+    const recoil = Math.sin(Math.min(phase, Math.PI));
+    return {
+      x: -Math.max(0, recoil) * 6,
+      y: Math.abs(Math.sin(phase)) * -3,
+      rotate: -0.16 * Math.max(0, recoil),
+      scaleX: 1 - Math.max(0, recoil) * 0.04,
+      scaleY: 1 + Math.max(0, recoil) * 0.04,
+      accent: "#ffca5f"
+    };
+  }
+  if (actionName === "death") {
+    const progress = Math.min(1, frame / Math.max(1, ANIMATION_FRAME_COUNT - 3));
+    return {
+      x: progress * 5,
+      y: progress * 18,
+      rotate: progress * 0.42,
+      scaleX: 1 + progress * 0.12,
+      scaleY: 1 - progress * 0.16,
+      accent: ""
+    };
+  }
+  if (actionName === "jump") {
+    const jump = Math.sin(Math.PI * Math.min(1, frame / Math.max(1, ANIMATION_FRAME_COUNT - 1)));
+    return {
+      x: 0,
+      y: -jump * 24,
+      rotate: Math.sin(phase) * 0.04,
+      scaleX: 1 - jump * 0.05,
+      scaleY: 1 + jump * 0.05,
+      accent: ""
+    };
+  }
+  if (actionName === "guard") {
+    const brace = Math.min(1, frame / 3);
+    return {
+      x: -brace * 3 + Math.sin(phase) * 1.5,
+      y: -brace * 2,
+      rotate: -brace * 0.08,
+      scaleX: 1 + brace * 0.04,
+      scaleY: 1 - brace * 0.02,
+      accent: "#8ad7ff"
+    };
+  }
+  if (actionName === "cheer") {
+    return {
+      x: Math.sin(phase) * 2,
+      y: Math.abs(Math.sin(phase)) * -9,
+      rotate: Math.sin(phase) * 0.08,
+      scaleX: 1 + Math.abs(Math.sin(phase)) * 0.03,
+      scaleY: 1 + Math.cos(phase) * 0.03,
+      accent: "#ffd166"
+    };
+  }
+  if (actionName === "interact") {
+    const reach = Math.sin(Math.PI * Math.min(1, frame / Math.max(1, ANIMATION_FRAME_COUNT - 1)));
+    return {
+      x: reach * 4,
+      y: reach * 6,
+      rotate: reach * 0.14,
+      scaleX: 1 + reach * 0.03,
+      scaleY: 1 - reach * 0.05,
+      accent: "#9ee493"
     };
   }
   return {

@@ -772,6 +772,8 @@ function buildCodexRunnerPrompt(job: { id: string; path: string }) {
     `Read this local JSON job file: ${job.path}`,
     "If selectedImage.assetPath is populated, inspect that source image before editing it.",
     "If selectedImage.assetPath is empty, treat the job as prompt-only unless the job notes say otherwise.",
+    "Trust the job JSON as the generation contract. Do not perform broad repository audits or read unrelated project docs/source files when the job prompt and jobNotes already provide the needed contract.",
+    "On Windows, do not use System.Drawing for image inspection because it may be unavailable. Use Python/Pillow, PNG header bytes, or another local image tool instead.",
     "For workflowMode=image-generate, use the imagegen skill default built-in image generation path with built-in image_gen when available. Create a real raster image from the job prompt, never a procedural placeholder or SVG.",
     "For workflowMode=image-generate, if image generation is unavailable, write only a small blocker sidecar into the outbox and do not create a fake image.",
     "For workflowMode=image-edit, inspect selectedImage.assetPath, use imagegen / built-in image_gen editing when available, follow numbered annotationContext region comments plus prompt/jobNotes, and return a real edited PNG or WebP with the job id filename prefix. Never create a procedural placeholder or SVG.",

@@ -1,0 +1,17 @@
+{
+  "preset": "victory-cheer",
+  "jobId": "codex-job-2026-06-25T21-54-18-553Z",
+  "sample": "public/samples/victory-cheer-sheet.png",
+  "qaDir": "docs/qa/official-victory-cheer",
+  "mechanicalErrors": [],
+  "mechanicalWarnings": [],
+  "framesChecked": 40,
+  "imageSize": [
+    2048,
+    1280
+  ],
+  "cell": [
+    256,
+    256
+  ]
+}

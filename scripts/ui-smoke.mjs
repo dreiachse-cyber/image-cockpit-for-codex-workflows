@@ -146,7 +146,7 @@ try {
     route: "Route: Codex Handoff",
     buttons: ["Upload Pixel Art", "Choose Animation", "Generate Animation", "Download"],
     hiddenButtons: ["Import Latest", "Import File", "PNG", "Animated GIF", "Animated WebP", "Official Animations", "User Animations", "Import Animation", "Export Sample", "Use", "5-Direction Sheet", "hatch-pet", "5-Direction hatch-pet"],
-    hiddenText: ["Animation Library", "Official Animations", "User Animations", "No user animations yet", "Sprite Actions", "Export Sprite", "Generation Method", "Hop Bounce", "Victory Cheer"],
+    hiddenText: ["Animation Library", "Official Animations", "User Animations", "No user animations yet", "Sprite Actions", "Export Sprite", "Generation Method", "Hop Bounce"],
     requiredText: ["1. Upload Pixel Art", "2. Choose Motion", "3. Generate", "4. Download", "Selected animation", "Choose Animation", "Fixed cells: 256 x 256 px", "5-direction chroma-key sprite sheet"],
     exerciseButton: "Generate Animation",
     expectedAfterExercise: "Animation generated",
@@ -341,47 +341,36 @@ async function assertAnimationPresetExamples() {
   const snapshot = await pageSnapshot();
   assert(snapshot.text.includes("Pick an animated sample"), "Choose Animation intro should be visible");
   assert(snapshot.buttons.includes("Select Animation"), "Choose Animation should expose select buttons");
-  assert(snapshot.animationPresetModalSampleSprites === 3, `Choose Animation should show 3 verified animated sprite samples, got ${snapshot.animationPresetModalSampleSprites}`);
-  assert(snapshot.text.includes("Idle Breathing"), "Choose Animation should include the Idle Breathing animation card");
-  assert(snapshot.text.includes("Walk Cycle"), "Choose Animation should include the Walk Cycle animation card");
-  assert(snapshot.text.includes("Run Cycle"), "Choose Animation should include the Run Cycle animation card");
-  assert(!snapshot.text.includes("Victory Cheer"), "Choose Animation should hide unverified extra animation cards");
-  const idleBreathingUsesGeneratedSheet = await evaluate(`(() => {
-    const cards = [...document.querySelectorAll(".animation-preset-card")];
-    const card = cards.find((item) => item.innerText.includes("Idle Breathing"));
-    const sprite = card?.querySelector(".animation-sample-sprite");
-    if (!sprite) return false;
-    const style = getComputedStyle(sprite);
-    return sprite.classList.contains("sample-idle-sheet")
-      && style.backgroundImage.includes("idle-breathing-sheet.png")
-      && style.backgroundSize.includes("500%")
-      && style.animationDirection === "normal";
-  })()`);
-  assert(idleBreathingUsesGeneratedSheet, "Idle Breathing card should use the generated idle-breathing sprite sheet sample with normal loop playback");
-  const walkCycleUsesGeneratedSheet = await evaluate(`(() => {
-    const cards = [...document.querySelectorAll(".animation-preset-card")];
-    const card = cards.find((item) => item.innerText.includes("Walk Cycle"));
-    const sprite = card?.querySelector(".animation-sample-sprite");
-    if (!sprite) return false;
-    const style = getComputedStyle(sprite);
-    return sprite.classList.contains("sample-walk-sheet")
-      && style.backgroundImage.includes("walk-cycle-sheet.png")
-      && style.backgroundSize.includes("500%")
-      && style.animationDirection === "normal";
-  })()`);
-  assert(walkCycleUsesGeneratedSheet, "Walk Cycle card should use the generated walk-cycle sprite sheet sample with normal loop playback");
-  const runCycleUsesGeneratedSheet = await evaluate(`(() => {
-    const cards = [...document.querySelectorAll(".animation-preset-card")];
-    const card = cards.find((item) => item.innerText.includes("Run Cycle"));
-    const sprite = card?.querySelector(".animation-sample-sprite");
-    if (!sprite) return false;
-    const style = getComputedStyle(sprite);
-    return sprite.classList.contains("sample-run-sheet")
-      && style.backgroundImage.includes("run-cycle-sheet.png")
-      && style.backgroundSize.includes("500%")
-      && style.animationDirection === "alternate";
-  })()`);
-  assert(runCycleUsesGeneratedSheet, "Run Cycle card should use the generated run-cycle sprite sheet sample with ping-pong playback");
+  const expectedAnimationPresetSamples = [
+    { title: "Idle Breathing", className: "sample-idle-sheet", sheet: "idle-breathing-sheet.png", direction: "normal", playback: "normal loop", includeMessage: "Choose Animation should include the Idle Breathing animation card" },
+    { title: "Walk Cycle", className: "sample-walk-sheet", sheet: "walk-cycle-sheet.png", direction: "normal", playback: "normal loop", includeMessage: "Choose Animation should include the Walk Cycle animation card" },
+    { title: "Run Cycle", className: "sample-run-sheet", sheet: "run-cycle-sheet.png", direction: "alternate", playback: "ping-pong playback", includeMessage: "Choose Animation should include the Run Cycle animation card" },
+    { title: "Basic Attack", className: "sample-attack-sheet", sheet: "basic-attack-sheet.png", direction: "normal", playback: "normal playback", includeMessage: "Choose Animation should include the Basic Attack animation card" },
+    { title: "Hurt Reaction", className: "sample-hurt-sheet", sheet: "hurt-reaction-sheet.png", direction: "normal", playback: "normal playback", includeMessage: "Choose Animation should include the Hurt Reaction animation card" },
+    { title: "Death / Downed", className: "sample-death-sheet", sheet: "death-downed-sheet.png", direction: "normal", playback: "normal playback", includeMessage: "Choose Animation should include the Death / Downed animation card" },
+    { title: "Spell Cast", className: "sample-cast-sheet", sheet: "spell-cast-sheet.png", direction: "normal", playback: "normal playback", includeMessage: "Choose Animation should include the Spell Cast animation card" },
+    { title: "Jump / Hop", className: "sample-jump-sheet", sheet: "jump-hop-sheet.png", direction: "normal", playback: "normal playback", includeMessage: "Choose Animation should include the Jump / Hop animation card" },
+    { title: "Guard / Block", className: "sample-guard-sheet", sheet: "guard-block-sheet.png", direction: "normal", playback: "normal playback", includeMessage: "Choose Animation should include the Guard / Block animation card" },
+    { title: "Victory Cheer", className: "sample-cheer-sheet", sheet: "victory-cheer-sheet.png", direction: "normal", playback: "normal loop", includeMessage: "Choose Animation should include the Victory Cheer animation card" },
+    { title: "Interact / Pickup", className: "sample-interact-sheet", sheet: "interact-pickup-sheet.png", direction: "normal", playback: "normal playback", includeMessage: "Choose Animation should include the Interact / Pickup animation card" }
+  ];
+  assert(snapshot.animationPresetModalSampleSprites === expectedAnimationPresetSamples.length, `Choose Animation should show 11 verified animated sprite samples, got ${snapshot.animationPresetModalSampleSprites}`);
+  for (const sample of expectedAnimationPresetSamples) {
+    assert(snapshot.text.includes(sample.title), sample.includeMessage);
+    const usesGeneratedSheet = await evaluate(`(() => {
+      const sample = ${JSON.stringify(sample)};
+      const cards = [...document.querySelectorAll(".animation-preset-card")];
+      const card = cards.find((item) => item.innerText.includes(sample.title));
+      const sprite = card?.querySelector(".animation-sample-sprite");
+      if (!sprite) return false;
+      const style = getComputedStyle(sprite);
+      return sprite.classList.contains(sample.className)
+        && style.backgroundImage.includes(sample.sheet)
+        && style.backgroundSize.includes("500%")
+        && style.animationDirection === sample.direction;
+    })()`);
+    assert(usesGeneratedSheet, `${sample.title} card should use the generated ${sample.sheet} sprite sheet sample with ${sample.playback}`);
+  }
   assert(snapshot.promptRawTextBlocks === 0, `Choose Animation should hide raw prompt text, got ${snapshot.promptRawTextBlocks} raw blocks`);
   const animationName = await evaluate(`getComputedStyle(document.querySelector(".animation-preset-modal .animation-sample-sprite")).animationName`);
   assert(animationName && animationName !== "none", "Choose Animation samples should be animated");

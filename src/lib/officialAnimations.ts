@@ -29,6 +29,70 @@ export const OFFICIAL_ANIMATION_LIBRARY: AnimationLibraryItem[] = [
     sheetDataUrl: "/samples/run-cycle-sheet.png",
     playback: "ping-pong-reverse",
     tags: ["run", "move", "character", "sprite"]
+  }),
+  createOfficialAnimation({
+    id: "official-basic-attack",
+    title: "Basic Attack",
+    action: "attack",
+    sheetDataUrl: "/samples/basic-attack-sheet.png",
+    playback: "normal",
+    tags: ["attack", "combat", "character", "sprite"]
+  }),
+  createOfficialAnimation({
+    id: "official-hurt-reaction",
+    title: "Hurt Reaction",
+    action: "hurt",
+    sheetDataUrl: "/samples/hurt-reaction-sheet.png",
+    playback: "normal",
+    tags: ["hurt", "combat", "reaction", "character", "sprite"]
+  }),
+  createOfficialAnimation({
+    id: "official-death-downed",
+    title: "Death / Downed",
+    action: "death",
+    sheetDataUrl: "/samples/death-downed-sheet.png",
+    playback: "normal",
+    tags: ["death", "downed", "combat", "character", "sprite"]
+  }),
+  createOfficialAnimation({
+    id: "official-spell-cast",
+    title: "Spell Cast",
+    action: "cast",
+    sheetDataUrl: "/samples/spell-cast-sheet.png",
+    playback: "normal",
+    tags: ["cast", "magic", "skill", "character", "sprite"]
+  }),
+  createOfficialAnimation({
+    id: "official-jump-hop",
+    title: "Jump / Hop",
+    action: "jump",
+    sheetDataUrl: "/samples/jump-hop-sheet.png",
+    playback: "normal",
+    tags: ["jump", "move", "character", "sprite"]
+  }),
+  createOfficialAnimation({
+    id: "official-guard-block",
+    title: "Guard / Block",
+    action: "guard",
+    sheetDataUrl: "/samples/guard-block-sheet.png",
+    playback: "normal",
+    tags: ["guard", "block", "combat", "character", "sprite"]
+  }),
+  createOfficialAnimation({
+    id: "official-victory-cheer",
+    title: "Victory Cheer",
+    action: "cheer",
+    sheetDataUrl: "/samples/victory-cheer-sheet.png",
+    playback: "normal",
+    tags: ["cheer", "victory", "emotion", "character", "sprite"]
+  }),
+  createOfficialAnimation({
+    id: "official-interact-pickup",
+    title: "Interact / Pickup",
+    action: "interact",
+    sheetDataUrl: "/samples/interact-pickup-sheet.png",
+    playback: "normal",
+    tags: ["interact", "pickup", "utility", "character", "sprite"]
   })
 ];
 

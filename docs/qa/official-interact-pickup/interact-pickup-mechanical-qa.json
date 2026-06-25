@@ -1,0 +1,17 @@
+{
+  "preset": "interact-pickup",
+  "jobId": "codex-job-2026-06-25T22-10-11-861Z",
+  "sample": "public/samples/interact-pickup-sheet.png",
+  "qaDir": "docs/qa/official-interact-pickup",
+  "mechanicalErrors": [],
+  "mechanicalWarnings": [],
+  "framesChecked": 40,
+  "imageSize": [
+    2048,
+    1280
+  ],
+  "cell": [
+    256,
+    256
+  ]
+}
