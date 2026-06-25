@@ -795,6 +795,9 @@ function buildAnimationPresetMotionPrompt(preset: AnimationPresetExample) {
     `The sprite sheet must be evenly divided into ${ANIMATION_DIRECTION_COUNT} rows x ${ANIMATION_FRAME_COUNT} columns: five direction rows and eight frame columns.`,
     `Each cell is fixed at exactly ${ANIMATION_CELL_SIZE}px x ${ANIMATION_CELL_SIZE}px; the complete sheet must be exactly ${ANIMATION_CELL_SIZE * ANIMATION_FRAME_COUNT}px x ${ANIMATION_CELL_SIZE * ANIMATION_DIRECTION_COUNT}px.`,
     `Direction rows from top to bottom: ${ANIMATION_DIRECTIONS.join(", ")}.`,
+    "Direction identity rules: front is straight toward camera, front three-quarter is diagonal-front, side is strict profile, back three-quarter is diagonal-back, and back is true straight rear view.",
+    "The back row must show the character facing directly away from the camera: centered spine, centered backpack or back silhouette, symmetric shoulders, back of head visible, and no visible eyes, nose, mouth, cheek, side profile, face turn, or looking-over-shoulder pose. Do not duplicate the back three-quarter row in the back row.",
+    "In every direction row, keep the full hair silhouette, entire head, hands, outfit, and both feet fully visible inside each 256px cell with clear empty padding above the hair and below the feet; never let the head touch or disappear beyond the top cell edge.",
     "When the sheet is sliced into equal 256px cells, neighboring frames above, below, left, or right must not intrude into the current cell.",
     "Keep each character centered in its own cell with the feet landing on the same visual ground line; do not make the character drift up, down, left, or right between frames.",
     "Prefer a transparent background. If true transparency is not available during generation, use only the flat chroma-key color requested elsewhere in this job.",
@@ -807,6 +810,8 @@ function buildAnimationPresetNotes(preset: AnimationPresetExample) {
     `Locked animation preset: ${preset.title.en} (${preset.id}).`,
     preset.notes,
     `Standard sheet contract: ${ANIMATION_DIRECTION_COUNT} rows x ${ANIMATION_FRAME_COUNT} columns, ${ANIMATION_CELL_SIZE}px x ${ANIMATION_CELL_SIZE}px per cell, direction rows are ${ANIMATION_DIRECTIONS.join(", ")}.`,
+    "Direction identity note: the back row is a true straight rear view, not back three-quarter; no face, side profile, or looking-over-shoulder pose should appear in that row.",
+    "Framing note: every direction row must keep the full hair silhouette and both feet visible with clear padding inside each cell.",
     "No free-form user motion prompt was supplied; use the locked preset and the strict sheet contract only."
   ].join("\n");
 }
