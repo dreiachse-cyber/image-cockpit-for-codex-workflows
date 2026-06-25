@@ -7,6 +7,14 @@ const STANDARD_CELL = { width: 256, height: 256 };
 
 export const OFFICIAL_ANIMATION_LIBRARY: AnimationLibraryItem[] = [
   createOfficialAnimation({
+    id: "official-idle-breathing",
+    title: "Idle Breathing",
+    action: "idle",
+    sheetDataUrl: "/samples/idle-breathing-sheet.png",
+    playback: "normal",
+    tags: ["idle", "breathing", "ready", "character", "sprite"]
+  }),
+  createOfficialAnimation({
     id: "official-walk-cycle",
     title: "Walk Cycle",
     action: "walk",

@@ -129,7 +129,7 @@ try {
     route: "Route: Codex Handoff",
     buttons: ["Upload Pixel Art", "Choose Animation", "Official Animations", "User Animations", "Use", "Export Sample", "Generate Animation", "PNG"],
     hiddenButtons: ["Import Latest", "Import File", "5-Direction Sheet", "hatch-pet", "5-Direction hatch-pet"],
-    hiddenText: ["Sprite Actions", "Export Sprite", "Generation Method", "Idle Breathing Loop", "Hop Bounce", "Victory Cheer"],
+    hiddenText: ["Sprite Actions", "Export Sprite", "Generation Method", "Hop Bounce", "Victory Cheer"],
     requiredText: ["1. Upload Pixel Art", "2. Choose Motion", "Animation Library", "Official Animations", "User Animations", "3. Generate", "4. Download", "Selected animation", "Choose Animation", "Fixed cells: 256 x 256 px", "5-direction chroma-key sprite sheet"],
     exerciseButton: "Generate Animation",
     expectedAfterExercise: "Animation generated",
@@ -287,15 +287,27 @@ async function assertAnimationPresetExamples() {
   assert(triggerPlacement, "Choose Animation trigger should sit directly below the selected animation card");
 
   await clickButtonByText("Choose Animation");
-  await waitForEval(() => `document.querySelector(".animation-preset-modal")?.innerText.includes("Walk Cycle")`, "Choose Animation modal");
+  await waitForEval(() => `document.querySelector(".animation-preset-modal")?.innerText.includes("Idle Breathing")`, "Choose Animation modal");
   const snapshot = await pageSnapshot();
   assert(snapshot.text.includes("Pick an animated sample"), "Choose Animation intro should be visible");
   assert(snapshot.buttons.includes("Select Animation"), "Choose Animation should expose select buttons");
-  assert(snapshot.animationPresetModalSampleSprites === 2, `Choose Animation should show 2 verified animated sprite samples, got ${snapshot.animationPresetModalSampleSprites}`);
+  assert(snapshot.animationPresetModalSampleSprites === 3, `Choose Animation should show 3 verified animated sprite samples, got ${snapshot.animationPresetModalSampleSprites}`);
+  assert(snapshot.text.includes("Idle Breathing"), "Choose Animation should include the Idle Breathing animation card");
   assert(snapshot.text.includes("Walk Cycle"), "Choose Animation should include the Walk Cycle animation card");
   assert(snapshot.text.includes("Run Cycle"), "Choose Animation should include the Run Cycle animation card");
-  assert(!snapshot.text.includes("Idle Breathing Loop"), "Choose Animation should hide unverified Idle Breathing Loop card");
   assert(!snapshot.text.includes("Victory Cheer"), "Choose Animation should hide unverified extra animation cards");
+  const idleBreathingUsesGeneratedSheet = await evaluate(`(() => {
+    const cards = [...document.querySelectorAll(".animation-preset-card")];
+    const card = cards.find((item) => item.innerText.includes("Idle Breathing"));
+    const sprite = card?.querySelector(".animation-sample-sprite");
+    if (!sprite) return false;
+    const style = getComputedStyle(sprite);
+    return sprite.classList.contains("sample-idle-sheet")
+      && style.backgroundImage.includes("idle-breathing-sheet.png")
+      && style.backgroundSize.includes("500%")
+      && style.animationDirection === "normal";
+  })()`);
+  assert(idleBreathingUsesGeneratedSheet, "Idle Breathing card should use the generated idle-breathing sprite sheet sample with normal loop playback");
   const walkCycleUsesGeneratedSheet = await evaluate(`(() => {
     const cards = [...document.querySelectorAll(".animation-preset-card")];
     const card = cards.find((item) => item.innerText.includes("Walk Cycle"));
@@ -331,7 +343,7 @@ async function assertAnimationPresetExamples() {
     "Animation selected"
   );
   const selectedPreset = await evaluate(`document.querySelector(".selected-animation-card")?.innerText.replace(/\\s+/g, " ").trim() || ""`);
-  assert(selectedPreset.includes("Walk Cycle"), `Select Animation should keep the verified Walk Cycle selected, got ${selectedPreset}`);
+  assert(selectedPreset.includes("Idle Breathing"), `Select Animation should keep the verified Idle Breathing selected, got ${selectedPreset}`);
   const stillNoFreePrompt = await evaluate(`document.querySelectorAll(".animation-step textarea").length === 0`);
   assert(stillNoFreePrompt, "Select Animation should keep free-form motion prompt textareas hidden");
   const modalClosed = await evaluate(`!document.querySelector(".animation-preset-modal")`);
@@ -346,7 +358,8 @@ async function assertAnimationLibraryImport() {
   let snapshot = await pageSnapshot();
   assert(snapshot.text.includes("Official Animations"), "Animation Library should expose Official Animations");
   assert(snapshot.text.includes("User Animations"), "Animation Library should expose User Animations");
-  assert(snapshot.animationLibraryCards >= 2, `Official Animations should show bundled cards, got ${snapshot.animationLibraryCards}`);
+  assert(snapshot.animationLibraryCards >= 3, `Official Animations should show bundled cards, got ${snapshot.animationLibraryCards}`);
+  assert(snapshot.text.includes("Idle Breathing"), "Official Animations should include Idle Breathing");
   assert(snapshot.text.includes("Run Cycle"), "Official Animations should include Run Cycle");
 
   await clickButtonByText("User Animations");

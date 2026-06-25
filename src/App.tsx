@@ -1784,7 +1784,7 @@ function withWorkflowFormCopy(overrides: Partial<Record<WorkflowMode, Partial<Wo
   };
 }
 
-const DEFAULT_ANIMATION_PRESET_ID = "walk-cycle";
+const DEFAULT_ANIMATION_PRESET_ID = "idle-breathing";
 
 const defaultActions: SpriteAction[] = [
   { name: "idle", fps: 12, loop: true, frameIds: [], cell: STANDARD_ANIMATION_CELL, anchor: STANDARD_ANIMATION_ANCHOR },
@@ -1795,6 +1795,19 @@ const defaultActions: SpriteAction[] = [
 ];
 
 const animationPresetExamples: AnimationPresetExample[] = [
+  {
+    id: "idle-breathing",
+    actionName: "idle",
+    previewClassName: "sample-idle-sheet sample-idle",
+    category: { en: "Core", ja: "基礎" },
+    title: { en: "Idle Breathing", ja: "待機呼吸ループ" },
+    summary: {
+      en: "Stable 8-frame ready stance with planted feet, subtle breathing, and readable five-direction views.",
+      ja: "足を固定したまま、控えめな呼吸と5方向の見え方が読める8フレーム待機です。"
+    },
+    prompt: "idle breathing ready stance with planted feet, subtle inhale and exhale, tiny shoulder and chest rise, delayed hair, hood, clothing, and backpack follow-through, stable center, stable foot baseline, no walking, no stepping, no hopping",
+    notes: "Official preset: generate eight source frames as one complete idle breathing loop. Feet must remain planted on the same baseline; motion should come only from subtle breathing, shoulder/chest rise, and delayed hair, cloth, hood, and backpack settling. Avoid stepping, walking, running, hopping, large bounce, cropped hair, cropped feet, or pose drift."
+  },
   {
     id: "walk-cycle",
     actionName: "walk",
@@ -1831,11 +1844,24 @@ function getAnimationPresetById(id: string): AnimationPresetExample {
 
 function buildAnimationPresetMotionPrompt(preset: AnimationPresetExample) {
   const presetTitle = preset.title.en;
-  const motionSheetLine = preset.id === "walk-cycle"
-    ? "Create a walking animation sprite sheet."
-    : preset.id === "run-cycle"
-      ? "Create a running animation sprite sheet."
-    : `Create a ${presetTitle.toLowerCase()} animation sprite sheet.`;
+  const motionSheetLine = preset.id === "idle-breathing"
+    ? "Create an idle breathing / ready stance animation sprite sheet."
+    : preset.id === "walk-cycle"
+      ? "Create a walking animation sprite sheet."
+      : preset.id === "run-cycle"
+        ? "Create a running animation sprite sheet."
+        : `Create a ${presetTitle.toLowerCase()} animation sprite sheet.`;
+  const idleBreathingLines = preset.id === "idle-breathing"
+    ? [
+        "Idle breathing must read as a ready stance in every row, not as movement through space.",
+        "Use the 8 generated source frames as one complete normal loop, not a ping-pong half-cycle.",
+        "Frame plan: frame 1 neutral ready stance; frame 2 slight inhale with chest and shoulders rising; frame 3 hair, hood, clothing, and backpack follow upward subtly; frame 4 top of breath while the body stays centered; frame 5 exhale begins; frame 6 shoulders settle and cloth/hair lag slightly; frame 7 return toward neutral; frame 8 clean bridge back to frame 1.",
+        "Both feet must stay planted on the same exact foot baseline in all eight frames. Do not step, walk, run, hop, slide, lift a foot, or change the stance width.",
+        "The motion should be visible but restrained: tiny shoulder/chest rise, small head or hair settle, and light clothing/backpack follow-through. Do not use large bounce as a substitute for breathing.",
+        "For diagonal and side rows, preserve the same stance silhouette and foot positions across the row; only the breathing and secondary motion should change.",
+        "The back row must remain a true straight rear idle stance with a centered backpack/back silhouette and no face details."
+      ]
+    : [];
   const walkCycleGaitLines = preset.id === "walk-cycle"
     ? [
         "Walking gait must be visible in every row, especially front three-quarter, side, and back three-quarter.",
@@ -1865,6 +1891,7 @@ function buildAnimationPresetMotionPrompt(preset: AnimationPresetExample) {
     `Preset motion details: ${preset.prompt}.`,
     "Deform/chibify the uploaded character into a compact full-body pixel-art sprite while preserving the original identity, outfit, palette, silhouette, and props.",
     motionSheetLine,
+    ...idleBreathingLines,
     ...walkCycleGaitLines,
     ...runCycleGaitLines,
     `Use exactly ${ANIMATION_FRAME_COUNT} animation frames per direction.`,
@@ -5180,7 +5207,7 @@ function buildAnimationCodexPrompt({
     "Do not crop the head, feet, hair, weapon, or effects. Do not let body parts cross cell borders. Do not place heads or body fragments under the feet.",
     "Use consistent character scale, baseline, foot contact point, silhouette size, palette, outfit, and pixel density across all 40 cells.",
     `Prefer a transparent background in every cell. If true transparency is not available during generation, use a flat ${chromaKey.label} background (${chromaKey.hex}) in every cell; do not use black, white, gradients, scenery, shadows, UI, text, logos, watermarks, letters, or numbers.`,
-    "Do not add drawn grid lines unless they are the exact chroma-key color and removable; the app will split the image by the strict cell grid.",
+    "Include a temporary 1-pixel pure cyan #00FFFF guide grid only on the exact 5x8 cell boundaries, including the outer boundary; no labels, numbers, text, UI, or decorative borders. The cyan guide grid must not overlap character pixels and will be removed by the app after generation.",
     "Quality gate before returning: inspect all 40 cells and regenerate if any cell is cropped, has missing feet, has a cut-off head, contains multiple heads, has a head below the feet, has a different character, or uses a non-flat background.",
     "Return one complete raster sprite sheet PNG or WebP using the job id filename prefix."
   ].join(" ");
@@ -5206,7 +5233,8 @@ function buildAnimationCodexNotes({
     `Expected sheet layout: ${grid.columns} columns x ${grid.rows} rows, ${cell.width}x${cell.height} per cell.`,
     `Direction rows: ${ANIMATION_DIRECTIONS.join(", ")}.`,
     "Cell QA is mandatory: one full-body character per cell, consistent baseline and scale, 10% inner padding, no cropping, no duplicated heads, no body fragments under feet, no character parts crossing cell borders.",
-    "The generated sheet should keep the chroma key background simple and flat so the app can remove it reliably."
+    "The generated sheet should keep the chroma key background simple and flat so the app can remove it reliably.",
+    "Temporary guide grid: ask for pure cyan #00FFFF on exact 5x8 cell boundaries only. Image Cockpit removes those guide pixels before slicing/export."
   ].filter(Boolean).join("\n");
 }
 
@@ -5316,6 +5344,7 @@ async function createTransparentSpriteSheetDataUrl(dataUrl: string, chromaKey: A
   context.drawImage(image, 0, 0, canvas.width, canvas.height);
   removeConnectedBackground(context, canvas.width, canvas.height);
   removeChromaKeyPixels(context, canvas.width, canvas.height, chromaKey);
+  removeAnimationGuideGridPixels(context, canvas.width, canvas.height);
   return canvas.toDataURL("image/png");
 }
 
@@ -5515,6 +5544,52 @@ function removeChromaKeyPixels(
 
   removeFrameEdgeResiduePixels(imageData, width, height, chromaKey.name);
   context.putImageData(imageData, 0, 0);
+}
+
+function removeAnimationGuideGridPixels(context: CanvasRenderingContext2D, width: number, height: number) {
+  const imageData = context.getImageData(0, 0, width, height);
+  const data = imageData.data;
+  const radius = Math.max(2, Math.ceil(Math.max(width / ANIMATION_FRAME_COUNT, height / ANIMATION_DIRECTION_COUNT) / 96));
+
+  for (let offset = 0; offset < data.length; offset += 4) {
+    if (data[offset + 3] < 12) continue;
+    const pixelIndex = offset / 4;
+    const x = pixelIndex % width;
+    const y = Math.floor(pixelIndex / width);
+    const isGuideLine = isNearAnimationGuideLine(x, y, width, height, radius);
+    if (isCyanGuidePixel(data, offset) || (isGuideLine && isGuideResiduePixel(data, offset))) {
+      data[offset] = 0;
+      data[offset + 1] = 0;
+      data[offset + 2] = 0;
+      data[offset + 3] = 0;
+    }
+  }
+
+  context.putImageData(imageData, 0, 0);
+}
+
+function isNearAnimationGuideLine(x: number, y: number, width: number, height: number, radius: number) {
+  for (let column = 0; column <= ANIMATION_FRAME_COUNT; column += 1) {
+    if (Math.abs(x - Math.round((width * column) / ANIMATION_FRAME_COUNT)) <= radius) return true;
+  }
+  for (let row = 0; row <= ANIMATION_DIRECTION_COUNT; row += 1) {
+    if (Math.abs(y - Math.round((height * row) / ANIMATION_DIRECTION_COUNT)) <= radius) return true;
+  }
+  return false;
+}
+
+function isCyanGuidePixel(data: Uint8ClampedArray, offset: number) {
+  const r = data[offset];
+  const g = data[offset + 1];
+  const b = data[offset + 2];
+  return g >= 145 && b >= 145 && r <= 125 && Math.abs(g - b) <= 75 && g >= r + 45 && b >= r + 45;
+}
+
+function isGuideResiduePixel(data: Uint8ClampedArray, offset: number) {
+  const r = data[offset];
+  const g = data[offset + 1];
+  const b = data[offset + 2];
+  return g >= 95 && r <= 145 && (g >= r + 35 || b >= r + 35);
 }
 
 function colorDistanceSq(data: Uint8ClampedArray, offset: number, color: ReturnType<typeof readPixelColor>) {
@@ -5879,6 +5954,7 @@ function AnimationPackExportModal({
 }
 
 function animationLibraryPreviewClassName(item: AnimationLibraryItem) {
+  if (item.action === "idle") return "sample-idle-sheet sample-idle";
   if (item.action === "run") return "sample-run-sheet sample-run";
   if (item.action === "walk") return "sample-walk-sheet sample-walk";
   return "sample-walk-sheet sample-walk";

@@ -2207,6 +2207,12 @@ button:disabled {
   --sample-y: 100%;
 }
 
+.sample-idle-sheet {
+  --sample-image: url("/samples/idle-breathing-sheet.png");
+  --sample-sheet-rows: 500%;
+  --sample-y: 0%;
+}
+
 .sample-run-sheet {
   --sample-image: url("/samples/run-cycle-sheet.png");
   --sample-sheet-rows: 500%;
@@ -2225,6 +2231,10 @@ button:disabled {
 
 .sample-walk {
   --sample-duration: 0.72s;
+}
+
+.sample-idle {
+  --sample-duration: 1.12s;
 }
 
 .sample-run {

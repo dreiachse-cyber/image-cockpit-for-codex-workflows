@@ -21,6 +21,7 @@ const requiredFiles = [
   "scripts/real-codex-runner-smoke.mjs",
   "scripts/real-imagegen-smoke.mjs",
   "scripts/ui-smoke.mjs",
+  "public/samples/idle-breathing-sheet.png",
   "public/samples/walk-cycle-sheet.png",
   "public/samples/run-cycle-sheet.png",
   "src/App.test.ts",
@@ -412,6 +413,9 @@ function checkWorkflowIds() {
     "Animation pack imported",
     "Animation loaded from library",
     "workspaceExportAnimationPackButtons",
+    "Idle Breathing",
+    "idle-breathing-sheet.png",
+    "sample-idle-sheet",
     "Walk Cycle",
     "walk-cycle-sheet.png",
     "sample-walk-sheet",
@@ -432,7 +436,9 @@ function checkWorkflowIds() {
     "animation-preset-example-trigger",
     "animation-preset-modal",
     "animation-sample-sprite",
-    "Choose Animation should show 2 verified animated sprite samples",
+    "Choose Animation should show 3 verified animated sprite samples",
+    "Choose Animation should include the Idle Breathing animation card",
+    "Idle Breathing card should use the generated idle-breathing sprite sheet sample with normal loop playback",
     "Choose Animation should include the Walk Cycle animation card",
     "Walk Cycle card should use the generated walk-cycle sprite sheet sample with normal loop playback",
     "Choose Animation should include the Run Cycle animation card",
@@ -504,6 +510,12 @@ function checkWorkflowIds() {
   ["sprite-sheet-grid-preview", "sprite-sheet-grid-overlay"].forEach((marker) => {
     if (!appText.includes(marker) && !stylesText.includes(marker)) {
       failures.push(`App should overlay a review grid on generated sprite sheets: ${marker}`);
+    }
+  });
+
+  ["temporary 1-pixel pure cyan #00FFFF guide grid", "removeAnimationGuideGridPixels"].forEach((marker) => {
+    if (!appText.includes(marker)) {
+      failures.push(`App should request and remove temporary animation guide grids: ${marker}`);
     }
   });
 
