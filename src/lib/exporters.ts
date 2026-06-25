@@ -1,8 +1,17 @@
 import { applyPalette, GIFEncoder, quantize } from "gifenc";
 import JSZip from "jszip";
-import type { SpriteAction, SpriteFrame } from "../types";
+import type { AnimationPackManifest, SpriteAction, SpriteFrame } from "../types";
 import { canvasToBlob, dataUrlToBlob, downloadBlob, loadImage } from "./image";
 import { buildSpriteMetadata, packSpriteSheet, resolvePlaybackFrameIds } from "./sprite";
+
+export interface AnimationPackExportInput {
+  manifest: AnimationPackManifest;
+  sheet: Blob | string;
+  previewGif?: Blob;
+  previewWebp?: Blob;
+  metadata?: unknown;
+  frames?: Array<{ name: string; dataUrl: string }>;
+}
 
 export async function createSpriteSheetBlob(frames: SpriteFrame[], action: SpriteAction, columns?: number) {
   const ordered = action.frameIds
@@ -141,6 +150,83 @@ export function exportMetadata(spriteName: string, actions: SpriteAction[], fram
   const metadata = buildSpriteMetadata(spriteName, actions, frames);
   const blob = new Blob([JSON.stringify(metadata, null, 2)], { type: "application/json" });
   downloadBlob(blob, `${spriteName}.sprite.json`);
+}
+
+export async function createAnimationPackZip(input: AnimationPackExportInput) {
+  const zip = new JSZip();
+  const manifest = normalizePackManifestFiles(input.manifest);
+  zip.file("manifest.json", JSON.stringify(manifest, null, 2));
+  zip.file(manifest.files.sheet, await sourceToZipData(input.sheet));
+
+  if (input.previewGif && manifest.files.previewGif) {
+    zip.file(manifest.files.previewGif, await sourceToZipData(input.previewGif));
+  }
+  if (input.previewWebp && manifest.files.previewWebp) {
+    zip.file(manifest.files.previewWebp, await sourceToZipData(input.previewWebp));
+  }
+  if (manifest.files.metadata) {
+    zip.file(
+      manifest.files.metadata,
+      JSON.stringify(input.metadata ?? buildAnimationPackMetadata(manifest), null, 2)
+    );
+  }
+  if (input.frames) {
+    for (let index = 0; index < input.frames.length; index += 1) {
+      const frame = input.frames[index];
+      zip.file(`frames/frame-${String(index + 1).padStart(3, "0")}.png`, await sourceToZipData(frame.dataUrl));
+    }
+  }
+
+  return zip.generateAsync({ type: "blob" });
+}
+
+export async function exportAnimationPack(input: AnimationPackExportInput) {
+  const blob = await createAnimationPackZip(input);
+  downloadBlob(blob, `${safePackBaseName(input.manifest.title)}.image-cockpit-animation.zip`);
+}
+
+function normalizePackManifestFiles(manifest: AnimationPackManifest): AnimationPackManifest {
+  return {
+    ...manifest,
+    files: {
+      sheet: manifest.files.sheet || "sheet.png",
+      previewGif: manifest.files.previewGif || "preview.gif",
+      previewWebp: manifest.files.previewWebp || "preview.webp",
+      metadata: manifest.files.metadata || "metadata.json"
+    }
+  };
+}
+
+async function sourceToZipData(source: Blob | string) {
+  const blob = source instanceof Blob ? source : dataUrlToBlob(source);
+  return blob.arrayBuffer();
+}
+
+function safePackBaseName(title: string) {
+  const normalized = title
+    .trim()
+    .toLowerCase()
+    .replace(/\.[^.]+$/, "")
+    .replace(/[^a-z0-9._-]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+  return normalized || "image-cockpit-animation";
+}
+
+function buildAnimationPackMetadata(manifest: AnimationPackManifest) {
+  return {
+    title: manifest.title,
+    action: manifest.action,
+    exportedAt: new Date().toISOString(),
+    createdWith: manifest.createdWith,
+    grid: manifest.grid,
+    cell: manifest.cell,
+    directions: manifest.directions,
+    framesPerDirection: manifest.framesPerDirection,
+    playback: manifest.playback ?? "normal",
+    tags: manifest.tags ?? [],
+    license: manifest.license ?? "",
+    sourceNote: manifest.sourceNote ?? ""
+  };
 }
 
 function extractWebpFrameChunks(bytes: Uint8Array) {

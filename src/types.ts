@@ -59,6 +59,48 @@ export interface GridSettings {
   gutter: number;
 }
 
+export type AnimationLibraryKind = "official" | "user";
+
+export interface AnimationPackManifest {
+  schema: "image-cockpit.animation.v1";
+  title: string;
+  kind: AnimationLibraryKind;
+  action: string;
+  directions: string[];
+  grid: GridSettings;
+  cell: {
+    width: number;
+    height: number;
+  };
+  framesPerDirection: number;
+  playback?: "normal" | "ping-pong-reverse";
+  createdAt: string;
+  createdWith: string;
+  license?: string;
+  sourceNote?: string;
+  promptSummary?: string;
+  tags?: string[];
+  files: {
+    sheet: string;
+    previewGif?: string;
+    previewWebp?: string;
+    metadata?: string;
+  };
+}
+
+export interface AnimationLibraryItem {
+  id: string;
+  kind: AnimationLibraryKind;
+  title: string;
+  action: string;
+  manifest: AnimationPackManifest;
+  previewDataUrl?: string;
+  previewWebpDataUrl?: string;
+  sheetDataUrl: string;
+  importedAt?: string;
+  updatedAt?: string;
+}
+
 export interface ProviderStatus {
   id: ProviderId;
   label: string;

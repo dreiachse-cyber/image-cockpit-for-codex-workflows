@@ -32,17 +32,34 @@ import type { CSSProperties, UIEvent } from "react";
 import {
   createAnimatedWebpBlob,
   createGifBlob,
+  exportAnimationPack,
   exportWebP,
   exportFramesZip,
   exportGif,
   exportMetadata,
   exportSpriteSheet
 } from "./lib/exporters";
+import { importAnimationPackBlob } from "./lib/animationPack";
 import { createId, dataUrlToBlob, downloadBlob, loadImage, readFileAsDataUrl } from "./lib/image";
+import { OFFICIAL_ANIMATION_LIBRARY } from "./lib/officialAnimations";
 import { calculateGridCells, summarizeFrames } from "./lib/sprite";
-import { loadActions, loadFrames, loadHistory, loadPersistedState, saveActions, saveFrames, saveHistory } from "./lib/storage";
+import {
+  loadActions,
+  loadFrames,
+  loadHistory,
+  loadPersistedState,
+  loadUserAnimationLibrary,
+  MAX_USER_ANIMATION_LIBRARY_ITEMS,
+  saveActions,
+  saveFrames,
+  saveHistory,
+  saveUserAnimationLibrary
+} from "./lib/storage";
 import type {
   Annotation,
+  AnimationLibraryItem,
+  AnimationLibraryKind,
+  AnimationPackManifest,
   CodexFailureKind,
   CodexJobDiagnostic,
   GridSettings,
@@ -165,6 +182,15 @@ interface AnimationDirectionPreview {
   id: string;
   label: string;
   gifUrl: string;
+}
+
+interface AnimationPackExportDraft {
+  title: string;
+  tags: string;
+  license: string;
+  sourceNote: string;
+  promptSummary: string;
+  includePromptSummary: boolean;
 }
 
 interface FrameSplitOptions {
@@ -372,6 +398,33 @@ const uiCopy = {
     imageDownloadReady: "Selected image ready",
     imageDownloadLocked: "Select or generate an image before downloading.",
     downloadPng: "PNG",
+    animationLibraryTitle: "Animation Library",
+    animationLibraryBody: "Use official presets or imported user animation packs as reusable materials.",
+    officialAnimations: "Official Animations",
+    userAnimations: "User Animations",
+    importAnimation: "Import Animation",
+    exportAnimationPack: "Export Animation Pack",
+    exportAnimationSample: "Export Sample",
+    useAnimationLibraryItem: "Use",
+    renameAnimation: "Rename",
+    deleteAnimation: "Delete",
+    animationLibraryEmpty: "No user animations yet. Import a local animation pack to reuse it here.",
+    animationPackImported: "Animation pack imported",
+    animationPackImportFailed: "Could not import animation pack",
+    animationPackUsed: "Animation loaded from library",
+    animationPackExported: "Animation pack exported",
+    animationPackExportFailed: "Could not export animation pack",
+    animationPackExportTitle: "Export Animation Pack",
+    animationPackExportIntro: "Write a portable local ZIP with manifest, previews, sheet, and metadata.",
+    animationPackTitleLabel: "Title",
+    animationPackTagsLabel: "Tags",
+    animationPackLicenseLabel: "License / usage note",
+    animationPackSourceLabel: "Source note",
+    animationPackPromptSummaryLabel: "Prompt summary",
+    animationPackPromptToggle: "Include prompt summary",
+    animationPackRightsHint: "Check rights before sharing imported or generated assets.",
+    cancel: "Cancel",
+    saveExport: "Export",
     uploadImageForEdit: "Upload Image",
     selectedEditSource: "Selected image",
     noEditSource: "No image selected yet",
@@ -549,6 +602,33 @@ const uiCopy = {
     imageDownloadReady: "選択中の画像を書き出せます",
     imageDownloadLocked: "画像を生成または選択するとダウンロードできます。",
     downloadPng: "PNG",
+    animationLibraryTitle: "アニメーションライブラリ",
+    animationLibraryBody: "公式プリセットとインポートしたユーザー素材を、再利用できる棚として扱います。",
+    officialAnimations: "Official Animations",
+    userAnimations: "User Animations",
+    importAnimation: "アニメーションをインポート",
+    exportAnimationPack: "アニメーションパックを書き出し",
+    exportAnimationSample: "サンプルを書き出し",
+    useAnimationLibraryItem: "使う",
+    renameAnimation: "名前変更",
+    deleteAnimation: "削除",
+    animationLibraryEmpty: "ユーザーアニメーションはまだありません。ローカルのアニメーションパックをインポートするとここに並びます。",
+    animationPackImported: "アニメーションパックをインポートしました",
+    animationPackImportFailed: "アニメーションパックをインポートできませんでした",
+    animationPackUsed: "ライブラリからアニメーションを読み込みました",
+    animationPackExported: "アニメーションパックを書き出しました",
+    animationPackExportFailed: "アニメーションパックを書き出せませんでした",
+    animationPackExportTitle: "アニメーションパックを書き出し",
+    animationPackExportIntro: "manifest、プレビュー、シート、metadataを含むローカルZIPを書き出します。",
+    animationPackTitleLabel: "タイトル",
+    animationPackTagsLabel: "タグ",
+    animationPackLicenseLabel: "ライセンス / 利用メモ",
+    animationPackSourceLabel: "出所メモ",
+    animationPackPromptSummaryLabel: "プロンプト要約",
+    animationPackPromptToggle: "プロンプト要約を含める",
+    animationPackRightsHint: "インポート素材や生成素材を共有する前に、権利関係を確認してください。",
+    cancel: "キャンセル",
+    saveExport: "書き出し",
     uploadImageForEdit: "画像をアップロード",
     selectedEditSource: "選択中の画像",
     noEditSource: "まだ画像が選択されていません",
@@ -1034,6 +1114,10 @@ function App() {
   const [selectedId, setSelectedId] = useState<string>("");
   const [activeActionName, setActiveActionName] = useState("run");
   const [selectedAnimationPresetId, setSelectedAnimationPresetId] = useState(DEFAULT_ANIMATION_PRESET_ID);
+  const [animationLibraryTab, setAnimationLibraryTab] = useState<AnimationLibraryKind>("official");
+  const [userAnimationLibrary, setUserAnimationLibrary] = useState<AnimationLibraryItem[]>(() => loadUserAnimationLibrary());
+  const [showAnimationPackExportModal, setShowAnimationPackExportModal] = useState(false);
+  const [animationPackExportDraft, setAnimationPackExportDraft] = useState<AnimationPackExportDraft>(() => createAnimationPackExportDraft());
   const [language, setLanguage] = useState<Language>(loadLanguage);
   const [storageHydrated, setStorageHydrated] = useState(false);
   const [workflowMode, setWorkflowMode] = useState<WorkflowMode>("image-generate");
@@ -1072,6 +1156,7 @@ function App() {
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const animationPackInputRef = useRef<HTMLInputElement | null>(null);
   const historyListRef = useRef<HTMLDivElement | null>(null);
   const historyLoadMoreRef = useRef<HTMLDivElement | null>(null);
   const startingQueuedJobIdsRef = useRef<Set<string>>(new Set());
@@ -1109,6 +1194,10 @@ function App() {
     () => getAnimationPresetById(selectedAnimationPresetId),
     [selectedAnimationPresetId]
   );
+  const officialAnimationLibrary = OFFICIAL_ANIMATION_LIBRARY;
+  const activeAnimationLibraryItems = animationLibraryTab === "official"
+    ? officialAnimationLibrary
+    : userAnimationLibrary;
 
   const actionFrames = useMemo(
     () =>
@@ -1255,6 +1344,7 @@ function App() {
         setHistory(persisted.history);
         setFrames(persisted.frames);
         setActions(normalizeAnimationActions(persisted.actions));
+        setUserAnimationLibrary(persisted.animationLibrary.slice(0, MAX_USER_ANIMATION_LIBRARY_ITEMS));
         setStorageHydrated(true);
       })
       .catch(() => {
@@ -1274,6 +1364,9 @@ function App() {
   useEffect(() => {
     if (storageHydrated) saveActions(actions);
   }, [actions, storageHydrated]);
+  useEffect(() => {
+    if (storageHydrated) saveUserAnimationLibrary(userAnimationLibrary);
+  }, [storageHydrated, userAnimationLibrary]);
   useEffect(() => saveLanguage(language), [language]);
   useEffect(() => savePendingCodexJobs(codexJobs), [codexJobs]);
 
@@ -2514,6 +2607,188 @@ function App() {
     setStatus(`${copy.animationPresetExampleApplied}: ${example.title[language]}`);
   }
 
+  async function handleAnimationPackFiles(files: FileList | File[]) {
+    const entries = Array.from(files).filter((file) =>
+      file.name.endsWith(".image-cockpit-animation.zip") || file.name.endsWith(".zip") || file.type.includes("zip")
+    );
+    if (entries.length === 0) {
+      setStatus(copy.animationPackImportFailed);
+      return;
+    }
+
+    setIsBusy(true);
+    try {
+      const importedItems: AnimationLibraryItem[] = [];
+      for (const file of entries) {
+        importedItems.push(await importAnimationPackBlob(file, file.name));
+      }
+      setUserAnimationLibrary((current) => {
+        const importedTitles = new Set(importedItems.map((item) => item.title));
+        return [
+          ...importedItems,
+          ...current.filter((item) => !importedTitles.has(item.title))
+        ].slice(0, MAX_USER_ANIMATION_LIBRARY_ITEMS);
+      });
+      setAnimationLibraryTab("user");
+      setStatus(`${copy.animationPackImported}: ${importedItems.map((item) => item.title).join(", ")}`);
+    } catch (error) {
+      setStatus(error instanceof Error ? `${copy.animationPackImportFailed}: ${error.message}` : copy.animationPackImportFailed);
+    } finally {
+      setIsBusy(false);
+    }
+  }
+
+  async function useAnimationLibraryItem(item: AnimationLibraryItem) {
+    setIsBusy(true);
+    try {
+      const sheetDataUrl = await resolveImageSourceDataUrl(item.sheetDataUrl);
+      const image = await loadImage(sheetDataUrl);
+      const manifest = item.manifest;
+      const historyItem: HistoryItem = {
+        id: createId("hist"),
+        name: `${safeAnimationFileBaseName(item.title, item.action)}_sheet.png`,
+        dataUrl: sheetDataUrl,
+        provider: "local-file",
+        prompt: `Animation Library: ${item.title}`,
+        seed: "library",
+        size: `${image.width}x${image.height}`,
+        createdAt: new Date().toISOString(),
+        adopted: false,
+        source: "generate",
+        derivedFromName: item.kind === "official" ? copy.officialAnimations : copy.userAnimations
+      };
+      const newFrames = await splitImageIntoFrames(
+        sheetDataUrl,
+        historyItem.name.replace(/\.[^.]+$/, ""),
+        manifest.grid,
+        historyItem.id,
+        manifest.cell
+      );
+      if (newFrames.length === 0) throw new Error("Animation pack sheet could not be split into frames.");
+
+      const nextAction = actionFromAnimationManifest(manifest, newFrames.map((frame) => frame.id));
+      setHistory((current) => [historyItem, ...current]);
+      setSelectedId(historyItem.id);
+      setFrames((current) => [...current, ...newFrames]);
+      setActions((current) => upsertSpriteAction(current, nextAction));
+      setActiveActionName(nextAction.name);
+      setGrid(manifest.grid);
+      setWorkflowMode("sprite-generate");
+      setAnimationGenerationMode("standard");
+      setProviderId("codex-handoff");
+      setSelectedFrameId("");
+      setStatus(`${copy.animationPackUsed}: ${item.title}`);
+    } catch (error) {
+      setStatus(error instanceof Error ? `${copy.animationPackImportFailed}: ${error.message}` : copy.animationPackImportFailed);
+    } finally {
+      setIsBusy(false);
+    }
+  }
+
+  async function exportAnimationLibraryItem(item: AnimationLibraryItem) {
+    setIsBusy(true);
+    try {
+      const sheetDataUrl = await resolveImageSourceDataUrl(item.sheetDataUrl);
+      const tempFrames = await splitImageIntoFrames(
+        sheetDataUrl,
+        safeAnimationFileBaseName(item.title, item.action),
+        item.manifest.grid,
+        undefined,
+        item.manifest.cell
+      );
+      const previewAction = actionFromAnimationManifest(
+        item.manifest,
+        tempFrames.slice(0, item.manifest.framesPerDirection).map((frame) => frame.id)
+      );
+      const previewGif = await createGifBlob(tempFrames, previewAction);
+      const previewWebp = await createAnimatedWebpBlob(tempFrames, previewAction);
+      await exportAnimationPack({
+        manifest: {
+          ...item.manifest,
+          kind: item.kind,
+          title: item.title,
+          files: animationPackFileSet()
+        },
+        sheet: sheetDataUrl,
+        previewGif,
+        previewWebp,
+        metadata: animationPackMetadata(item.manifest, {
+          libraryKind: item.kind,
+          sourceNote: item.manifest.sourceNote ?? ""
+        })
+      });
+      setStatus(`${copy.animationPackExported}: ${item.title}`);
+    } catch (error) {
+      setStatus(error instanceof Error ? `${copy.animationPackExportFailed}: ${error.message}` : copy.animationPackExportFailed);
+    } finally {
+      setIsBusy(false);
+    }
+  }
+
+  function renameUserAnimationItem(item: AnimationLibraryItem) {
+    const title = window.prompt(copy.animationPackTitleLabel, item.title)?.trim();
+    if (!title) return;
+    setUserAnimationLibrary((current) =>
+      current.map((currentItem) =>
+        currentItem.id === item.id
+          ? {
+              ...currentItem,
+              title,
+              manifest: { ...currentItem.manifest, title },
+              updatedAt: new Date().toISOString()
+            }
+          : currentItem
+      )
+    );
+  }
+
+  function deleteUserAnimationItem(item: AnimationLibraryItem) {
+    setUserAnimationLibrary((current) => current.filter((currentItem) => currentItem.id !== item.id));
+  }
+
+  function openSelectedAnimationPackExportModal() {
+    if (!selectedAnimationExportReady) return;
+    setAnimationPackExportDraft(createAnimationPackExportDraft({
+      title: selected?.name.replace(/\.[^.]+$/, "") || selectedAnimationAction.name,
+      tags: [activeAction.name, "character", "sprite"].join(", "),
+      sourceNote: selectedAnimationSource?.name ?? selected?.derivedFromName ?? ""
+    }));
+    setShowAnimationPackExportModal(true);
+  }
+
+  async function exportSelectedAnimationPack() {
+    if (!selected || !selectedAnimationExportReady) return;
+    setIsBusy(true);
+    try {
+      const previewAction = selectedAnimationPreviewActions[0]?.action ?? selectedAnimationAction;
+      const previewGif = await createGifBlob(frames, previewAction);
+      const previewWebp = await createAnimatedWebpBlob(frames, previewAction);
+      const manifest = buildSelectedAnimationPackManifest({
+        draft: animationPackExportDraft,
+        selected,
+        action: activeAction,
+        grid: selectedAnimationSheetGrid,
+        directions: selectedAnimationPreviewActions.map((preview) => preview.directionId)
+      });
+      await exportAnimationPack({
+        manifest,
+        sheet: selected.dataUrl,
+        previewGif,
+        previewWebp,
+        metadata: animationPackMetadata(manifest, {
+          libraryKind: "user",
+          sourceNote: animationPackExportDraft.sourceNote.trim()
+        })
+      });
+      setShowAnimationPackExportModal(false);
+      setStatus(`${copy.animationPackExported}: ${manifest.title}`);
+    } catch (error) {
+      setStatus(error instanceof Error ? `${copy.animationPackExportFailed}: ${error.message}` : copy.animationPackExportFailed);
+    } finally {
+      setIsBusy(false);
+    }
+  }
+
   const codexProvider = providers.find((provider) => provider.id === "codex-handoff");
   const activeWorkflowCopy = workflowCopy[language][workflowMode];
   const activeWorkflowFormCopy = workflowFormCopy[language][workflowMode];
@@ -2638,6 +2913,77 @@ function App() {
                   <Film size={15} aria-hidden="true" />
                   {copy.chooseAnimation}
                 </button>
+              </section>
+
+              <section className="animation-step animation-library-panel">
+                <div className="step-heading">
+                  <strong>{copy.animationLibraryTitle}</strong>
+                  <span>{copy.animationLibraryBody}</span>
+                </div>
+                <div className="animation-library-tabs" aria-label={copy.animationLibraryTitle}>
+                  <button
+                    className={animationLibraryTab === "official" ? "active" : ""}
+                    onClick={() => setAnimationLibraryTab("official")}
+                  >
+                    {copy.officialAnimations}
+                  </button>
+                  <button
+                    className={animationLibraryTab === "user" ? "active" : ""}
+                    onClick={() => setAnimationLibraryTab("user")}
+                  >
+                    {copy.userAnimations}
+                  </button>
+                </div>
+                {animationLibraryTab === "user" && (
+                  <button className="secondary-button full" onClick={() => animationPackInputRef.current?.click()}>
+                    <Upload size={16} aria-hidden="true" />
+                    {copy.importAnimation}
+                  </button>
+                )}
+                <div className="animation-library-list">
+                  {activeAnimationLibraryItems.length === 0 ? (
+                    <p className="animation-library-empty">{copy.animationLibraryEmpty}</p>
+                  ) : (
+                    activeAnimationLibraryItems.map((item) => (
+                      <article className="animation-library-card" key={item.id}>
+                        <div className="animation-library-preview">
+                          {item.kind === "official" ? (
+                            <div className={`animation-sample-sprite ${animationLibraryPreviewClassName(item)}`} aria-label={`${item.title} sample animation`} />
+                          ) : (
+                            <img src={item.previewDataUrl ?? item.sheetDataUrl} alt="" />
+                          )}
+                        </div>
+                        <div className="animation-library-info">
+                          <small>{item.kind === "official" ? copy.officialAnimations : copy.userAnimations}</small>
+                          <strong>{item.title}</strong>
+                          <span>{item.action} / {item.manifest.grid.rows}x{item.manifest.grid.columns} / {item.manifest.cell.width}px</span>
+                        </div>
+                        <div className="animation-library-actions">
+                          <button onClick={() => void useAnimationLibraryItem(item)}>
+                            <CheckCircle2 size={14} aria-hidden="true" />
+                            {copy.useAnimationLibraryItem}
+                          </button>
+                          <button onClick={() => void exportAnimationLibraryItem(item)}>
+                            <FileArchive size={14} aria-hidden="true" />
+                            {item.kind === "official" ? copy.exportAnimationSample : copy.exportAnimationPack}
+                          </button>
+                          {item.kind === "user" && (
+                            <>
+                              <button onClick={() => renameUserAnimationItem(item)}>
+                                <Settings size={14} aria-hidden="true" />
+                                {copy.renameAnimation}
+                              </button>
+                              <button className="danger" onClick={() => deleteUserAnimationItem(item)}>
+                                <Trash2 size={14} aria-hidden="true" />
+                                {copy.deleteAnimation}
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      </article>
+                    ))
+                  )}
+                </div>
               </section>
 
               <section className="animation-step">
@@ -2818,6 +3164,17 @@ function App() {
             hidden
             onChange={(event) => {
               if (event.target.files) void handleFiles(event.target.files);
+              event.currentTarget.value = "";
+            }}
+          />
+          <input
+            ref={animationPackInputRef}
+            type="file"
+            accept=".image-cockpit-animation.zip,.zip,application/zip,application/x-zip-compressed"
+            multiple
+            hidden
+            onChange={(event) => {
+              if (event.target.files) void handleAnimationPackFiles(event.target.files);
               event.currentTarget.value = "";
             }}
           />
@@ -3027,6 +3384,10 @@ function App() {
                   <button onClick={() => void exportSpriteSheet(frames, selectedAnimationAction, ANIMATION_FRAME_COUNT)} disabled={!selectedAnimationExportReady}>
                     <FileImage size={16} aria-hidden="true" />
                     {copy.spriteSheetDownload}
+                  </button>
+                  <button onClick={openSelectedAnimationPackExportModal} disabled={!selectedAnimationExportReady}>
+                    <FileArchive size={16} aria-hidden="true" />
+                    {copy.exportAnimationPack}
                   </button>
                 </div>
               ) : (
@@ -3269,6 +3630,15 @@ function App() {
           onUse={useAnimationPresetExample}
         />
       )}
+      {showAnimationPackExportModal && (
+        <AnimationPackExportModal
+          language={language}
+          draft={animationPackExportDraft}
+          onChange={setAnimationPackExportDraft}
+          onClose={() => setShowAnimationPackExportModal(false)}
+          onExport={() => void exportSelectedAnimationPack()}
+        />
+      )}
     </div>
   );
 
@@ -3292,6 +3662,137 @@ function PanelTitle({ index, title }: { index: string; title: string }) {
 function selectedImageSafeBaseName(item: Pick<HistoryItem, "name">) {
   const baseName = item.name.replace(/\.[^.]+$/, "") || "image-cockpit-result";
   return baseName.replace(/[<>:"/\\|?*\x00-\x1F]+/g, "-");
+}
+
+function createAnimationPackExportDraft(overrides: Partial<AnimationPackExportDraft> = {}): AnimationPackExportDraft {
+  return {
+    title: "",
+    tags: "character, sprite",
+    license: "user-controlled",
+    sourceNote: "",
+    promptSummary: "",
+    includePromptSummary: false,
+    ...overrides
+  };
+}
+
+function buildSelectedAnimationPackManifest({
+  draft,
+  selected,
+  action,
+  grid,
+  directions
+}: {
+  draft: AnimationPackExportDraft;
+  selected: HistoryItem;
+  action: SpriteAction;
+  grid: GridSettings;
+  directions: string[];
+}): AnimationPackManifest {
+  const title = draft.title.trim() || selected.name.replace(/\.[^.]+$/, "") || action.name;
+  return {
+    schema: "image-cockpit.animation.v1",
+    title,
+    kind: "user",
+    action: action.name,
+    directions: directions.length > 0 ? directions : ANIMATION_DIRECTIONS,
+    grid,
+    cell: action.cell,
+    framesPerDirection: grid.columns,
+    playback: action.playbackMode ?? "normal",
+    createdAt: new Date().toISOString(),
+    createdWith: "Image Cockpit for Codex Workflows",
+    license: draft.license.trim(),
+    sourceNote: draft.sourceNote.trim(),
+    promptSummary: draft.includePromptSummary ? draft.promptSummary.trim() : "",
+    tags: parseTagList(draft.tags),
+    files: animationPackFileSet()
+  };
+}
+
+function animationPackFileSet(): AnimationPackManifest["files"] {
+  return {
+    sheet: "sheet.png",
+    previewGif: "preview.gif",
+    previewWebp: "preview.webp",
+    metadata: "metadata.json"
+  };
+}
+
+function animationPackMetadata(
+  manifest: AnimationPackManifest,
+  details: { libraryKind: AnimationLibraryKind; sourceNote: string }
+) {
+  return {
+    schema: manifest.schema,
+    title: manifest.title,
+    kind: details.libraryKind,
+    action: manifest.action,
+    exportedAt: new Date().toISOString(),
+    createdWith: manifest.createdWith,
+    directions: manifest.directions,
+    grid: manifest.grid,
+    cell: manifest.cell,
+    framesPerDirection: manifest.framesPerDirection,
+    playback: manifest.playback ?? "normal",
+    tags: manifest.tags ?? [],
+    license: manifest.license ?? "",
+    sourceNote: details.sourceNote,
+    promptSummaryIncluded: Boolean(manifest.promptSummary)
+  };
+}
+
+function parseTagList(tags: string) {
+  return tags
+    .split(",")
+    .map((tag) => tag.trim())
+    .filter(Boolean)
+    .slice(0, 20);
+}
+
+function actionFromAnimationManifest(manifest: AnimationPackManifest, frameIds: string[]): SpriteAction {
+  const fallback = defaultActions.find((action) => action.name === manifest.action);
+  return {
+    name: manifest.action,
+    fps: fallback?.fps ?? (manifest.action === "run" ? 20 : 12),
+    loop: true,
+    playbackMode: manifest.playback === "ping-pong-reverse" ? "ping-pong-reverse" : undefined,
+    frameIds,
+    cell: manifest.cell,
+    anchor: {
+      x: Math.round(manifest.cell.width / 2),
+      y: Math.round(manifest.cell.height * 0.92)
+    }
+  };
+}
+
+function upsertSpriteAction(actions: SpriteAction[], nextAction: SpriteAction) {
+  return actions.some((action) => action.name === nextAction.name)
+    ? actions.map((action) => (action.name === nextAction.name ? nextAction : action))
+    : [...actions, nextAction];
+}
+
+function safeAnimationFileBaseName(title: string, action: string) {
+  return `${title || action || "animation"}`
+    .replace(/\.[^.]+$/, "")
+    .replace(/[<>:"/\\|?*\x00-\x1F]+/g, "-")
+    .replace(/\s+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .toLowerCase() || "image-cockpit-animation";
+}
+
+async function resolveImageSourceDataUrl(source: string) {
+  if (source.startsWith("data:")) return source;
+  const image = await loadImage(source);
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.max(1, image.naturalWidth || image.width);
+  canvas.height = Math.max(1, image.naturalHeight || image.height);
+  const context = canvas.getContext("2d");
+  if (!context) throw new Error("Could not read animation sheet image.");
+  context.clearRect(0, 0, canvas.width, canvas.height);
+  context.drawImage(image, 0, 0, canvas.width, canvas.height);
+  return canvas.toDataURL("image/png");
 }
 
 function SectionLabel({ title }: { title: string }) {
@@ -4286,6 +4787,92 @@ function AnimationPresetExamplesModal({
       </section>
     </div>
   );
+}
+
+function AnimationPackExportModal({
+  language,
+  draft,
+  onChange,
+  onClose,
+  onExport
+}: {
+  language: Language;
+  draft: AnimationPackExportDraft;
+  onChange: (draft: AnimationPackExportDraft) => void;
+  onClose: () => void;
+  onExport: () => void;
+}) {
+  const copy = uiCopy[language];
+  const updateDraft = (patch: Partial<AnimationPackExportDraft>) => onChange({ ...draft, ...patch });
+  return (
+    <div className="prompt-modal-backdrop" role="presentation" onMouseDown={onClose}>
+      <section
+        className="prompt-modal animation-pack-export-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="animation-pack-export-title"
+        onMouseDown={(event) => event.stopPropagation()}
+      >
+        <div className="prompt-library-heading">
+          <div>
+            <strong id="animation-pack-export-title">{copy.animationPackExportTitle}</strong>
+            <span>{copy.animationPackExportIntro}</span>
+          </div>
+          <button className="icon-button" title={copy.closePromptExamples} aria-label={copy.closePromptExamples} onClick={onClose}>
+            <X size={18} aria-hidden="true" />
+          </button>
+        </div>
+
+        <div className="animation-pack-form">
+          <label className="field">
+            <span>{copy.animationPackTitleLabel}</span>
+            <input value={draft.title} onChange={(event) => updateDraft({ title: event.target.value })} />
+          </label>
+          <label className="field">
+            <span>{copy.animationPackTagsLabel}</span>
+            <input value={draft.tags} onChange={(event) => updateDraft({ tags: event.target.value })} />
+          </label>
+          <label className="field">
+            <span>{copy.animationPackLicenseLabel}</span>
+            <input value={draft.license} onChange={(event) => updateDraft({ license: event.target.value })} />
+          </label>
+          <label className="field">
+            <span>{copy.animationPackSourceLabel}</span>
+            <textarea value={draft.sourceNote} onChange={(event) => updateDraft({ sourceNote: event.target.value })} rows={2} maxLength={360} />
+          </label>
+          <label className="check-row inline">
+            <input
+              type="checkbox"
+              checked={draft.includePromptSummary}
+              onChange={(event) => updateDraft({ includePromptSummary: event.target.checked })}
+            />
+            {copy.animationPackPromptToggle}
+          </label>
+          {draft.includePromptSummary && (
+            <label className="field">
+              <span>{copy.animationPackPromptSummaryLabel}</span>
+              <textarea value={draft.promptSummary} onChange={(event) => updateDraft({ promptSummary: event.target.value })} rows={3} maxLength={500} />
+            </label>
+          )}
+          <p className="animation-pack-rights-hint">{copy.animationPackRightsHint}</p>
+        </div>
+
+        <div className="prompt-actions animation-pack-actions">
+          <button onClick={onClose}>{copy.cancel}</button>
+          <button className="primary-button" onClick={onExport}>
+            <FileArchive size={15} aria-hidden="true" />
+            {copy.saveExport}
+          </button>
+        </div>
+      </section>
+    </div>
+  );
+}
+
+function animationLibraryPreviewClassName(item: AnimationLibraryItem) {
+  if (item.action === "run") return "sample-run-sheet sample-run";
+  if (item.action === "walk") return "sample-walk-sheet sample-walk";
+  return "sample-walk-sheet sample-walk";
 }
 
 function WorkflowIcon({ mode }: { mode: WorkflowMode }) {

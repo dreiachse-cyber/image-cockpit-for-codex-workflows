@@ -1,9 +1,10 @@
 import { spawn } from "node:child_process";
 import { existsSync } from "node:fs";
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { createServer } from "node:net";
 import { tmpdir } from "node:os";
 import { delimiter, join } from "node:path";
+import JSZip from "jszip";
 
 const nodeCommand = process.execPath;
 const browserCommand = process.env.IMAGE_COCKPIT_BROWSER_COMMAND || findBrowserCommand();
@@ -19,6 +20,7 @@ const tempRoot = await mkdtemp(join(tmpdir(), "image-cockpit-ui-smoke-"));
 const handoffDir = join(tempRoot, "handoff");
 const chromeProfileDir = join(tempRoot, "chrome-profile");
 const mockRunnerPath = join(tempRoot, "mock-codex-runner.mjs");
+const mockAnimationPackPath = join(tempRoot, "mock-run-cycle.image-cockpit-animation.zip");
 const apiPort = await getOpenPort();
 const vitePort = await getOpenPort();
 const debugPort = await getOpenPort();
@@ -31,6 +33,7 @@ let cdp;
 
 try {
   await writeFile(mockRunnerPath, mockRunnerSource(), "utf8");
+  await writeFile(mockAnimationPackPath, Buffer.from(await createMockAnimationPack()));
   apiServer = startProcess(nodeCommand, ["node_modules/tsx/dist/cli.mjs", "server/index.ts"], {
     IMAGE_COCKPIT_API_PORT: String(apiPort),
     IMAGE_COCKPIT_HANDOFF_DIR: handoffDir,
@@ -64,6 +67,7 @@ try {
   const target = await waitForPageTarget(debugPort);
   cdp = await createCdpClient(target.webSocketDebuggerUrl);
   await cdp.send("Page.enable");
+  await cdp.send("DOM.enable");
   await cdp.send("Runtime.enable");
   await cdp.send("Page.addScriptToEvaluateOnNewDocument", {
     source: `
@@ -91,6 +95,7 @@ try {
         }]));
         localStorage.removeItem("image-cockpit.v3.frames");
         localStorage.removeItem("image-cockpit.v3.actions");
+        localStorage.removeItem("image-cockpit.v3.animation-library");
       }
     `
   });
@@ -122,10 +127,10 @@ try {
   await assertWorkflow({
     label: "Animation Generation",
     route: "Route: Codex Handoff",
-    buttons: ["Upload Pixel Art", "Choose Animation", "Generate Animation", "PNG"],
+    buttons: ["Upload Pixel Art", "Choose Animation", "Official Animations", "User Animations", "Use", "Export Sample", "Generate Animation", "PNG"],
     hiddenButtons: ["Import Latest", "Import File", "5-Direction Sheet", "hatch-pet", "5-Direction hatch-pet"],
     hiddenText: ["Sprite Actions", "Export Sprite", "Generation Method", "Idle Breathing Loop", "Hop Bounce", "Victory Cheer"],
-    requiredText: ["1. Upload Pixel Art", "2. Choose Motion", "3. Generate", "4. Download", "Selected animation", "Choose Animation", "Fixed cells: 256 x 256 px", "5-direction chroma-key sprite sheet"],
+    requiredText: ["1. Upload Pixel Art", "2. Choose Motion", "Animation Library", "Official Animations", "User Animations", "3. Generate", "4. Download", "Selected animation", "Choose Animation", "Fixed cells: 256 x 256 px", "5-direction chroma-key sprite sheet"],
     exerciseButton: "Generate Animation",
     expectedAfterExercise: "Animation generated",
     expectedAfterExerciseText: ["Animation frames ready", "Generated from", "Directional Previews", "GIF Preview", "Sprite Sheet Preview", "Animated WebP", "256 x 256 px"],
@@ -138,6 +143,7 @@ try {
     reloadAfterExercise: true
   });
   await assertAnimationResultNotEditable();
+  await assertAnimationLibraryImport();
   if (!screenshotDir) await assertHistoryIncrementalRendering();
 
   console.log("UI smoke passed.");
@@ -234,7 +240,7 @@ async function assertAnimationPresetExamples() {
   const snapshot = await pageSnapshot();
   assert(snapshot.text.includes("Pick an animated sample"), "Choose Animation intro should be visible");
   assert(snapshot.buttons.includes("Select Animation"), "Choose Animation should expose select buttons");
-  assert(snapshot.animationPresetSampleSprites === 2, `Choose Animation should show 2 verified animated sprite samples, got ${snapshot.animationPresetSampleSprites}`);
+  assert(snapshot.animationPresetModalSampleSprites === 2, `Choose Animation should show 2 verified animated sprite samples, got ${snapshot.animationPresetModalSampleSprites}`);
   assert(snapshot.text.includes("Walk Cycle"), "Choose Animation should include the Walk Cycle animation card");
   assert(snapshot.text.includes("Run Cycle"), "Choose Animation should include the Run Cycle animation card");
   assert(!snapshot.text.includes("Idle Breathing Loop"), "Choose Animation should hide unverified Idle Breathing Loop card");
@@ -264,7 +270,7 @@ async function assertAnimationPresetExamples() {
   })()`);
   assert(runCycleUsesGeneratedSheet, "Run Cycle card should use the generated run-cycle sprite sheet sample with ping-pong playback");
   assert(snapshot.promptRawTextBlocks === 0, `Choose Animation should hide raw prompt text, got ${snapshot.promptRawTextBlocks} raw blocks`);
-  const animationName = await evaluate(`getComputedStyle(document.querySelector(".animation-sample-sprite")).animationName`);
+  const animationName = await evaluate(`getComputedStyle(document.querySelector(".animation-preset-modal .animation-sample-sprite")).animationName`);
   assert(animationName && animationName !== "none", "Choose Animation samples should be animated");
   await maybeCapture("animation-preset-examples-modal");
 
@@ -280,6 +286,46 @@ async function assertAnimationPresetExamples() {
   const modalClosed = await evaluate(`!document.querySelector(".animation-preset-modal")`);
   assert(modalClosed, "Select Animation should close the Choose Animation modal");
 
+  await selectWorkflowTab("Pixel Art Generation");
+}
+
+async function assertAnimationLibraryImport() {
+  await selectWorkflowTab("Animation Generation");
+  await waitForEval(() => `document.body.innerText.includes("Animation Library")`, "Animation Library panel");
+  let snapshot = await pageSnapshot();
+  assert(snapshot.text.includes("Official Animations"), "Animation Library should expose Official Animations");
+  assert(snapshot.text.includes("User Animations"), "Animation Library should expose User Animations");
+  assert(snapshot.animationLibraryCards >= 2, `Official Animations should show bundled cards, got ${snapshot.animationLibraryCards}`);
+  assert(snapshot.text.includes("Run Cycle"), "Official Animations should include Run Cycle");
+
+  await clickButtonByText("User Animations");
+  await waitForEval(() => `document.body.innerText.includes("Import Animation")`, "User Animations import button");
+  snapshot = await pageSnapshot();
+  assert(snapshot.text.includes("No user animations yet"), "User Animations should show an empty state before import");
+
+  await setFileInputFiles('input[accept*="image-cockpit-animation"]', [mockAnimationPackPath]);
+  await waitForEval(() => `document.body.innerText.includes("Animation pack imported")`, "Animation pack imported");
+  snapshot = await pageSnapshot();
+  assert(snapshot.text.includes("Smoke Run Pack"), "Imported animation pack should appear in User Animations");
+  assert(snapshot.buttons.includes("Use"), "Imported animation pack should expose Use");
+  assert(snapshot.buttons.includes("Export Animation Pack"), "Imported animation pack should expose Export Animation Pack");
+  assert(snapshot.buttons.includes("Rename"), "Imported animation pack should expose Rename");
+  assert(snapshot.buttons.includes("Delete"), "Imported animation pack should expose Delete");
+
+  await clickButtonByText("Use");
+  await waitForEval(() => `document.body.innerText.includes("Animation loaded from library")`, "Imported animation Use");
+  await waitForEval(() => `document.body.innerText.includes("Animation frames ready")`, "Imported animation frames ready");
+  await waitForEval(() => `document.querySelectorAll(".animation-preview img").length >= 6`, "Imported animation preview images");
+  snapshot = await pageSnapshot();
+  assert(snapshot.resultDownloadPanelInWorkspace, "Imported animation should use the shared result download panel");
+  assert(snapshot.resultDownloadPanelComplete, "Imported animation should make the download panel ready");
+  assert(snapshot.workspaceExportAnimationPackButtons >= 1, "Selected imported animation should expose Export Animation Pack in the workspace download panel");
+
+  await evaluate(`document.querySelector(".workspace .result-download-grid button:last-child")?.click()`);
+  await waitForEval(() => `document.querySelector(".animation-pack-export-modal")?.innerText.includes("Export Animation Pack")`, "Export Animation Pack modal");
+  await clickButtonByText("Cancel");
+  await waitForEval(() => `!document.querySelector(".animation-pack-export-modal")`, "Export Animation Pack modal closed");
+  await maybeCapture("animation-library-import");
   await selectWorkflowTab("Pixel Art Generation");
 }
 
@@ -840,6 +886,14 @@ async function clickButtonByText(label) {
   })()`);
 }
 
+async function setFileInputFiles(selector, files) {
+  const { root } = await cdp.send("DOM.getDocument", { depth: 1 });
+  const { nodeId } = await cdp.send("DOM.querySelector", { nodeId: root.nodeId, selector });
+  if (!nodeId) throw new Error(`File input not found: ${selector}`);
+  await cdp.send("DOM.setFileInputFiles", { nodeId, files });
+  await delay(250);
+}
+
 async function waitForButtonEnabled(label) {
   await waitForEval(
     () => `Array.from(document.querySelectorAll("button")).some((button) => button.innerText.replace(/\\s+/g, " ").trim() === ${JSON.stringify(label)} && !button.disabled)`,
@@ -899,6 +953,10 @@ async function pageSnapshot() {
     spriteSheetGridOverlays: document.querySelectorAll(".sprite-sheet-grid-overlay").length,
     promptPreviewImages: document.querySelectorAll(".prompt-card-preview img").length,
     animationPresetSampleSprites: document.querySelectorAll(".animation-sample-sprite").length,
+    animationPresetModalSampleSprites: document.querySelectorAll(".animation-preset-modal .animation-sample-sprite").length,
+    animationLibraryCards: document.querySelectorAll(".animation-library-card").length,
+    workspaceExportAnimationPackButtons: Array.from(document.querySelectorAll(".workspace .result-download-grid button"))
+      .filter((button) => button.innerText.replace(/\\s+/g, " ").trim() === "Export Animation Pack").length,
     promptRawTextBlocks: document.querySelectorAll(".prompt-card-text, .prompt-card-negative").length
   }))()`);
 }
@@ -989,6 +1047,37 @@ async function waitForPageTarget(port) {
     await delay(150);
   }
   throw new Error("Timed out waiting for browser debugging target");
+}
+
+async function createMockAnimationPack() {
+  const zip = new JSZip();
+  const manifest = {
+    schema: "image-cockpit.animation.v1",
+    title: "Smoke Run Pack",
+    kind: "user",
+    action: "run",
+    directions: ["front", "front three-quarter", "side", "back three-quarter", "back"],
+    grid: { columns: 8, rows: 5, gutter: 0 },
+    cell: { width: 256, height: 256 },
+    framesPerDirection: 8,
+    playback: "ping-pong-reverse",
+    createdAt: "2026-06-25T00:00:00.000Z",
+    createdWith: "Image Cockpit for Codex Workflows",
+    license: "ui-smoke",
+    sourceNote: "Mock pack generated by scripts/ui-smoke.mjs.",
+    promptSummary: "",
+    tags: ["smoke", "run", "sprite"],
+    files: {
+      sheet: "sheet.png",
+      previewGif: "preview.gif",
+      previewWebp: "preview.webp",
+      metadata: "metadata.json"
+    }
+  };
+  zip.file("manifest.json", JSON.stringify(manifest, null, 2));
+  zip.file("sheet.png", await readFile("public/samples/run-cycle-sheet.png"));
+  zip.file("metadata.json", JSON.stringify({ source: "ui-smoke" }, null, 2));
+  return zip.generateAsync({ type: "uint8array" });
 }
 
 function mockRunnerSource() {

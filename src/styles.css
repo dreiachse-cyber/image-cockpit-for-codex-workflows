@@ -529,13 +529,159 @@ button {
   grid-column: 2;
   grid-row: 1 / span 2;
   align-self: center;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(118px, 1fr));
 }
 
 .result-download-grid button {
   justify-content: center;
   min-width: 0;
   padding: 0 8px;
+}
+
+.animation-library-panel {
+  align-content: start;
+}
+
+.animation-library-tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+
+.animation-library-tabs button {
+  min-height: 30px;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  background: #f8faf8;
+  color: #28342c;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.animation-library-tabs button.active {
+  border-color: #1e7a42;
+  background: #edf8f0;
+  color: #0f5d31;
+}
+
+.animation-library-list {
+  display: grid;
+  gap: 8px;
+  max-height: 320px;
+  overflow: auto;
+}
+
+.animation-library-card {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: 58px minmax(0, 1fr);
+  gap: 8px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #fbfdfb;
+  padding: 8px;
+}
+
+.animation-library-preview {
+  width: 58px;
+  aspect-ratio: 1 / 1;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  background:
+    linear-gradient(45deg, #ecefec 25%, transparent 25%),
+    linear-gradient(-45deg, #ecefec 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, #ecefec 75%),
+    linear-gradient(-45deg, transparent 75%, #ecefec 75%);
+  background-size: 12px 12px;
+  background-position:
+    0 0,
+    0 6px,
+    6px -6px,
+    -6px 0;
+}
+
+.animation-library-preview img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  image-rendering: pixelated;
+}
+
+.animation-library-preview .animation-sample-sprite {
+  width: 52px;
+  box-shadow: none;
+}
+
+.animation-library-info {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+
+.animation-library-info small {
+  color: var(--green);
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.animation-library-info strong,
+.animation-library-info span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.animation-library-info span {
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
+.animation-library-actions {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.animation-library-actions button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  min-height: 30px;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  background: #f8faf8;
+  color: #28342c;
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.animation-library-actions button:first-child {
+  border-color: #1e7a42;
+  background: var(--green);
+  color: #fff;
+}
+
+.animation-library-actions button.danger {
+  color: #8a2e1f;
+}
+
+.animation-library-empty {
+  margin: 0;
+  border: 1px dashed var(--line);
+  border-radius: 5px;
+  background: #f8faf8;
+  color: var(--text-muted);
+  padding: 10px;
+  font-size: 12px;
+  line-height: 1.45;
 }
 
 .animation-source-status {
@@ -1974,6 +2120,43 @@ button:disabled {
 
 .prompt-actions.single-action {
   grid-template-columns: 1fr;
+}
+
+.animation-pack-export-modal {
+  width: min(720px, 100%);
+}
+
+.animation-pack-form {
+  display: grid;
+  gap: 10px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--panel);
+  padding: 12px;
+}
+
+.animation-pack-form .field {
+  margin: 0;
+}
+
+.animation-pack-form input,
+.animation-pack-form textarea {
+  width: 100%;
+}
+
+.animation-pack-rights-hint {
+  margin: 0;
+  border: 1px solid #d6c7a6;
+  border-radius: 5px;
+  background: #fff8e8;
+  color: #6a4b0f;
+  padding: 9px 10px;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.animation-pack-actions {
+  grid-template-columns: 1fr 1fr;
 }
 
 .animation-sample-preview {

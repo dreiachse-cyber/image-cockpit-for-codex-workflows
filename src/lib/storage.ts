@@ -1,8 +1,10 @@
-import type { HistoryItem, SpriteAction, SpriteFrame } from "../types";
+import type { AnimationLibraryItem, HistoryItem, SpriteAction, SpriteFrame } from "../types";
 
 const HISTORY_KEY = "image-cockpit.v3.history";
 const FRAMES_KEY = "image-cockpit.v3.frames";
 const ACTIONS_KEY = "image-cockpit.v3.actions";
+const ANIMATION_LIBRARY_KEY = "image-cockpit.v3.animation-library";
+export const MAX_USER_ANIMATION_LIBRARY_ITEMS = 30;
 const DB_NAME = "image-cockpit-local-state";
 const DB_VERSION = 1;
 const STORE_NAME = "state";
@@ -29,12 +31,13 @@ export function loadHistory() {
 }
 
 export async function loadPersistedState(fallbackActions: SpriteAction[]) {
-  const [history, frames, actions] = await Promise.all([
+  const [history, frames, actions, animationLibrary] = await Promise.all([
     loadIndexedJson<HistoryItem[]>(HISTORY_KEY, loadHistory()),
     loadIndexedJson<SpriteFrame[]>(FRAMES_KEY, loadFrames()),
-    loadIndexedJson<SpriteAction[]>(ACTIONS_KEY, loadActions(fallbackActions))
+    loadIndexedJson<SpriteAction[]>(ACTIONS_KEY, loadActions(fallbackActions)),
+    loadIndexedJson<AnimationLibraryItem[]>(ANIMATION_LIBRARY_KEY, loadUserAnimationLibrary())
   ]);
-  return { history, frames, actions };
+  return { history, frames, actions, animationLibrary };
 }
 
 export function saveHistory(history: HistoryItem[]) {
@@ -58,6 +61,16 @@ export function loadActions(fallback: SpriteAction[]) {
 export function saveActions(actions: SpriteAction[]) {
   saveJson(ACTIONS_KEY, actions);
   void saveIndexedJson(ACTIONS_KEY, actions);
+}
+
+export function loadUserAnimationLibrary() {
+  return loadJson<AnimationLibraryItem[]>(ANIMATION_LIBRARY_KEY, []);
+}
+
+export function saveUserAnimationLibrary(items: AnimationLibraryItem[]) {
+  const capped = items.slice(0, MAX_USER_ANIMATION_LIBRARY_ITEMS);
+  saveJson(ANIMATION_LIBRARY_KEY, capped);
+  void saveIndexedJson(ANIMATION_LIBRARY_KEY, capped);
 }
 
 async function loadIndexedJson<T>(key: string, fallback: T): Promise<T> {
