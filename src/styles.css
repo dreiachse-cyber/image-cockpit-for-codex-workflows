@@ -2022,8 +2022,18 @@ button:disabled {
   --sample-y: 50%;
 }
 
+.sample-walk-sheet {
+  --sample-image: url("/samples/walk-cycle-sheet.png");
+  --sample-sheet-rows: 500%;
+  --sample-y: 50%;
+}
+
 .sample-fast {
   --sample-duration: 0.62s;
+}
+
+.sample-walk {
+  --sample-duration: 0.72s;
 }
 
 .sample-run {
