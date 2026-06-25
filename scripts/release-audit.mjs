@@ -4,6 +4,7 @@ import { extname, join } from "node:path";
 
 const root = process.cwd();
 const failures = [];
+const privacyTextExtensions = new Set(["", ".css", ".html", ".js", ".json", ".md", ".mjs", ".ts", ".tsx", ".txt", ".yaml", ".yml"]);
 
 const requiredFiles = [
   "README.md",
@@ -18,8 +19,15 @@ const requiredFiles = [
   "scripts/doctor.mjs",
   "scripts/release-audit.mjs",
   "scripts/real-codex-runner-smoke.mjs",
+  "scripts/real-imagegen-smoke.mjs",
   "scripts/ui-smoke.mjs",
+  "public/samples/idle-breathing-sheet.png",
+  "public/samples/walk-cycle-sheet.png",
+  "public/samples/run-cycle-sheet.png",
   "src/App.test.ts",
+  "src/lib/animationPack.ts",
+  "src/lib/animationPack.test.ts",
+  "src/lib/officialAnimations.ts",
   "docs/review/mvp-review-report.md",
   "docs/roadmap/release-roadmap.md",
   "docs/release/v0.1.0-checklist.md",
@@ -35,7 +43,8 @@ const requiredFiles = [
   "docs/qa/simple-image-generate-import-latest-mobile-390x844.png",
   "docs/qa/simple-sprite-generate-actions-1280x720.png",
   "docs/qa/manual-handoff-import-latest-1280x720.png",
-  "docs/qa/real-codex-runner-smoke.md"
+  "docs/qa/real-codex-runner-smoke.md",
+  "docs/qa/imagegen-handoff-smoke.md"
 ];
 
 const requiredEnvKeys = [
@@ -59,6 +68,7 @@ const requiredPackageScripts = [
   "smoke",
   "ui:smoke",
   "codex:smoke",
+  "imagegen:smoke",
   "release:audit",
   "verify",
   "review:local"
@@ -82,6 +92,7 @@ const requiredReadmeLinks = [
   "docs/release/v0.1.0-checklist.md",
   "docs/release/v0.1.0-runbook.md",
   "docs/usage/manual-handoff.md",
+  "docs/qa/imagegen-handoff-smoke.md",
   ".github/workflows/ci.yml",
   "LICENSE",
   "CONTRIBUTING.md",
@@ -94,6 +105,7 @@ checkPackageJson();
 checkEnvExample();
 checkGitignore();
 checkTrackedFiles();
+checkPublicPrivacy();
 checkNoDirectOpenAiIntegration();
 checkWorkflowIds();
 checkPendingJobCoverage();
@@ -212,6 +224,60 @@ function checkTrackedFiles() {
     });
 }
 
+function checkPublicPrivacy() {
+  const tracked = git(["ls-files"]);
+  if (tracked === null) return;
+
+  const windowsUserPathPattern = new RegExp(["C:", "\\\\", "Users", "\\\\"].join(""), "i");
+  const workspaceDrivePathPattern = new RegExp(["D:", "\\\\", "codex", "\\\\"].join(""), "i");
+  const localAppDataCodexRuntimePattern = new RegExp(
+    [
+      "%LOCALAPPDATA%",
+      "\\\\",
+      "OpenAI",
+      "\\\\",
+      "Codex",
+      "\\\\",
+      "bin",
+      "\\\\",
+      "(?!<runtime-id>|\\.\\.\\.)[A-Za-z0-9_-]{6,}",
+      "\\\\",
+      "codex\\.exe"
+    ].join(""),
+    "i"
+  );
+  const blockedLiterals = [
+    { label: "personal Windows user name", value: ["na", "kaya"].join("") },
+    { label: "observed local Codex runtime id", value: ["38dff", "8711e296435"].join("") }
+  ];
+
+  tracked
+    .split(/\r?\n/)
+    .filter(Boolean)
+    .filter((file) => file !== "scripts/release-audit.mjs")
+    .filter((file) => isPrivacyAuditedTextFile(file))
+    .forEach((file) => {
+      const text = readText(file);
+      if (!text) return;
+
+      if (windowsUserPathPattern.test(text)) {
+        failures.push(`Public privacy guard found a Windows user profile path in ${file}`);
+      }
+      if (workspaceDrivePathPattern.test(text)) {
+        failures.push(`Public privacy guard found a local workspace drive path in ${file}`);
+      }
+      if (localAppDataCodexRuntimePattern.test(text)) {
+        failures.push(`Public privacy guard found a concrete Codex runtime path in ${file}`);
+      }
+
+      blockedLiterals.forEach(({ label, value }) => {
+        if (text.includes(value)) {
+          failures.push(`Public privacy guard found ${label} in ${file}`);
+        }
+      });
+    });
+}
+
 function checkNoDirectOpenAiIntegration() {
   const tracked = git(["ls-files", "src", "server", "scripts", "package.json", ".env.example"]);
   if (tracked === null) return;
@@ -231,10 +297,13 @@ function checkNoDirectOpenAiIntegration() {
 
 function checkWorkflowIds() {
   const appText = readText("src/App.tsx");
+  const stylesText = readText("src/styles.css");
   const smokeText = readText("scripts/smoke.mjs");
   const uiSmokeText = readText("scripts/ui-smoke.mjs");
+  const exportersText = readText("src/lib/exporters.ts");
+  const animationPackText = readText("src/lib/animationPack.ts");
   const realCodexSmokeText = readText("scripts/real-codex-runner-smoke.mjs");
-  if (!appText || !smokeText || !uiSmokeText || !realCodexSmokeText) return;
+  if (!appText || !stylesText || !smokeText || !uiSmokeText || !realCodexSmokeText) return;
 
   requiredWorkflowIds.forEach((workflowId) => {
     if (!appText.includes(workflowId)) {
@@ -249,19 +318,225 @@ function checkWorkflowIds() {
   });
 
   [
-    "1. Image Generation",
-    "2. Image Editing",
-    "3. Sprite Sheet Generation",
-    "4. Sprite Sheet Editing",
-    "Guided Start should show four workflow options",
+    "Pixel Art Generation",
+    "Image Editing",
+    "Animation Generation",
+    "Initial screen should open the Pixel Art Generation workspace",
+    "Initial screen should not show Guided Start options",
+    "selectWorkflowTab",
     "Route: Codex Handoff",
-    "Route: Local File",
-    "Route: Local Inbox",
-    "Transparency Cleanup",
-    "Export Sprite"
+    "5-direction chroma-key sprite sheet",
+    "Generate Pixel Art",
+    "Generate Animation",
+    "Animation generated",
+    "Prompt Examples",
+    "prompt-example-trigger",
+    "Prompt Examples modal",
+    "directly below the prompt field",
+    "Pick by preview image",
+    "Prompt Examples should show image previews",
+    "Prompt Examples should hide raw prompt text",
+    "prompt-card-preview",
+    "Copy Prompt",
+    "Use Prompt",
+    "Clockwork Mushroom Courier",
+    "Prompt example loaded into Pixel Art Generation",
+    "Generation can take a few minutes.",
+    "assertCodexQueue",
+    "Codex Jobs",
+    "Active 1/2",
+    "Active 2/2",
+    "Queue Codex Job",
+    "Queued",
+    "Waiting for an open slot",
+    "Codex job queued",
+    "codexJobRows",
+    "codexJobShelfInHistory",
+    "codexJobShelfInSource",
+    "codexJobShelfBeforeHistoryList",
+    "Codex job shelf should appear above the Results cards in the right column",
+    "Codex queue drains after results return",
+    "assertImageEditing",
+    "assertAnimationResultNotEditable",
+    "Edit Image",
+    "Upload Image",
+    "Numbered edit regions",
+    "Edited from",
+    "source-status-button",
+    "source chip selects the source preview",
+    "dragCanvasRegion",
+    "annotation-region-row",
+    "annotation-comment-field",
+    "image-edit-source-status",
+    "Image Editing edit source preview",
+    "Image Editing should not render the old Before / After compare card",
+    "result-download-panel",
+    "Image Editing should place the result download card under the preview workspace",
+    "Initial workspace should place the result download card under the preview workspace",
+    "resultDownloadPanelComplete",
+    "Image Editing should hide animated GIF download for non-animation results",
+    "Image Editing should hide animated WebP download for non-animation results",
+    "PNG",
+    "policy_or_safety",
+    "Generation failed",
+    "生成できませんでした",
+    "codex-failure-card",
+    "Codex failure should not create a fake history image",
+    "Codex failure should release the active job slot",
+    "assertHistoryIncrementalRendering",
+    "Results list renders the first 100 history items",
+    "Results list loads 20 more cards on scroll",
+    "historyVisibleCount",
+    "Animation output",
+    "Animation outputs are final artifacts",
+    "Animation results should not expose the rectangle selection toolbar",
+    "finalEditNoticeVisible",
+    "disabledButtons",
+    "Image Editing should hide the old annotation PNG button",
+    "hiddenButtons",
+    "hiddenText",
+    "Sprite Actions",
+    "Export Sprite",
+    "spriteBenchVisible",
+    "should keep the Sprite Actions panel hidden for now",
+    "workflowTabsInsidePanel",
+    "workflowTabsInTopbar",
+    "1. Upload Pixel Art",
+    "Animation Library should stay hidden until the feature is ready",
+    "Generation Method",
+    "5-Direction Sheet",
+    "hatch-pet",
+    "5-Direction hatch-pet",
+    "2. Choose Motion",
+    "Animation Library",
+    "Official Animations",
+    "User Animations",
+    "Import Animation",
+    "Export Animation Pack",
+    "image-cockpit.animation.v1",
+    "mock-run-cycle.image-cockpit-animation.zip",
+    "Animation pack imported",
+    "Animation loaded from library",
+    "workspaceExportAnimationPackButtons",
+    "Idle Breathing",
+    "idle-breathing-sheet.png",
+    "sample-idle-sheet",
+    "Walk Cycle",
+    "walk-cycle-sheet.png",
+    "sample-walk-sheet",
+    "Run Cycle",
+    "run-cycle-sheet.png",
+    "sample-run-sheet",
+    "Hop Bounce",
+    "Choose Animation",
+    "Selected animation",
+    "selected-animation-card",
+    "Animation card should not show unselected animation options",
+    "Fixed cells: 256 x 256 px",
+    "Animation Generation should not expose free-form motion prompt textareas",
+    "Choose Animation modal",
+    "Choose Animation trigger should sit directly below the selected animation card",
+    "Pick an animated sample",
+    "Select Animation",
+    "animation-preset-example-trigger",
+    "animation-preset-modal",
+    "animation-sample-sprite",
+    "Choose Animation should show 3 verified animated sprite samples",
+    "Choose Animation should include the Idle Breathing animation card",
+    "Idle Breathing card should use the generated idle-breathing sprite sheet sample with normal loop playback",
+    "Choose Animation should include the Walk Cycle animation card",
+    "Walk Cycle card should use the generated walk-cycle sprite sheet sample with normal loop playback",
+    "Choose Animation should include the Run Cycle animation card",
+    "Run Cycle card should use the generated run-cycle sprite sheet sample with ping-pong playback",
+    "expectedNormalizedAnimationFrames",
+    "assertNormalizedAnimationFrames",
+    "should normalize animation frame cutouts around center and footline",
+    "Victory Cheer",
+    "Animation selected",
+    "preExerciseButtonChecks",
+    "3. Generate",
+    "4. Download",
+    "resultDownloadPanelInWorkspace",
+    "resultDownloadPanelInSource",
+    "should not show stale animation preview images before a selected animation result exists",
+    "Animated GIF",
+    "Animated WebP",
+    "Sprite Sheet",
+    "Directional Previews",
+    "GIF Preview",
+    "Sprite Sheet Preview",
+    "expectedPreviewImages: 6",
+    "expectedAnimationPreviewImagesAfterExercise",
+    "animation preview image(s)",
+    "expectSourceRoundTrip",
+    "Source selected for animation generation",
+    "animationPreviewImages",
+    "canvasPanelVisible",
+    "expectedCanvasPreviewModeAfterExercise",
+    "canvasPreviewMode",
+    "annotationToolbarVisible",
+    "Preview toolbar visibility should be",
+    "shows the selected result in the main preview",
+    "resultPreviewImages",
+    "resultPreviewLoaded",
+    "resultPreviewFrameHeight",
+    "Animation frames ready",
+    "Generated from",
+    "animationSourceStatus",
+    "Codex log fullscreen button",
+    "Fullscreen Codex log text area should be taller than normal",
+    "Mobile fullscreen Codex log panel should fit within the viewport",
+    "persisted generated-from source after reload",
+    "regenerated animation previews after reload",
+    "spriteSheetGridOverlays",
+    "256 x 256 px",
+    "persisted animation frames after reload",
+    "persisted 256 x 256 px frame size after reload"
   ].forEach((marker) => {
     if (!uiSmokeText.includes(marker)) {
-      failures.push(`UI smoke should cover guided workflow review: ${marker}`);
+      failures.push(`UI smoke should cover workspace workflow review: ${marker}`);
+    }
+  });
+
+  ["SHOW_SPRITE_ACTIONS_PANEL", "SHOW_ANIMATION_LIBRARY = false", "without-sprite-actions"].forEach((marker) => {
+    if (!appText.includes(marker)) {
+      failures.push(`App should keep Sprite Actions panel behind the temporary visibility flag: ${marker}`);
+    }
+  });
+
+  [
+    "normalizeOpaqueBounds",
+    "normalizeFrameOpaqueBounds",
+    "selectPrimaryOpaqueComponent",
+    "isLikelyFrameGarbageComponent",
+    "removeFrameEdgeResiduePixels",
+    "despillFrameEdgePixels"
+  ].forEach((marker) => {
+    if (!appText.includes(marker)) {
+      failures.push(`App should normalize generated animation frame cutouts: ${marker}`);
+    }
+  });
+
+  ["sprite-sheet-grid-preview", "sprite-sheet-grid-overlay"].forEach((marker) => {
+    if (!appText.includes(marker) && !stylesText.includes(marker)) {
+      failures.push(`App should overlay a review grid on generated sprite sheets: ${marker}`);
+    }
+  });
+
+  ["temporary 1-pixel pure cyan #00FFFF guide grid", "removeAnimationGuideGridPixels"].forEach((marker) => {
+    if (!appText.includes(marker)) {
+      failures.push(`App should request and remove temporary animation guide grids: ${marker}`);
+    }
+  });
+
+  [
+    [appText, "createDirectionPreviewBlobs"],
+    [appText, "directionPreviews"],
+    [exportersText, "input.directionPreviews"],
+    [animationPackText, "readDirectionPreviewFiles"]
+  ].forEach(([text, marker]) => {
+    if (!text.includes(marker)) {
+      failures.push(`Animation packs should include all direction preview GIF/WebP files: ${marker}`);
     }
   });
 
@@ -282,13 +557,126 @@ function checkWorkflowIds() {
     }
   });
 
+  const realImagegenSmokeText = readText("scripts/real-imagegen-smoke.mjs");
+  [
+    "Real imagegen smoke passed.",
+    "IMAGE_COCKPIT_IMAGEGEN_SMOKE_KEEP",
+    "IMAGE_COCKPIT_IMAGEGEN_SMOKE_TIMEOUT_MS",
+    "built-in image generation path",
+    "Do not create a placeholder image",
+    "Returned PNG should be larger than a placeholder"
+  ].forEach((marker) => {
+    if (!realImagegenSmokeText?.includes(marker)) {
+      failures.push(`Real imagegen smoke should cover prompt-only imagegen completion: ${marker}`);
+    }
+  });
+
+  const serverText = readText("server/index.ts");
+  [
+    "imagegen skill default built-in image generation path",
+    "never a procedural placeholder",
+    "workflowMode=image-edit",
+    "numbered annotationContext region comments",
+    "workflowMode=sprite-generate",
+    "spriteContext.chromaKey",
+    "spriteContext.directions",
+    "image-cockpit.direction-split-animation.v1",
+    "front-three-quarter",
+    "Do not return only one combined 5x8 sheet",
+    "spriteContext.variant=directional-hatch-pet",
+    "direction-01-front",
+    "no character pixels crossing cell borders",
+    "exactly one full-body character",
+    "duplicated heads",
+    "If the first result contains unwanted text or numbers, retry once",
+    "write a short Markdown or JSON sidecar"
+  ].forEach((marker) => {
+    if (!serverText?.includes(marker)) {
+      failures.push(`Server should preserve imagegen handoff instructions: ${marker}`);
+    }
+  });
+
+  [
+    "exportDirectionalAnimations",
+    "directional-hatch-pet",
+    "DIRECTIONAL_HATCH_PET_GRID",
+    "buildDirectionalHatchPetPreviewActions",
+    "DIRECTION_SPLIT_ANIMATION_SCHEMA",
+    "selectDirectionSplitAnimationResults",
+    "composeDirectionSplitAnimationSheet",
+    "validateDirectionSplitAnimationCells",
+    "selectDirectionalHatchPetResults",
+    "animation-source-status",
+    "selectSourceFromPreview",
+    "source-status-chip",
+    "statusSourceSelectedForAnimation",
+    "with-downloads",
+    "codexLogsFullscreen",
+    "codexLogFullscreen",
+    "codexLogExitFullscreen",
+    "Maximize2",
+    "Minimize2",
+    ".codex-log-panel.fullscreen",
+    "exactly one full-body character",
+    "Do not let body parts cross cell borders",
+    "Quality gate before returning",
+    "codexFailurePolicyMessage"
+  ].forEach((marker) => {
+    if (!appText.includes(marker) && !stylesText.includes(marker)) {
+      failures.push(`App should preserve strict animation result preview/prompt handling: ${marker}`);
+    }
+  });
+
+  [
+    "INITIAL_HISTORY_RENDER_COUNT",
+    "HISTORY_RENDER_BATCH_SIZE",
+    "visibleHistory",
+    "data-visible-count",
+    "getVisibleHistoryCount",
+    "history-load-more-sentinel"
+  ].forEach((marker) => {
+    if (!appText.includes(marker)) {
+      failures.push(`App should preserve incremental Results list rendering: ${marker}`);
+    }
+  });
+
+  [
+    "type CodexFailureKind",
+    "type CodexJobDiagnostic",
+    "getJobDiagnostic",
+    "reasonKind",
+    '"status": "blocked"',
+    "Do not include hidden policy text",
+    "no_image_returned"
+  ].forEach((marker) => {
+    if (!serverText?.includes(marker)) {
+      failures.push(`Server should preserve Codex imagegen failure diagnostic handling: ${marker}`);
+    }
+  });
+
   [
     "sprite generation job should include sprite frame count",
+    "sprite generation job should attach the source image",
+    "sprite generation job should include chroma key",
+    "sprite generation job should include the standard variant",
+    "sprite generation job should include five direction rows",
+    "direction split manifest should be listed",
+    "direction split manifest import should preserve JSON MIME type",
+    "sprite generation job should instruct Codex to use built-in image generation",
+    "hatch-pet job should include hatch-pet variant",
+    "hatch-pet job should include 72 atlas cells",
+    "hatch-pet job should instruct Codex to use the hatch-pet workflow",
+    "directional hatch-pet job should include the directional hatch-pet variant",
+    "directional hatch-pet job should include 360 atlas cells",
+    "directional hatch-pet job should instruct Codex to return five atlas images",
+    "job should include numbered edit annotations",
+    "job should include numbered edit comments",
     "sprite edit job should include sprite frame count",
     "sprite generation job should not carry edit annotations",
     "sprite edit job should not carry edit annotations",
     "mock autorun preflight should report ready",
     "mock autorun job should start in running state",
+    "mock autorun exact job-id result should not create a diagnostic",
     "mock autorun result image should be listed",
     "waitForJobState"
   ].forEach((marker) => {
@@ -357,13 +745,19 @@ function checkSimpleLocalInboxAction() {
   if (!appText) return;
 
   [
-    'providerId !== "local-inbox"',
-    'providerId !== "local-file"',
-    "importLatestOutboxResult()",
-    "{copy.importLatest}"
+    "async function importLatestOutboxResult",
+    "statusInboxImported",
+    "Import Latest",
+    "Import File"
   ].forEach((marker) => {
     if (!appText.includes(marker)) {
-      failures.push(`Simplified UI should expose Local Inbox import action: ${marker}`);
+      failures.push(`Simplified UI should keep import support available internally: ${marker}`);
+    }
+  });
+
+  ["{copy.importLatest}", "{copy.importFile}"].forEach((marker) => {
+    if (appText.includes(marker)) {
+      failures.push(`Simplified UI should hide secondary import buttons for now: ${marker}`);
     }
   });
 }
@@ -375,15 +769,21 @@ function checkCoreLocalization() {
 
   [
     "resolveInitialLanguage",
+    "SUPPORTED_LANGUAGE_IDS",
+    "resolveLocaleToLanguage",
+    "withUiCopy",
     "copy.workflowPanelTitle",
-    "copy.canvasGridTitle",
+    "copy.animationStepSourceTitle",
+    "copy.animationStepMotionTitle",
+    "copy.animationStepGenerateTitle",
+    "copy.imageDownloadTitle",
     "copy.canvasAnnotationTitle",
     "copy.canvasEmpty",
     "copy.exportSheetPng",
     "copy.exportMetadataJson",
     "formatImagesImportedStatus",
     "formatFramesAddedStatus",
-    "キャンバスと注釈",
+    "プレビュー",
     "スプライト書き出し",
     "スプライトパッケージ書き出し"
   ].forEach((marker) => {
@@ -394,6 +794,49 @@ function checkCoreLocalization() {
 
   if (!appTestText.includes("resolveInitialLanguage")) {
     failures.push("App tests should cover initial language resolution.");
+  }
+
+  [
+    "zh-CN",
+    "zh-TW",
+    "ko",
+    "ru",
+    "es",
+    "pt-BR",
+    "de",
+    "fr",
+    "id",
+    "tr",
+    "vi",
+    "pl",
+    "it",
+    "简体中文",
+    "繁體中文",
+    "한국어",
+    "Русский",
+    "Español",
+    "Português (Brasil)",
+    "Deutsch",
+    "Français",
+    "Bahasa Indonesia",
+    "Türkçe",
+    "Tiếng Việt",
+    "Polski",
+    "Italiano",
+    "像素艺术生成",
+    "像素藝術生成",
+    "픽셀 아트 생성",
+    "Генерация пиксель-арта",
+    "Geração de pixel art",
+    "Pixel-Art-Erstellung"
+  ].forEach((marker) => {
+    if (!appText.includes(marker)) {
+      failures.push(`Locale pack marker is missing: ${marker}`);
+    }
+  });
+
+  if (!appTestText.includes("zh-Hant-TW") || !appTestText.includes("pt-PT") || !appTestText.includes("SUPPORTED_LANGUAGE_IDS")) {
+    failures.push("App tests should cover extended locale resolution and stored locale ids.");
   }
 }
 
@@ -617,6 +1060,10 @@ function git(args) {
 function isAuditedTextFile(file) {
   if (file === "package.json" || file === ".env.example") return true;
   return [".js", ".mjs", ".ts", ".tsx"].includes(extname(file));
+}
+
+function isPrivacyAuditedTextFile(file) {
+  return privacyTextExtensions.has(extname(file));
 }
 
 function escapeRegExp(value) {

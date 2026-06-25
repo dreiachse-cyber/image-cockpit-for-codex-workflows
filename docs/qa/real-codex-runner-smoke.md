@@ -11,7 +11,7 @@ This smoke intentionally does not generate an image. It proves the real runner l
 ## Environment
 
 - Branch: `codex/mvp-local-cockpit`
-- Codex CLI: `C:\Users\nakaya\AppData\Local\OpenAI\Codex\bin\38dff8711e296435\codex.exe`
+- Codex CLI: `%LOCALAPPDATA%\OpenAI\Codex\bin\<runtime-id>\codex.exe`
 - Codex version observed earlier in the same review pass: `codex-cli 0.142.0`
 - Runner command shape: `codex exec -c approval_policy="<approval>" --sandbox <sandbox> -`
 - Sandbox: `workspace-write`

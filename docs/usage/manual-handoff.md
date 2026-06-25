@@ -83,6 +83,8 @@ Supported import formats:
 
 Non-image notes can live next to the image for your own reference, but Image Cockpit imports image files only.
 
+If Codex or imagegen cannot return an image because of safety checks, usage-policy checks, unavailable imagegen capability, or runner failure, do not create a placeholder image. Write a small blocker sidecar such as `<jobId>-blocked.json` in `codex-handoff/outbox/`. Image Cockpit will show a failure notice in Results and keep the queue moving.
+
 ## 6. Import Through Local Inbox
 
 In the app, click `Import Latest` to bring the returned image back into the cockpit. The button is visible in the simple workflow screen even when the provider list is hidden.

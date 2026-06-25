@@ -1,14 +1,18 @@
 # Image Cockpit for Codex Workflows
 
-Private pre-release MVP for a local image production cockpit.
+Local image production cockpit for Codex-era workflows.
 
-This project is unofficial and not affiliated with OpenAI. It is a local workspace for reviewing, annotating, comparing, correcting, and turning Codex-produced or locally imported images into production assets such as sprite sheets.
+This project is unofficial and not affiliated with OpenAI. It is a local workspace for generating pixel art, then turning selected pixel-art assets into animation frames and sprite sheets.
 
 ![Image Cockpit MVP demo](docs/demo/mvp-demo.gif)
 
 ## Product Boundary
 
 Image Cockpit is designed to run on a local machine where Codex is installed. The app itself does not call OpenAI APIs and does not require an API key.
+
+Pixel art generation is routed through the local Codex handoff. When `codex exec` can use the `imagegen` skill / built-in `image_gen` path, complex prompts can produce real raster images and return them to `codex-handoff/outbox/`. The app itself still does not call OpenAI APIs directly.
+
+For development and fallback checks, the app also includes a built-in procedural PNG generator. It is local and deterministic, meant to keep API and import flows testable without external services. It is not the primary image-quality path and is not a replacement for Codex imagegen.
 
 Instead, the cockpit writes local handoff jobs for Codex:
 
@@ -25,18 +29,21 @@ When `IMAGE_COCKPIT_CODEX_AUTORUN=1`, the local handoff server will try to start
 
 The local API also exposes `GET /api/codex/runner` so the UI can show whether the configured Codex command is ready, disabled for manual handoff, or unavailable before a job is created.
 
+The local generation endpoint is `POST /api/generate`. It writes deterministic fallback PNGs to `codex-handoff/outbox/` and returns data URLs so the browser can add them to the history immediately.
+
 Manual handoff steps are documented in `docs/usage/manual-handoff.md`.
+The prompt-only imagegen handoff smoke result is recorded in `docs/qa/imagegen-handoff-smoke.md`.
 
 ## MVP Flow
 
-- Choose a starting workflow from Guided Start: image generation, image editing, sprite sheet generation, or sprite sheet editing.
-- Import local images or use the included original sample sprite sheet.
+- Choose one of two starting workflows: pixel art generation, or animation generation.
+- Open Prompt Examples from directly below the Pixel Art Prompt field, then copy tuned prompts or load one into Pixel Art Generation from the modal.
+- Generate pixel art from a prompt through local Codex imagegen handoff.
+- Switch between Pixel Art Generation and Animation Generation tabs.
+- In Animation Generation, follow four steps: upload a pixel-art source, choose a motion preset or motion prompt, generate frames, then download animated GIF, animated WebP, or a sprite sheet.
+- Generate animation frames from the uploaded pixel-art source; a sprite sheet is produced as part of the process.
 - Select history items and review them on the canvas.
-- Draw annotations with brush, rectangle, or arrow tools.
-- Add edit notes, then create a Codex handoff job from the prompt, selected image asset, annotations, workflow, grid, and sprite context.
-- Image generation jobs stay prompt-only by default, while image editing jobs include the selected source image and annotations.
-- Split a sheet into sprite frames with grid controls.
-- Reorder frames in the timeline and edit action metadata.
+- Reorder frames in the timeline and review action metadata.
 - Run lightweight QC checks for size consistency, transparency, duplicates, and anchor placement.
 - Export a PNG sprite sheet, frame ZIP, GIF, and sprite metadata JSON.
 
@@ -121,7 +128,7 @@ npm run release:audit
 
 GitHub Actions runs the same verification path through `.github/workflows/ci.yml`.
 
-`npm run smoke` covers manual handoff mode and a mock autorun runner that reaches `ready`, creates a job, records `completed`, writes a PNG to the outbox, and imports that PNG through the Local Inbox endpoint. This proves the runner lifecycle wiring without claiming that the installed Codex executable completed successfully on every machine.
+`npm run smoke` covers fallback local image generation, fallback local sprite sheet generation, manual handoff mode, imagegen handoff instructions, and a mock autorun runner that reaches `ready`, creates a job, records `completed`, writes a PNG to the outbox, and imports that PNG through the Local Inbox endpoint. This proves the local workflow and runner lifecycle wiring without claiming that the installed Codex executable completed successfully on every machine.
 
 Optional local browser review smoke:
 
@@ -129,7 +136,7 @@ Optional local browser review smoke:
 npm run ui:smoke
 ```
 
-`npm run ui:smoke` starts the local API and Vite app with a temporary handoff folder, opens a headless Chrome/Edge session, verifies Guided Start shows the four workflows, clicks through each workflow, and checks the expected route and primary actions.
+`npm run ui:smoke` starts the local API and Vite app with a temporary handoff folder, opens a headless Chrome/Edge session, verifies the two-workflow start screen, verifies the Prompt Examples button sits directly below the Pixel Art Prompt field and opens a modal that can load a tuned prompt into Pixel Art Generation, checks the Pixel Art Generation / Animation Generation tabs, clicks pixel art generation through `Codex Handoff`, clicks animation generation through the four-step local animation route, and checks GIF / WebP / sprite sheet download actions.
 
 Optional real Codex runner smoke:
 
@@ -138,6 +145,14 @@ npm run codex:smoke
 ```
 
 `npm run codex:smoke` starts the local API with a temporary handoff folder and asks the installed Codex CLI to complete a no-image handoff job by writing a Markdown sidecar into outbox. It is intentionally not part of CI because it requires a runnable local Codex installation.
+
+Optional real imagegen smoke:
+
+```powershell
+npm run imagegen:smoke
+```
+
+`npm run imagegen:smoke` starts the local API with a temporary handoff folder, creates a prompt-only pixel art generation job, waits for local `codex exec` to return a PNG through imagegen / built-in `image_gen`, and verifies that the returned image is larger than a placeholder. It can take several minutes and is not part of CI.
 
 Owner-review local sweep:
 

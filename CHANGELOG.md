@@ -1,5 +1,23 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- Pixel art generation now routes to local Codex handoff so `codex exec` can use imagegen / built-in `image_gen` for real prompt-only images.
+- Built-in local procedural PNG generator kept as a fallback/dev verification path.
+- Pixel-art-to-animation generation workflow that requires an uploaded or selected pixel-art source, then creates an animation sheet and immediate timeline frames.
+- Two-choice start screen focused on pixel art generation and animation generation, with editing workflows deferred from the primary UI.
+- Prompt Examples modal opened from directly below the Pixel Art Prompt field, with copy buttons and one-click loading into Pixel Art Generation.
+- Pixel Art Generation / Animation Generation tabs and a four-step Animation Generation flow with upload, motion selection or prompt entry, generation, and animated GIF / animated WebP / sprite sheet downloads.
+- `POST /api/generate` local generation endpoint and smoke coverage that checks generated PNG dimensions.
+- Optional real imagegen smoke through `npm run imagegen:smoke`.
+- Public privacy guard in release audit, plus environment-neutral Codex CLI evidence paths in public docs.
+
+### Notes
+
+- The built-in generator is local and deterministic so fallback image routes and animation generation can run end-to-end without external services. Pixel art image quality depends on the local Codex imagegen path.
+
 ## 0.1.0-rc.1 - 2026-06-23
 
 Private release candidate for the first local Image Cockpit MVP.

@@ -1,8 +1,9 @@
 import { spawn } from "node:child_process";
-import { createWriteStream, existsSync, readFileSync, readdirSync } from "node:fs";
+import { closeSync, createWriteStream, existsSync, openSync, readFileSync, readSync, readdirSync } from "node:fs";
 import { copyFile, mkdir, readFile, readdir, stat, writeFile } from "node:fs/promises";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { delimiter, extname, join, resolve, sep } from "node:path";
+import { generateLocalImages, type LocalGenerationRequest } from "./local-generator.js";
 
 loadDotEnv(resolve(".env"));
 
@@ -28,6 +29,10 @@ const codexExecArgs = parseJsonStringArray("IMAGE_COCKPIT_CODEX_EXEC_ARGS_JSON",
   codexSandbox,
   "-"
 ]);
+const runnerStaleTimeoutMs = parsePositiveNumber("IMAGE_COCKPIT_CODEX_STALE_MS", 15 * 60 * 1000);
+const runnerStaleLogIdleMs = parsePositiveNumber("IMAGE_COCKPIT_CODEX_STALE_LOG_IDLE_MS", 5 * 60 * 1000);
+const runnerLogTailDefaultBytes = 24 * 1024;
+const runnerLogTailMaxBytes = 96 * 1024;
 const resultRoutePrefix = "/api/codex/results/";
 const runnerPreflightTimeoutMs = 4000;
 
@@ -50,11 +55,30 @@ type CodexJobRequest = {
   grid?: unknown;
   action?: string;
   frames?: number;
+  cell?: unknown;
+  chromaKey?: string;
+  spriteVariant?: string;
+  directions?: unknown;
 };
 
 type CodexWorkflowMode = "image-generate" | "image-edit" | "sprite-generate" | "sprite-edit";
 type CodexRunnerState = "running" | "completed" | "failed" | "unavailable" | "disabled" | "unknown";
 type CodexRunnerPreflightState = "ready" | "disabled" | "unavailable";
+type CodexFailureKind =
+  | "policy_or_safety"
+  | "imagegen_unavailable"
+  | "runner_failed"
+  | "no_image_returned"
+  | "unknown";
+
+type CodexJobDiagnostic = {
+  kind: CodexFailureKind;
+  title: string;
+  userMessage: string;
+  suggestion?: string;
+  sidecarPath?: string;
+  logPath?: string;
+};
 
 type CodexRunnerStatus = {
   jobId: string;
@@ -68,6 +92,7 @@ type CodexRunnerStatus = {
   signal?: NodeJS.Signals | null;
   logPath?: string;
   statusPath?: string;
+  diagnostic?: CodexJobDiagnostic;
 };
 
 type CodexRunnerPreflight = {
@@ -105,6 +130,13 @@ const server = createServer(async (request, response) => {
         providers: [
           { id: "local-file", label: "Local File", enabled: true, message: "Use images from this machine" },
           {
+            id: "local-generator",
+            label: "Local Generator",
+            enabled: true,
+            path: outboxDir,
+            message: "Generate local PNG images without external services"
+          },
+          {
             id: "codex-handoff",
             label: "Codex Handoff",
             enabled: true,
@@ -122,6 +154,30 @@ const server = createServer(async (request, response) => {
           }
         ]
       });
+      return;
+    }
+
+    if (request.method === "POST" && pathname === "/api/generate") {
+      const body = (await readJson(request)) as LocalGenerationRequest;
+      if (!body.prompt?.trim()) {
+        sendJson(response, 400, { error: "Prompt is required for local generation" });
+        return;
+      }
+      const createdAt = new Date().toISOString();
+      const id = `local-gen-${createdAt.replace(/[:.]/g, "-")}`;
+      const results = await generateLocalImages(body, outboxDir, id);
+      const responseResults = await Promise.all(
+        results.map(async (result) => {
+          const [bytes, fileStat] = await Promise.all([readFile(result.path), stat(result.path)]);
+          return {
+            ...result,
+            size: fileStat.size,
+            modifiedAt: fileStat.mtime.toISOString(),
+            dataUrl: `data:${result.mimeType};base64,${bytes.toString("base64")}`
+          };
+        })
+      );
+      sendJson(response, 200, { id, createdAt, outboxPath: outboxDir, results: responseResults });
       return;
     }
 
@@ -150,6 +206,18 @@ const server = createServer(async (request, response) => {
       return;
     }
 
+    const jobLogMatch = pathname.match(/^\/api\/codex\/jobs\/([^/]+)\/log$/);
+    if (request.method === "GET" && jobLogMatch) {
+      const jobId = decodeURIComponent(jobLogMatch[1]);
+      if (!isSafeJobId(jobId)) {
+        sendJson(response, 400, { error: "Unsupported or unsafe job id" });
+        return;
+      }
+      const requestedBytes = Number(requestUrl.searchParams.get("bytes") ?? runnerLogTailDefaultBytes);
+      sendJson(response, 200, await readRunnerLogTail(jobId, requestedBytes));
+      return;
+    }
+
     if (request.method === "GET" && pathname === "/api/codex/results") {
       sendJson(response, 200, {
         outboxPath: outboxDir,
@@ -161,7 +229,7 @@ const server = createServer(async (request, response) => {
     if (request.method === "GET" && pathname.startsWith(resultRoutePrefix)) {
       const name = decodeURIComponent(pathname.slice(resultRoutePrefix.length));
       const filePath = resolveOutboxFile(name);
-      const mimeType = mimeTypeForImage(name);
+      const mimeType = mimeTypeForOutboxResult(name);
       if (!filePath || !mimeType) {
         sendJson(response, 400, { error: "Unsupported or unsafe outbox file" });
         return;
@@ -190,8 +258,9 @@ const server = createServer(async (request, response) => {
       const workflowMode = normalizeWorkflowMode(body.workflowMode);
       const includeSelectedImage = workflowUsesSelectedImage(workflowMode);
       const includeSpriteContext = workflowUsesSpriteContext(workflowMode);
+      const includeAnnotations = workflowMode === "image-edit";
       const selectedImageAsset = includeSelectedImage ? await writeSelectedImageAsset(id, body) : null;
-      const annotations = includeSelectedImage && Array.isArray(body.annotations) ? body.annotations : [];
+      const annotations = includeAnnotations && Array.isArray(body.annotations) ? body.annotations : [];
       const job = {
         id,
         createdAt,
@@ -224,7 +293,11 @@ const server = createServer(async (request, response) => {
         spriteContext: {
           action: includeSpriteContext ? body.action ?? "" : "",
           frames: includeSpriteContext ? body.frames ?? 0 : 0,
-          grid: includeSpriteContext ? body.grid ?? null : null
+          grid: includeSpriteContext ? body.grid ?? null : null,
+          cell: includeSpriteContext ? body.cell ?? null : null,
+          chromaKey: includeSpriteContext ? body.chromaKey ?? "" : "",
+          variant: includeSpriteContext ? body.spriteVariant ?? "standard" : "",
+          directions: includeSpriteContext && Array.isArray(body.directions) ? body.directions : []
         },
         returnTo: {
           outboxDir,
@@ -304,7 +377,7 @@ function normalizeWorkflowMode(value?: string): CodexWorkflowMode {
 }
 
 function workflowUsesSelectedImage(mode: CodexWorkflowMode) {
-  return mode === "image-edit";
+  return mode === "image-edit" || mode === "sprite-generate";
 }
 
 function workflowUsesSpriteContext(mode: CodexWorkflowMode) {
@@ -316,28 +389,57 @@ function workflowIntent(mode: CodexWorkflowMode) {
     return "Ask local Codex to revise the selected source image using annotations and edit notes, then return image files to the outbox.";
   }
   if (mode === "sprite-generate") {
-    return "Ask local Codex to create a sprite sheet asset when available, or record sprite generation context for manual handoff.";
+    return "Ask local Codex to inspect the selected source image and use imagegen / built-in image_gen to create a chroma-key animation sprite sheet.";
   }
   if (mode === "sprite-edit") {
     return "Ask local Codex to revise sprite-sheet frames or metadata when available, or record sprite edit context for manual handoff.";
   }
-  return "Ask local Codex to generate a new image from the prompt, then return image files to the outbox.";
+  return "Ask local Codex to use imagegen / built-in image_gen to generate a real pixel-art image from the prompt, then return image files to the outbox.";
 }
 
 function workflowNotes(mode: CodexWorkflowMode) {
+  const blockerSidecarNote =
+    "If image generation/editing is blocked by safety, policy, or unavailable imagegen capability, do not create a placeholder image. Write only a small JSON sidecar with status=blocked, reasonKind, userMessage, and suggestion.";
   if (mode === "image-edit") {
     return [
       "Use selectedImage.assetPath as the source image when present.",
-      "Use annotationContext.annotations and jobNotes as the user's edit instructions."
+      "Use imagegen / built-in image_gen editing when available so the result is a real edited raster image.",
+      "Use annotationContext.annotations, numbered region comments, prompt, and jobNotes as the user's edit instructions.",
+      "Preserve unrelated pixels when possible, and return the edited image as a real PNG or WebP with the job id filename prefix.",
+      "Do not create a placeholder, SVG, diagram, or text-only result.",
+      blockerSidecarNote
     ];
   }
-  if (mode === "sprite-generate" || mode === "sprite-edit") {
+  if (mode === "sprite-generate") {
+    return [
+      "Use selectedImage.assetPath as the source character image.",
+      "Use imagegen / built-in image_gen when available to create a real raster sprite sheet from that source image; never create a procedural placeholder.",
+      "Extract only the character from the source image, then generate the requested motion as a sprite sheet.",
+      "Use spriteContext.grid, spriteContext.cell, spriteContext.action, spriteContext.frames, spriteContext.directions, and spriteContext.chromaKey exactly when they are populated.",
+      "Treat spriteContext.grid and spriteContext.cell as strict cut lines: no gutters, no extra sheet margin, no character pixels crossing cell borders.",
+      "The default direction-row order is front, front three-quarter, side, back three-quarter, back.",
+      "Every cell must contain exactly one full-body character with head, hair, hands, equipment, and both feet visible, centered with at least 10% inner padding.",
+      "Reject and retry the sprite sheet if any cell has a cropped head, missing feet, multiple heads, a head below the feet, inconsistent scale, body fragments, or a different character.",
+      "Use the requested chroma-key background color as a flat simple background in every cell so Image Cockpit can remove it after import.",
+      "Avoid readable text, logos, watermarks, labels, UI words, numbers, scenery, and complex backgrounds.",
+      blockerSidecarNote
+    ];
+  }
+  if (mode === "sprite-edit") {
     return [
       "Use spriteContext.grid, spriteContext.action, and spriteContext.frames when they are populated.",
       "Use jobNotes for frame, transparency, anchor, or export requirements."
     ];
   }
   return [
+    "For prompt-only pixel art generation, use the imagegen skill default built-in image generation path when it is available.",
+    "Use the job prompt as the creative brief. Interpret complex prompts literally and preserve concrete subject, style, palette, composition, and production constraints.",
+    "For character or creature assets, keep the full body inside the image with clear transparent or chroma-key padding around the head, hair, hands, props, and both feet; reject and retry if the subject is cropped by the canvas edge.",
+    "Create a real raster image. Do not create a procedural placeholder, SVG, diagram, or text-only result.",
+    "Avoid readable text, logos, watermarks, labels, UI words, and numbers unless the user explicitly asks for them.",
+    "If the first result contains unwanted text or numbers, retry once with stricter no-text/no-number constraints.",
+    "Write the final image with the job id prefix, and write a short Markdown or JSON sidecar that states whether image_gen was used.",
+    blockerSidecarNote,
     "This is a text-to-image style generation job. Do not treat the current UI sample image as a source image unless selectedImage.assetPath is populated.",
     "Use prompt, negativePrompt, generationHints, and jobNotes as the generation brief."
   ];
@@ -559,6 +661,13 @@ function parseJsonStringArray(envKey: string, fallback: string[]) {
   return fallback;
 }
 
+function parsePositiveNumber(envKey: string, fallback: number) {
+  const rawValue = process.env[envKey];
+  if (!rawValue) return fallback;
+  const parsed = Number(rawValue);
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : fallback;
+}
+
 function codexRunnerSetupHint(error?: unknown) {
   if (error && typeof error === "object" && "code" in error) {
     const code = (error as NodeJS.ErrnoException).code;
@@ -663,6 +772,15 @@ function buildCodexRunnerPrompt(job: { id: string; path: string }) {
     `Read this local JSON job file: ${job.path}`,
     "If selectedImage.assetPath is populated, inspect that source image before editing it.",
     "If selectedImage.assetPath is empty, treat the job as prompt-only unless the job notes say otherwise.",
+    "For workflowMode=image-generate, use the imagegen skill default built-in image generation path with built-in image_gen when available. Create a real raster image from the job prompt, never a procedural placeholder or SVG.",
+    "For workflowMode=image-generate, if image generation is unavailable, write only a small blocker sidecar into the outbox and do not create a fake image.",
+    "For workflowMode=image-edit, inspect selectedImage.assetPath, use imagegen / built-in image_gen editing when available, follow numbered annotationContext region comments plus prompt/jobNotes, and return a real edited PNG or WebP with the job id filename prefix. Never create a procedural placeholder or SVG.",
+    "For workflowMode=sprite-generate, inspect selectedImage.assetPath, then use imagegen / built-in image_gen when available to create the requested sprite sheet assets from the source character image. Never create a procedural placeholder or SVG.",
+    "For workflowMode=sprite-generate, follow spriteContext.grid, spriteContext.cell, spriteContext.directions, spriteContext.variant, and spriteContext.chromaKey exactly. Keep one full-body character centered inside each strict cell with padding, no cropping, no duplicated heads, and no body parts crossing cells.",
+    "For workflowMode=sprite-generate with spriteContext.variant=standard, return exactly five separate direction PNG/WebP images plus a direction-split manifest JSON using schema image-cockpit.direction-split-animation.v1. The files must use the job id filename prefix and these suffixes: front, front-three-quarter, side, back-three-quarter, back, and manifest.json. Each direction image must be 4 columns x 2 rows, 256x256 cells unless spriteContext.cell says otherwise. Do not return only one combined 5x8 sheet.",
+    "For workflowMode=sprite-generate, inspect all cells before writing the final file and retry if any head is cut off, feet are missing, a head appears below feet, scale changes wildly, or the background is not flat chroma key.",
+    "For workflowMode=sprite-generate with spriteContext.variant=hatch-pet, use the installed hatch-pet skill/scripts when available. Build a Codex pet atlas with 8 columns x 9 rows, 192x208 cells, 1536x1872 total, transparent unused cells, contact-sheet QA, and final spritesheet PNG/WebP returned with the job id filename prefix. Include pet.json as a sidecar if produced.",
+    "For workflowMode=sprite-generate with spriteContext.variant=directional-hatch-pet, use the installed hatch-pet skill/scripts when available and return exactly five separate Codex pet atlas images: direction-01-front, direction-02-front-three-quarter, direction-03-side, direction-04-back-three-quarter, and direction-05-back. Each atlas must be 8 columns x 9 rows, 192x208 cells, 1536x1872 total, transparent unused cells, and use the job id filename prefix plus the direction suffix. Do not return only one giant combined sheet.",
     "Use jobNotes, annotationContext, and spriteContext only when those fields are populated for the workflow.",
     `Write final image result files only into this outbox directory: ${outboxDir}`,
     `Use this filename prefix for returned assets: ${job.id}`,
@@ -673,32 +791,320 @@ function buildCodexRunnerPrompt(job: { id: string; path: string }) {
     "- Do not write API keys, access tokens, model weights, or license-unclear assets.",
     "- If image generation or editing is unavailable in this Codex environment, write no placeholder image.",
     "- Prefer PNG or WebP for still images. If you produce notes, write them as a small JSON or Markdown sidecar in the outbox.",
+    "- If image generation/editing is blocked by safety, policy, or unavailable imagegen capability, do not create a placeholder image.",
+    "- Write a small JSON blocker sidecar only, using this schema:",
+    '{ "status": "blocked", "reasonKind": "policy_or_safety" | "imagegen_unavailable" | "unknown", "userMessage": "A short user-safe reason.", "suggestion": "A short retry suggestion." }',
+    "- Do not include hidden policy text, internal traces, API keys, access tokens, local absolute paths, or the full prompt in the blocker sidecar.",
     "",
-    "When finished, make sure at least one usable image file is present in the outbox if generation/editing succeeded."
+    "When finished, make sure all required usable image files are present in the outbox if generation/editing succeeded."
   ].join("\n");
 }
 
 async function writeRunnerStatus(status: CodexRunnerStatus) {
-  runnerStatuses.set(status.jobId, status);
-  const statusPath = status.statusPath ?? join(statusDir, `${status.jobId}.json`);
-  await writeFile(statusPath, JSON.stringify(status, null, 2), "utf8");
+  const enrichedStatus = await enrichRunnerStatus(status);
+  runnerStatuses.set(enrichedStatus.jobId, enrichedStatus);
+  const statusPath = enrichedStatus.statusPath ?? join(statusDir, `${enrichedStatus.jobId}.json`);
+  await writeFile(statusPath, JSON.stringify(enrichedStatus, null, 2), "utf8");
 }
 
 async function getRunnerStatus(jobId: string): Promise<CodexRunnerStatus> {
   const liveStatus = runnerStatuses.get(jobId);
-  if (liveStatus) return liveStatus;
+  if (liveStatus) return enrichRunnerStatus(await normalizeRunningStatus(liveStatus));
 
   const statusPath = join(statusDir, `${jobId}.json`);
   try {
-    return JSON.parse(await readFile(statusPath, "utf8")) as CodexRunnerStatus;
+    return enrichRunnerStatus(await normalizeRunningStatus(JSON.parse(await readFile(statusPath, "utf8")) as CodexRunnerStatus));
   } catch {
-    return {
+    return enrichRunnerStatus({
       jobId,
       state: "unknown",
       message: "No runner status has been recorded for this job.",
       statusPath
+    });
+  }
+}
+
+async function normalizeRunningStatus(status: CodexRunnerStatus): Promise<CodexRunnerStatus> {
+  if (status.state !== "running") return status;
+
+  if (await hasOutboxImageForJob(status.jobId)) {
+    return {
+      ...status,
+      state: "completed",
+      message: "Codex returned an image while runner status was still running.",
+      finishedAt: new Date().toISOString(),
+      exitCode: null
     };
   }
+
+  if (!(await isRunnerStatusStale(status))) return status;
+
+  return {
+    ...status,
+    state: "failed",
+    message: "Codex runner timed out after log output stopped; no outbox result was returned.",
+    finishedAt: new Date().toISOString(),
+    exitCode: null
+  };
+}
+
+async function isRunnerStatusStale(status: CodexRunnerStatus) {
+  if (runnerStaleTimeoutMs <= 0) return false;
+
+  const startedAtMs = status.startedAt ? Date.parse(status.startedAt) : NaN;
+  if (!Number.isFinite(startedAtMs)) return false;
+
+  const now = Date.now();
+  if (now - startedAtMs < runnerStaleTimeoutMs) return false;
+
+  if (!status.logPath) return true;
+
+  try {
+    const logStats = await stat(status.logPath);
+    return now - logStats.mtimeMs >= runnerStaleLogIdleMs;
+  } catch {
+    return true;
+  }
+}
+
+async function enrichRunnerStatus(status: CodexRunnerStatus): Promise<CodexRunnerStatus> {
+  if (!shouldBuildDiagnostic(status)) return status;
+  const diagnostic = await getJobDiagnostic(status);
+  if (diagnostic) return { ...status, diagnostic };
+  const statusWithoutDiagnostic = { ...status };
+  delete statusWithoutDiagnostic.diagnostic;
+  return statusWithoutDiagnostic;
+}
+
+function shouldBuildDiagnostic(status: CodexRunnerStatus) {
+  return status.state === "failed" || status.state === "unavailable" || status.state === "completed" || status.state === "unknown";
+}
+
+async function getJobDiagnostic(status: CodexRunnerStatus): Promise<CodexJobDiagnostic | null> {
+  const [sidecar, logText, hasReturnedImage] = await Promise.all([
+    findJobSidecar(status.jobId),
+    readShortFile(status.logPath),
+    hasOutboxImageForJob(status.jobId)
+  ]);
+  if (status.state === "completed" && hasReturnedImage) return null;
+
+  const sidecarKind = normalizeFailureKind(sidecar?.reasonKind);
+  const combinedText = [status.message, sidecar?.text, logText].filter(Boolean).join("\n").toLowerCase();
+  const kind = sidecarKind ?? classifyFailureKind(status, combinedText, hasReturnedImage);
+  if (!kind) return null;
+
+  return {
+    ...diagnosticForKind(kind),
+    sidecarPath: sidecar?.path,
+    logPath: status.logPath
+  };
+}
+
+function classifyFailureKind(status: CodexRunnerStatus, text: string, hasReturnedImage: boolean): CodexFailureKind | null {
+  if (status.state === "completed" && !hasReturnedImage) return "no_image_returned";
+  if (
+    !hasReturnedImage &&
+    matchesAny(text, ["stale", "timed out", "no outbox result", "without returning an outbox image", "no returned image was found"])
+  ) {
+    return "no_image_returned";
+  }
+  if (matchesAny(text, ["policy", "safety", "content policy", "disallowed", "not allowed", "blocked", "moderation", "cannot comply", "can't help"])) {
+    return "policy_or_safety";
+  }
+  if (matchesAny(text, ["imagegen unavailable", "image generation unavailable", "built-in image_gen unavailable", "tool unavailable", "image_gen unavailable"])) {
+    return "imagegen_unavailable";
+  }
+  if (status.state === "failed" || status.state === "unavailable") return "runner_failed";
+  if (status.state === "unknown") return "unknown";
+  return null;
+}
+
+function diagnosticForKind(kind: CodexFailureKind): Omit<CodexJobDiagnostic, "sidecarPath" | "logPath"> {
+  if (kind === "policy_or_safety") {
+    return {
+      kind,
+      title: "Generation failed",
+      userMessage: "The image could not be generated. It may have been blocked by safety or usage-policy checks.",
+      suggestion: "Revise the prompt to remove sensitive, explicit, or disallowed details, then try again."
+    };
+  }
+  if (kind === "imagegen_unavailable") {
+    return {
+      kind,
+      title: "Image generation unavailable",
+      userMessage: "Image generation is not available in this Codex environment.",
+      suggestion: "Use manual handoff or another local provider, then return an image to the outbox."
+    };
+  }
+  if (kind === "runner_failed") {
+    return {
+      kind,
+      title: "Codex runner failed",
+      userMessage: "Codex runner stopped before returning an image.",
+      suggestion: "Check the runner setup or retry the job after adjusting the prompt."
+    };
+  }
+  if (kind === "no_image_returned") {
+    return {
+      kind,
+      title: "No image returned",
+      userMessage: "Codex runner finished or stopped, but no returned image was found.",
+      suggestion: "Retry the job, or place a returned image with the job id prefix in the outbox."
+    };
+  }
+  return {
+    kind,
+    title: "Generation failed",
+    userMessage: "The image could not be generated, and no specific reason was returned.",
+    suggestion: "Retry with a simpler prompt or use manual handoff."
+  };
+}
+
+async function findJobSidecar(jobId: string) {
+  try {
+    const entries = await readdir(outboxDir, { withFileTypes: true });
+    const candidates = entries
+      .filter((entry) => entry.isFile())
+      .filter((entry) => isJobOutboxFileName(jobId, entry.name))
+      .filter((entry) => [".json", ".md", ".txt"].includes(extname(entry.name).toLowerCase()))
+      .sort((left, right) => left.name.localeCompare(right.name));
+    for (const entry of candidates) {
+      const path = join(outboxDir, entry.name);
+      const text = await readShortFile(path);
+      if (!text) continue;
+      return {
+        path,
+        text,
+        reasonKind: readSidecarReasonKind(entry.name, text)
+      };
+    }
+  } catch {
+    // Missing or unreadable sidecars should not block runner status.
+  }
+  return null;
+}
+
+function readSidecarReasonKind(name: string, text: string) {
+  if (extname(name).toLowerCase() !== ".json") return undefined;
+  try {
+    const parsed = JSON.parse(text) as { reasonKind?: unknown; kind?: unknown };
+    return typeof parsed.reasonKind === "string" ? parsed.reasonKind : typeof parsed.kind === "string" ? parsed.kind : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+async function hasOutboxImageForJob(jobId: string) {
+  try {
+    const entries = await readdir(outboxDir, { withFileTypes: true });
+    return entries.some(
+      (entry) =>
+        entry.isFile() &&
+        isJobOutboxFileName(jobId, entry.name) &&
+        Boolean(mimeTypeForImage(entry.name))
+    );
+  } catch {
+    return false;
+  }
+}
+
+function isJobOutboxFileName(jobId: string, name: string) {
+  return name.startsWith(`${jobId}-`) || name.startsWith(`${jobId}.`);
+}
+
+async function readShortFile(path?: string) {
+  if (!path) return "";
+  try {
+    return (await readFile(path, "utf8")).slice(0, 32768);
+  } catch {
+    return "";
+  }
+}
+
+async function readRunnerLogTail(jobId: string, requestedBytes: number) {
+  const logPath = join(logsDir, `${jobId}.log`);
+  const bytesToRead = clampRunnerLogBytes(requestedBytes);
+  const readAt = new Date().toISOString();
+
+  try {
+    const logStats = await stat(logPath);
+    const fileSize = logStats.size;
+    const readLength = Math.min(bytesToRead, fileSize);
+    const start = Math.max(0, fileSize - readLength);
+    const buffer = Buffer.alloc(readLength);
+    const fd = openSync(logPath, "r");
+    try {
+      readSync(fd, buffer, 0, readLength, start);
+    } finally {
+      closeSync(fd);
+    }
+
+    return {
+      jobId,
+      exists: true,
+      path: logPath,
+      size: fileSize,
+      modifiedAt: logStats.mtime.toISOString(),
+      readAt,
+      truncated: start > 0,
+      text: sanitizeRunnerLogText(buffer.toString("utf8"))
+    };
+  } catch {
+    return {
+      jobId,
+      exists: false,
+      path: logPath,
+      size: 0,
+      modifiedAt: "",
+      readAt,
+      truncated: false,
+      text: ""
+    };
+  }
+}
+
+function clampRunnerLogBytes(value: number) {
+  if (!Number.isFinite(value) || value <= 0) return runnerLogTailDefaultBytes;
+  return Math.min(Math.max(Math.floor(value), 1024), runnerLogTailMaxBytes);
+}
+
+function sanitizeRunnerLogText(text: string) {
+  const userProfile = process.env.USERPROFILE ?? "";
+  const shortenedRoots = [
+    [userProfile, "~"],
+    [handoffRoot, "<handoff>"]
+  ] as const;
+  let sanitized = text.replace(/\u001b\[[0-9;]*m/g, "");
+  for (const [from, to] of shortenedRoots) {
+    if (!from) continue;
+    sanitized = sanitized.split(from).join(to);
+  }
+  sanitized = sanitized
+    .split(/\r?\n/)
+    .slice(-240)
+    .map((line) => {
+      const cleanLine = line.replace(/[\x00-\x08\x0b\x0c\x0e-\x1f]/g, "");
+      return cleanLine.length > 720 ? `${cleanLine.slice(0, 720)} ...[truncated]` : cleanLine;
+    })
+    .join("\n");
+  return sanitized.trimEnd();
+}
+
+function normalizeFailureKind(value: unknown): CodexFailureKind | null {
+  if (
+    value === "policy_or_safety" ||
+    value === "imagegen_unavailable" ||
+    value === "runner_failed" ||
+    value === "no_image_returned" ||
+    value === "unknown"
+  ) {
+    return value;
+  }
+  return null;
+}
+
+function matchesAny(value: string, markers: string[]) {
+  return markers.some((marker) => value.includes(marker));
 }
 
 async function listOutboxResults() {
@@ -707,7 +1113,7 @@ async function listOutboxResults() {
     entries
       .filter((entry) => entry.isFile())
       .map(async (entry) => {
-        const mimeType = mimeTypeForImage(entry.name);
+        const mimeType = mimeTypeForOutboxResult(entry.name);
         if (!mimeType) return null;
         const filePath = join(outboxDir, entry.name);
         const fileStat = await stat(filePath);
@@ -749,6 +1155,14 @@ function mimeTypeForImage(name: string) {
   if (extension === ".webp") return "image/webp";
   if (extension === ".gif") return "image/gif";
   return null;
+}
+
+function mimeTypeForOutboxResult(name: string) {
+  return mimeTypeForImage(name) ?? (isDirectionSplitManifestFileName(name) ? "application/json" : null);
+}
+
+function isDirectionSplitManifestFileName(name: string) {
+  return /-manifest\.json$/i.test(name);
 }
 
 function extensionForMimeType(mimeType: string) {

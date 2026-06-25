@@ -5,7 +5,8 @@ import {
   buildSpriteMetadata,
   calculateGridCells,
   countEdgeTouches,
-  packSpriteSheet
+  packSpriteSheet,
+  resolvePlaybackFrameIds
 } from "./sprite";
 
 describe("sprite utilities", () => {
@@ -44,6 +45,31 @@ describe("sprite utilities", () => {
       anchor: { x: 64, y: 120 }
     });
     expect(metadata.actions[0].frames).toHaveLength(2);
+  });
+
+  it("expands ping-pong playback without changing source frame ids", () => {
+    const frames = makeFrames(4);
+    const action: SpriteAction = {
+      name: "run",
+      fps: 20,
+      loop: true,
+      playbackMode: "ping-pong-reverse",
+      frameIds: frames.map((frame) => frame.id),
+      cell: { width: 64, height: 64 },
+      anchor: { x: 32, y: 58 }
+    };
+
+    expect(resolvePlaybackFrameIds(action)).toEqual([
+      "frame_0",
+      "frame_1",
+      "frame_2",
+      "frame_3",
+      "frame_3",
+      "frame_2",
+      "frame_1",
+      "frame_0"
+    ]);
+    expect(action.frameIds).toEqual(["frame_0", "frame_1", "frame_2", "frame_3"]);
   });
 
   it("applies chroma key transparency within tolerance", () => {

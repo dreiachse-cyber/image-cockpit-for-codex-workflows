@@ -1,4 +1,4 @@
-export type ProviderId = "local-file" | "codex-handoff" | "local-inbox";
+export type ProviderId = "local-file" | "local-generator" | "codex-handoff" | "local-inbox";
 
 export type ToolMode = "select" | "brush" | "rect" | "arrow";
 
@@ -13,6 +13,8 @@ export interface HistoryItem {
   createdAt: string;
   adopted: boolean;
   source: "sample" | "import" | "generate" | "annotated" | "inbox";
+  derivedFromId?: string;
+  derivedFromName?: string;
 }
 
 export interface SpriteFrame {
@@ -29,6 +31,7 @@ export interface SpriteAction {
   name: string;
   fps: number;
   loop: boolean;
+  playbackMode?: "normal" | "ping-pong-reverse";
   frameIds: string[];
   cell: {
     width: number;
@@ -45,6 +48,8 @@ export interface Annotation {
   tool: Exclude<ToolMode, "select">;
   color: string;
   width: number;
+  number?: number;
+  comment?: string;
   points: Array<{ x: number; y: number }>;
 }
 
@@ -52,6 +57,53 @@ export interface GridSettings {
   columns: number;
   rows: number;
   gutter: number;
+}
+
+export type AnimationLibraryKind = "official" | "user";
+
+export interface AnimationPackManifest {
+  schema: "image-cockpit.animation.v1";
+  title: string;
+  kind: AnimationLibraryKind;
+  action: string;
+  directions: string[];
+  grid: GridSettings;
+  cell: {
+    width: number;
+    height: number;
+  };
+  framesPerDirection: number;
+  playback?: "normal" | "ping-pong-reverse";
+  createdAt: string;
+  createdWith: string;
+  license?: string;
+  sourceNote?: string;
+  promptSummary?: string;
+  tags?: string[];
+  files: {
+    sheet: string;
+    previewGif?: string;
+    previewWebp?: string;
+    directionPreviews?: Array<{
+      direction: string;
+      gif?: string;
+      webp?: string;
+    }>;
+    metadata?: string;
+  };
+}
+
+export interface AnimationLibraryItem {
+  id: string;
+  kind: AnimationLibraryKind;
+  title: string;
+  action: string;
+  manifest: AnimationPackManifest;
+  previewDataUrl?: string;
+  previewWebpDataUrl?: string;
+  sheetDataUrl: string;
+  importedAt?: string;
+  updatedAt?: string;
 }
 
 export interface ProviderStatus {
@@ -72,6 +124,21 @@ export interface CodexJobResponse {
 
 export type CodexRunnerState = "running" | "completed" | "failed" | "unavailable" | "disabled" | "unknown";
 export type CodexRunnerPreflightState = "ready" | "disabled" | "unavailable";
+export type CodexFailureKind =
+  | "policy_or_safety"
+  | "imagegen_unavailable"
+  | "runner_failed"
+  | "no_image_returned"
+  | "unknown";
+
+export interface CodexJobDiagnostic {
+  kind: CodexFailureKind;
+  title: string;
+  userMessage: string;
+  suggestion?: string;
+  sidecarPath?: string;
+  logPath?: string;
+}
 
 export interface CodexRunnerStatus {
   jobId: string;
@@ -84,6 +151,7 @@ export interface CodexRunnerStatus {
   signal?: string | null;
   logPath?: string;
   statusPath?: string;
+  diagnostic?: CodexJobDiagnostic;
 }
 
 export interface CodexRunnerPreflight {
@@ -106,6 +174,17 @@ export interface CodexJobStatusResponse {
   status: CodexRunnerStatus;
 }
 
+export interface CodexJobLogResponse {
+  jobId: string;
+  exists: boolean;
+  path: string;
+  size: number;
+  modifiedAt: string;
+  readAt: string;
+  truncated: boolean;
+  text: string;
+}
+
 export interface CodexOutboxResult {
   name: string;
   path: string;
@@ -116,4 +195,13 @@ export interface CodexOutboxResult {
 
 export interface CodexOutboxImportResponse extends CodexOutboxResult {
   dataUrl: string;
+}
+
+export interface LocalGenerationResult extends CodexOutboxImportResponse {}
+
+export interface LocalGenerationResponse {
+  id: string;
+  createdAt: string;
+  outboxPath: string;
+  results: LocalGenerationResult[];
 }
