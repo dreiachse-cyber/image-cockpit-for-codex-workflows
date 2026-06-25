@@ -10,6 +10,7 @@
     "dev:server": "tsx server/index.ts",
     "doctor": "node scripts/doctor.mjs",
     "build": "tsc -b && vite build",
+    "capture:readme": "node scripts/capture-readme-screenshots.mjs",
     "codex:smoke": "node scripts/real-codex-runner-smoke.mjs",
     "imagegen:smoke": "node scripts/real-imagegen-smoke.mjs",
     "lint": "tsc --noEmit",
