@@ -54,6 +54,10 @@ Prompt Examples:
 
 ![Prompt Examples modal](docs/demo/readme/prompt-examples-modal.png)
 
+Image Editing:
+
+![Image Editing workspace](docs/demo/readme/image-editing.png)
+
 Animation Generation:
 
 ![Animation Generation workspace](docs/demo/readme/animation-generation.png)
@@ -148,6 +152,14 @@ npm run ui:smoke
 ```
 
 `npm run ui:smoke` starts the local API and Vite app with a temporary handoff folder, opens a headless Chrome/Edge session, verifies the three workspace tabs, verifies the Prompt Examples button sits directly below the Pixel Art Prompt field and opens a modal that can load a tuned prompt into Pixel Art Generation, checks Pixel Art Generation / Image Editing / Animation Generation, clicks pixel art generation through `Codex Handoff`, clicks animation generation through the local animation route, and checks download actions.
+
+Optional README screenshot refresh:
+
+```powershell
+npm run capture:readme
+```
+
+`npm run capture:readme` starts a temporary local API and Vite app, seeds safe demo data in an isolated browser profile, and refreshes the README screenshots under `docs/demo/readme/`.
 
 Optional real Codex runner smoke:
 

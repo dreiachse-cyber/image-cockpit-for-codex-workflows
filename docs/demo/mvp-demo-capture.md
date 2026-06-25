@@ -2,6 +2,19 @@
 
 Current GIF: `docs/demo/mvp-demo.gif`
 
+Current README screenshots can be refreshed with:
+
+```powershell
+npm run capture:readme
+```
+
+The capture script starts a temporary local API and Vite app, uses an isolated Chrome/Edge profile, seeds safe demo data, and writes:
+
+- `docs/demo/readme/pixel-art-generation.png`
+- `docs/demo/readme/prompt-examples-modal.png`
+- `docs/demo/readme/image-editing.png`
+- `docs/demo/readme/animation-generation.png`
+
 Retake the short GIF after major UI changes:
 
 1. Start the API server with `npm run dev:server`.
