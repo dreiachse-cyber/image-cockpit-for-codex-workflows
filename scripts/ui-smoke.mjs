@@ -141,6 +141,7 @@ try {
     expectedAnimationPreviewImagesAfterExercise: 6,
     expectedDirectionPreviewCount: 5,
     expectedNormalizedAnimationFrames: true,
+    expectSourceRoundTrip: true,
     reloadAfterExercise: true
   });
   await assertAnimationResultNotEditable();
@@ -584,11 +585,14 @@ async function assertImageEditing() {
   assert(!snapshot.editCompareVisible, "Image Editing should not render the old Before / After compare card");
   assert(snapshot.imageEditSourceImages === 1, `Image Editing should show one edit source thumbnail under the preview, got ${snapshot.imageEditSourceImages}`);
   assert(snapshot.imageEditSourceStatus.includes("Edited from"), "Image Editing should show the edit source under the preview");
+  assert(snapshot.imageEditSourceButton, "Image Editing should make the edit source selectable from the preview status");
   assert(snapshot.resultDownloadPanelInWorkspace, "Image Editing should keep the result download card under the preview after edit");
   assert(snapshot.resultDownloadPanelComplete, "Image Editing should mark the selected edited image as downloadable");
   assert(snapshot.canvasPreviewMode === "edit", `Image Editing should keep edit canvas mode after import, got ${snapshot.canvasPreviewMode}`);
   await assertNoBrowserErrors("Image Editing");
   await maybeCapture("image-editing-edit-source");
+  await assertSourceStatusRoundTrip("Image Editing", ".image-edit-source-status.source-status-button");
+  await assertNoBrowserErrors("Image Editing source round trip");
   await selectWorkflowTab("Pixel Art Generation");
 }
 
@@ -727,6 +731,7 @@ async function assertWorkflow({
   expectedCanvasPreviewModeAfterExercise = "",
   expectedAnnotationToolbarVisible = false,
   expectedNormalizedAnimationFrames = false,
+  expectSourceRoundTrip = false,
   reloadAfterExercise = false
 }) {
   await selectWorkflowTab(label);
@@ -813,6 +818,9 @@ async function assertWorkflow({
     }
     if (expectedNormalizedAnimationFrames) {
       await assertNormalizedAnimationFrames(label);
+    }
+    if (expectSourceRoundTrip) {
+      await assertSourceStatusRoundTrip(label, ".animation-source-status.source-status-button", { restoreSelectedResult: true });
     }
     if (expectedCanvasPreviewModeAfterExercise) {
       await waitForEval(
@@ -950,6 +958,42 @@ async function assertNormalizedAnimationFrames(label) {
   );
 }
 
+async function assertSourceStatusRoundTrip(label, selector, { restoreSelectedResult = false } = {}) {
+  const before = await pageSnapshot();
+  const sourceName = await evaluate(`document.querySelector(${JSON.stringify(selector)} + " strong")?.textContent?.trim() || ""`);
+  assert(sourceName, `${label} should expose a source name on its preview source chip`);
+  assert(before.sourceStatusButtons > 0, `${label} should expose clickable preview source chips`);
+  const resultName = before.canvasPreviewName;
+  await clickSelector(selector);
+  await waitForEval(
+    () => `document.querySelector("canvas")?.dataset.previewName === ${JSON.stringify(sourceName)}`,
+    `${label} source chip selects the source preview`
+  );
+  const after = await pageSnapshot();
+  assert(
+    after.canvasPreviewName === sourceName,
+    `${label} should show source image in the main preview after source chip click, got ${after.canvasPreviewName}`
+  );
+  assert(
+    after.text.includes("Source selected for animation generation"),
+    `${label} should confirm the source is ready for another animation`
+  );
+  if (label === "Animation Generation") {
+    assert(
+      after.animationSourceCard.includes(sourceName),
+      `${label} should keep the clicked source in the Animation Generation source card`
+    );
+    assert(!after.disabledButtons.includes("Generate Animation"), `${label} should allow generating another animation from the clicked source`);
+  }
+  if (restoreSelectedResult && resultName) {
+    await clickHistoryItemByName(resultName);
+    await waitForEval(
+      () => `document.querySelector("canvas")?.dataset.previewName === ${JSON.stringify(resultName)}`,
+      `${label} restores the generated animation result after source round trip`
+    );
+  }
+}
+
 async function selectWorkflowTab(label) {
   await waitForEval(
     () => `Array.from(document.querySelectorAll(".workflow-tabs button")).some((item) => item.innerText.replace(/\\s+/g, " ").trim() === ${JSON.stringify(label)})`,
@@ -1031,6 +1075,22 @@ async function clickButtonByAriaLabel(label) {
   })()`);
 }
 
+async function clickSelector(selector) {
+  await evaluate(`(() => {
+    const target = document.querySelector(${JSON.stringify(selector)});
+    if (!target) throw new Error("Selector not found: ${selector}");
+    target.click();
+  })()`);
+}
+
+async function clickHistoryItemByName(name) {
+  await evaluate(`(() => {
+    const item = Array.from(document.querySelectorAll(".history-item")).find((node) => node.innerText.includes(${JSON.stringify(name)}));
+    if (!item) throw new Error("History item not found: ${name}");
+    item.click();
+  })()`);
+}
+
 async function setFileInputFiles(selector, files) {
   const { root } = await cdp.send("DOM.getDocument", { depth: 1 });
   const { nodeId } = await cdp.send("DOM.querySelector", { nodeId: root.nodeId, selector });
@@ -1073,8 +1133,12 @@ async function pageSnapshot() {
     resultDownloadPanelInWorkspace: Boolean(document.querySelector(".workspace .result-download-panel")),
     resultDownloadPanelComplete: Boolean(document.querySelector(".workspace .result-download-panel.complete")),
     animationSourceStatus: document.querySelector(".animation-source-status")?.innerText || "",
+    animationSourceButton: Boolean(document.querySelector(".animation-source-status.source-status-button")),
+    animationSourceCard: document.querySelector(".animation-step.complete .source-preview")?.innerText.replace(/\s+/g, " ").trim() || "",
     imageEditSourceStatus: document.querySelector(".image-edit-source-status")?.innerText || "",
+    imageEditSourceButton: Boolean(document.querySelector(".image-edit-source-status.source-status-button")),
     imageEditSourceImages: document.querySelectorAll(".image-edit-source-status img").length,
+    sourceStatusButtons: document.querySelectorAll(".source-status-button").length,
     finalEditNoticeVisible: Boolean(document.querySelector(".edit-final-notice")),
     annotationRegionRows: document.querySelectorAll(".annotation-region-row").length,
     annotationComments: Array.from(document.querySelectorAll(".annotation-comment-field")).map((field) => field.value),

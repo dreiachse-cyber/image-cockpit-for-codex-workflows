@@ -874,27 +874,43 @@ button {
   line-height: 1.45;
 }
 
-.animation-source-status {
+.source-status-chip {
   min-width: 0;
-  max-width: 38%;
-  overflow: hidden;
-  color: #0f5d31;
-  font-weight: 800;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.image-edit-source-status {
-  min-width: 180px;
   max-width: 42%;
   display: inline-grid;
   grid-template-columns: 30px minmax(0, 1fr);
   align-items: center;
   gap: 7px;
   color: #0f5d31;
+  text-align: left;
 }
 
-.image-edit-source-status img,
+.source-status-button {
+  padding: 0 5px 0 0;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  box-shadow: inset 0 0 0 1px transparent;
+  cursor: pointer;
+  font: inherit;
+}
+
+.source-status-button:hover,
+.source-status-button:focus-visible {
+  background: #f2fbf5;
+  box-shadow: inset 0 0 0 1px #b9d9c3;
+}
+
+.source-status-button:focus-visible {
+  outline: 2px solid #4cae6f;
+  outline-offset: 2px;
+}
+
+.image-edit-source-status {
+  min-width: 180px;
+}
+
+.source-status-chip img,
 .source-thumb-placeholder {
   width: 30px;
   height: 30px;
@@ -919,19 +935,19 @@ button {
   display: block;
 }
 
-.image-edit-source-status span {
+.source-status-text {
   min-width: 0;
   display: grid;
   gap: 1px;
 }
 
-.image-edit-source-status small {
+.source-status-chip small {
   color: var(--text-muted);
   font-size: 10px;
   font-weight: 700;
 }
 
-.image-edit-source-status strong {
+.source-status-chip strong {
   overflow: hidden;
   font-size: 12px;
   font-weight: 800;

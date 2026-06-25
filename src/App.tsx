@@ -497,6 +497,8 @@ const baseUiCopy = {
     animationSourceUnknown: "Source image not recorded",
     imageEditGeneratedFrom: "Edited from",
     imageEditSourceUnknown: "Edit source not recorded",
+    openSourcePreview: "Open source",
+    statusSourceSelectedForAnimation: "Source selected for animation generation",
     imageDownloadTitle: "Download",
     imageDownloadBody: "Export the image currently shown in the preview as PNG.",
     imageDownloadReady: "Selected image ready",
@@ -713,6 +715,8 @@ const baseUiCopy = {
     animationSourceUnknown: "生成元画像が記録されていません",
     imageEditGeneratedFrom: "編集元",
     imageEditSourceUnknown: "編集元画像が記録されていません",
+    openSourcePreview: "元画像を開く",
+    statusSourceSelectedForAnimation: "アニメーション元画像を選択しました",
     imageDownloadTitle: "ダウンロード",
     imageDownloadBody: "プレビューに表示している画像をPNGで書き出します。",
     imageDownloadReady: "選択中の画像を書き出せます",
@@ -3692,6 +3696,13 @@ function App() {
     }
   }
 
+  function selectSourceFromPreview(source: HistoryItem) {
+    setSelectedId(source.id);
+    setSelectedFrameId("");
+    if (isAnimationSource(source)) setAnimationSourceId(source.id);
+    setStatus(`${copy.statusSourceSelectedForAnimation}: ${source.name}`);
+  }
+
   const handleHistoryScroll = useCallback(
     (event: UIEvent<HTMLDivElement>) => {
       maybeLoadMoreHistoryResults(event.currentTarget);
@@ -4151,6 +4162,7 @@ function App() {
   const previewSize = isPreviewingSelectedFrame && selectedFrameForPreview
     ? `${selectedFrameForPreview.width}x${selectedFrameForPreview.height}`
     : selected?.size ?? "-";
+  const selectedAnimationSourceName = selectedAnimationSource?.name ?? (selectedAnimationExportReady ? selected?.derivedFromName : undefined);
   const selectedImageEditSourceName = selectedImageEditSource?.name ?? (!selectedAnimationExportReady ? selected?.derivedFromName : undefined);
   const showFrameGridControls = SHOW_LOW_PRIORITY_CONTROLS || workflowMode === "sprite-edit";
   const showSpriteTuningControls = SHOW_LOW_PRIORITY_CONTROLS || workflowMode === "sprite-edit";
@@ -4692,18 +4704,54 @@ function App() {
             <div className="canvas-status">
               <span>{previewStatus}</span>
               {selectedAnimationExportReady && (
-                <span className="animation-source-status">
-                  {copy.animationGeneratedFrom}: {selectedAnimationSource?.name ?? selected?.derivedFromName ?? copy.animationSourceUnknown}
-                </span>
+                selectedAnimationSource ? (
+                  <button
+                    type="button"
+                    className="source-status-chip source-status-button animation-source-status"
+                    onClick={() => selectSourceFromPreview(selectedAnimationSource)}
+                    title={`${copy.openSourcePreview}: ${selectedAnimationSource.name}`}
+                    aria-label={`${copy.openSourcePreview}: ${selectedAnimationSource.name}`}
+                  >
+                    <img src={selectedAnimationSource.dataUrl} alt="" />
+                    <span className="source-status-text">
+                      <small>{copy.animationGeneratedFrom}</small>
+                      <strong>{selectedAnimationSource.name}</strong>
+                    </span>
+                  </button>
+                ) : (
+                  <span className="source-status-chip animation-source-status">
+                    <span className="source-thumb-placeholder" />
+                    <span className="source-status-text">
+                      <small>{copy.animationGeneratedFrom}</small>
+                      <strong>{selectedAnimationSourceName ?? copy.animationSourceUnknown}</strong>
+                    </span>
+                  </span>
+                )
               )}
               {selectedImageEditSourceName && (
-                <span className="image-edit-source-status">
-                  {selectedImageEditSource ? <img src={selectedImageEditSource.dataUrl} alt="" /> : <span className="source-thumb-placeholder" />}
-                  <span>
-                    <small>{copy.imageEditGeneratedFrom}</small>
-                    <strong>{selectedImageEditSourceName ?? copy.imageEditSourceUnknown}</strong>
+                selectedImageEditSource ? (
+                  <button
+                    type="button"
+                    className="source-status-chip source-status-button image-edit-source-status"
+                    onClick={() => selectSourceFromPreview(selectedImageEditSource)}
+                    title={`${copy.openSourcePreview}: ${selectedImageEditSource.name}`}
+                    aria-label={`${copy.openSourcePreview}: ${selectedImageEditSource.name}`}
+                  >
+                    <img src={selectedImageEditSource.dataUrl} alt="" />
+                    <span className="source-status-text">
+                      <small>{copy.imageEditGeneratedFrom}</small>
+                      <strong>{selectedImageEditSourceName}</strong>
+                    </span>
+                  </button>
+                ) : (
+                  <span className="source-status-chip image-edit-source-status">
+                    <span className="source-thumb-placeholder" />
+                    <span className="source-status-text">
+                      <small>{copy.imageEditGeneratedFrom}</small>
+                      <strong>{selectedImageEditSourceName ?? copy.imageEditSourceUnknown}</strong>
+                    </span>
                   </span>
-                </span>
+                )
               )}
               <span>{copy.sizeLabel}: {previewSize}</span>
               <span>{copy.anchorLabel}: {activeAction.anchor.x}, {activeAction.anchor.y}</span>
