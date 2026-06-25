@@ -109,6 +109,7 @@ try {
   await assertLanguageSwitch();
   await assertPromptExamples();
   await assertAnimationPresetExamples();
+  await assertAnimationLibraryHidden();
   await assertCodexFailureNotice();
   await assertCodexQueue();
   await assertImageEditing();
@@ -127,10 +128,10 @@ try {
   await assertWorkflow({
     label: "Animation Generation",
     route: "Route: Codex Handoff",
-    buttons: ["Upload Pixel Art", "Choose Animation", "Official Animations", "User Animations", "Use", "Export Sample", "Generate Animation", "PNG"],
-    hiddenButtons: ["Import Latest", "Import File", "5-Direction Sheet", "hatch-pet", "5-Direction hatch-pet"],
-    hiddenText: ["Sprite Actions", "Export Sprite", "Generation Method", "Hop Bounce", "Victory Cheer"],
-    requiredText: ["1. Upload Pixel Art", "2. Choose Motion", "Animation Library", "Official Animations", "User Animations", "3. Generate", "4. Download", "Selected animation", "Choose Animation", "Fixed cells: 256 x 256 px", "5-direction chroma-key sprite sheet"],
+    buttons: ["Upload Pixel Art", "Choose Animation", "Generate Animation", "PNG"],
+    hiddenButtons: ["Import Latest", "Import File", "Official Animations", "User Animations", "Import Animation", "Export Sample", "Use", "5-Direction Sheet", "hatch-pet", "5-Direction hatch-pet"],
+    hiddenText: ["Animation Library", "Official Animations", "User Animations", "No user animations yet", "Sprite Actions", "Export Sprite", "Generation Method", "Hop Bounce", "Victory Cheer"],
+    requiredText: ["1. Upload Pixel Art", "2. Choose Motion", "3. Generate", "4. Download", "Selected animation", "Choose Animation", "Fixed cells: 256 x 256 px", "5-direction chroma-key sprite sheet"],
     exerciseButton: "Generate Animation",
     expectedAfterExercise: "Animation generated",
     expectedAfterExerciseText: ["Animation frames ready", "Generated from", "Directional Previews", "GIF Preview", "Sprite Sheet Preview", "Animated WebP", "256 x 256 px"],
@@ -143,7 +144,6 @@ try {
     reloadAfterExercise: true
   });
   await assertAnimationResultNotEditable();
-  await assertAnimationLibraryImport();
   if (!screenshotDir) await assertHistoryIncrementalRendering();
 
   console.log("UI smoke passed.");
@@ -390,6 +390,17 @@ async function assertAnimationLibraryImport() {
   await clickButtonByText("Cancel");
   await waitForEval(() => `!document.querySelector(".animation-pack-export-modal")`, "Export Animation Pack modal closed");
   await maybeCapture("animation-library-import");
+  await selectWorkflowTab("Pixel Art Generation");
+}
+
+async function assertAnimationLibraryHidden() {
+  await selectWorkflowTab("Animation Generation");
+  await waitForEval(() => `document.body.innerText.includes("Animation Generation")`, "Animation Generation for hidden library check");
+  const snapshot = await pageSnapshot();
+  assert(!snapshot.text.includes("Animation Library"), "Animation Library should stay hidden until the feature is ready");
+  assert(!snapshot.text.includes("Official Animations"), "Official Animations tab should stay hidden with the library");
+  assert(!snapshot.text.includes("User Animations"), "User Animations tab should stay hidden with the library");
+  assert(snapshot.animationLibraryCards === 0, `Animation Library cards should be hidden, got ${snapshot.animationLibraryCards}`);
   await selectWorkflowTab("Pixel Art Generation");
 }
 

@@ -398,6 +398,7 @@ function checkWorkflowIds() {
     "workflowTabsInsidePanel",
     "workflowTabsInTopbar",
     "1. Upload Pixel Art",
+    "Animation Library should stay hidden until the feature is ready",
     "Generation Method",
     "5-Direction Sheet",
     "hatch-pet",
@@ -488,7 +489,7 @@ function checkWorkflowIds() {
     }
   });
 
-  ["SHOW_SPRITE_ACTIONS_PANEL", "without-sprite-actions"].forEach((marker) => {
+  ["SHOW_SPRITE_ACTIONS_PANEL", "SHOW_ANIMATION_LIBRARY = false", "without-sprite-actions"].forEach((marker) => {
     if (!appText.includes(marker)) {
       failures.push(`App should keep Sprite Actions panel behind the temporary visibility flag: ${marker}`);
     }

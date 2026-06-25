@@ -86,6 +86,7 @@ const LANGUAGE_STORAGE_KEY = "image-cockpit.language";
 const PENDING_CODEX_JOB_STORAGE_KEY = "image-cockpit.pendingCodexJob";
 const SHOW_LOW_PRIORITY_CONTROLS = false;
 const SHOW_SPRITE_ACTIONS_PANEL = false;
+const SHOW_ANIMATION_LIBRARY = false;
 const ANIMATION_FRAME_COUNT = 8;
 const ANIMATION_DIRECTION_COUNT = 5;
 const ANIMATION_CELL_SIZE = 256;
@@ -3928,76 +3929,78 @@ function App() {
                 </button>
               </section>
 
-              <section className="animation-step animation-library-panel">
-                <div className="step-heading">
-                  <strong>{copy.animationLibraryTitle}</strong>
-                  <span>{copy.animationLibraryBody}</span>
-                </div>
-                <div className="animation-library-tabs" aria-label={copy.animationLibraryTitle}>
-                  <button
-                    className={animationLibraryTab === "official" ? "active" : ""}
-                    onClick={() => setAnimationLibraryTab("official")}
-                  >
-                    {copy.officialAnimations}
-                  </button>
-                  <button
-                    className={animationLibraryTab === "user" ? "active" : ""}
-                    onClick={() => setAnimationLibraryTab("user")}
-                  >
-                    {copy.userAnimations}
-                  </button>
-                </div>
-                {animationLibraryTab === "user" && (
-                  <button className="secondary-button full" onClick={() => animationPackInputRef.current?.click()}>
-                    <Upload size={16} aria-hidden="true" />
-                    {copy.importAnimation}
-                  </button>
-                )}
-                <div className="animation-library-list">
-                  {activeAnimationLibraryItems.length === 0 ? (
-                    <p className="animation-library-empty">{copy.animationLibraryEmpty}</p>
-                  ) : (
-                    activeAnimationLibraryItems.map((item) => (
-                      <article className="animation-library-card" key={item.id}>
-                        <div className="animation-library-preview">
-                          {item.kind === "official" ? (
-                            <div className={`animation-sample-sprite ${animationLibraryPreviewClassName(item)}`} aria-label={`${item.title} sample animation`} />
-                          ) : (
-                            <img src={item.previewDataUrl ?? item.sheetDataUrl} alt="" />
-                          )}
-                        </div>
-                        <div className="animation-library-info">
-                          <small>{item.kind === "official" ? copy.officialAnimations : copy.userAnimations}</small>
-                          <strong>{item.title}</strong>
-                          <span>{item.action} / {item.manifest.grid.rows}x{item.manifest.grid.columns} / {item.manifest.cell.width}px</span>
-                        </div>
-                        <div className="animation-library-actions">
-                          <button onClick={() => void useAnimationLibraryItem(item)}>
-                            <CheckCircle2 size={14} aria-hidden="true" />
-                            {copy.useAnimationLibraryItem}
-                          </button>
-                          <button onClick={() => void exportAnimationLibraryItem(item)}>
-                            <FileArchive size={14} aria-hidden="true" />
-                            {item.kind === "official" ? copy.exportAnimationSample : copy.exportAnimationPack}
-                          </button>
-                          {item.kind === "user" && (
-                            <>
-                              <button onClick={() => renameUserAnimationItem(item)}>
-                                <Settings size={14} aria-hidden="true" />
-                                {copy.renameAnimation}
-                              </button>
-                              <button className="danger" onClick={() => deleteUserAnimationItem(item)}>
-                                <Trash2 size={14} aria-hidden="true" />
-                                {copy.deleteAnimation}
-                              </button>
-                            </>
-                          )}
-                        </div>
-                      </article>
-                    ))
+              {SHOW_ANIMATION_LIBRARY && (
+                <section className="animation-step animation-library-panel">
+                  <div className="step-heading">
+                    <strong>{copy.animationLibraryTitle}</strong>
+                    <span>{copy.animationLibraryBody}</span>
+                  </div>
+                  <div className="animation-library-tabs" aria-label={copy.animationLibraryTitle}>
+                    <button
+                      className={animationLibraryTab === "official" ? "active" : ""}
+                      onClick={() => setAnimationLibraryTab("official")}
+                    >
+                      {copy.officialAnimations}
+                    </button>
+                    <button
+                      className={animationLibraryTab === "user" ? "active" : ""}
+                      onClick={() => setAnimationLibraryTab("user")}
+                    >
+                      {copy.userAnimations}
+                    </button>
+                  </div>
+                  {animationLibraryTab === "user" && (
+                    <button className="secondary-button full" onClick={() => animationPackInputRef.current?.click()}>
+                      <Upload size={16} aria-hidden="true" />
+                      {copy.importAnimation}
+                    </button>
                   )}
-                </div>
-              </section>
+                  <div className="animation-library-list">
+                    {activeAnimationLibraryItems.length === 0 ? (
+                      <p className="animation-library-empty">{copy.animationLibraryEmpty}</p>
+                    ) : (
+                      activeAnimationLibraryItems.map((item) => (
+                        <article className="animation-library-card" key={item.id}>
+                          <div className="animation-library-preview">
+                            {item.kind === "official" ? (
+                              <div className={`animation-sample-sprite ${animationLibraryPreviewClassName(item)}`} aria-label={`${item.title} sample animation`} />
+                            ) : (
+                              <img src={item.previewDataUrl ?? item.sheetDataUrl} alt="" />
+                            )}
+                          </div>
+                          <div className="animation-library-info">
+                            <small>{item.kind === "official" ? copy.officialAnimations : copy.userAnimations}</small>
+                            <strong>{item.title}</strong>
+                            <span>{item.action} / {item.manifest.grid.rows}x{item.manifest.grid.columns} / {item.manifest.cell.width}px</span>
+                          </div>
+                          <div className="animation-library-actions">
+                            <button onClick={() => void useAnimationLibraryItem(item)}>
+                              <CheckCircle2 size={14} aria-hidden="true" />
+                              {copy.useAnimationLibraryItem}
+                            </button>
+                            <button onClick={() => void exportAnimationLibraryItem(item)}>
+                              <FileArchive size={14} aria-hidden="true" />
+                              {item.kind === "official" ? copy.exportAnimationSample : copy.exportAnimationPack}
+                            </button>
+                            {item.kind === "user" && (
+                              <>
+                                <button onClick={() => renameUserAnimationItem(item)}>
+                                  <Settings size={14} aria-hidden="true" />
+                                  {copy.renameAnimation}
+                                </button>
+                                <button className="danger" onClick={() => deleteUserAnimationItem(item)}>
+                                  <Trash2 size={14} aria-hidden="true" />
+                                  {copy.deleteAnimation}
+                                </button>
+                              </>
+                            )}
+                          </div>
+                        </article>
+                      ))
+                    )}
+                  </div>
+                </section>
+              )}
 
               <section className="animation-step">
                 <div className="step-heading">
