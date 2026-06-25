@@ -3803,22 +3803,25 @@ function App() {
         undefined,
         item.manifest.cell
       );
-      const previewAction = actionFromAnimationManifest(
+      const directionPreviews = buildAnimationManifestPreviewActions(item.manifest, tempFrames);
+      const previewAction = directionPreviews[0]?.action ?? actionFromAnimationManifest(
         item.manifest,
         tempFrames.slice(0, item.manifest.framesPerDirection).map((frame) => frame.id)
       );
       const previewGif = await createGifBlob(tempFrames, previewAction);
       const previewWebp = await createAnimatedWebpBlob(tempFrames, previewAction);
+      const directionPreviewBlobs = await createDirectionPreviewBlobs(tempFrames, directionPreviews);
       await exportAnimationPack({
         manifest: {
           ...item.manifest,
           kind: item.kind,
           title: item.title,
-          files: animationPackFileSet()
+          files: animationPackFileSet(item.manifest.directions)
         },
         sheet: sheetDataUrl,
         previewGif,
         previewWebp,
+        directionPreviews: directionPreviewBlobs,
         metadata: animationPackMetadata(item.manifest, {
           libraryKind: item.kind,
           sourceNote: item.manifest.sourceNote ?? ""
@@ -3870,6 +3873,7 @@ function App() {
       const previewAction = selectedAnimationPreviewActions[0]?.action ?? selectedAnimationAction;
       const previewGif = await createGifBlob(frames, previewAction);
       const previewWebp = await createAnimatedWebpBlob(frames, previewAction);
+      const directionPreviewBlobs = await createDirectionPreviewBlobs(frames, selectedAnimationPreviewActions);
       const manifest = buildSelectedAnimationPackManifest({
         draft: animationPackExportDraft,
         selected,
@@ -3882,6 +3886,7 @@ function App() {
         sheet: selected.dataUrl,
         previewGif,
         previewWebp,
+        directionPreviews: directionPreviewBlobs,
         metadata: animationPackMetadata(manifest, {
           libraryKind: "user",
           sourceNote: animationPackExportDraft.sourceNote.trim()
@@ -4809,12 +4814,13 @@ function buildSelectedAnimationPackManifest({
   directions: string[];
 }): AnimationPackManifest {
   const title = draft.title.trim() || selected.name.replace(/\.[^.]+$/, "") || action.name;
+  const resolvedDirections = directions.length > 0 ? directions : ANIMATION_DIRECTIONS;
   return {
     schema: "image-cockpit.animation.v1",
     title,
     kind: "user",
     action: action.name,
-    directions: directions.length > 0 ? directions : ANIMATION_DIRECTIONS,
+    directions: resolvedDirections,
     grid,
     cell: action.cell,
     framesPerDirection: grid.columns,
@@ -4825,15 +4831,20 @@ function buildSelectedAnimationPackManifest({
     sourceNote: draft.sourceNote.trim(),
     promptSummary: draft.includePromptSummary ? draft.promptSummary.trim() : "",
     tags: parseTagList(draft.tags),
-    files: animationPackFileSet()
+    files: animationPackFileSet(resolvedDirections)
   };
 }
 
-function animationPackFileSet(): AnimationPackManifest["files"] {
+function animationPackFileSet(directions: string[] = ANIMATION_DIRECTIONS): AnimationPackManifest["files"] {
   return {
     sheet: "sheet.png",
     previewGif: "preview.gif",
     previewWebp: "preview.webp",
+    directionPreviews: directions.map((direction) => ({
+      direction,
+      gif: `previews/${safeAnimationDirectionFileName(direction)}.gif`,
+      webp: `previews/${safeAnimationDirectionFileName(direction)}.webp`
+    })),
     metadata: "metadata.json"
   };
 }
@@ -4869,6 +4880,31 @@ function parseTagList(tags: string) {
     .slice(0, 20);
 }
 
+function buildAnimationManifestPreviewActions(manifest: AnimationPackManifest, frames: SpriteFrame[]) {
+  const directions = manifest.directions.length > 0 ? manifest.directions : ANIMATION_DIRECTIONS;
+  return directions.map((directionId, index) => {
+    const rowStart = index * manifest.framesPerDirection;
+    const rowFrames = frames.slice(rowStart, rowStart + manifest.framesPerDirection);
+    return {
+      directionId,
+      action: actionFromAnimationManifest(manifest, rowFrames.map((frame) => frame.id))
+    };
+  }).filter((preview) => preview.action.frameIds.length > 0);
+}
+
+async function createDirectionPreviewBlobs(
+  frames: SpriteFrame[],
+  previews: Array<{ directionId: string; action: SpriteAction }>
+) {
+  return Promise.all(
+    previews.map(async ({ directionId, action }) => ({
+      direction: directionId,
+      gif: await createGifBlob(frames, action),
+      webp: await createAnimatedWebpBlob(frames, action)
+    }))
+  );
+}
+
 function actionFromAnimationManifest(manifest: AnimationPackManifest, frameIds: string[]): SpriteAction {
   const fallback = defaultActions.find((action) => action.name === manifest.action);
   return {
@@ -4899,6 +4935,15 @@ function safeAnimationFileBaseName(title: string, action: string) {
     .replace(/-+/g, "-")
     .replace(/^-+|-+$/g, "")
     .toLowerCase() || "image-cockpit-animation";
+}
+
+function safeAnimationDirectionFileName(direction: string) {
+  return direction
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9._-]+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-+|-+$/g, "") || "direction";
 }
 
 async function resolveImageSourceDataUrl(source: string) {

@@ -67,6 +67,11 @@ function createOfficialAnimation({
       sheet: "sheet.png",
       previewGif: "preview.gif",
       previewWebp: "preview.webp",
+      directionPreviews: DIRECTIONS.map((direction) => ({
+        direction,
+        gif: `previews/${direction.replace(/\s+/g, "-")}.gif`,
+        webp: `previews/${direction.replace(/\s+/g, "-")}.webp`
+      })),
       metadata: "metadata.json"
     }
   };

@@ -300,6 +300,8 @@ function checkWorkflowIds() {
   const stylesText = readText("src/styles.css");
   const smokeText = readText("scripts/smoke.mjs");
   const uiSmokeText = readText("scripts/ui-smoke.mjs");
+  const exportersText = readText("src/lib/exporters.ts");
+  const animationPackText = readText("src/lib/animationPack.ts");
   const realCodexSmokeText = readText("scripts/real-codex-runner-smoke.mjs");
   if (!appText || !stylesText || !smokeText || !uiSmokeText || !realCodexSmokeText) return;
 
@@ -517,6 +519,17 @@ function checkWorkflowIds() {
   ["temporary 1-pixel pure cyan #00FFFF guide grid", "removeAnimationGuideGridPixels"].forEach((marker) => {
     if (!appText.includes(marker)) {
       failures.push(`App should request and remove temporary animation guide grids: ${marker}`);
+    }
+  });
+
+  [
+    [appText, "createDirectionPreviewBlobs"],
+    [appText, "directionPreviews"],
+    [exportersText, "input.directionPreviews"],
+    [animationPackText, "readDirectionPreviewFiles"]
+  ].forEach(([text, marker]) => {
+    if (!text.includes(marker)) {
+      failures.push(`Animation packs should include all direction preview GIF/WebP files: ${marker}`);
     }
   });
 

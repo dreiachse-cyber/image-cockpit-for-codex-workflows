@@ -84,6 +84,11 @@ export interface AnimationPackManifest {
     sheet: string;
     previewGif?: string;
     previewWebp?: string;
+    directionPreviews?: Array<{
+      direction: string;
+      gif?: string;
+      webp?: string;
+    }>;
     metadata?: string;
   };
 }

@@ -9,6 +9,11 @@ export interface AnimationPackExportInput {
   sheet: Blob | string;
   previewGif?: Blob;
   previewWebp?: Blob;
+  directionPreviews?: Array<{
+    direction: string;
+    gif?: Blob;
+    webp?: Blob;
+  }>;
   metadata?: unknown;
   frames?: Array<{ name: string; dataUrl: string }>;
 }
@@ -164,6 +169,14 @@ export async function createAnimationPackZip(input: AnimationPackExportInput) {
   if (input.previewWebp && manifest.files.previewWebp) {
     zip.file(manifest.files.previewWebp, await sourceToZipData(input.previewWebp));
   }
+  if (input.directionPreviews && manifest.files.directionPreviews) {
+    for (const preview of input.directionPreviews) {
+      const fileSet = manifest.files.directionPreviews.find((item) => item.direction === preview.direction);
+      if (!fileSet) continue;
+      if (preview.gif && fileSet.gif) zip.file(fileSet.gif, await sourceToZipData(preview.gif));
+      if (preview.webp && fileSet.webp) zip.file(fileSet.webp, await sourceToZipData(preview.webp));
+    }
+  }
   if (manifest.files.metadata) {
     zip.file(
       manifest.files.metadata,
@@ -192,6 +205,7 @@ function normalizePackManifestFiles(manifest: AnimationPackManifest): AnimationP
       sheet: manifest.files.sheet || "sheet.png",
       previewGif: manifest.files.previewGif || "preview.gif",
       previewWebp: manifest.files.previewWebp || "preview.webp",
+      directionPreviews: manifest.files.directionPreviews,
       metadata: manifest.files.metadata || "metadata.json"
     }
   };

@@ -104,11 +104,30 @@ function readFiles(value: unknown): AnimationPackManifest["files"] {
   const sheet = readRequiredString(value, "sheet");
   const previewGif = readOptionalString(value.previewGif);
   const previewWebp = readOptionalString(value.previewWebp);
+  const directionPreviews = readDirectionPreviewFiles(value.directionPreviews);
   const metadata = readOptionalString(value.metadata);
-  [sheet, previewGif, previewWebp, metadata].filter((path): path is string => Boolean(path)).forEach((path) => {
+  [
+    sheet,
+    previewGif,
+    previewWebp,
+    metadata,
+    ...directionPreviews.flatMap((preview) => [preview.gif, preview.webp])
+  ].filter((path): path is string => Boolean(path)).forEach((path) => {
     if (!isSafeAnimationPackPath(path)) throw new Error(`Animation pack file path is unsafe: ${path}`);
   });
-  return { sheet, previewGif, previewWebp, metadata };
+  return { sheet, previewGif, previewWebp, directionPreviews, metadata };
+}
+
+function readDirectionPreviewFiles(value: unknown): NonNullable<AnimationPackManifest["files"]["directionPreviews"]> {
+  if (!Array.isArray(value)) return [];
+  return value.slice(0, 20).map((item) => {
+    if (!isRecord(item)) throw new Error("Animation pack direction preview files are invalid.");
+    return {
+      direction: readRequiredString(item, "direction"),
+      gif: readOptionalString(item.gif),
+      webp: readOptionalString(item.webp)
+    };
+  });
 }
 
 function readGrid(value: unknown) {

@@ -51,6 +51,31 @@ describe("animation pack validation", () => {
     expect(zip.file("sheet.png")).toBeTruthy();
     expect(JSON.parse(await zip.file("manifest.json")!.async("string")).schema).toBe("image-cockpit.animation.v1");
   });
+
+  it("exports direction GIF and WebP previews into the animation pack", async () => {
+    const manifest = makeManifest();
+    const blob = await createAnimationPackZip({
+      manifest,
+      sheet: new Blob(["png"], { type: "image/png" }),
+      previewGif: new Blob(["front-gif"], { type: "image/gif" }),
+      previewWebp: new Blob(["front-webp"], { type: "image/webp" }),
+      directionPreviews: manifest.files.directionPreviews?.map((preview) => ({
+        direction: preview.direction,
+        gif: new Blob([`${preview.direction}-gif`], { type: "image/gif" }),
+        webp: new Blob([`${preview.direction}-webp`], { type: "image/webp" })
+      }))
+    });
+    const zip = await JSZip.loadAsync(await blob.arrayBuffer());
+    const exportedManifest = JSON.parse(await zip.file("manifest.json")!.async("string")) as AnimationPackManifest;
+
+    expect(zip.file("preview.gif")).toBeTruthy();
+    expect(zip.file("preview.webp")).toBeTruthy();
+    expect(exportedManifest.files.directionPreviews).toHaveLength(5);
+    for (const preview of exportedManifest.files.directionPreviews ?? []) {
+      expect(zip.file(preview.gif ?? "")).toBeTruthy();
+      expect(zip.file(preview.webp ?? "")).toBeTruthy();
+    }
+  });
 });
 
 function makeManifest(): AnimationPackManifest {
@@ -74,6 +99,17 @@ function makeManifest(): AnimationPackManifest {
       sheet: "sheet.png",
       previewGif: "preview.gif",
       previewWebp: "preview.webp",
+      directionPreviews: [
+        "front",
+        "front three-quarter",
+        "side",
+        "back three-quarter",
+        "back"
+      ].map((direction) => ({
+        direction,
+        gif: `previews/${direction.replace(/\s+/g, "-")}.gif`,
+        webp: `previews/${direction.replace(/\s+/g, "-")}.webp`
+      })),
       metadata: "metadata.json"
     }
   };
