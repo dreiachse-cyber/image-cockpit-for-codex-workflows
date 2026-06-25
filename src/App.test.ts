@@ -4,6 +4,7 @@ import {
   getVisibleHistoryCount,
   HISTORY_RENDER_BATCH_SIZE,
   INITIAL_HISTORY_RENDER_COUNT,
+  isLikelyFrameGarbageComponent,
   resolveInitialLanguage,
   shouldWaitForCodexRunner
 } from "./App";
@@ -55,10 +56,49 @@ describe("history result rendering window", () => {
   });
 });
 
+describe("animation frame cleanup", () => {
+  it("drops tiny chroma residue near a generated sprite footline", () => {
+    const primary = makeComponent(1, 82, 38, 172, 224, 4100);
+    const residue = makeComponent(2, 165, 220, 176, 226, 38, { chromaResidueCount: 34, softAlphaCount: 12 });
+
+    expect(isLikelyFrameGarbageComponent(residue, primary, 256, 256)).toBe(true);
+  });
+
+  it("keeps substantial detached body parts such as a readable shoe", () => {
+    const primary = makeComponent(1, 82, 38, 172, 224, 4100);
+    const shoe = makeComponent(2, 42, 203, 82, 228, 360, { chromaResidueCount: 0, softAlphaCount: 10 });
+
+    expect(isLikelyFrameGarbageComponent(shoe, primary, 256, 256)).toBe(false);
+  });
+});
+
 function makeStatus(state: CodexRunnerStatus["state"]): CodexRunnerStatus {
   return {
     jobId: "codex-job-test",
     state,
     message: `${state} runner`
+  };
+}
+
+function makeComponent(
+  id: number,
+  minX: number,
+  minY: number,
+  maxX: number,
+  maxY: number,
+  count: number,
+  details: { chromaResidueCount?: number; softAlphaCount?: number } = {}
+) {
+  return {
+    id,
+    minX,
+    minY,
+    maxX,
+    maxY,
+    count,
+    centerX: (minX + maxX) / 2,
+    centerY: (minY + maxY) / 2,
+    chromaResidueCount: details.chromaResidueCount ?? 0,
+    softAlphaCount: details.softAlphaCount ?? 0
   };
 }

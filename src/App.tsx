@@ -28,7 +28,7 @@ import {
   X
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { UIEvent } from "react";
+import type { CSSProperties, UIEvent } from "react";
 import {
   createAnimatedWebpBlob,
   createGifBlob,
@@ -114,6 +114,19 @@ interface AnimationChromaKey {
   rgb: { r: number; g: number; b: number };
 }
 
+export interface FrameComponentMetrics {
+  id: number;
+  minX: number;
+  minY: number;
+  maxX: number;
+  maxY: number;
+  count: number;
+  centerX: number;
+  centerY: number;
+  chromaResidueCount: number;
+  softAlphaCount: number;
+}
+
 const animationChromaKeys: Record<AnimationChromaKeyName, AnimationChromaKey> = {
   green: { name: "green", label: "chroma-key green", hex: "#00ff00", rgb: { r: 0, g: 255, b: 0 } },
   magenta: { name: "magenta", label: "chroma-key magenta", hex: "#ff00ff", rgb: { r: 255, g: 0, b: 255 } }
@@ -156,7 +169,10 @@ interface AnimationDirectionPreview {
 
 interface FrameSplitOptions {
   normalizeOpaqueBounds?: boolean;
+  residueChromaKey?: FrameResidueChromaKey;
 }
+
+type FrameResidueChromaKey = AnimationChromaKeyName | "both";
 
 interface PendingCodexJob {
   id: string;
@@ -963,6 +979,17 @@ function inferAnimationGenerationMode(actionFrames: SpriteFrame[]): AnimationGen
   return "standard";
 }
 
+function inferAnimationSheetGrid(actionFrames: SpriteFrame[], variant: AnimationGenerationMode): GridSettings {
+  if (variant === "directional-hatch-pet") return DIRECTIONAL_HATCH_PET_GRID;
+  if (variant === "hatch-pet") return HATCH_PET_GRID;
+  const rows = Math.max(1, Math.ceil(actionFrames.length / ANIMATION_FRAME_COUNT));
+  return {
+    columns: ANIMATION_FRAME_COUNT,
+    rows: Math.min(ANIMATION_DIRECTION_COUNT, rows),
+    gutter: 0
+  };
+}
+
 function clampInteger(value: number, min: number, max: number) {
   return Math.max(min, Math.min(max, Math.round(value)));
 }
@@ -1095,6 +1122,18 @@ function App() {
   }, [activeAction, selected, selectedAnimationFrames]);
 
   const selectedAnimationVariant = inferAnimationGenerationMode(selectedAnimationFrames);
+  const selectedAnimationSheetGrid = useMemo(
+    () => inferAnimationSheetGrid(selectedAnimationFrames, selectedAnimationVariant),
+    [selectedAnimationFrames, selectedAnimationVariant]
+  );
+  const selectedAnimationSheetGridStyle = useMemo(
+    () =>
+      ({
+        "--sprite-grid-columns": selectedAnimationSheetGrid.columns,
+        "--sprite-grid-rows": selectedAnimationSheetGrid.rows
+      }) as CSSProperties,
+    [selectedAnimationSheetGrid.columns, selectedAnimationSheetGrid.rows]
+  );
   const selectedAnimationExportReady = Boolean(
     selected && selected.source === "generate" && selectedAnimationFrames.length > 0
   );
@@ -1894,7 +1933,8 @@ function App() {
       derivedFromName: pendingJob.sourceImageName
     };
     const newFrames = await splitImageIntoFrames(transparentSheetDataUrl, baseName, spriteGrid, item.id, spriteCell, {
-      normalizeOpaqueBounds: spriteVariant === "standard"
+      normalizeOpaqueBounds: spriteVariant === "standard",
+      residueChromaKey: chromaKey.name
     });
     if (newFrames.length === 0) throw new Error("Returned sprite sheet could not be split into frames.");
 
@@ -2886,7 +2926,10 @@ function App() {
                       <div className="animation-preview-card sprite-sheet-preview-card">
                         <strong>{copy.previewSpriteSheet}</strong>
                         <div className="animation-preview sheet-preview">
-                          <img className="result-preview-image" src={selected.dataUrl} alt="" />
+                          <span className="sprite-sheet-grid-preview" style={selectedAnimationSheetGridStyle}>
+                            <img className="result-preview-image" src={selected.dataUrl} alt="" />
+                            <span className="sprite-sheet-grid-overlay" aria-hidden="true" />
+                          </span>
                         </div>
                       </div>
                     </div>
@@ -3939,6 +3982,7 @@ function removeChromaKeyPixels(
     if (closeToKey || semanticKey) data[offset + 3] = 0;
   }
 
+  removeFrameEdgeResiduePixels(imageData, width, height, chromaKey.name);
   context.putImageData(imageData, 0, 0);
 }
 
@@ -4250,7 +4294,7 @@ async function splitImageIntoFrames(
     canvas.height = height;
     context.clearRect(0, 0, width, height);
     context.drawImage(image, cell.x, cell.y, cell.width, cell.height, 0, 0, width, height);
-    if (options.normalizeOpaqueBounds) normalizeFrameOpaqueBounds(context, width, height);
+    if (options.normalizeOpaqueBounds) normalizeFrameOpaqueBounds(context, width, height, options.residueChromaKey);
     return {
       id: createId("frame"),
       name: `${baseName}_${String(cell.index).padStart(3, "0")}.png`,
@@ -4271,17 +4315,19 @@ interface OpaqueBounds {
   count: number;
 }
 
-interface OpaqueComponent extends OpaqueBounds {
-  id: number;
-  centerX: number;
-  centerY: number;
-}
+type OpaqueComponent = FrameComponentMetrics;
 
 const FRAME_ALPHA_THRESHOLD = 12;
 
-function normalizeFrameOpaqueBounds(context: CanvasRenderingContext2D, width: number, height: number) {
+function normalizeFrameOpaqueBounds(
+  context: CanvasRenderingContext2D,
+  width: number,
+  height: number,
+  residueChromaKey: FrameResidueChromaKey = "both"
+) {
   const imageData = context.getImageData(0, 0, width, height);
-  const { labels, components } = labelOpaqueComponents(imageData, width, height);
+  removeFrameEdgeResiduePixels(imageData, width, height, residueChromaKey);
+  const { labels, components } = labelOpaqueComponents(imageData, width, height, residueChromaKey);
   const primary = selectPrimaryOpaqueComponent(components, width, height);
   if (!primary || primary.count < 64) return;
 
@@ -4346,7 +4392,12 @@ function findOpaqueBounds(imageData: ImageData, width: number, height: number): 
   return count > 0 ? { minX, minY, maxX, maxY, count } : null;
 }
 
-function labelOpaqueComponents(imageData: ImageData, width: number, height: number) {
+function labelOpaqueComponents(
+  imageData: ImageData,
+  width: number,
+  height: number,
+  residueChromaKey: FrameResidueChromaKey = "both"
+) {
   const data = imageData.data;
   const visited = new Uint8Array(width * height);
   const labels = new Int32Array(width * height);
@@ -4370,12 +4421,15 @@ function labelOpaqueComponents(imageData: ImageData, width: number, height: numb
     let count = 0;
     let sumX = 0;
     let sumY = 0;
+    let chromaResidueCount = 0;
+    let softAlphaCount = 0;
 
     while (stackLength > 0) {
       stackLength -= 1;
       const index = stack[stackLength];
       const x = index % width;
       const y = Math.floor(index / width);
+      const offset = index * 4;
       minX = Math.min(minX, x);
       minY = Math.min(minY, y);
       maxX = Math.max(maxX, x);
@@ -4383,6 +4437,8 @@ function labelOpaqueComponents(imageData: ImageData, width: number, height: numb
       count += 1;
       sumX += x;
       sumY += y;
+      if (isFrameChromaResiduePixel(data, offset, residueChromaKey)) chromaResidueCount += 1;
+      if (data[offset + 3] < 96) softAlphaCount += 1;
 
       for (let dy = -1; dy <= 1; dy += 1) {
         for (let dx = -1; dx <= 1; dx += 1) {
@@ -4400,7 +4456,18 @@ function labelOpaqueComponents(imageData: ImageData, width: number, height: numb
       }
     }
 
-    components.push({ id, minX, minY, maxX, maxY, count, centerX: sumX / count, centerY: sumY / count });
+    components.push({
+      id,
+      minX,
+      minY,
+      maxX,
+      maxY,
+      count,
+      centerX: sumX / count,
+      centerY: sumY / count,
+      chromaResidueCount,
+      softAlphaCount
+    });
   }
 
   return { labels, components };
@@ -4427,7 +4494,7 @@ function selectPrimaryOpaqueComponent(components: OpaqueComponent[], width: numb
 
 function shouldKeepFrameComponent(component: OpaqueComponent, primary: OpaqueComponent, width: number, height: number) {
   if (component.id === primary.id) return true;
-  if (component.count < 12) return false;
+  if (isLikelyFrameGarbageComponent(component, primary, width, height)) return false;
   const horizontalGap = Math.max(0, Math.max(primary.minX - component.maxX, component.minX - primary.maxX));
   const verticalGap = Math.max(0, Math.max(primary.minY - component.maxY, component.minY - primary.maxY));
   const nearHorizontally = horizontalGap <= Math.round(width * 0.12);
@@ -4435,6 +4502,133 @@ function shouldKeepFrameComponent(component: OpaqueComponent, primary: OpaqueCom
   const notStrayBelow = component.centerY <= primary.maxY + Math.round(height * 0.08);
   const notStrayAbove = component.centerY >= primary.minY - Math.round(height * 0.08);
   return nearHorizontally && nearVertically && notStrayBelow && notStrayAbove;
+}
+
+export function isLikelyFrameGarbageComponent(
+  component: FrameComponentMetrics,
+  primary: FrameComponentMetrics,
+  width: number,
+  height: number
+) {
+  if (component.id === primary.id) return false;
+  const tinyThreshold = frameTinyComponentThreshold(width, height);
+  if (component.count < tinyThreshold) return true;
+
+  const componentWidth = component.maxX - component.minX + 1;
+  const componentHeight = component.maxY - component.minY + 1;
+  const chromaResidueRatio = component.chromaResidueCount / Math.max(1, component.count);
+  const softAlphaRatio = component.softAlphaCount / Math.max(1, component.count);
+  const mostlyChromaResidue = chromaResidueRatio >= 0.35 || (chromaResidueRatio >= 0.18 && softAlphaRatio >= 0.25);
+  const nearFootLine = component.centerY >= primary.maxY - Math.round(height * 0.08);
+  const compactFootSpeck =
+    componentWidth <= Math.round(width * 0.16) &&
+    componentHeight <= Math.round(height * 0.12) &&
+    component.count < tinyThreshold * 3;
+
+  return (
+    (mostlyChromaResidue && component.count < tinyThreshold * 8) ||
+    (nearFootLine && compactFootSpeck && (mostlyChromaResidue || component.count < tinyThreshold * 2))
+  );
+}
+
+function frameTinyComponentThreshold(width: number, height: number) {
+  return Math.max(12, Math.round(width * height * 0.00065));
+}
+
+function isFrameChromaResiduePixel(
+  data: Uint8ClampedArray,
+  offset: number,
+  residueChromaKey: FrameResidueChromaKey = "both"
+) {
+  const alpha = data[offset + 3];
+  if (alpha <= FRAME_ALPHA_THRESHOLD) return false;
+  const r = data[offset];
+  const g = data[offset + 1];
+  const b = data[offset + 2];
+  const checkGreen = residueChromaKey === "green" || residueChromaKey === "both";
+  const checkMagenta = residueChromaKey === "magenta" || residueChromaKey === "both";
+  const greenResidue = g > 30 && g >= r + 2 && g >= b + 2 && g > r * 1.02 && g > b * 1.02;
+  const magentaResidue = r > 95 && b > 90 && g < Math.min(r, b) * 0.8;
+  return (checkGreen && greenResidue) || (checkMagenta && magentaResidue);
+}
+
+function removeFrameEdgeResiduePixels(
+  imageData: ImageData,
+  width: number,
+  height: number,
+  residueChromaKey: FrameResidueChromaKey = "both"
+) {
+  const data = imageData.data;
+  for (let pass = 0; pass < 2; pass += 1) {
+    const source = new Uint8ClampedArray(data);
+    let removed = 0;
+    for (let y = 0; y < height; y += 1) {
+      for (let x = 0; x < width; x += 1) {
+        const offset = (y * width + x) * 4;
+        if (!isFrameChromaResiduePixel(source, offset, residueChromaKey)) continue;
+        if (!hasTransparentNeighbor(source, width, height, x, y)) continue;
+        data[offset + 3] = 0;
+        removed += 1;
+      }
+    }
+    if (removed === 0) break;
+  }
+  despillFrameEdgePixels(imageData, width, height, residueChromaKey);
+}
+
+function hasTransparentNeighbor(data: Uint8ClampedArray, width: number, height: number, x: number, y: number) {
+  return hasTransparentNeighborWithin(data, width, height, x, y, 1);
+}
+
+function hasTransparentNeighborWithin(
+  data: Uint8ClampedArray,
+  width: number,
+  height: number,
+  x: number,
+  y: number,
+  radius: number
+) {
+  for (let dy = -radius; dy <= radius; dy += 1) {
+    for (let dx = -radius; dx <= radius; dx += 1) {
+      if (dx === 0 && dy === 0) continue;
+      const nextX = x + dx;
+      const nextY = y + dy;
+      if (nextX < 0 || nextX >= width || nextY < 0 || nextY >= height) return true;
+      if (data[(nextY * width + nextX) * 4 + 3] <= FRAME_ALPHA_THRESHOLD) return true;
+    }
+  }
+  return false;
+}
+
+function despillFrameEdgePixels(
+  imageData: ImageData,
+  width: number,
+  height: number,
+  residueChromaKey: FrameResidueChromaKey = "both"
+) {
+  const source = new Uint8ClampedArray(imageData.data);
+  const data = imageData.data;
+  const checkGreen = residueChromaKey === "green" || residueChromaKey === "both";
+  const checkMagenta = residueChromaKey === "magenta" || residueChromaKey === "both";
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      const offset = (y * width + x) * 4;
+      if (source[offset + 3] <= FRAME_ALPHA_THRESHOLD) continue;
+      if (!hasTransparentNeighborWithin(source, width, height, x, y, 2)) continue;
+
+      const r = source[offset];
+      const g = source[offset + 1];
+      const b = source[offset + 2];
+      if (checkGreen && g > 30 && g >= r + 2 && g >= b + 2) {
+        data[offset + 1] = Math.min(g, Math.max(r, b));
+      }
+      if (checkMagenta && r > 95 && b > 90 && g < Math.min(r, b) * 0.8) {
+        const limit = Math.max(g, Math.round((r + b) / 4));
+        data[offset] = Math.min(r, limit);
+        data[offset + 2] = Math.min(b, limit);
+      }
+    }
+  }
 }
 
 function clampNumber(value: number, min: number, max: number) {

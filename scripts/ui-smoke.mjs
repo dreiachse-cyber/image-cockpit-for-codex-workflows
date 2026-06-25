@@ -594,6 +594,7 @@ async function assertWorkflow({
         postSnapshot.animationPreviewImages >= expectedPreviewImages,
         `${label} should render ${expectedPreviewImages} animation preview image(s), got ${postSnapshot.animationPreviewImages}`
       );
+      assert(postSnapshot.spriteSheetGridOverlays === 1, `${label} should overlay a sprite sheet grid on animation results`);
     }
     if (expectedDirectionPreviewCount > 0) {
       const directionSnapshot = await pageSnapshot();
@@ -883,6 +884,7 @@ async function pageSnapshot() {
       return Boolean(shelf.compareDocumentPosition(list) & Node.DOCUMENT_POSITION_FOLLOWING);
     })(),
     animationPreviewImages: document.querySelectorAll(".animation-preview img").length,
+    spriteSheetGridOverlays: document.querySelectorAll(".sprite-sheet-grid-overlay").length,
     promptPreviewImages: document.querySelectorAll(".prompt-card-preview img").length,
     animationPresetSampleSprites: document.querySelectorAll(".animation-sample-sprite").length,
     promptRawTextBlocks: document.querySelectorAll(".prompt-card-text, .prompt-card-negative").length

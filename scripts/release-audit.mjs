@@ -292,10 +292,11 @@ function checkNoDirectOpenAiIntegration() {
 
 function checkWorkflowIds() {
   const appText = readText("src/App.tsx");
+  const stylesText = readText("src/styles.css");
   const smokeText = readText("scripts/smoke.mjs");
   const uiSmokeText = readText("scripts/ui-smoke.mjs");
   const realCodexSmokeText = readText("scripts/real-codex-runner-smoke.mjs");
-  if (!appText || !smokeText || !uiSmokeText || !realCodexSmokeText) return;
+  if (!appText || !stylesText || !smokeText || !uiSmokeText || !realCodexSmokeText) return;
 
   requiredWorkflowIds.forEach((workflowId) => {
     if (!appText.includes(workflowId)) {
@@ -452,6 +453,7 @@ function checkWorkflowIds() {
     "animationSourceStatus",
     "persisted generated-from source after reload",
     "regenerated animation previews after reload",
+    "spriteSheetGridOverlays",
     "256 x 256 px",
     "persisted animation frames after reload",
     "persisted 256 x 256 px frame size after reload"
@@ -467,9 +469,22 @@ function checkWorkflowIds() {
     }
   });
 
-  ["normalizeOpaqueBounds", "normalizeFrameOpaqueBounds", "selectPrimaryOpaqueComponent"].forEach((marker) => {
+  [
+    "normalizeOpaqueBounds",
+    "normalizeFrameOpaqueBounds",
+    "selectPrimaryOpaqueComponent",
+    "isLikelyFrameGarbageComponent",
+    "removeFrameEdgeResiduePixels",
+    "despillFrameEdgePixels"
+  ].forEach((marker) => {
     if (!appText.includes(marker)) {
       failures.push(`App should normalize generated animation frame cutouts: ${marker}`);
+    }
+  });
+
+  ["sprite-sheet-grid-preview", "sprite-sheet-grid-overlay"].forEach((marker) => {
+    if (!appText.includes(marker) && !stylesText.includes(marker)) {
+      failures.push(`App should overlay a review grid on generated sprite sheets: ${marker}`);
     }
   });
 
