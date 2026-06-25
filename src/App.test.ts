@@ -6,7 +6,8 @@ import {
   INITIAL_HISTORY_RENDER_COUNT,
   isLikelyFrameGarbageComponent,
   resolveInitialLanguage,
-  shouldWaitForCodexRunner
+  shouldWaitForCodexRunner,
+  SUPPORTED_LANGUAGE_IDS
 } from "./App";
 import type { CodexRunnerStatus } from "./types";
 
@@ -26,18 +27,36 @@ describe("Codex runner wait state", () => {
 });
 
 describe("initial language", () => {
-  it("uses the stored language when it is valid", () => {
-    expect(resolveInitialLanguage("en", ["ja-JP"])).toBe("en");
-    expect(resolveInitialLanguage("ja", ["en-US"])).toBe("ja");
+  it("uses any supported stored language when it is valid", () => {
+    SUPPORTED_LANGUAGE_IDS.forEach((language) => {
+      expect(resolveInitialLanguage(language, ["ja-JP"])).toBe(language);
+    });
   });
 
-  it("defaults to Japanese for Japanese browser locales", () => {
+  it("maps browser locales to the supported locale pack", () => {
     expect(resolveInitialLanguage(null, ["ja-JP", "en-US"])).toBe("ja");
+    expect(resolveInitialLanguage(null, ["zh-CN"])).toBe("zh-CN");
+    expect(resolveInitialLanguage(null, ["zh-TW"])).toBe("zh-TW");
+    expect(resolveInitialLanguage(null, ["zh-Hant-TW"])).toBe("zh-TW");
+    expect(resolveInitialLanguage(null, ["zh-Hans-CN"])).toBe("zh-CN");
+    expect(resolveInitialLanguage(null, ["ko-KR"])).toBe("ko");
+    expect(resolveInitialLanguage(null, ["ru-RU"])).toBe("ru");
+    expect(resolveInitialLanguage(null, ["es-MX"])).toBe("es");
+    expect(resolveInitialLanguage(null, ["pt-BR"])).toBe("pt-BR");
+    expect(resolveInitialLanguage(null, ["pt-PT"])).toBe("pt-BR");
+    expect(resolveInitialLanguage(null, ["de-DE"])).toBe("de");
+    expect(resolveInitialLanguage(null, ["fr-FR"])).toBe("fr");
+    expect(resolveInitialLanguage(null, ["id-ID"])).toBe("id");
+    expect(resolveInitialLanguage(null, ["in-ID"])).toBe("id");
+    expect(resolveInitialLanguage(null, ["tr-TR"])).toBe("tr");
+    expect(resolveInitialLanguage(null, ["vi-VN"])).toBe("vi");
+    expect(resolveInitialLanguage(null, ["pl-PL"])).toBe("pl");
+    expect(resolveInitialLanguage(null, ["it-IT"])).toBe("it");
   });
 
-  it("falls back to English when no stored or Japanese browser language exists", () => {
+  it("falls back to English when no stored or supported browser language exists", () => {
     expect(resolveInitialLanguage(null, ["en-US"])).toBe("en");
-    expect(resolveInitialLanguage("fr", [])).toBe("en");
+    expect(resolveInitialLanguage("xx", [])).toBe("en");
   });
 });
 

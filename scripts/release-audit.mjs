@@ -717,6 +717,9 @@ function checkCoreLocalization() {
 
   [
     "resolveInitialLanguage",
+    "SUPPORTED_LANGUAGE_IDS",
+    "resolveLocaleToLanguage",
+    "withUiCopy",
     "copy.workflowPanelTitle",
     "copy.animationStepSourceTitle",
     "copy.animationStepMotionTitle",
@@ -739,6 +742,49 @@ function checkCoreLocalization() {
 
   if (!appTestText.includes("resolveInitialLanguage")) {
     failures.push("App tests should cover initial language resolution.");
+  }
+
+  [
+    "zh-CN",
+    "zh-TW",
+    "ko",
+    "ru",
+    "es",
+    "pt-BR",
+    "de",
+    "fr",
+    "id",
+    "tr",
+    "vi",
+    "pl",
+    "it",
+    "简体中文",
+    "繁體中文",
+    "한국어",
+    "Русский",
+    "Español",
+    "Português (Brasil)",
+    "Deutsch",
+    "Français",
+    "Bahasa Indonesia",
+    "Türkçe",
+    "Tiếng Việt",
+    "Polski",
+    "Italiano",
+    "像素艺术生成",
+    "像素藝術生成",
+    "픽셀 아트 생성",
+    "Генерация пиксель-арта",
+    "Geração de pixel art",
+    "Pixel-Art-Erstellung"
+  ].forEach((marker) => {
+    if (!appText.includes(marker)) {
+      failures.push(`Locale pack marker is missing: ${marker}`);
+    }
+  });
+
+  if (!appTestText.includes("zh-Hant-TW") || !appTestText.includes("pt-PT") || !appTestText.includes("SUPPORTED_LANGUAGE_IDS")) {
+    failures.push("App tests should cover extended locale resolution and stored locale ids.");
   }
 }
 

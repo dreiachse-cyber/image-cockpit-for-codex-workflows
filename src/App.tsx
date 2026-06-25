@@ -119,7 +119,27 @@ const DIRECTIONAL_HATCH_PET_GRID: GridSettings = {
 const DIRECTIONAL_HATCH_PET_RESULT_COUNT = ANIMATION_DIRECTION_COUNT;
 const DIRECTIONAL_HATCH_PET_PRIMARY_STATE = HATCH_PET_STATE_ROWS[0];
 
-type Language = "ja" | "en";
+export const SUPPORTED_LANGUAGE_IDS = [
+  "ja",
+  "en",
+  "zh-CN",
+  "zh-TW",
+  "ko",
+  "ru",
+  "es",
+  "pt-BR",
+  "de",
+  "fr",
+  "id",
+  "tr",
+  "vi",
+  "pl",
+  "it"
+] as const;
+
+type Language = (typeof SUPPORTED_LANGUAGE_IDS)[number];
+type BaseLanguage = "ja" | "en";
+type LocalizedText = Record<BaseLanguage, string> & Partial<Record<Language, string>>;
 type AnimationGenerationMode = "standard" | "hatch-pet" | "directional-hatch-pet";
 type AnimationChromaKeyName = "green" | "magenta";
 type CodexJobQueueState = "queued" | "running";
@@ -151,17 +171,31 @@ const animationChromaKeys: Record<AnimationChromaKeyName, AnimationChromaKey> = 
 
 const languageOptions: Array<{ id: Language; label: string }> = [
   { id: "ja", label: "日本語" },
-  { id: "en", label: "English" }
+  { id: "en", label: "English" },
+  { id: "zh-CN", label: "简体中文" },
+  { id: "zh-TW", label: "繁體中文" },
+  { id: "ko", label: "한국어" },
+  { id: "ru", label: "Русский" },
+  { id: "es", label: "Español" },
+  { id: "pt-BR", label: "Português (Brasil)" },
+  { id: "de", label: "Deutsch" },
+  { id: "fr", label: "Français" },
+  { id: "id", label: "Bahasa Indonesia" },
+  { id: "tr", label: "Türkçe" },
+  { id: "vi", label: "Tiếng Việt" },
+  { id: "pl", label: "Polski" },
+  { id: "it", label: "Italiano" }
 ];
+const supportedLanguageSet = new Set<string>(SUPPORTED_LANGUAGE_IDS);
 
 type WorkflowMode = "image-generate" | "image-edit" | "sprite-generate" | "sprite-edit";
 
 interface PromptExample {
   id: string;
-  category: Record<Language, string>;
-  title: Record<Language, string>;
+  category: LocalizedText;
+  title: LocalizedText;
   previewImage: string;
-  summary: Record<Language, string>;
+  summary: LocalizedText;
   prompt: string;
   negativePrompt: string;
   notes: string;
@@ -171,9 +205,9 @@ interface AnimationPresetExample {
   id: string;
   actionName: string;
   previewClassName: string;
-  category: Record<Language, string>;
-  title: Record<Language, string>;
-  summary: Record<Language, string>;
+  category: LocalizedText;
+  title: LocalizedText;
+  summary: LocalizedText;
   prompt: string;
   notes: string;
 }
@@ -287,7 +321,7 @@ interface CodexFailureNotice {
   diagnostic: CodexJobDiagnostic;
 }
 
-const uiCopy = {
+const baseUiCopy = {
   en: {
     language: "Language",
     project: "Project: Forest Mage",
@@ -696,9 +730,775 @@ const uiCopy = {
     jobNotes: "編集メモ",
     jobNotesPlaceholder: "Codexに残してほしい点、直してほしい点、切り出し方、出力形式を書きます"
   }
-} satisfies Record<Language, Record<string, string>>;
+} satisfies Record<BaseLanguage, Record<string, string>>;
 
-const workflowCopy: Record<Language, Record<WorkflowMode, { label: string; detail: string; status: string }>> = {
+type UiCopy = typeof baseUiCopy.en;
+
+const uiCopy = {
+  ...baseUiCopy,
+  "zh-CN": withUiCopy({
+    language: "语言",
+    workflowPanelTitle: "工作流",
+    canvasAnnotationTitle: "预览",
+    previewLabel: "预览",
+    canvasEmpty: "导入或生成图像后开始",
+    promptExamples: "提示词示例",
+    promptExamplesTitle: "提示词示例",
+    promptExamplesIntro: "按示例图选择，然后复制或载入优化后的提示词。",
+    copyPrompt: "复制提示词",
+    usePrompt: "使用提示词",
+    closePromptExamples: "关闭",
+    promptCopied: "提示词已复制",
+    promptExampleApplied: "提示词示例已载入像素艺术生成",
+    animationStepSourceTitle: "1. 上传像素艺术",
+    animationStepMotionTitle: "2. 选择动作",
+    animationStepGenerateTitle: "3. 生成",
+    animationStepDownloadTitle: "4. 下载",
+    uploadPixelArt: "上传像素艺术",
+    selectedSource: "已选来源",
+    noAnimationSource: "尚未上传像素艺术来源",
+    motionPreset: "已选动画",
+    chooseAnimation: "选择动画",
+    animationPresetExamples: "选择动画",
+    animationPresetExamplesTitle: "选择动画",
+    animationPresetExamplesIntro: "查看动态示例，然后选择动作预设。",
+    useAnimationPreset: "选择动画",
+    animationPresetExampleApplied: "已选择动画",
+    generationMayTakeMinutes: "生成可能需要几分钟。",
+    animationReady: "动画帧已准备好",
+    animatedGif: "动画 GIF",
+    animatedWebP: "动画 WebP",
+    spriteSheetDownload: "精灵表",
+    directionalPreviews: "方向预览",
+    animationGeneratedFrom: "生成自",
+    imageEditGeneratedFrom: "编辑自",
+    imageDownloadTitle: "下载",
+    imageDownloadBody: "将预览中的图像导出为 PNG。",
+    imageDownloadReady: "已选图像可导出",
+    imageDownloadLocked: "请先选择或生成图像。",
+    downloadPng: "PNG",
+    animationLibraryTitle: "动画库",
+    animationLibraryBody: "将官方预设和导入的动画包作为可复用素材。",
+    officialAnimations: "官方动画",
+    userAnimations: "用户动画",
+    importAnimation: "导入动画",
+    exportAnimationPack: "导出动画包",
+    exportAnimationSample: "导出示例",
+    useAnimationLibraryItem: "使用",
+    renameAnimation: "重命名",
+    deleteAnimation: "删除",
+    animationLibraryEmpty: "还没有用户动画。导入本地动画包后会显示在这里。",
+    animationPackImported: "动画包已导入",
+    animationPackImportFailed: "无法导入动画包",
+    animationPackUsed: "已从库载入动画",
+    animationPackExported: "动画包已导出",
+    animationPackExportFailed: "无法导出动画包",
+    animationPackExportTitle: "导出动画包",
+    animationPackExportIntro: "写出包含清单、预览、精灵表和元数据的本地 ZIP。",
+    cancel: "取消",
+    saveExport: "导出",
+    uploadImageForEdit: "上传图像",
+    selectedEditSource: "已选图像",
+    noEditSource: "尚未选择图像",
+    imageEditRegionsTitle: "编号编辑区域",
+    editImage: "编辑图像",
+    statusAnimationSourceRequired: "生成动画前请上传或选择像素艺术来源",
+    statusAnimationGenerated: "动画已生成",
+    codexFailureTitle: "生成失败",
+    createCodexJob: "创建 Codex 作业",
+    generateLocalImage: "生成像素艺术",
+    generateLocalSprite: "生成动画",
+    waitingForCodexResult: "等待 Codex 结果",
+    importLatest: "导入最新结果",
+    importFile: "导入文件",
+    currentWorkflow: "当前工作流",
+    selectedProvider: "路线",
+    results: "结果",
+    jobNotes: "备注"
+  }),
+  "zh-TW": withUiCopy({
+    language: "語言",
+    workflowPanelTitle: "工作流程",
+    canvasAnnotationTitle: "預覽",
+    previewLabel: "預覽",
+    canvasEmpty: "匯入或生成圖像後開始",
+    promptExamples: "提示詞範例",
+    promptExamplesTitle: "提示詞範例",
+    promptExamplesIntro: "依範例圖選擇，然後複製或載入調整好的提示詞。",
+    copyPrompt: "複製提示詞",
+    usePrompt: "使用提示詞",
+    closePromptExamples: "關閉",
+    promptCopied: "提示詞已複製",
+    promptExampleApplied: "提示詞範例已載入像素藝術生成",
+    animationStepSourceTitle: "1. 上傳像素藝術",
+    animationStepMotionTitle: "2. 選擇動作",
+    animationStepGenerateTitle: "3. 生成",
+    animationStepDownloadTitle: "4. 下載",
+    uploadPixelArt: "上傳像素藝術",
+    selectedSource: "已選來源",
+    noAnimationSource: "尚未上傳像素藝術來源",
+    motionPreset: "已選動畫",
+    chooseAnimation: "選擇動畫",
+    animationPresetExamples: "選擇動畫",
+    animationPresetExamplesTitle: "選擇動畫",
+    animationPresetExamplesIntro: "查看動態範例，然後選擇動作預設。",
+    useAnimationPreset: "選擇動畫",
+    animationPresetExampleApplied: "已選擇動畫",
+    generationMayTakeMinutes: "生成可能需要幾分鐘。",
+    animationReady: "動畫影格已準備好",
+    animatedGif: "動畫 GIF",
+    animatedWebP: "動畫 WebP",
+    spriteSheetDownload: "精靈表",
+    directionalPreviews: "方向預覽",
+    animationGeneratedFrom: "生成自",
+    imageEditGeneratedFrom: "編輯自",
+    imageDownloadTitle: "下載",
+    imageDownloadBody: "將預覽中的圖像匯出為 PNG。",
+    imageDownloadReady: "已選圖像可匯出",
+    imageDownloadLocked: "請先選擇或生成圖像。",
+    downloadPng: "PNG",
+    animationLibraryTitle: "動畫庫",
+    animationLibraryBody: "將官方預設與匯入的動畫包作為可重用素材。",
+    officialAnimations: "官方動畫",
+    userAnimations: "使用者動畫",
+    importAnimation: "匯入動畫",
+    exportAnimationPack: "匯出動畫包",
+    exportAnimationSample: "匯出範例",
+    useAnimationLibraryItem: "使用",
+    renameAnimation: "重新命名",
+    deleteAnimation: "刪除",
+    animationLibraryEmpty: "尚無使用者動畫。匯入本地動畫包後會顯示在這裡。",
+    animationPackImported: "動畫包已匯入",
+    animationPackImportFailed: "無法匯入動畫包",
+    animationPackUsed: "已從庫載入動畫",
+    animationPackExported: "動畫包已匯出",
+    animationPackExportFailed: "無法匯出動畫包",
+    animationPackExportTitle: "匯出動畫包",
+    animationPackExportIntro: "寫出包含 manifest、預覽、精靈表與 metadata 的本地 ZIP。",
+    cancel: "取消",
+    saveExport: "匯出",
+    uploadImageForEdit: "上傳圖像",
+    selectedEditSource: "已選圖像",
+    noEditSource: "尚未選擇圖像",
+    imageEditRegionsTitle: "編號編輯區域",
+    editImage: "編輯圖像",
+    statusAnimationSourceRequired: "生成動畫前請上傳或選擇像素藝術來源",
+    statusAnimationGenerated: "動畫已生成",
+    codexFailureTitle: "生成失敗",
+    createCodexJob: "建立 Codex 作業",
+    generateLocalImage: "生成像素藝術",
+    generateLocalSprite: "生成動畫",
+    waitingForCodexResult: "等待 Codex 結果",
+    importLatest: "匯入最新結果",
+    importFile: "匯入檔案",
+    currentWorkflow: "目前工作流程",
+    selectedProvider: "路線",
+    results: "結果",
+    jobNotes: "備註"
+  }),
+  ko: withUiCopy({
+    language: "언어",
+    workflowPanelTitle: "워크플로",
+    canvasAnnotationTitle: "미리보기",
+    previewLabel: "미리보기",
+    canvasEmpty: "이미지를 가져오거나 생성하면 시작할 수 있습니다",
+    promptExamples: "프롬프트 예시",
+    promptExamplesTitle: "프롬프트 예시",
+    promptExamplesIntro: "예시 이미지를 보고 조정된 프롬프트를 복사하거나 불러옵니다.",
+    copyPrompt: "프롬프트 복사",
+    usePrompt: "프롬프트 사용",
+    closePromptExamples: "닫기",
+    promptCopied: "프롬프트를 복사했습니다",
+    promptExampleApplied: "프롬프트 예시를 픽셀 아트 생성에 불러왔습니다",
+    animationStepSourceTitle: "1. 픽셀 아트 업로드",
+    animationStepMotionTitle: "2. 움직임 선택",
+    animationStepGenerateTitle: "3. 생성",
+    animationStepDownloadTitle: "4. 다운로드",
+    uploadPixelArt: "픽셀 아트 업로드",
+    selectedSource: "선택한 원본",
+    noAnimationSource: "아직 픽셀 아트 원본이 없습니다",
+    motionPreset: "선택한 애니메이션",
+    chooseAnimation: "애니메이션 선택",
+    animationPresetExamples: "애니메이션 선택",
+    animationPresetExamplesTitle: "애니메이션 선택",
+    animationPresetExamplesIntro: "움직이는 샘플을 보고 사용할 동작을 선택합니다.",
+    useAnimationPreset: "애니메이션 선택",
+    animationPresetExampleApplied: "애니메이션을 선택했습니다",
+    generationMayTakeMinutes: "생성에는 몇 분이 걸릴 수 있습니다.",
+    animationReady: "애니메이션 프레임 준비 완료",
+    animatedGif: "애니메이션 GIF",
+    animatedWebP: "애니메이션 WebP",
+    spriteSheetDownload: "스프라이트 시트",
+    directionalPreviews: "방향별 미리보기",
+    animationGeneratedFrom: "생성 원본",
+    imageEditGeneratedFrom: "편집 원본",
+    imageDownloadTitle: "다운로드",
+    imageDownloadBody: "미리보기의 이미지를 PNG로 내보냅니다.",
+    imageDownloadReady: "선택한 이미지를 내보낼 수 있습니다",
+    imageDownloadLocked: "먼저 이미지를 선택하거나 생성하세요.",
+    animationLibraryTitle: "애니메이션 라이브러리",
+    animationLibraryBody: "공식 프리셋과 가져온 사용자 애니메이션 팩을 재사용합니다.",
+    officialAnimations: "공식 애니메이션",
+    userAnimations: "사용자 애니메이션",
+    importAnimation: "애니메이션 가져오기",
+    exportAnimationPack: "애니메이션 팩 내보내기",
+    exportAnimationSample: "샘플 내보내기",
+    useAnimationLibraryItem: "사용",
+    renameAnimation: "이름 변경",
+    deleteAnimation: "삭제",
+    animationLibraryEmpty: "사용자 애니메이션이 없습니다. 로컬 애니메이션 팩을 가져오면 여기에 표시됩니다.",
+    cancel: "취소",
+    saveExport: "내보내기",
+    uploadImageForEdit: "이미지 업로드",
+    imageEditRegionsTitle: "번호가 있는 편집 영역",
+    editImage: "이미지 편집",
+    statusAnimationSourceRequired: "애니메이션 생성 전에 픽셀 아트 원본을 업로드하거나 선택하세요",
+    statusAnimationGenerated: "애니메이션 생성 완료",
+    codexFailureTitle: "생성 실패",
+    createCodexJob: "Codex 작업 만들기",
+    generateLocalImage: "픽셀 아트 생성",
+    generateLocalSprite: "애니메이션 생성",
+    waitingForCodexResult: "Codex 결과 대기 중",
+    importLatest: "최신 결과 가져오기",
+    importFile: "파일 가져오기",
+    currentWorkflow: "현재 워크플로",
+    selectedProvider: "경로",
+    results: "결과",
+    jobNotes: "메모"
+  }),
+  ru: withUiCopy({
+    language: "Язык",
+    workflowPanelTitle: "Рабочий процесс",
+    canvasAnnotationTitle: "Предпросмотр",
+    previewLabel: "Предпросмотр",
+    canvasEmpty: "Импортируйте или создайте изображение, чтобы начать",
+    promptExamples: "Примеры промптов",
+    promptExamplesTitle: "Примеры промптов",
+    promptExamplesIntro: "Выберите пример по изображению, затем скопируйте или загрузите промпт.",
+    copyPrompt: "Скопировать промпт",
+    usePrompt: "Использовать промпт",
+    closePromptExamples: "Закрыть",
+    promptCopied: "Промпт скопирован",
+    promptExampleApplied: "Пример промпта загружен в генерацию пиксель-арта",
+    animationStepSourceTitle: "1. Загрузите пиксель-арт",
+    animationStepMotionTitle: "2. Выберите движение",
+    animationStepGenerateTitle: "3. Создать",
+    animationStepDownloadTitle: "4. Скачать",
+    uploadPixelArt: "Загрузить пиксель-арт",
+    selectedSource: "Выбранный источник",
+    noAnimationSource: "Источник пиксель-арта еще не загружен",
+    motionPreset: "Выбранная анимация",
+    chooseAnimation: "Выбрать анимацию",
+    animationPresetExamples: "Выбрать анимацию",
+    animationPresetExamplesTitle: "Выбрать анимацию",
+    animationPresetExamplesIntro: "Посмотрите движущийся пример и выберите пресет.",
+    useAnimationPreset: "Выбрать анимацию",
+    animationPresetExampleApplied: "Анимация выбрана",
+    generationMayTakeMinutes: "Создание может занять несколько минут.",
+    animationReady: "Кадры анимации готовы",
+    animatedGif: "Анимированный GIF",
+    animatedWebP: "Анимированный WebP",
+    spriteSheetDownload: "Спрайт-лист",
+    directionalPreviews: "Предпросмотр направлений",
+    animationGeneratedFrom: "Создано из",
+    imageEditGeneratedFrom: "Отредактировано из",
+    imageDownloadTitle: "Скачать",
+    imageDownloadBody: "Экспортируйте изображение в предпросмотре как PNG.",
+    imageDownloadReady: "Выбранное изображение готово",
+    imageDownloadLocked: "Сначала выберите или создайте изображение.",
+    animationLibraryTitle: "Библиотека анимаций",
+    animationLibraryBody: "Используйте официальные пресеты и импортированные пакеты как материалы.",
+    officialAnimations: "Официальные анимации",
+    userAnimations: "Пользовательские анимации",
+    importAnimation: "Импортировать анимацию",
+    exportAnimationPack: "Экспорт пакета анимации",
+    exportAnimationSample: "Экспорт примера",
+    useAnimationLibraryItem: "Использовать",
+    renameAnimation: "Переименовать",
+    deleteAnimation: "Удалить",
+    animationLibraryEmpty: "Пользовательских анимаций пока нет. Импортируйте локальный пакет.",
+    cancel: "Отмена",
+    saveExport: "Экспорт",
+    uploadImageForEdit: "Загрузить изображение",
+    imageEditRegionsTitle: "Нумерованные области правки",
+    editImage: "Редактировать изображение",
+    statusAnimationSourceRequired: "Перед созданием анимации загрузите или выберите пиксель-арт",
+    statusAnimationGenerated: "Анимация создана",
+    codexFailureTitle: "Не удалось создать",
+    createCodexJob: "Создать задание Codex",
+    generateLocalImage: "Создать пиксель-арт",
+    generateLocalSprite: "Создать анимацию",
+    waitingForCodexResult: "Ожидание результата Codex",
+    importLatest: "Импортировать последнее",
+    importFile: "Импортировать файл",
+    currentWorkflow: "Текущий процесс",
+    selectedProvider: "Маршрут",
+    results: "Результаты",
+    jobNotes: "Заметки"
+  }),
+  es: withUiCopy({
+    language: "Idioma",
+    workflowPanelTitle: "Flujo",
+    canvasAnnotationTitle: "Vista previa",
+    previewLabel: "Vista previa",
+    canvasEmpty: "Importa o genera una imagen para empezar",
+    promptExamples: "Ejemplos de prompts",
+    promptExamplesTitle: "Ejemplos de prompts",
+    copyPrompt: "Copiar prompt",
+    usePrompt: "Usar prompt",
+    closePromptExamples: "Cerrar",
+    animationStepSourceTitle: "1. Sube pixel art",
+    animationStepMotionTitle: "2. Elige movimiento",
+    animationStepGenerateTitle: "3. Generar",
+    animationStepDownloadTitle: "4. Descargar",
+    uploadPixelArt: "Subir pixel art",
+    motionPreset: "Animación seleccionada",
+    chooseAnimation: "Elegir animación",
+    useAnimationPreset: "Elegir animación",
+    generationMayTakeMinutes: "La generación puede tardar unos minutos.",
+    animationReady: "Fotogramas de animación listos",
+    animatedGif: "GIF animado",
+    animatedWebP: "WebP animado",
+    spriteSheetDownload: "Sprite sheet",
+    directionalPreviews: "Vistas por dirección",
+    animationGeneratedFrom: "Generado desde",
+    imageDownloadTitle: "Descargar",
+    animationLibraryTitle: "Biblioteca de animaciones",
+    officialAnimations: "Animaciones oficiales",
+    userAnimations: "Animaciones de usuario",
+    importAnimation: "Importar animación",
+    exportAnimationPack: "Exportar paquete",
+    exportAnimationSample: "Exportar muestra",
+    useAnimationLibraryItem: "Usar",
+    renameAnimation: "Renombrar",
+    deleteAnimation: "Eliminar",
+    cancel: "Cancelar",
+    saveExport: "Exportar",
+    uploadImageForEdit: "Subir imagen",
+    editImage: "Editar imagen",
+    statusAnimationGenerated: "Animación generada",
+    codexFailureTitle: "Error al generar",
+    createCodexJob: "Crear trabajo Codex",
+    generateLocalImage: "Generar pixel art",
+    generateLocalSprite: "Generar animación",
+    importLatest: "Importar último resultado",
+    importFile: "Importar archivo",
+    currentWorkflow: "Flujo actual",
+    results: "Resultados"
+  }),
+  "pt-BR": withUiCopy({
+    language: "Idioma",
+    workflowPanelTitle: "Fluxo",
+    canvasAnnotationTitle: "Prévia",
+    previewLabel: "Prévia",
+    canvasEmpty: "Importe ou gere uma imagem para começar",
+    promptExamples: "Exemplos de prompts",
+    promptExamplesTitle: "Exemplos de prompts",
+    copyPrompt: "Copiar prompt",
+    usePrompt: "Usar prompt",
+    closePromptExamples: "Fechar",
+    animationStepSourceTitle: "1. Envie pixel art",
+    animationStepMotionTitle: "2. Escolha o movimento",
+    animationStepGenerateTitle: "3. Gerar",
+    animationStepDownloadTitle: "4. Baixar",
+    uploadPixelArt: "Enviar pixel art",
+    motionPreset: "Animação selecionada",
+    chooseAnimation: "Escolher animação",
+    useAnimationPreset: "Escolher animação",
+    generationMayTakeMinutes: "A geração pode levar alguns minutos.",
+    animationReady: "Quadros da animação prontos",
+    animatedGif: "GIF animado",
+    animatedWebP: "WebP animado",
+    spriteSheetDownload: "Sprite sheet",
+    directionalPreviews: "Prévias por direção",
+    animationGeneratedFrom: "Gerado de",
+    imageDownloadTitle: "Baixar",
+    animationLibraryTitle: "Biblioteca de animações",
+    officialAnimations: "Animações oficiais",
+    userAnimations: "Animações do usuário",
+    importAnimation: "Importar animação",
+    exportAnimationPack: "Exportar pacote",
+    exportAnimationSample: "Exportar amostra",
+    useAnimationLibraryItem: "Usar",
+    renameAnimation: "Renomear",
+    deleteAnimation: "Excluir",
+    cancel: "Cancelar",
+    saveExport: "Exportar",
+    uploadImageForEdit: "Enviar imagem",
+    editImage: "Editar imagem",
+    statusAnimationGenerated: "Animação gerada",
+    codexFailureTitle: "Falha na geração",
+    createCodexJob: "Criar job Codex",
+    generateLocalImage: "Gerar pixel art",
+    generateLocalSprite: "Gerar animação",
+    importLatest: "Importar resultado mais recente",
+    importFile: "Importar arquivo",
+    currentWorkflow: "Fluxo atual",
+    results: "Resultados"
+  }),
+  de: withUiCopy({
+    language: "Sprache",
+    workflowPanelTitle: "Workflow",
+    canvasAnnotationTitle: "Vorschau",
+    previewLabel: "Vorschau",
+    canvasEmpty: "Bild importieren oder erzeugen, um zu starten",
+    promptExamples: "Prompt-Beispiele",
+    promptExamplesTitle: "Prompt-Beispiele",
+    copyPrompt: "Prompt kopieren",
+    usePrompt: "Prompt verwenden",
+    closePromptExamples: "Schließen",
+    animationStepSourceTitle: "1. Pixel-Art hochladen",
+    animationStepMotionTitle: "2. Bewegung wählen",
+    animationStepGenerateTitle: "3. Erstellen",
+    animationStepDownloadTitle: "4. Herunterladen",
+    uploadPixelArt: "Pixel-Art hochladen",
+    motionPreset: "Gewählte Animation",
+    chooseAnimation: "Animation wählen",
+    useAnimationPreset: "Animation wählen",
+    generationMayTakeMinutes: "Die Erstellung kann einige Minuten dauern.",
+    animationReady: "Animationsframes bereit",
+    animatedGif: "Animiertes GIF",
+    animatedWebP: "Animiertes WebP",
+    spriteSheetDownload: "Sprite-Sheet",
+    directionalPreviews: "Richtungsvorschau",
+    animationGeneratedFrom: "Erstellt aus",
+    imageDownloadTitle: "Herunterladen",
+    animationLibraryTitle: "Animationsbibliothek",
+    officialAnimations: "Offizielle Animationen",
+    userAnimations: "Nutzeranimationen",
+    importAnimation: "Animation importieren",
+    exportAnimationPack: "Animationspaket exportieren",
+    exportAnimationSample: "Beispiel exportieren",
+    useAnimationLibraryItem: "Nutzen",
+    renameAnimation: "Umbenennen",
+    deleteAnimation: "Löschen",
+    cancel: "Abbrechen",
+    saveExport: "Exportieren",
+    uploadImageForEdit: "Bild hochladen",
+    editImage: "Bild bearbeiten",
+    statusAnimationGenerated: "Animation erstellt",
+    codexFailureTitle: "Erstellung fehlgeschlagen",
+    createCodexJob: "Codex-Job erstellen",
+    generateLocalImage: "Pixel-Art erstellen",
+    generateLocalSprite: "Animation erstellen",
+    importLatest: "Neuestes Ergebnis importieren",
+    importFile: "Datei importieren",
+    currentWorkflow: "Aktueller Workflow",
+    results: "Ergebnisse"
+  }),
+  fr: withUiCopy({
+    language: "Langue",
+    workflowPanelTitle: "Flux",
+    canvasAnnotationTitle: "Aperçu",
+    previewLabel: "Aperçu",
+    canvasEmpty: "Importez ou générez une image pour commencer",
+    promptExamples: "Exemples de prompts",
+    promptExamplesTitle: "Exemples de prompts",
+    copyPrompt: "Copier le prompt",
+    usePrompt: "Utiliser le prompt",
+    closePromptExamples: "Fermer",
+    animationStepSourceTitle: "1. Importer le pixel art",
+    animationStepMotionTitle: "2. Choisir le mouvement",
+    animationStepGenerateTitle: "3. Générer",
+    animationStepDownloadTitle: "4. Télécharger",
+    uploadPixelArt: "Importer le pixel art",
+    motionPreset: "Animation choisie",
+    chooseAnimation: "Choisir une animation",
+    useAnimationPreset: "Choisir l'animation",
+    generationMayTakeMinutes: "La génération peut prendre quelques minutes.",
+    animationReady: "Images d'animation prêtes",
+    animatedGif: "GIF animé",
+    animatedWebP: "WebP animé",
+    spriteSheetDownload: "Sprite sheet",
+    directionalPreviews: "Aperçus par direction",
+    animationGeneratedFrom: "Généré depuis",
+    imageDownloadTitle: "Télécharger",
+    animationLibraryTitle: "Bibliothèque d'animations",
+    officialAnimations: "Animations officielles",
+    userAnimations: "Animations utilisateur",
+    importAnimation: "Importer une animation",
+    exportAnimationPack: "Exporter le pack",
+    exportAnimationSample: "Exporter l'exemple",
+    useAnimationLibraryItem: "Utiliser",
+    renameAnimation: "Renommer",
+    deleteAnimation: "Supprimer",
+    cancel: "Annuler",
+    saveExport: "Exporter",
+    uploadImageForEdit: "Importer une image",
+    editImage: "Modifier l'image",
+    statusAnimationGenerated: "Animation générée",
+    codexFailureTitle: "Échec de la génération",
+    createCodexJob: "Créer une tâche Codex",
+    generateLocalImage: "Générer du pixel art",
+    generateLocalSprite: "Générer l'animation",
+    importLatest: "Importer le dernier résultat",
+    importFile: "Importer un fichier",
+    currentWorkflow: "Flux actuel",
+    results: "Résultats"
+  }),
+  id: withUiCopy({
+    language: "Bahasa",
+    workflowPanelTitle: "Alur kerja",
+    canvasAnnotationTitle: "Pratinjau",
+    previewLabel: "Pratinjau",
+    canvasEmpty: "Impor atau buat gambar untuk memulai",
+    promptExamples: "Contoh prompt",
+    promptExamplesTitle: "Contoh prompt",
+    copyPrompt: "Salin prompt",
+    usePrompt: "Gunakan prompt",
+    closePromptExamples: "Tutup",
+    animationStepSourceTitle: "1. Unggah pixel art",
+    animationStepMotionTitle: "2. Pilih gerakan",
+    animationStepGenerateTitle: "3. Buat",
+    animationStepDownloadTitle: "4. Unduh",
+    uploadPixelArt: "Unggah pixel art",
+    motionPreset: "Animasi terpilih",
+    chooseAnimation: "Pilih animasi",
+    useAnimationPreset: "Pilih animasi",
+    generationMayTakeMinutes: "Pembuatan bisa memakan beberapa menit.",
+    animationReady: "Frame animasi siap",
+    animatedGif: "GIF animasi",
+    animatedWebP: "WebP animasi",
+    spriteSheetDownload: "Sprite sheet",
+    directionalPreviews: "Pratinjau arah",
+    animationGeneratedFrom: "Dibuat dari",
+    imageDownloadTitle: "Unduh",
+    animationLibraryTitle: "Pustaka animasi",
+    officialAnimations: "Animasi resmi",
+    userAnimations: "Animasi pengguna",
+    importAnimation: "Impor animasi",
+    exportAnimationPack: "Ekspor paket",
+    exportAnimationSample: "Ekspor sampel",
+    useAnimationLibraryItem: "Gunakan",
+    renameAnimation: "Ganti nama",
+    deleteAnimation: "Hapus",
+    cancel: "Batal",
+    saveExport: "Ekspor",
+    uploadImageForEdit: "Unggah gambar",
+    editImage: "Edit gambar",
+    statusAnimationGenerated: "Animasi dibuat",
+    codexFailureTitle: "Pembuatan gagal",
+    createCodexJob: "Buat job Codex",
+    generateLocalImage: "Buat pixel art",
+    generateLocalSprite: "Buat animasi",
+    importLatest: "Impor hasil terbaru",
+    importFile: "Impor file",
+    currentWorkflow: "Alur saat ini",
+    results: "Hasil"
+  }),
+  tr: withUiCopy({
+    language: "Dil",
+    workflowPanelTitle: "İş akışı",
+    canvasAnnotationTitle: "Önizleme",
+    previewLabel: "Önizleme",
+    canvasEmpty: "Başlamak için bir görsel içe aktarın veya üretin",
+    promptExamples: "Prompt örnekleri",
+    promptExamplesTitle: "Prompt örnekleri",
+    copyPrompt: "Promptu kopyala",
+    usePrompt: "Promptu kullan",
+    closePromptExamples: "Kapat",
+    animationStepSourceTitle: "1. Piksel sanat yükle",
+    animationStepMotionTitle: "2. Hareket seç",
+    animationStepGenerateTitle: "3. Üret",
+    animationStepDownloadTitle: "4. İndir",
+    uploadPixelArt: "Piksel sanat yükle",
+    motionPreset: "Seçili animasyon",
+    chooseAnimation: "Animasyon seç",
+    useAnimationPreset: "Animasyon seç",
+    generationMayTakeMinutes: "Üretim birkaç dakika sürebilir.",
+    animationReady: "Animasyon kareleri hazır",
+    animatedGif: "Animasyonlu GIF",
+    animatedWebP: "Animasyonlu WebP",
+    spriteSheetDownload: "Sprite sheet",
+    directionalPreviews: "Yön önizlemeleri",
+    animationGeneratedFrom: "Kaynak",
+    imageDownloadTitle: "İndir",
+    animationLibraryTitle: "Animasyon kitaplığı",
+    officialAnimations: "Resmi animasyonlar",
+    userAnimations: "Kullanıcı animasyonları",
+    importAnimation: "Animasyon içe aktar",
+    exportAnimationPack: "Animasyon paketi dışa aktar",
+    exportAnimationSample: "Örnek dışa aktar",
+    useAnimationLibraryItem: "Kullan",
+    renameAnimation: "Yeniden adlandır",
+    deleteAnimation: "Sil",
+    cancel: "İptal",
+    saveExport: "Dışa aktar",
+    uploadImageForEdit: "Görsel yükle",
+    editImage: "Görsel düzenle",
+    statusAnimationGenerated: "Animasyon üretildi",
+    codexFailureTitle: "Oluşturma başarısız",
+    createCodexJob: "Codex işi oluştur",
+    generateLocalImage: "Piksel sanat üret",
+    generateLocalSprite: "Animasyon üret",
+    importLatest: "En son sonucu içe aktar",
+    importFile: "Dosya içe aktar",
+    currentWorkflow: "Geçerli iş akışı",
+    results: "Sonuçlar"
+  }),
+  vi: withUiCopy({
+    language: "Ngôn ngữ",
+    workflowPanelTitle: "Quy trình",
+    canvasAnnotationTitle: "Xem trước",
+    previewLabel: "Xem trước",
+    canvasEmpty: "Nhập hoặc tạo ảnh để bắt đầu",
+    promptExamples: "Ví dụ prompt",
+    promptExamplesTitle: "Ví dụ prompt",
+    copyPrompt: "Sao chép prompt",
+    usePrompt: "Dùng prompt",
+    closePromptExamples: "Đóng",
+    animationStepSourceTitle: "1. Tải pixel art lên",
+    animationStepMotionTitle: "2. Chọn chuyển động",
+    animationStepGenerateTitle: "3. Tạo",
+    animationStepDownloadTitle: "4. Tải xuống",
+    uploadPixelArt: "Tải pixel art lên",
+    motionPreset: "Hoạt ảnh đã chọn",
+    chooseAnimation: "Chọn hoạt ảnh",
+    useAnimationPreset: "Chọn hoạt ảnh",
+    generationMayTakeMinutes: "Việc tạo có thể mất vài phút.",
+    animationReady: "Khung hoạt ảnh đã sẵn sàng",
+    animatedGif: "GIF động",
+    animatedWebP: "WebP động",
+    spriteSheetDownload: "Sprite sheet",
+    directionalPreviews: "Xem trước theo hướng",
+    animationGeneratedFrom: "Tạo từ",
+    imageDownloadTitle: "Tải xuống",
+    animationLibraryTitle: "Thư viện hoạt ảnh",
+    officialAnimations: "Hoạt ảnh chính thức",
+    userAnimations: "Hoạt ảnh người dùng",
+    importAnimation: "Nhập hoạt ảnh",
+    exportAnimationPack: "Xuất gói hoạt ảnh",
+    exportAnimationSample: "Xuất mẫu",
+    useAnimationLibraryItem: "Dùng",
+    renameAnimation: "Đổi tên",
+    deleteAnimation: "Xóa",
+    cancel: "Hủy",
+    saveExport: "Xuất",
+    uploadImageForEdit: "Tải ảnh lên",
+    editImage: "Chỉnh sửa ảnh",
+    statusAnimationGenerated: "Đã tạo hoạt ảnh",
+    codexFailureTitle: "Tạo thất bại",
+    createCodexJob: "Tạo job Codex",
+    generateLocalImage: "Tạo pixel art",
+    generateLocalSprite: "Tạo hoạt ảnh",
+    importLatest: "Nhập kết quả mới nhất",
+    importFile: "Nhập tệp",
+    currentWorkflow: "Quy trình hiện tại",
+    results: "Kết quả"
+  }),
+  pl: withUiCopy({
+    language: "Język",
+    workflowPanelTitle: "Proces",
+    canvasAnnotationTitle: "Podgląd",
+    previewLabel: "Podgląd",
+    canvasEmpty: "Zaimportuj lub wygeneruj obraz, aby zacząć",
+    promptExamples: "Przykłady promptów",
+    promptExamplesTitle: "Przykłady promptów",
+    copyPrompt: "Kopiuj prompt",
+    usePrompt: "Użyj promptu",
+    closePromptExamples: "Zamknij",
+    animationStepSourceTitle: "1. Prześlij pixel art",
+    animationStepMotionTitle: "2. Wybierz ruch",
+    animationStepGenerateTitle: "3. Generuj",
+    animationStepDownloadTitle: "4. Pobierz",
+    uploadPixelArt: "Prześlij pixel art",
+    motionPreset: "Wybrana animacja",
+    chooseAnimation: "Wybierz animację",
+    useAnimationPreset: "Wybierz animację",
+    generationMayTakeMinutes: "Generowanie może potrwać kilka minut.",
+    animationReady: "Klatki animacji gotowe",
+    animatedGif: "Animowany GIF",
+    animatedWebP: "Animowany WebP",
+    spriteSheetDownload: "Sprite sheet",
+    directionalPreviews: "Podglądy kierunków",
+    animationGeneratedFrom: "Wygenerowano z",
+    imageDownloadTitle: "Pobierz",
+    animationLibraryTitle: "Biblioteka animacji",
+    officialAnimations: "Oficjalne animacje",
+    userAnimations: "Animacje użytkownika",
+    importAnimation: "Importuj animację",
+    exportAnimationPack: "Eksportuj pakiet",
+    exportAnimationSample: "Eksportuj przykład",
+    useAnimationLibraryItem: "Użyj",
+    renameAnimation: "Zmień nazwę",
+    deleteAnimation: "Usuń",
+    cancel: "Anuluj",
+    saveExport: "Eksportuj",
+    uploadImageForEdit: "Prześlij obraz",
+    editImage: "Edytuj obraz",
+    statusAnimationGenerated: "Animacja wygenerowana",
+    codexFailureTitle: "Generowanie nie powiodło się",
+    createCodexJob: "Utwórz zadanie Codex",
+    generateLocalImage: "Generuj pixel art",
+    generateLocalSprite: "Generuj animację",
+    importLatest: "Importuj najnowszy wynik",
+    importFile: "Importuj plik",
+    currentWorkflow: "Bieżący proces",
+    results: "Wyniki"
+  }),
+  it: withUiCopy({
+    language: "Lingua",
+    workflowPanelTitle: "Flusso",
+    canvasAnnotationTitle: "Anteprima",
+    previewLabel: "Anteprima",
+    canvasEmpty: "Importa o genera un'immagine per iniziare",
+    promptExamples: "Esempi di prompt",
+    promptExamplesTitle: "Esempi di prompt",
+    copyPrompt: "Copia prompt",
+    usePrompt: "Usa prompt",
+    closePromptExamples: "Chiudi",
+    animationStepSourceTitle: "1. Carica pixel art",
+    animationStepMotionTitle: "2. Scegli movimento",
+    animationStepGenerateTitle: "3. Genera",
+    animationStepDownloadTitle: "4. Scarica",
+    uploadPixelArt: "Carica pixel art",
+    motionPreset: "Animazione selezionata",
+    chooseAnimation: "Scegli animazione",
+    useAnimationPreset: "Scegli animazione",
+    generationMayTakeMinutes: "La generazione può richiedere alcuni minuti.",
+    animationReady: "Frame animazione pronti",
+    animatedGif: "GIF animata",
+    animatedWebP: "WebP animata",
+    spriteSheetDownload: "Sprite sheet",
+    directionalPreviews: "Anteprime direzioni",
+    animationGeneratedFrom: "Generato da",
+    imageDownloadTitle: "Scarica",
+    animationLibraryTitle: "Libreria animazioni",
+    officialAnimations: "Animazioni ufficiali",
+    userAnimations: "Animazioni utente",
+    importAnimation: "Importa animazione",
+    exportAnimationPack: "Esporta pacchetto",
+    exportAnimationSample: "Esporta esempio",
+    useAnimationLibraryItem: "Usa",
+    renameAnimation: "Rinomina",
+    deleteAnimation: "Elimina",
+    cancel: "Annulla",
+    saveExport: "Esporta",
+    uploadImageForEdit: "Carica immagine",
+    editImage: "Modifica immagine",
+    statusAnimationGenerated: "Animazione generata",
+    codexFailureTitle: "Generazione non riuscita",
+    createCodexJob: "Crea job Codex",
+    generateLocalImage: "Genera pixel art",
+    generateLocalSprite: "Genera animazione",
+    importLatest: "Importa risultato più recente",
+    importFile: "Importa file",
+    currentWorkflow: "Flusso corrente",
+    results: "Risultati"
+  })
+} satisfies Record<Language, UiCopy>;
+
+function withUiCopy(overrides: Partial<UiCopy>): UiCopy {
+  return { ...baseUiCopy.en, ...overrides };
+}
+
+function localizedText(text: LocalizedText, language: Language) {
+  return text[language] ?? text.en;
+}
+
+type WorkflowCopy = Record<WorkflowMode, { label: string; detail: string; status: string }>;
+
+const baseWorkflowCopy = {
   en: {
     "image-generate": {
       label: "Pixel Art Generation",
@@ -743,12 +1543,102 @@ const workflowCopy: Record<Language, Record<WorkflowMode, { label: string; detai
       status: "フレーム、アンカー、QC、スプライトパッケージ書き出しを確認します"
     }
   }
-};
+} satisfies Record<BaseLanguage, WorkflowCopy>;
 
-const workflowFormCopy: Record<
-  Language,
-  Record<WorkflowMode, { promptLabel: string; negativeLabel: string; notesLabel: string; notesPlaceholder: string }>
-> = {
+const workflowCopy = {
+  ...baseWorkflowCopy,
+  "zh-CN": withWorkflowCopy({
+    "image-generate": { label: "像素艺术生成", detail: "将提示词发送到本地 Codex imagegen，并把生成图像带回 cockpit。", status: "通过本地 Codex imagegen 生成像素艺术" },
+    "image-edit": { label: "图像编辑", detail: "在图像上选择编号矩形、添加评论，然后请求 Codex 编辑。", status: "选择编号编辑区域并创建 Codex 交接作业" },
+    "sprite-generate": { label: "动画生成", detail: "上传或选择像素艺术，然后让 Codex 生成 5 方向动画精灵表。", status: "上传或选择像素艺术，然后生成动画帧" },
+    "sprite-edit": { label: "4. 精灵表编辑" }
+  }),
+  "zh-TW": withWorkflowCopy({
+    "image-generate": { label: "像素藝術生成", detail: "將提示詞送到本地 Codex imagegen，並把生成圖像帶回 cockpit。", status: "透過本地 Codex imagegen 生成像素藝術" },
+    "image-edit": { label: "圖像編輯", detail: "在圖像上選擇編號矩形、加入註解，然後請 Codex 編輯。", status: "選擇編號編輯區域並建立 Codex 交接作業" },
+    "sprite-generate": { label: "動畫生成", detail: "上傳或選擇像素藝術，然後讓 Codex 生成 5 方向動畫精靈表。", status: "上傳或選擇像素藝術，然後生成動畫影格" },
+    "sprite-edit": { label: "4. 精靈表編輯" }
+  }),
+  ko: withWorkflowCopy({
+    "image-generate": { label: "픽셀 아트 생성", detail: "프롬프트를 로컬 Codex imagegen에 보내고 생성 이미지를 cockpit으로 가져옵니다.", status: "로컬 Codex imagegen으로 픽셀 아트를 생성합니다" },
+    "image-edit": { label: "이미지 편집", detail: "이미지에 번호가 있는 사각형을 선택하고 영역별 코멘트를 Codex에 전달합니다.", status: "번호가 있는 편집 영역과 코멘트로 Codex 작업을 만듭니다" },
+    "sprite-generate": { label: "애니메이션 생성", detail: "픽셀 아트를 업로드하거나 선택한 뒤 Codex에 5방향 애니메이션 시트를 요청합니다.", status: "픽셀 아트를 업로드하거나 선택한 뒤 애니메이션 프레임을 생성합니다" },
+    "sprite-edit": { label: "4. 스프라이트 시트 편집" }
+  }),
+  ru: withWorkflowCopy({
+    "image-generate": { label: "Генерация пиксель-арта", detail: "Отправьте промпт в локальный Codex imagegen и верните созданное изображение в cockpit.", status: "Создание пиксель-арта через локальный Codex imagegen" },
+    "image-edit": { label: "Редактирование изображения", detail: "Выделите нумерованные прямоугольники, добавьте комментарии и попросите Codex отредактировать изображение.", status: "Создайте области правки и задание Codex" },
+    "sprite-generate": { label: "Генерация анимации", detail: "Загрузите или выберите пиксель-арт, затем попросите Codex создать 5-направленный спрайт-лист.", status: "Загрузите или выберите пиксель-арт, затем создайте кадры анимации" },
+    "sprite-edit": { label: "4. Редактирование спрайт-листа" }
+  }),
+  es: withWorkflowCopy({
+    "image-generate": { label: "Generación de pixel art", detail: "Envía el prompt a Codex imagegen local y devuelve la imagen generada al cockpit.", status: "Genera pixel art con el handoff local de Codex imagegen" },
+    "image-edit": { label: "Edición de imagen", detail: "Marca rectángulos numerados, comenta cada región y pide a Codex que edite la imagen.", status: "Crea regiones numeradas y un trabajo Codex" },
+    "sprite-generate": { label: "Generación de animación", detail: "Sube o selecciona pixel art y pide a Codex un sprite sheet de 5 direcciones.", status: "Sube o selecciona pixel art y genera fotogramas" },
+    "sprite-edit": { label: "4. Edición de sprite sheet" }
+  }),
+  "pt-BR": withWorkflowCopy({
+    "image-generate": { label: "Geração de pixel art", detail: "Envie o prompt para o Codex imagegen local e retorne a imagem gerada ao cockpit.", status: "Gere pixel art pelo handoff local do Codex imagegen" },
+    "image-edit": { label: "Edição de imagem", detail: "Selecione retângulos numerados, comente cada região e peça a edição ao Codex.", status: "Crie regiões numeradas e um job Codex" },
+    "sprite-generate": { label: "Geração de animação", detail: "Envie ou selecione pixel art e peça ao Codex uma sprite sheet de 5 direções.", status: "Envie ou selecione pixel art e gere os quadros" },
+    "sprite-edit": { label: "4. Edição de sprite sheet" }
+  }),
+  de: withWorkflowCopy({
+    "image-generate": { label: "Pixel-Art-Erstellung", detail: "Sende den Prompt an lokales Codex imagegen und hole das Bild zurück ins Cockpit.", status: "Pixel-Art über lokales Codex imagegen erstellen" },
+    "image-edit": { label: "Bildbearbeitung", detail: "Markiere nummerierte Rechtecke, kommentiere sie und lasse Codex das Bild bearbeiten.", status: "Nummerierte Bereiche und einen Codex-Job erstellen" },
+    "sprite-generate": { label: "Animation erstellen", detail: "Lade Pixel-Art hoch oder wähle sie aus und fordere ein 5-Richtungen-Sprite-Sheet an.", status: "Pixel-Art auswählen und Animationsframes erstellen" },
+    "sprite-edit": { label: "4. Sprite-Sheet bearbeiten" }
+  }),
+  fr: withWorkflowCopy({
+    "image-generate": { label: "Génération de pixel art", detail: "Envoyez le prompt à Codex imagegen local et ramenez l'image générée dans le cockpit.", status: "Générer du pixel art via le handoff Codex local" },
+    "image-edit": { label: "Édition d'image", detail: "Sélectionnez des rectangles numérotés, commentez chaque zone, puis demandez l'édition à Codex.", status: "Créer des zones numérotées et une tâche Codex" },
+    "sprite-generate": { label: "Génération d'animation", detail: "Importez ou sélectionnez du pixel art, puis demandez une sprite sheet à 5 directions.", status: "Importer ou sélectionner du pixel art, puis générer les images" },
+    "sprite-edit": { label: "4. Édition de sprite sheet" }
+  }),
+  id: withWorkflowCopy({
+    "image-generate": { label: "Pembuatan pixel art", detail: "Kirim prompt ke Codex imagegen lokal dan kembalikan gambar ke cockpit.", status: "Buat pixel art melalui handoff Codex imagegen lokal" },
+    "image-edit": { label: "Pengeditan gambar", detail: "Pilih kotak bernomor, beri komentar, lalu minta Codex mengedit gambar.", status: "Buat area edit bernomor dan job Codex" },
+    "sprite-generate": { label: "Pembuatan animasi", detail: "Unggah atau pilih pixel art, lalu minta sprite sheet 5 arah dari Codex.", status: "Unggah atau pilih pixel art, lalu buat frame animasi" },
+    "sprite-edit": { label: "4. Edit sprite sheet" }
+  }),
+  tr: withWorkflowCopy({
+    "image-generate": { label: "Piksel sanat üretimi", detail: "Promptu yerel Codex imagegen'e gönderip üretilen görseli cockpit'e döndürür.", status: "Yerel Codex imagegen ile piksel sanat üret" },
+    "image-edit": { label: "Görsel düzenleme", detail: "Görselde numaralı dikdörtgenler seçin, yorum ekleyin ve Codex'ten düzenleme isteyin.", status: "Numaralı düzenleme alanları ve Codex işi oluştur" },
+    "sprite-generate": { label: "Animasyon üretimi", detail: "Piksel sanatı yükleyin veya seçin, Codex'ten 5 yönlü sprite sheet isteyin.", status: "Piksel sanat seçip animasyon kareleri üret" },
+    "sprite-edit": { label: "4. Sprite sheet düzenleme" }
+  }),
+  vi: withWorkflowCopy({
+    "image-generate": { label: "Tạo pixel art", detail: "Gửi prompt tới Codex imagegen cục bộ và đưa ảnh đã tạo về cockpit.", status: "Tạo pixel art qua handoff Codex imagegen cục bộ" },
+    "image-edit": { label: "Chỉnh sửa hình ảnh", detail: "Chọn vùng chữ nhật có số, thêm nhận xét, rồi yêu cầu Codex chỉnh sửa.", status: "Tạo vùng chỉnh sửa có số và job Codex" },
+    "sprite-generate": { label: "Tạo hoạt ảnh", detail: "Tải lên hoặc chọn pixel art, rồi yêu cầu Codex tạo sprite sheet 5 hướng.", status: "Tải lên hoặc chọn pixel art rồi tạo khung hoạt ảnh" },
+    "sprite-edit": { label: "4. Chỉnh sửa sprite sheet" }
+  }),
+  pl: withWorkflowCopy({
+    "image-generate": { label: "Generowanie pixel art", detail: "Wyślij prompt do lokalnego Codex imagegen i zwróć obraz do cockpit.", status: "Generuj pixel art przez lokalny handoff Codex imagegen" },
+    "image-edit": { label: "Edycja obrazu", detail: "Zaznacz numerowane prostokąty, dodaj komentarze i poproś Codex o edycję.", status: "Utwórz numerowane obszary i zadanie Codex" },
+    "sprite-generate": { label: "Generowanie animacji", detail: "Prześlij lub wybierz pixel art, a potem poproś Codex o sprite sheet w 5 kierunkach.", status: "Prześlij lub wybierz pixel art i generuj klatki" },
+    "sprite-edit": { label: "4. Edycja sprite sheet" }
+  }),
+  it: withWorkflowCopy({
+    "image-generate": { label: "Generazione pixel art", detail: "Invia il prompt a Codex imagegen locale e riporta l'immagine nel cockpit.", status: "Genera pixel art con handoff locale Codex imagegen" },
+    "image-edit": { label: "Modifica immagine", detail: "Seleziona rettangoli numerati, commenta ogni area e chiedi a Codex di modificare.", status: "Crea aree numerate e un job Codex" },
+    "sprite-generate": { label: "Generazione animazione", detail: "Carica o seleziona pixel art e chiedi a Codex una sprite sheet a 5 direzioni.", status: "Carica o seleziona pixel art e genera frame" },
+    "sprite-edit": { label: "4. Modifica sprite sheet" }
+  })
+} satisfies Record<Language, WorkflowCopy>;
+
+function withWorkflowCopy(overrides: Partial<Record<WorkflowMode, Partial<WorkflowCopy[WorkflowMode]>>>): WorkflowCopy {
+  return {
+    "image-generate": { ...baseWorkflowCopy.en["image-generate"], ...overrides["image-generate"] },
+    "image-edit": { ...baseWorkflowCopy.en["image-edit"], ...overrides["image-edit"] },
+    "sprite-generate": { ...baseWorkflowCopy.en["sprite-generate"], ...overrides["sprite-generate"] },
+    "sprite-edit": { ...baseWorkflowCopy.en["sprite-edit"], ...overrides["sprite-edit"] }
+  };
+}
+
+type WorkflowFormCopy = Record<WorkflowMode, { promptLabel: string; negativeLabel: string; notesLabel: string; notesPlaceholder: string }>;
+
+const baseWorkflowFormCopy = {
   en: {
     "image-generate": {
       promptLabel: "Pixel Art Prompt",
@@ -801,7 +1691,98 @@ const workflowFormCopy: Record<
       notesPlaceholder: "順番、anchor、透明化、frame size、出力条件を書きます"
     }
   }
-};
+} satisfies Record<BaseLanguage, WorkflowFormCopy>;
+
+const workflowFormCopy = {
+  ...baseWorkflowFormCopy,
+  "zh-CN": withWorkflowFormCopy({
+    "image-generate": { promptLabel: "像素艺术提示词", negativeLabel: "避免内容", notesLabel: "生成备注", notesPlaceholder: "风格、比例、透明、适合制作精灵的要求" },
+    "image-edit": { promptLabel: "编辑提示词", negativeLabel: "避免内容", notesLabel: "编辑备注" },
+    "sprite-generate": { promptLabel: "动画提示词", negativeLabel: "避免内容", notesLabel: "动画备注" },
+    "sprite-edit": { promptLabel: "精灵提示词", negativeLabel: "避免内容", notesLabel: "调整备注" }
+  }),
+  "zh-TW": withWorkflowFormCopy({
+    "image-generate": { promptLabel: "像素藝術提示詞", negativeLabel: "避免內容", notesLabel: "生成備註", notesPlaceholder: "風格、比例、透明、適合製作精靈的要求" },
+    "image-edit": { promptLabel: "編輯提示詞", negativeLabel: "避免內容", notesLabel: "編輯備註" },
+    "sprite-generate": { promptLabel: "動畫提示詞", negativeLabel: "避免內容", notesLabel: "動畫備註" },
+    "sprite-edit": { promptLabel: "精靈提示詞", negativeLabel: "避免內容", notesLabel: "調整備註" }
+  }),
+  ko: withWorkflowFormCopy({
+    "image-generate": { promptLabel: "픽셀 아트 프롬프트", negativeLabel: "피할 요소", notesLabel: "생성 메모" },
+    "image-edit": { promptLabel: "편집 프롬프트", negativeLabel: "피할 요소", notesLabel: "편집 메모" },
+    "sprite-generate": { promptLabel: "애니메이션 프롬프트", negativeLabel: "피할 요소", notesLabel: "애니메이션 메모" },
+    "sprite-edit": { promptLabel: "스프라이트 프롬프트", negativeLabel: "피할 요소", notesLabel: "조정 메모" }
+  }),
+  ru: withWorkflowFormCopy({
+    "image-generate": { promptLabel: "Промпт пиксель-арта", negativeLabel: "Избегать", notesLabel: "Заметки генерации" },
+    "image-edit": { promptLabel: "Промпт правки", negativeLabel: "Избегать", notesLabel: "Заметки правки" },
+    "sprite-generate": { promptLabel: "Промпт анимации", negativeLabel: "Избегать", notesLabel: "Заметки анимации" },
+    "sprite-edit": { promptLabel: "Промпт спрайта", negativeLabel: "Избегать", notesLabel: "Заметки спрайта" }
+  }),
+  es: withWorkflowFormCopy({
+    "image-generate": { promptLabel: "Prompt de pixel art", negativeLabel: "Evitar", notesLabel: "Notas de generación" },
+    "image-edit": { promptLabel: "Prompt de edición", negativeLabel: "Evitar", notesLabel: "Notas de edición" },
+    "sprite-generate": { promptLabel: "Prompt de animación", negativeLabel: "Evitar", notesLabel: "Notas de animación" },
+    "sprite-edit": { promptLabel: "Prompt de sprite", negativeLabel: "Evitar", notesLabel: "Notas de sprite" }
+  }),
+  "pt-BR": withWorkflowFormCopy({
+    "image-generate": { promptLabel: "Prompt de pixel art", negativeLabel: "Evitar", notesLabel: "Notas de geração" },
+    "image-edit": { promptLabel: "Prompt de edição", negativeLabel: "Evitar", notesLabel: "Notas de edição" },
+    "sprite-generate": { promptLabel: "Prompt de animação", negativeLabel: "Evitar", notesLabel: "Notas de animação" },
+    "sprite-edit": { promptLabel: "Prompt de sprite", negativeLabel: "Evitar", notesLabel: "Notas de sprite" }
+  }),
+  de: withWorkflowFormCopy({
+    "image-generate": { promptLabel: "Pixel-Art-Prompt", negativeLabel: "Vermeiden", notesLabel: "Erstellungsnotizen" },
+    "image-edit": { promptLabel: "Bearbeitungs-Prompt", negativeLabel: "Vermeiden", notesLabel: "Bearbeitungsnotizen" },
+    "sprite-generate": { promptLabel: "Animations-Prompt", negativeLabel: "Vermeiden", notesLabel: "Animationsnotizen" },
+    "sprite-edit": { promptLabel: "Sprite-Prompt", negativeLabel: "Vermeiden", notesLabel: "Sprite-Notizen" }
+  }),
+  fr: withWorkflowFormCopy({
+    "image-generate": { promptLabel: "Prompt pixel art", negativeLabel: "À éviter", notesLabel: "Notes de génération" },
+    "image-edit": { promptLabel: "Prompt d'édition", negativeLabel: "À éviter", notesLabel: "Notes d'édition" },
+    "sprite-generate": { promptLabel: "Prompt d'animation", negativeLabel: "À éviter", notesLabel: "Notes d'animation" },
+    "sprite-edit": { promptLabel: "Prompt de sprite", negativeLabel: "À éviter", notesLabel: "Notes de sprite" }
+  }),
+  id: withWorkflowFormCopy({
+    "image-generate": { promptLabel: "Prompt pixel art", negativeLabel: "Hindari", notesLabel: "Catatan pembuatan" },
+    "image-edit": { promptLabel: "Prompt edit", negativeLabel: "Hindari", notesLabel: "Catatan edit" },
+    "sprite-generate": { promptLabel: "Prompt animasi", negativeLabel: "Hindari", notesLabel: "Catatan animasi" },
+    "sprite-edit": { promptLabel: "Prompt sprite", negativeLabel: "Hindari", notesLabel: "Catatan sprite" }
+  }),
+  tr: withWorkflowFormCopy({
+    "image-generate": { promptLabel: "Piksel sanat promptu", negativeLabel: "Kaçınılacaklar", notesLabel: "Üretim notları" },
+    "image-edit": { promptLabel: "Düzenleme promptu", negativeLabel: "Kaçınılacaklar", notesLabel: "Düzenleme notları" },
+    "sprite-generate": { promptLabel: "Animasyon promptu", negativeLabel: "Kaçınılacaklar", notesLabel: "Animasyon notları" },
+    "sprite-edit": { promptLabel: "Sprite promptu", negativeLabel: "Kaçınılacaklar", notesLabel: "Sprite notları" }
+  }),
+  vi: withWorkflowFormCopy({
+    "image-generate": { promptLabel: "Prompt pixel art", negativeLabel: "Tránh", notesLabel: "Ghi chú tạo" },
+    "image-edit": { promptLabel: "Prompt chỉnh sửa", negativeLabel: "Tránh", notesLabel: "Ghi chú chỉnh sửa" },
+    "sprite-generate": { promptLabel: "Prompt hoạt ảnh", negativeLabel: "Tránh", notesLabel: "Ghi chú hoạt ảnh" },
+    "sprite-edit": { promptLabel: "Prompt sprite", negativeLabel: "Tránh", notesLabel: "Ghi chú sprite" }
+  }),
+  pl: withWorkflowFormCopy({
+    "image-generate": { promptLabel: "Prompt pixel art", negativeLabel: "Unikaj", notesLabel: "Notatki generowania" },
+    "image-edit": { promptLabel: "Prompt edycji", negativeLabel: "Unikaj", notesLabel: "Notatki edycji" },
+    "sprite-generate": { promptLabel: "Prompt animacji", negativeLabel: "Unikaj", notesLabel: "Notatki animacji" },
+    "sprite-edit": { promptLabel: "Prompt sprite", negativeLabel: "Unikaj", notesLabel: "Notatki sprite" }
+  }),
+  it: withWorkflowFormCopy({
+    "image-generate": { promptLabel: "Prompt pixel art", negativeLabel: "Evita", notesLabel: "Note generazione" },
+    "image-edit": { promptLabel: "Prompt modifica", negativeLabel: "Evita", notesLabel: "Note modifica" },
+    "sprite-generate": { promptLabel: "Prompt animazione", negativeLabel: "Evita", notesLabel: "Note animazione" },
+    "sprite-edit": { promptLabel: "Prompt sprite", negativeLabel: "Evita", notesLabel: "Note sprite" }
+  })
+} satisfies Record<Language, WorkflowFormCopy>;
+
+function withWorkflowFormCopy(overrides: Partial<Record<WorkflowMode, Partial<WorkflowFormCopy[WorkflowMode]>>>): WorkflowFormCopy {
+  return {
+    "image-generate": { ...baseWorkflowFormCopy.en["image-generate"], ...overrides["image-generate"] },
+    "image-edit": { ...baseWorkflowFormCopy.en["image-edit"], ...overrides["image-edit"] },
+    "sprite-generate": { ...baseWorkflowFormCopy.en["sprite-generate"], ...overrides["sprite-generate"] },
+    "sprite-edit": { ...baseWorkflowFormCopy.en["sprite-edit"], ...overrides["sprite-edit"] }
+  };
+}
 
 const DEFAULT_ANIMATION_PRESET_ID = "walk-cycle";
 
@@ -2604,7 +3585,7 @@ function App() {
     setWorkflowMode("sprite-generate");
     setProviderId("codex-handoff");
     setShowAnimationPresetExamples(false);
-    setStatus(`${copy.animationPresetExampleApplied}: ${example.title[language]}`);
+    setStatus(`${copy.animationPresetExampleApplied}: ${localizedText(example.title, language)}`);
   }
 
   async function handleAnimationPackFiles(files: FileList | File[]) {
@@ -2905,9 +3886,9 @@ function App() {
                 </div>
                 <div className="selected-animation-card">
                   <small className="step-kicker">{copy.motionPreset}</small>
-                  <strong>{selectedAnimationPreset.title[language]}</strong>
-                  <span>{selectedAnimationPreset.summary[language]}</span>
-                  <em>{selectedAnimationPreset.category[language]}</em>
+                  <strong>{localizedText(selectedAnimationPreset.title, language)}</strong>
+                  <span>{localizedText(selectedAnimationPreset.summary, language)}</span>
+                  <em>{localizedText(selectedAnimationPreset.category, language)}</em>
                 </div>
                 <button className="prompt-example-trigger animation-preset-example-trigger" onClick={() => setShowAnimationPresetExamples(true)}>
                   <Film size={15} aria-hidden="true" />
@@ -3941,19 +4922,21 @@ function primaryActionLabel(
 }
 
 function codexJobQueueLabels(language: Language) {
-  if (language === "ja") {
-    return {
-      title: "Codexジョブ",
-      activeSlots: "実行枠",
-      running: "実行中",
-      queued: "待機中",
-      waitingForSlot: "空き枠待ち",
-      queueAction: "キューに追加",
-      queuedStatus: "Codexキューに追加しました"
-    };
-  }
+  return codexJobQueueCopy[language];
+}
 
-  return {
+const codexJobQueueCopyBase = {
+  title: "Codex Jobs",
+  activeSlots: "Active",
+  running: "Running",
+  queued: "Queued",
+  waitingForSlot: "Waiting for an open slot",
+  queueAction: "Queue Codex Job",
+  queuedStatus: "Codex job queued"
+};
+
+const codexJobQueueCopy = {
+  en: {
     title: "Codex Jobs",
     activeSlots: "Active",
     running: "Running",
@@ -3961,7 +4944,33 @@ function codexJobQueueLabels(language: Language) {
     waitingForSlot: "Waiting for an open slot",
     queueAction: "Queue Codex Job",
     queuedStatus: "Codex job queued"
-  };
+  },
+  ja: {
+    title: "Codexジョブ",
+    activeSlots: "実行枠",
+    running: "実行中",
+    queued: "待機中",
+    waitingForSlot: "空き枠待ち",
+    queueAction: "キューに追加",
+    queuedStatus: "Codexキューに追加しました"
+  },
+  "zh-CN": withCodexJobQueueCopy({ title: "Codex 作业", activeSlots: "执行槽", running: "运行中", queued: "排队中", waitingForSlot: "等待空槽", queueAction: "加入队列", queuedStatus: "Codex 作业已排队" }),
+  "zh-TW": withCodexJobQueueCopy({ title: "Codex 作業", activeSlots: "執行槽", running: "執行中", queued: "排隊中", waitingForSlot: "等待空位", queueAction: "加入佇列", queuedStatus: "Codex 作業已加入佇列" }),
+  ko: withCodexJobQueueCopy({ title: "Codex 작업", activeSlots: "실행 슬롯", running: "실행 중", queued: "대기 중", waitingForSlot: "빈 슬롯 대기", queueAction: "대기열에 추가", queuedStatus: "Codex 작업을 대기열에 추가했습니다" }),
+  ru: withCodexJobQueueCopy({ title: "Задания Codex", activeSlots: "Слоты", running: "Выполняется", queued: "В очереди", waitingForSlot: "Ожидание свободного слота", queueAction: "Поставить в очередь", queuedStatus: "Задание Codex в очереди" }),
+  es: withCodexJobQueueCopy({ title: "Trabajos Codex", activeSlots: "Activos", running: "En ejecución", queued: "En cola", waitingForSlot: "Esperando un hueco", queueAction: "Poner en cola", queuedStatus: "Trabajo Codex en cola" }),
+  "pt-BR": withCodexJobQueueCopy({ title: "Jobs Codex", activeSlots: "Ativos", running: "Executando", queued: "Na fila", waitingForSlot: "Aguardando vaga", queueAction: "Adicionar à fila", queuedStatus: "Job Codex na fila" }),
+  de: withCodexJobQueueCopy({ title: "Codex-Jobs", activeSlots: "Aktiv", running: "Läuft", queued: "Wartet", waitingForSlot: "Warten auf freien Slot", queueAction: "Job einreihen", queuedStatus: "Codex-Job eingereiht" }),
+  fr: withCodexJobQueueCopy({ title: "Tâches Codex", activeSlots: "Actives", running: "En cours", queued: "En file", waitingForSlot: "En attente d'un créneau", queueAction: "Mettre en file", queuedStatus: "Tâche Codex en file" }),
+  id: withCodexJobQueueCopy({ title: "Job Codex", activeSlots: "Aktif", running: "Berjalan", queued: "Antre", waitingForSlot: "Menunggu slot kosong", queueAction: "Masukkan antrean", queuedStatus: "Job Codex masuk antrean" }),
+  tr: withCodexJobQueueCopy({ title: "Codex işleri", activeSlots: "Aktif", running: "Çalışıyor", queued: "Sırada", waitingForSlot: "Boş slot bekleniyor", queueAction: "Sıraya ekle", queuedStatus: "Codex işi sıraya eklendi" }),
+  vi: withCodexJobQueueCopy({ title: "Job Codex", activeSlots: "Đang chạy", running: "Đang chạy", queued: "Đang chờ", waitingForSlot: "Chờ ô trống", queueAction: "Thêm vào hàng chờ", queuedStatus: "Job Codex đã vào hàng chờ" }),
+  pl: withCodexJobQueueCopy({ title: "Zadania Codex", activeSlots: "Aktywne", running: "Działa", queued: "W kolejce", waitingForSlot: "Czeka na slot", queueAction: "Dodaj do kolejki", queuedStatus: "Zadanie Codex w kolejce" }),
+  it: withCodexJobQueueCopy({ title: "Job Codex", activeSlots: "Attivi", running: "In esecuzione", queued: "In coda", waitingForSlot: "In attesa di uno slot", queueAction: "Metti in coda", queuedStatus: "Job Codex in coda" })
+} satisfies Record<Language, typeof codexJobQueueCopyBase>;
+
+function withCodexJobQueueCopy(overrides: Partial<typeof codexJobQueueCopyBase>) {
+  return { ...codexJobQueueCopyBase, ...overrides };
 }
 
 function codexJobLabel(mode: WorkflowMode | null, prompt: string, actionName?: string) {
@@ -4710,13 +5719,13 @@ function PromptExamplesModal({
           {promptExamples.map((example) => (
             <article key={example.id} className="prompt-card">
               <div className="prompt-card-preview">
-                <img src={example.previewImage} alt={`${example.title[language]} example`} />
+                <img src={example.previewImage} alt={`${localizedText(example.title, language)} example`} />
               </div>
               <div className="prompt-card-meta">
-                <small>{example.category[language]}</small>
+                <small>{localizedText(example.category, language)}</small>
               </div>
-              <h2>{example.title[language]}</h2>
-              <small className="prompt-card-note">{example.summary[language]}</small>
+              <h2>{localizedText(example.title, language)}</h2>
+              <small className="prompt-card-note">{localizedText(example.summary, language)}</small>
               <div className="prompt-actions">
                 <button onClick={() => void onCopy(example)}>
                   <Copy size={15} aria-hidden="true" />
@@ -4768,13 +5777,13 @@ function AnimationPresetExamplesModal({
           {animationPresetExamples.map((example) => (
             <article key={example.id} className="prompt-card animation-preset-card">
               <div className="prompt-card-preview animation-sample-preview">
-                <div className={`animation-sample-sprite ${example.previewClassName}`} aria-label={`${example.title[language]} sample animation`} />
+                <div className={`animation-sample-sprite ${example.previewClassName}`} aria-label={`${localizedText(example.title, language)} sample animation`} />
               </div>
               <div className="prompt-card-meta">
-                <small>{example.category[language]}</small>
+                <small>{localizedText(example.category, language)}</small>
               </div>
-              <h2>{example.title[language]}</h2>
-              <small className="prompt-card-note">{example.summary[language]}</small>
+              <h2>{localizedText(example.title, language)}</h2>
+              <small className="prompt-card-note">{localizedText(example.summary, language)}</small>
               <div className="prompt-actions single-action">
                 <button className="primary-button" onClick={() => onUse(example)}>
                   <CheckCircle2 size={15} aria-hidden="true" />
@@ -5364,8 +6373,35 @@ function formatTime(value: string) {
 }
 
 export function resolveInitialLanguage(stored: string | null, browserLanguages: readonly string[] = []): Language {
-  if (stored === "ja" || stored === "en") return stored;
-  return browserLanguages.some((language) => language.toLowerCase().startsWith("ja")) ? "ja" : "en";
+  const storedLanguage = stored ? resolveLocaleToLanguage(stored) : null;
+  if (storedLanguage) return storedLanguage;
+
+  for (const browserLanguage of browserLanguages) {
+    const resolved = resolveLocaleToLanguage(browserLanguage);
+    if (resolved) return resolved;
+  }
+
+  return "en";
+}
+
+function resolveLocaleToLanguage(value: string): Language | null {
+  const normalized = value.trim().replace(/_/g, "-").toLowerCase();
+  if (!normalized) return null;
+
+  const exact = SUPPORTED_LANGUAGE_IDS.find((language) => language.toLowerCase() === normalized);
+  if (exact) return exact;
+
+  if (normalized === "zh-tw" || normalized.startsWith("zh-hant") || normalized.startsWith("zh-hk") || normalized.startsWith("zh-mo")) {
+    return "zh-TW";
+  }
+  if (normalized === "zh" || normalized.startsWith("zh-cn") || normalized.startsWith("zh-hans") || normalized.startsWith("zh-sg")) {
+    return "zh-CN";
+  }
+  if (normalized === "pt" || normalized.startsWith("pt-")) return "pt-BR";
+  if (normalized === "in" || normalized.startsWith("in-")) return "id";
+
+  const prefix = normalized.split("-")[0] ?? "";
+  return supportedLanguageSet.has(prefix) ? (prefix as Language) : null;
 }
 
 function loadLanguage(): Language {
@@ -5379,14 +6415,48 @@ function loadLanguage(): Language {
 }
 
 function formatImagesImportedStatus(count: number, language: Language) {
-  if (language === "ja") return `${count}件の画像を取り込みました`;
-  return `${count} image${count === 1 ? "" : "s"} imported`;
+  return imageImportedStatusCopy[language](count);
 }
 
 function formatFramesAddedStatus(count: number, actionName: string, language: Language) {
-  if (language === "ja") return `${actionName} に ${count}件のフレームを追加しました`;
-  return `${count} frame${count === 1 ? "" : "s"} added to ${actionName}`;
+  return framesAddedStatusCopy[language](count, actionName);
 }
+
+const imageImportedStatusCopy = {
+  en: (count: number) => `${count} image${count === 1 ? "" : "s"} imported`,
+  ja: (count: number) => `${count}件の画像を取り込みました`,
+  "zh-CN": (count: number) => `已导入 ${count} 张图像`,
+  "zh-TW": (count: number) => `已匯入 ${count} 張圖像`,
+  ko: (count: number) => `${count}개의 이미지를 가져왔습니다`,
+  ru: (count: number) => `Импортировано изображений: ${count}`,
+  es: (count: number) => `${count} imagen${count === 1 ? "" : "es"} importada${count === 1 ? "" : "s"}`,
+  "pt-BR": (count: number) => `${count} imagem${count === 1 ? "" : "ns"} importada${count === 1 ? "" : "s"}`,
+  de: (count: number) => `${count} Bild${count === 1 ? "" : "er"} importiert`,
+  fr: (count: number) => `${count} image${count === 1 ? "" : "s"} importée${count === 1 ? "" : "s"}`,
+  id: (count: number) => `${count} gambar diimpor`,
+  tr: (count: number) => `${count} görsel içe aktarıldı`,
+  vi: (count: number) => `Đã nhập ${count} ảnh`,
+  pl: (count: number) => `Zaimportowano obrazów: ${count}`,
+  it: (count: number) => `${count} immagin${count === 1 ? "e importata" : "i importate"}`
+} satisfies Record<Language, (count: number) => string>;
+
+const framesAddedStatusCopy = {
+  en: (count: number, actionName: string) => `${count} frame${count === 1 ? "" : "s"} added to ${actionName}`,
+  ja: (count: number, actionName: string) => `${actionName} に ${count}件のフレームを追加しました`,
+  "zh-CN": (count: number, actionName: string) => `已向 ${actionName} 添加 ${count} 帧`,
+  "zh-TW": (count: number, actionName: string) => `已向 ${actionName} 加入 ${count} 個影格`,
+  ko: (count: number, actionName: string) => `${actionName}에 ${count}개의 프레임을 추가했습니다`,
+  ru: (count: number, actionName: string) => `Кадров добавлено в ${actionName}: ${count}`,
+  es: (count: number, actionName: string) => `${count} fotograma${count === 1 ? "" : "s"} añadido${count === 1 ? "" : "s"} a ${actionName}`,
+  "pt-BR": (count: number, actionName: string) => `${count} quadro${count === 1 ? "" : "s"} adicionado${count === 1 ? "" : "s"} a ${actionName}`,
+  de: (count: number, actionName: string) => `${count} Frame${count === 1 ? "" : "s"} zu ${actionName} hinzugefügt`,
+  fr: (count: number, actionName: string) => `${count} image${count === 1 ? "" : "s"} ajoutée${count === 1 ? "" : "s"} à ${actionName}`,
+  id: (count: number, actionName: string) => `${count} frame ditambahkan ke ${actionName}`,
+  tr: (count: number, actionName: string) => `${actionName} için ${count} kare eklendi`,
+  vi: (count: number, actionName: string) => `Đã thêm ${count} khung vào ${actionName}`,
+  pl: (count: number, actionName: string) => `Dodano klatki do ${actionName}: ${count}`,
+  it: (count: number, actionName: string) => `${count} frame aggiunt${count === 1 ? "o" : "i"} a ${actionName}`
+} satisfies Record<Language, (count: number, actionName: string) => string>;
 
 function saveLanguage(language: Language) {
   try {
@@ -5449,26 +6519,47 @@ function isStoredPendingCodexJob(value: unknown): value is PendingCodexJob {
 }
 
 function providerLabel(provider: ProviderId, language: Language) {
-  if (language === "ja") {
-    if (provider === "local-file") return "ローカルファイル";
-    if (provider === "local-generator") return "ローカル生成";
-    if (provider === "codex-handoff") return "Codex受け渡し";
-    return "ローカル受信箱";
-  }
-  if (provider === "local-file") return "Local File";
-  if (provider === "local-generator") return "Local Generator";
-  if (provider === "codex-handoff") return "Codex Handoff";
-  return "Local Inbox";
+  return providerLabels[language][provider];
 }
 
 function providerMessage(provider: ProviderStatus, language: Language) {
-  if (language === "ja") {
-    if (provider.id === "local-file") return "このマシン上の画像を使います";
-    if (provider.id === "local-generator") return "このマシン上でPNGを生成します";
-    if (provider.id === "codex-handoff") return "Codexが拾うローカルジョブを書き込みます";
-    return "Codex outboxの最新画像を取り込みます";
-  }
-  return provider.message;
+  return providerMessages[language][provider.id] ?? provider.message;
 }
+
+const providerLabels = {
+  en: { "local-file": "Local File", "local-generator": "Local Generator", "codex-handoff": "Codex Handoff", "local-inbox": "Local Inbox" },
+  ja: { "local-file": "ローカルファイル", "local-generator": "ローカル生成", "codex-handoff": "Codex受け渡し", "local-inbox": "ローカル受信箱" },
+  "zh-CN": { "local-file": "本地文件", "local-generator": "本地生成", "codex-handoff": "Codex 交接", "local-inbox": "本地收件箱" },
+  "zh-TW": { "local-file": "本地檔案", "local-generator": "本地生成", "codex-handoff": "Codex 交接", "local-inbox": "本地收件匣" },
+  ko: { "local-file": "로컬 파일", "local-generator": "로컬 생성", "codex-handoff": "Codex 전달", "local-inbox": "로컬 수신함" },
+  ru: { "local-file": "Локальный файл", "local-generator": "Локальная генерация", "codex-handoff": "Handoff Codex", "local-inbox": "Локальный inbox" },
+  es: { "local-file": "Archivo local", "local-generator": "Generador local", "codex-handoff": "Handoff Codex", "local-inbox": "Bandeja local" },
+  "pt-BR": { "local-file": "Arquivo local", "local-generator": "Gerador local", "codex-handoff": "Handoff Codex", "local-inbox": "Caixa local" },
+  de: { "local-file": "Lokale Datei", "local-generator": "Lokaler Generator", "codex-handoff": "Codex-Handoff", "local-inbox": "Lokaler Eingang" },
+  fr: { "local-file": "Fichier local", "local-generator": "Générateur local", "codex-handoff": "Handoff Codex", "local-inbox": "Boîte locale" },
+  id: { "local-file": "File lokal", "local-generator": "Generator lokal", "codex-handoff": "Handoff Codex", "local-inbox": "Kotak lokal" },
+  tr: { "local-file": "Yerel dosya", "local-generator": "Yerel üretici", "codex-handoff": "Codex handoff", "local-inbox": "Yerel gelen kutusu" },
+  vi: { "local-file": "Tệp cục bộ", "local-generator": "Trình tạo cục bộ", "codex-handoff": "Handoff Codex", "local-inbox": "Hộp cục bộ" },
+  pl: { "local-file": "Plik lokalny", "local-generator": "Generator lokalny", "codex-handoff": "Handoff Codex", "local-inbox": "Lokalna skrzynka" },
+  it: { "local-file": "File locale", "local-generator": "Generatore locale", "codex-handoff": "Handoff Codex", "local-inbox": "Inbox locale" }
+} satisfies Record<Language, Record<ProviderId, string>>;
+
+const providerMessages = {
+  en: { "local-file": "Use images from this machine", "local-generator": "Generate local PNG images", "codex-handoff": "Write local jobs for Codex to pick up", "local-inbox": "Import results returned by Codex" },
+  ja: { "local-file": "このマシン上の画像を使います", "local-generator": "このマシン上でPNGを生成します", "codex-handoff": "Codexが拾うローカルジョブを書き込みます", "local-inbox": "Codex outboxの最新画像を取り込みます" },
+  "zh-CN": { "local-file": "使用本机图像", "local-generator": "在本机生成 PNG", "codex-handoff": "写入供 Codex 处理的本地作业", "local-inbox": "导入 Codex 返回的结果" },
+  "zh-TW": { "local-file": "使用本機圖像", "local-generator": "在本機生成 PNG", "codex-handoff": "寫入供 Codex 處理的本地作業", "local-inbox": "匯入 Codex 返回的結果" },
+  ko: { "local-file": "이 컴퓨터의 이미지를 사용합니다", "local-generator": "로컬 PNG 이미지를 생성합니다", "codex-handoff": "Codex가 처리할 로컬 작업을 씁니다", "local-inbox": "Codex가 반환한 결과를 가져옵니다" },
+  ru: { "local-file": "Использует изображения с этого компьютера", "local-generator": "Создает локальные PNG", "codex-handoff": "Записывает локальные задания для Codex", "local-inbox": "Импортирует результаты Codex" },
+  es: { "local-file": "Usa imágenes de este equipo", "local-generator": "Genera PNG locales", "codex-handoff": "Escribe trabajos locales para Codex", "local-inbox": "Importa resultados devueltos por Codex" },
+  "pt-BR": { "local-file": "Usa imagens deste computador", "local-generator": "Gera PNGs locais", "codex-handoff": "Grava jobs locais para o Codex", "local-inbox": "Importa resultados retornados pelo Codex" },
+  de: { "local-file": "Bilder von diesem Gerät verwenden", "local-generator": "Lokale PNGs erzeugen", "codex-handoff": "Lokale Jobs für Codex schreiben", "local-inbox": "Von Codex zurückgegebene Ergebnisse importieren" },
+  fr: { "local-file": "Utilise les images de cette machine", "local-generator": "Génère des PNG locaux", "codex-handoff": "Écrit des tâches locales pour Codex", "local-inbox": "Importe les résultats renvoyés par Codex" },
+  id: { "local-file": "Gunakan gambar dari mesin ini", "local-generator": "Buat PNG lokal", "codex-handoff": "Tulis job lokal untuk Codex", "local-inbox": "Impor hasil dari Codex" },
+  tr: { "local-file": "Bu makinedeki görselleri kullanır", "local-generator": "Yerel PNG üretir", "codex-handoff": "Codex için yerel işler yazar", "local-inbox": "Codex sonuçlarını içe aktarır" },
+  vi: { "local-file": "Dùng ảnh trên máy này", "local-generator": "Tạo PNG cục bộ", "codex-handoff": "Ghi job cục bộ cho Codex", "local-inbox": "Nhập kết quả Codex trả về" },
+  pl: { "local-file": "Używa obrazów z tego komputera", "local-generator": "Tworzy lokalne PNG", "codex-handoff": "Zapisuje lokalne zadania dla Codex", "local-inbox": "Importuje wyniki z Codex" },
+  it: { "local-file": "Usa immagini da questa macchina", "local-generator": "Genera PNG locali", "codex-handoff": "Scrive job locali per Codex", "local-inbox": "Importa risultati restituiti da Codex" }
+} satisfies Record<Language, Record<ProviderId, string>>;
 
 export default App;

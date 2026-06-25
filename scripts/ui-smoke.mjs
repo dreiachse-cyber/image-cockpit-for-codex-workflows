@@ -170,18 +170,69 @@ async function assertInitialWorkspace() {
 }
 
 async function assertLanguageSwitch() {
-  await evaluate(`(() => {
-    const select = document.querySelector(".language-control select");
-    select.value = "ja";
-    select.dispatchEvent(new Event("change", { bubbles: true }));
+  const localeChecks = [
+    { id: "ja", text: "ピクセルアートの生成" },
+    { id: "en", text: "Pixel Art Generation" },
+    { id: "zh-CN", text: "像素艺术生成" },
+    { id: "zh-TW", text: "像素藝術生成" },
+    { id: "ko", text: "픽셀 아트 생성" },
+    { id: "ru", text: "Генерация пиксель-арта", checkFit: true },
+    { id: "es", text: "Generación de pixel art" },
+    { id: "pt-BR", text: "Geração de pixel art", checkFit: true },
+    { id: "de", text: "Pixel-Art-Erstellung", checkFit: true },
+    { id: "fr", text: "Génération de pixel art" },
+    { id: "id", text: "Pembuatan pixel art" },
+    { id: "tr", text: "Piksel sanat üretimi" },
+    { id: "vi", text: "Tạo pixel art" },
+    { id: "pl", text: "Generowanie pixel art" },
+    { id: "it", text: "Generazione pixel art" }
+  ];
+
+  const optionSnapshot = await evaluate(`(() => {
+    const options = Array.from(document.querySelectorAll(".language-control select option")).map((option) => ({
+      value: option.value,
+      text: option.textContent.trim()
+    }));
+    return { count: options.length, values: options.map((option) => option.value), labels: options.map((option) => option.text) };
   })()`);
-  await waitForEval(() => `document.body.innerText.includes("ピクセルアートの生成")`, "Japanese workspace copy");
+  assert(optionSnapshot.count === 15, `Language selector should expose 15 locales, got ${optionSnapshot.count}`);
+  ["zh-CN", "zh-TW", "ko", "ru", "es", "pt-BR", "de", "fr", "id", "tr", "vi", "pl", "it"].forEach((locale) => {
+    assert(optionSnapshot.values.includes(locale), `Language selector missing ${locale}`);
+  });
+  ["简体中文", "繁體中文", "한국어", "Русский", "Português (Brasil)"].forEach((label) => {
+    assert(optionSnapshot.labels.includes(label), `Language selector missing label ${label}`);
+  });
+
+  for (const check of localeChecks) {
+    await evaluate(`(() => {
+      const select = document.querySelector(".language-control select");
+      select.value = ${JSON.stringify(check.id)};
+      select.dispatchEvent(new Event("change", { bubbles: true }));
+    })()`);
+    await waitForEval(() => `document.body.innerText.includes(${JSON.stringify(check.text)})`, `${check.id} workspace copy`);
+    if (check.checkFit) {
+      const fit = await evaluate(`(() => {
+        const topbar = document.querySelector(".topbar")?.getBoundingClientRect();
+        const buttons = Array.from(document.querySelectorAll(".workflow-tabs button, .primary-button, .secondary-button"));
+        const tooTall = buttons
+          .map((button) => ({ text: button.innerText.trim(), height: button.getBoundingClientRect().height }))
+          .filter((button) => button.height > 72);
+        return {
+          topbarFits: !topbar || topbar.right <= window.innerWidth + 1,
+          tooTall
+        };
+      })()`);
+      assert(fit.topbarFits, `${check.id} language selector should fit in the topbar`);
+      assert(fit.tooTall.length === 0, `${check.id} buttons should wrap without excessive height: ${JSON.stringify(fit.tooTall)}`);
+    }
+  }
+
   await evaluate(`(() => {
     const select = document.querySelector(".language-control select");
     select.value = "en";
     select.dispatchEvent(new Event("change", { bubbles: true }));
   })()`);
-  await waitForEval(() => `document.body.innerText.includes("Pixel Art Generation")`, "English workspace copy");
+  await waitForEval(() => `document.body.innerText.includes("Pixel Art Generation")`, "English workspace copy restored");
 }
 
 async function assertPromptExamples() {

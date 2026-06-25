@@ -124,6 +124,10 @@ button {
   color: #33443a;
   font-size: 12px;
   font-weight: 700;
+  line-height: 1.15;
+  overflow-wrap: anywhere;
+  text-align: center;
+  white-space: normal;
   cursor: pointer;
 }
 
@@ -1189,6 +1193,10 @@ button {
   align-items: center;
   justify-content: center;
   gap: 7px;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+  text-align: center;
+  white-space: normal;
   cursor: pointer;
 }
 
@@ -2244,6 +2252,8 @@ button:disabled {
 
 .language-control {
   min-height: 28px;
+  min-width: 0;
+  max-width: min(260px, 100%);
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -2265,6 +2275,8 @@ button:disabled {
 
 .language-control select {
   min-height: 26px;
+  min-width: 0;
+  max-width: 190px;
   border: 0;
   background: transparent;
   color: #17211b;
