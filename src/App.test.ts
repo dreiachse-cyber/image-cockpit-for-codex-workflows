@@ -4,6 +4,7 @@ import {
   getVisibleHistoryCount,
   HISTORY_RENDER_BATCH_SIZE,
   INITIAL_HISTORY_RENDER_COUNT,
+  isOutboxResultForJob,
   isLikelyFrameGarbageComponent,
   resolveInitialLanguage,
   shouldWaitForCodexRunner,
@@ -72,6 +73,17 @@ describe("history result rendering window", () => {
   it("keeps the selected result visible even when it is outside the current window", () => {
     expect(getVisibleHistoryCount(240, INITIAL_HISTORY_RENDER_COUNT, 137)).toBe(138);
     expect(getVisibleHistoryCount(40, INITIAL_HISTORY_RENDER_COUNT, 30)).toBe(40);
+  });
+});
+
+describe("Codex outbox job result matching", () => {
+  it("accepts exact job-id image names and suffixed image names", () => {
+    const jobId = "codex-job-2026-06-25T13-01-42-060Z";
+
+    expect(isOutboxResultForJob(`${jobId}.png`, jobId)).toBe(true);
+    expect(isOutboxResultForJob(`${jobId}.meta.png`, jobId)).toBe(true);
+    expect(isOutboxResultForJob(`${jobId}-sprite-sheet.png`, jobId)).toBe(true);
+    expect(isOutboxResultForJob(`${jobId.replace("42", "43")}.png`, jobId)).toBe(false);
   });
 });
 

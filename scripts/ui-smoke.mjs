@@ -1199,8 +1199,8 @@ if (job.workflowMode === "image-edit") {
 }
 
 if (job.workflowMode !== "sprite-generate") {
-  await writeFile(join(outboxDir, \`\${jobId}-mock-image.png\`), makeSpriteSheetPng(512, 512, 1, 1, 512, 512, [0, 255, 0, 255]));
-  console.log(\`mock image completed \${jobId}\`);
+  await writeFile(join(outboxDir, \`\${jobId}.png\`), makeSpriteSheetPng(512, 512, 1, 1, 512, 512, [0, 255, 0, 255]));
+  console.log(\`mock exact image completed \${jobId}\`);
   process.exit(0);
 }
 

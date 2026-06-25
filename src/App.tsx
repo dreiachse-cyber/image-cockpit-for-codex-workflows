@@ -2114,6 +2114,10 @@ export function getNextHistoryRenderLimit(currentLimit: number, historyLength: n
   return Math.min(historyLength, Math.max(0, currentLimit) + HISTORY_RENDER_BATCH_SIZE);
 }
 
+export function isOutboxResultForJob(resultName: string, jobId: string) {
+  return resultName.startsWith(`${jobId}-`) || resultName.startsWith(`${jobId}.`);
+}
+
 function App() {
   const [history, setHistory] = useState<HistoryItem[]>(() => loadHistory());
   const [historyRenderLimit, setHistoryRenderLimit] = useState(INITIAL_HISTORY_RENDER_COUNT);
@@ -2505,6 +2509,7 @@ function App() {
           if (cancelled) return "cancelled";
 
           if (runnerStatus && !shouldWaitForCodexRunner(runnerStatus)) {
+            if (runnerStatus.state === "completed" && !runnerStatus.diagnostic) return "pending";
             recordCodexFailure(job, runnerStatus);
             removeCodexJob(job.id);
             setStatus(`${runnerStatusMessage(runnerStatus, copy)}: ${job.id}`);
@@ -3188,7 +3193,7 @@ function App() {
       const newerThanTime = options.newerThan ? Date.parse(options.newerThan) : Number.NEGATIVE_INFINITY;
       const jobResults = listData.results.filter((result) => {
         if (Date.parse(result.modifiedAt) < newerThanTime) return false;
-        return pendingJob ? result.name.startsWith(`${pendingJob.id}-`) : true;
+        return pendingJob ? isOutboxResultForJob(result.name, pendingJob.id) : true;
       });
       if (pendingJob?.workflowMode === "sprite-generate" && pendingJob.spriteVariant === "directional-hatch-pet") {
         const directionalResults = selectDirectionalHatchPetResults(jobResults, pendingJob.id);
