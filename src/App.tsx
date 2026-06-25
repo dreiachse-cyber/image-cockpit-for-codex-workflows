@@ -4328,7 +4328,9 @@ function App() {
                       </div>
                     </div>
                   ) : (
-                    <img className="result-preview-image" src={selected.dataUrl} alt="" />
+                    <div className="static-result-preview-viewport">
+                      <img className="result-preview-image" src={selected.dataUrl} alt="" />
+                    </div>
                   )}
                 </div>
               )}

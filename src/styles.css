@@ -1430,9 +1430,26 @@ button:disabled {
   image-rendering: pixelated;
 }
 
-.result-preview-frame > .result-preview-image {
-  max-width: calc(100% - 24px);
-  max-height: calc(100% - 24px);
+.static-result-preview-viewport {
+  position: absolute;
+  inset: 14px;
+  width: auto;
+  height: auto;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+}
+
+.static-result-preview-viewport .result-preview-image {
+  width: auto;
+  height: auto;
+  max-width: 100%;
+  max-height: 100%;
+  display: block;
+  object-fit: contain;
 }
 
 .result-preview-frame.with-animation-previews {
