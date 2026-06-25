@@ -5,6 +5,7 @@ import {
   HISTORY_RENDER_BATCH_SIZE,
   INITIAL_HISTORY_RENDER_COUNT,
   isCharacterGreenPixel,
+  isDirectionSplitAnimationManifestName,
   isFrameChromaResiduePixel,
   isOutboxResultForJob,
   isLikelyFrameGarbageComponent,
@@ -86,6 +87,15 @@ describe("Codex outbox job result matching", () => {
     expect(isOutboxResultForJob(`${jobId}.meta.png`, jobId)).toBe(true);
     expect(isOutboxResultForJob(`${jobId}-sprite-sheet.png`, jobId)).toBe(true);
     expect(isOutboxResultForJob(`${jobId.replace("42", "43")}.png`, jobId)).toBe(false);
+  });
+
+  it("recognizes only the direction split manifest for the matching job id", () => {
+    const jobId = "codex-job-2026-06-25T13-01-42-060Z";
+
+    expect(isDirectionSplitAnimationManifestName(`${jobId}-manifest.json`, jobId)).toBe(true);
+    expect(isDirectionSplitAnimationManifestName(`${jobId}-blocked.json`, jobId)).toBe(false);
+    expect(isDirectionSplitAnimationManifestName(`${jobId}.meta.json`, jobId)).toBe(false);
+    expect(isDirectionSplitAnimationManifestName(`${jobId.replace("42", "43")}-manifest.json`, jobId)).toBe(false);
   });
 });
 

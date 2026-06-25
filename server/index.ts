@@ -229,7 +229,7 @@ const server = createServer(async (request, response) => {
     if (request.method === "GET" && pathname.startsWith(resultRoutePrefix)) {
       const name = decodeURIComponent(pathname.slice(resultRoutePrefix.length));
       const filePath = resolveOutboxFile(name);
-      const mimeType = mimeTypeForImage(name);
+      const mimeType = mimeTypeForOutboxResult(name);
       if (!filePath || !mimeType) {
         sendJson(response, 400, { error: "Unsupported or unsafe outbox file" });
         return;
@@ -777,7 +777,7 @@ function buildCodexRunnerPrompt(job: { id: string; path: string }) {
     "For workflowMode=image-edit, inspect selectedImage.assetPath, use imagegen / built-in image_gen editing when available, follow numbered annotationContext region comments plus prompt/jobNotes, and return a real edited PNG or WebP with the job id filename prefix. Never create a procedural placeholder or SVG.",
     "For workflowMode=sprite-generate, inspect selectedImage.assetPath, then use imagegen / built-in image_gen when available to create the requested sprite sheet assets from the source character image. Never create a procedural placeholder or SVG.",
     "For workflowMode=sprite-generate, follow spriteContext.grid, spriteContext.cell, spriteContext.directions, spriteContext.variant, and spriteContext.chromaKey exactly. Keep one full-body character centered inside each strict cell with padding, no cropping, no duplicated heads, and no body parts crossing cells.",
-    "For workflowMode=sprite-generate with spriteContext.variant=standard, return one usable PNG or WebP 5-direction sprite sheet with the job id filename prefix.",
+    "For workflowMode=sprite-generate with spriteContext.variant=standard, return exactly five separate direction PNG/WebP images plus a direction-split manifest JSON using schema image-cockpit.direction-split-animation.v1. The files must use the job id filename prefix and these suffixes: front, front-three-quarter, side, back-three-quarter, back, and manifest.json. Each direction image must be 4 columns x 2 rows, 256x256 cells unless spriteContext.cell says otherwise. Do not return only one combined 5x8 sheet.",
     "For workflowMode=sprite-generate, inspect all cells before writing the final file and retry if any head is cut off, feet are missing, a head appears below feet, scale changes wildly, or the background is not flat chroma key.",
     "For workflowMode=sprite-generate with spriteContext.variant=hatch-pet, use the installed hatch-pet skill/scripts when available. Build a Codex pet atlas with 8 columns x 9 rows, 192x208 cells, 1536x1872 total, transparent unused cells, contact-sheet QA, and final spritesheet PNG/WebP returned with the job id filename prefix. Include pet.json as a sidecar if produced.",
     "For workflowMode=sprite-generate with spriteContext.variant=directional-hatch-pet, use the installed hatch-pet skill/scripts when available and return exactly five separate Codex pet atlas images: direction-01-front, direction-02-front-three-quarter, direction-03-side, direction-04-back-three-quarter, and direction-05-back. Each atlas must be 8 columns x 9 rows, 192x208 cells, 1536x1872 total, transparent unused cells, and use the job id filename prefix plus the direction suffix. Do not return only one giant combined sheet.",
@@ -796,7 +796,7 @@ function buildCodexRunnerPrompt(job: { id: string; path: string }) {
     '{ "status": "blocked", "reasonKind": "policy_or_safety" | "imagegen_unavailable" | "unknown", "userMessage": "A short user-safe reason.", "suggestion": "A short retry suggestion." }',
     "- Do not include hidden policy text, internal traces, API keys, access tokens, local absolute paths, or the full prompt in the blocker sidecar.",
     "",
-    "When finished, make sure at least one usable image file is present in the outbox if generation/editing succeeded."
+    "When finished, make sure all required usable image files are present in the outbox if generation/editing succeeded."
   ].join("\n");
 }
 
@@ -1113,7 +1113,7 @@ async function listOutboxResults() {
     entries
       .filter((entry) => entry.isFile())
       .map(async (entry) => {
-        const mimeType = mimeTypeForImage(entry.name);
+        const mimeType = mimeTypeForOutboxResult(entry.name);
         if (!mimeType) return null;
         const filePath = join(outboxDir, entry.name);
         const fileStat = await stat(filePath);
@@ -1155,6 +1155,14 @@ function mimeTypeForImage(name: string) {
   if (extension === ".webp") return "image/webp";
   if (extension === ".gif") return "image/gif";
   return null;
+}
+
+function mimeTypeForOutboxResult(name: string) {
+  return mimeTypeForImage(name) ?? (isDirectionSplitManifestFileName(name) ? "application/json" : null);
+}
+
+function isDirectionSplitManifestFileName(name: string) {
+  return /-manifest\.json$/i.test(name);
 }
 
 function extensionForMimeType(mimeType: string) {

@@ -479,6 +479,9 @@ function checkWorkflowIds() {
     "Animation frames ready",
     "Generated from",
     "animationSourceStatus",
+    "Codex log fullscreen button",
+    "Fullscreen Codex log text area should be taller than normal",
+    "Mobile fullscreen Codex log panel should fit within the viewport",
     "persisted generated-from source after reload",
     "regenerated animation previews after reload",
     "spriteSheetGridOverlays",
@@ -573,6 +576,9 @@ function checkWorkflowIds() {
     "workflowMode=sprite-generate",
     "spriteContext.chromaKey",
     "spriteContext.directions",
+    "image-cockpit.direction-split-animation.v1",
+    "front-three-quarter",
+    "Do not return only one combined 5x8 sheet",
     "spriteContext.variant=directional-hatch-pet",
     "direction-01-front",
     "no character pixels crossing cell borders",
@@ -591,15 +597,25 @@ function checkWorkflowIds() {
     "directional-hatch-pet",
     "DIRECTIONAL_HATCH_PET_GRID",
     "buildDirectionalHatchPetPreviewActions",
+    "DIRECTION_SPLIT_ANIMATION_SCHEMA",
+    "selectDirectionSplitAnimationResults",
+    "composeDirectionSplitAnimationSheet",
+    "validateDirectionSplitAnimationCells",
     "selectDirectionalHatchPetResults",
     "animation-source-status",
     "with-downloads",
+    "codexLogsFullscreen",
+    "codexLogFullscreen",
+    "codexLogExitFullscreen",
+    "Maximize2",
+    "Minimize2",
+    ".codex-log-panel.fullscreen",
     "exactly one full-body character",
     "Do not let body parts cross cell borders",
     "Quality gate before returning",
     "codexFailurePolicyMessage"
   ].forEach((marker) => {
-    if (!appText.includes(marker)) {
+    if (!appText.includes(marker) && !stylesText.includes(marker)) {
       failures.push(`App should preserve strict animation result preview/prompt handling: ${marker}`);
     }
   });
@@ -637,6 +653,8 @@ function checkWorkflowIds() {
     "sprite generation job should include chroma key",
     "sprite generation job should include the standard variant",
     "sprite generation job should include five direction rows",
+    "direction split manifest should be listed",
+    "direction split manifest import should preserve JSON MIME type",
     "sprite generation job should instruct Codex to use built-in image generation",
     "hatch-pet job should include hatch-pet variant",
     "hatch-pet job should include 72 atlas cells",

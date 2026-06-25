@@ -15,6 +15,8 @@ import {
   ImagePlus,
   Languages,
   Loader2,
+  Maximize2,
+  Minimize2,
   PanelRight,
   Pipette,
   Plug,
@@ -102,6 +104,16 @@ export const HISTORY_RENDER_BATCH_SIZE = 20;
 const HISTORY_SCROLL_LOAD_THRESHOLD_PX = 160;
 const ANIMATION_SHEET_GRID: GridSettings = { columns: ANIMATION_FRAME_COUNT, rows: ANIMATION_DIRECTION_COUNT, gutter: 0 };
 const ANIMATION_DIRECTIONS = ["front", "front three-quarter", "side", "back three-quarter", "back"];
+const DIRECTION_SPLIT_ANIMATION_SCHEMA = "image-cockpit.direction-split-animation.v1";
+const DIRECTION_SPLIT_ANIMATION_GRID: GridSettings = { columns: 4, rows: 2, gutter: 0 };
+const DIRECTION_SPLIT_ANIMATION_FILE_SLUGS = ["front", "front-three-quarter", "side", "back-three-quarter", "back"];
+const DIRECTION_SPLIT_ANIMATION_RESULT_COUNT = ANIMATION_DIRECTION_COUNT;
+const DIRECTION_SPLIT_DETACHED_WARN_DISTANCE = 80;
+const DIRECTION_SPLIT_DETACHED_FAIL_DISTANCE = 250;
+const DIRECTION_SPLIT_CENTER_WARN_DRIFT = 24;
+const DIRECTION_SPLIT_CENTER_FAIL_DRIFT = 48;
+const DIRECTION_SPLIT_BOTTOM_WARN_DRIFT = 16;
+const DIRECTION_SPLIT_BOTTOM_FAIL_DRIFT = 32;
 const STANDARD_ANIMATION_CELL: SpriteAction["cell"] = { width: ANIMATION_CELL_SIZE, height: ANIMATION_CELL_SIZE };
 const STANDARD_ANIMATION_ANCHOR = { x: Math.round(ANIMATION_CELL_SIZE / 2), y: Math.round(ANIMATION_CELL_SIZE * 0.92) };
 const HATCH_PET_CELL: SpriteAction["cell"] = { width: 192, height: 208 };
@@ -239,6 +251,44 @@ interface FrameSplitOptions {
 }
 
 type FrameResidueChromaKey = AnimationChromaKeyName | "both";
+
+interface DirectionSplitAnimationManifest {
+  schema: typeof DIRECTION_SPLIT_ANIMATION_SCHEMA;
+  jobId?: string;
+  action?: string;
+  directions?: string[];
+  framesPerDirection?: number;
+  grid?: GridSettings;
+  cell?: SpriteAction["cell"];
+  files?: Record<string, string> | Array<{ direction?: string; file?: string; name?: string; path?: string }>;
+}
+
+interface DirectionSplitSelection {
+  detected: boolean;
+  manifestResult?: CodexOutboxResult;
+  directionResults: CodexOutboxResult[];
+  missingDirections: string[];
+}
+
+interface DirectionSplitPreparedCell {
+  direction: string;
+  directionIndex: number;
+  frameIndex: number;
+  sourceCanvas: HTMLCanvasElement;
+  bounds: OpaqueBounds | null;
+  warnings: string[];
+  failures: string[];
+}
+
+interface DirectionSplitNormalizedCell {
+  direction: string;
+  directionIndex: number;
+  frameIndex: number;
+  canvas: HTMLCanvasElement;
+  bounds: OpaqueBounds | null;
+  warnings: string[];
+  failures: string[];
+}
 
 interface PendingCodexJob {
   id: string;
@@ -533,6 +583,8 @@ const baseUiCopy = {
     codexLogTruncated: "Showing latest log tail",
     codexLogCollapse: "Collapse logs",
     codexLogExpand: "Expand logs",
+    codexLogFullscreen: "Full screen logs",
+    codexLogExitFullscreen: "Exit full screen",
     runnerChecking: "Codex runner: checking",
     runnerReady: "Codex runner: ready",
     runnerDisabled: "Codex runner: manual handoff",
@@ -747,6 +799,8 @@ const baseUiCopy = {
     codexLogTruncated: "最新ログの末尾を表示中",
     codexLogCollapse: "ログを閉じる",
     codexLogExpand: "ログを開く",
+    codexLogFullscreen: "ログを全画面で見る",
+    codexLogExitFullscreen: "全画面を閉じる",
     runnerChecking: "Codex runner: 確認中",
     runnerReady: "Codex runner: 使用可能",
     runnerDisabled: "Codex runner: 手動受け渡し",
@@ -2158,6 +2212,102 @@ export function isOutboxResultForJob(resultName: string, jobId: string) {
   return resultName.startsWith(`${jobId}-`) || resultName.startsWith(`${jobId}.`);
 }
 
+export function isDirectionSplitAnimationManifestName(resultName: string, jobId: string) {
+  return resultName === `${jobId}-manifest.json`;
+}
+
+function isStaticImageResult(result: CodexOutboxResult) {
+  return result.mimeType.startsWith("image/") && result.mimeType !== "image/gif";
+}
+
+function selectDirectionSplitAnimationResults(
+  results: CodexOutboxResult[],
+  jobId: string,
+  manifest: DirectionSplitAnimationManifest | null = null
+): DirectionSplitSelection {
+  const manifestResult = results.find((result) => isDirectionSplitAnimationManifestName(result.name, jobId));
+  const staticImageResults = results.filter(isStaticImageResult);
+  const manifestFiles = manifest ? directionSplitManifestFiles(manifest) : new Map<string, string>();
+  const byDirection = ANIMATION_DIRECTIONS.map((direction, index) => {
+    const slug = DIRECTION_SPLIT_ANIMATION_FILE_SLUGS[index];
+    const manifestFile = manifestFiles.get(direction) ?? manifestFiles.get(slug);
+    if (manifestFile) {
+      const manifestBaseName = manifestFile.split(/[\\/]/).pop() ?? manifestFile;
+      return staticImageResults.find((result) => result.name === manifestBaseName);
+    }
+    return staticImageResults.find((result) => directionSplitResultDirectionIndex(result.name, jobId) === index);
+  });
+  const missingDirections = byDirection
+    .map((result, index) => (result ? "" : ANIMATION_DIRECTIONS[index]))
+    .filter(Boolean);
+  return {
+    detected: Boolean(manifestResult || manifest || byDirection.some(Boolean)),
+    manifestResult,
+    directionResults: byDirection.filter((result): result is CodexOutboxResult => Boolean(result)),
+    missingDirections
+  };
+}
+
+function directionSplitResultDirectionIndex(resultName: string, jobId: string) {
+  const normalized = resultName
+    .toLowerCase()
+    .replace(/\.[^.]+$/, "")
+    .replace(jobId.toLowerCase(), "")
+    .replace(/[_\s]+/g, "-")
+    .replace(/^-+/, "");
+  const numericMatch = normalized.match(/^direction-(\d{1,2})(?:-|$)/);
+  if (numericMatch) {
+    const index = Number(numericMatch[1]) - 1;
+    if (index >= 0 && index < ANIMATION_DIRECTION_COUNT) return index;
+  }
+  const matchedSlug = DIRECTION_SPLIT_ANIMATION_FILE_SLUGS
+    .slice()
+    .sort((left, right) => right.length - left.length)
+    .find((slug) => normalized === slug || normalized.endsWith(`-${slug}`));
+  return matchedSlug ? DIRECTION_SPLIT_ANIMATION_FILE_SLUGS.indexOf(matchedSlug) : -1;
+}
+
+function directionSplitManifestFiles(manifest: DirectionSplitAnimationManifest) {
+  const files = new Map<string, string>();
+  if (Array.isArray(manifest.files)) {
+    manifest.files.forEach((file, index) => {
+      const direction = file.direction ?? ANIMATION_DIRECTIONS[index] ?? "";
+      const name = file.file ?? file.name ?? file.path ?? "";
+      if (direction && name) files.set(direction, name);
+    });
+    return files;
+  }
+  Object.entries(manifest.files ?? {}).forEach(([direction, name]) => {
+    if (typeof name === "string" && direction) files.set(direction, name);
+  });
+  return files;
+}
+
+function directionSplitAnimationFileSet(jobIdPrefix: string) {
+  return DIRECTION_SPLIT_ANIMATION_FILE_SLUGS.map((slug) => `${jobIdPrefix}-${slug}.png`);
+}
+
+function parseDirectionSplitAnimationManifest(imported: CodexOutboxImportResponse) {
+  const text = textFromDataUrl(imported.dataUrl);
+  const parsed = JSON.parse(text) as DirectionSplitAnimationManifest;
+  if (parsed.schema !== DIRECTION_SPLIT_ANIMATION_SCHEMA) {
+    throw new Error(`Direction split manifest has unsupported schema: ${String(parsed.schema ?? "missing")}`);
+  }
+  return parsed;
+}
+
+function textFromDataUrl(dataUrl: string) {
+  const match = dataUrl.match(/^data:[^,]*,(.*)$/);
+  if (!match) return dataUrl;
+  const payload = match[1];
+  if (dataUrl.includes(";base64,")) {
+    const binary = atob(payload);
+    const bytes = Uint8Array.from(binary, (character) => character.charCodeAt(0));
+    return new TextDecoder().decode(bytes);
+  }
+  return decodeURIComponent(payload);
+}
+
 function App() {
   const [history, setHistory] = useState<HistoryItem[]>(() => loadHistory());
   const [historyRenderLimit, setHistoryRenderLimit] = useState(INITIAL_HISTORY_RENDER_COUNT);
@@ -2207,6 +2357,7 @@ function App() {
   const [codexFailureNotices, setCodexFailureNotices] = useState<CodexFailureNotice[]>([]);
   const [codexJobLogs, setCodexJobLogs] = useState<CodexJobLogItem[]>([]);
   const [codexLogsCollapsed, setCodexLogsCollapsed] = useState(false);
+  const [codexLogsFullscreen, setCodexLogsFullscreen] = useState(false);
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -2425,6 +2576,15 @@ function App() {
   useEffect(() => savePendingCodexJobs(codexJobs), [codexJobs]);
 
   useEffect(() => {
+    if (!codexLogsFullscreen) return;
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setCodexLogsFullscreen(false);
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [codexLogsFullscreen]);
+
+  useEffect(() => {
     if (providerId !== "codex-handoff") return;
     const runningJobs = codexJobs.filter((job) => job.state === "running");
     if (runningJobs.length === 0) return;
@@ -2451,6 +2611,11 @@ function App() {
       window.clearInterval(intervalId);
     };
   }, [codexJobs, providerId]);
+
+  function enterCodexLogsFullscreen() {
+    setCodexLogsCollapsed(false);
+    setCodexLogsFullscreen(true);
+  }
 
   useEffect(() => {
     fetch("/api/providers")
@@ -2855,7 +3020,7 @@ function App() {
       size: isDirectionalHatchPetAnimationJob
         ? `${HATCH_PET_CELL.width * HATCH_PET_GRID.columns}x${HATCH_PET_CELL.height * HATCH_PET_GRID.rows} x ${DIRECTIONAL_HATCH_PET_RESULT_COUNT}`
         : isAnimationJob
-          ? `${spriteCell.width * spriteGrid.columns}x${spriteCell.height * spriteGrid.rows}`
+          ? `${spriteCell.width * DIRECTION_SPLIT_ANIMATION_GRID.columns}x${spriteCell.height * DIRECTION_SPLIT_ANIMATION_GRID.rows} x ${DIRECTION_SPLIT_ANIMATION_RESULT_COUNT}`
           : size,
       count,
       quality,
@@ -3223,6 +3388,55 @@ function App() {
     setStatus(`${copy.statusAnimationGenerated}: ${item.name}. ${formatFramesAddedStatus(newFrames.length, actionName, language)}`);
   }
 
+  async function importDirectionSplitAnimationResults(
+    importedResults: CodexOutboxImportResponse[],
+    manifest: DirectionSplitAnimationManifest | null,
+    pendingJob: CodexJobQueueItem
+  ) {
+    const actionName = pendingJob.actionName ?? activeAction.name;
+    const spriteCell = pendingJob.cell ?? STANDARD_ANIMATION_CELL;
+    const chromaKey = animationChromaKeys[pendingJob.chromaKey ?? animationChromaKey];
+    const composed = await composeDirectionSplitAnimationSheet(importedResults, chromaKey, spriteCell);
+    const image = await loadImage(composed.dataUrl);
+    const itemName = `${pendingJob.id}-direction-split-animation-sheet.png`;
+    const item: HistoryItem = {
+      id: createId("hist"),
+      name: itemName,
+      dataUrl: composed.dataUrl,
+      provider: "local-inbox",
+      prompt,
+      seed,
+      size: `${image.width}x${image.height}`,
+      createdAt: new Date().toISOString(),
+      adopted: false,
+      source: "generate",
+      derivedFromId: pendingJob.sourceImageId,
+      derivedFromName: pendingJob.sourceImageName
+    };
+    const newFrames = await splitImageIntoFrames(composed.dataUrl, itemName.replace(/\.[^.]+$/, ""), ANIMATION_SHEET_GRID, item.id, spriteCell);
+    if (newFrames.length === 0) throw new Error("Returned direction split animation could not be split into frames.");
+
+    setAnimationGenerationMode("standard");
+    setAnimationChromaKey(chromaKey.name);
+    setGrid(ANIMATION_SHEET_GRID);
+    setHistory((current) => [item, ...current]);
+    setSelectedId(item.id);
+    setFrames((current) => [...current, ...newFrames]);
+    setActiveActionName(actionName);
+    setActions((current) =>
+      current.map((action) =>
+        action.name === actionName
+          ? { ...normalizeAnimationAction(action), cell: spriteCell, frameIds: newFrames.map((frame) => frame.id) }
+          : action
+      )
+    );
+    setSelectedFrameId("");
+
+    const manifestSuffix = manifest?.schema === DIRECTION_SPLIT_ANIMATION_SCHEMA ? " direction-split manifest ok." : "";
+    const warningSuffix = composed.warnings.length > 0 ? ` QA warnings: ${composed.warnings.length}.` : "";
+    setStatus(`${copy.statusAnimationGenerated}: ${item.name}. ${formatFramesAddedStatus(newFrames.length, actionName, language)}${manifestSuffix}${warningSuffix}`);
+  }
+
   async function fetchOutboxResult(name: string) {
     const importResponse = await fetch(`/api/codex/results/${encodeURIComponent(name)}`);
     if (!importResponse.ok) throw new Error(await importResponse.text());
@@ -3289,6 +3503,24 @@ function App() {
         if (Date.parse(result.modifiedAt) < newerThanTime) return false;
         return pendingJob ? isOutboxResultForJob(result.name, pendingJob.id) : true;
       });
+      if (pendingJob?.workflowMode === "sprite-generate" && (pendingJob.spriteVariant ?? "standard") === "standard") {
+        const manifestResult = jobResults.find((result) => isDirectionSplitAnimationManifestName(result.name, pendingJob.id));
+        const manifest = manifestResult ? parseDirectionSplitAnimationManifest(await fetchOutboxResult(manifestResult.name)) : null;
+        const directionSplitSelection = selectDirectionSplitAnimationResults(jobResults, pendingJob.id, manifest);
+        if (directionSplitSelection.detected) {
+          if (directionSplitSelection.directionResults.length < DIRECTION_SPLIT_ANIMATION_RESULT_COUNT) {
+            if (!options.quietEmpty) {
+              const missing = directionSplitSelection.missingDirections.join(", ") || "direction images";
+              setStatus(`${copy.statusInboxEmpty}: ${listData.outboxPath} (waiting for direction split: ${missing})`);
+            }
+            return false;
+          }
+          const importedResults = await Promise.all(directionSplitSelection.directionResults.map((result) => fetchOutboxResult(result.name)));
+          await importDirectionSplitAnimationResults(importedResults, manifest, pendingJob);
+          removeCodexJob(pendingJob.id, "completed");
+          return true;
+        }
+      }
       if (pendingJob?.workflowMode === "sprite-generate" && pendingJob.spriteVariant === "directional-hatch-pet") {
         const directionalResults = selectDirectionalHatchPetResults(jobResults, pendingJob.id);
         if (directionalResults.length < DIRECTIONAL_HATCH_PET_RESULT_COUNT) {
@@ -3301,7 +3533,7 @@ function App() {
         return true;
       }
 
-      const latest = jobResults[0];
+      const latest = jobResults.find(isStaticImageResult);
       if (!latest) {
         if (!options.quietEmpty) setStatus(`${copy.statusInboxEmpty}: ${listData.outboxPath}`);
         return false;
@@ -4727,8 +4959,11 @@ function App() {
         logs={codexJobLogs}
         jobs={codexJobs}
         collapsed={codexLogsCollapsed}
+        fullscreen={codexLogsFullscreen}
         language={language}
         onToggle={() => setCodexLogsCollapsed((current) => !current)}
+        onEnterFullscreen={enterCodexLogsFullscreen}
+        onExitFullscreen={() => setCodexLogsFullscreen(false)}
       />
 
       <footer className="statusbar">
@@ -5024,14 +5259,20 @@ function CodexLogPanel({
   logs,
   jobs,
   collapsed,
+  fullscreen,
   language,
-  onToggle
+  onToggle,
+  onEnterFullscreen,
+  onExitFullscreen
 }: {
   logs: CodexJobLogItem[];
   jobs: CodexJobQueueItem[];
   collapsed: boolean;
+  fullscreen: boolean;
   language: Language;
   onToggle: () => void;
+  onEnterFullscreen: () => void;
+  onExitFullscreen: () => void;
 }) {
   const copy = uiCopy[language];
   const runningCount = jobs.filter((job) => job.state === "running").length;
@@ -5043,7 +5284,7 @@ function CodexLogPanel({
     : jobs.slice(0, CODEX_LOG_HISTORY_LIMIT).map((job) => createCodexJobLogItem(job, undefined, job.state));
 
   return (
-    <section className={`codex-log-panel ${collapsed ? "collapsed" : ""}`} aria-label={copy.codexLogTitle}>
+    <section className={`codex-log-panel ${collapsed ? "collapsed" : ""} ${fullscreen ? "fullscreen" : ""}`} aria-label={copy.codexLogTitle}>
       <div className="codex-log-header">
         <span>
           <Terminal size={15} aria-hidden="true" />
@@ -5052,6 +5293,14 @@ function CodexLogPanel({
         </span>
         <span className="codex-log-meta">
           <em>{runningCount}/{MAX_ACTIVE_CODEX_JOBS}</em>
+          <button
+            className="secondary-button mini icon-button codex-log-fullscreen-button"
+            onClick={fullscreen ? onExitFullscreen : onEnterFullscreen}
+            aria-label={fullscreen ? copy.codexLogExitFullscreen : copy.codexLogFullscreen}
+            title={fullscreen ? copy.codexLogExitFullscreen : copy.codexLogFullscreen}
+          >
+            {fullscreen ? <Minimize2 size={15} aria-hidden="true" /> : <Maximize2 size={15} aria-hidden="true" />}
+          </button>
           <button className="secondary-button mini" onClick={onToggle}>
             {collapsed ? copy.codexLogExpand : copy.codexLogCollapse}
           </button>
@@ -5412,22 +5661,23 @@ function buildAnimationCodexPrompt({
 }) {
   const motion = motionPrompt.trim() || actionName;
   return [
-    "このキャラクターをデフォルメして、スプライトシートにして画像生成してほしい。",
+    "このキャラクターをデフォルメして、方向別アニメーション素材として画像生成してほしい。",
     `Use the uploaded source image "${sourceName}" as the character reference.`,
-    `Extract only the single character and create a strict pixel-art sprite sheet of that same character ${motion}.`,
-    `Canvas and grid are strict: ${ANIMATION_DIRECTION_COUNT} rows by ${ANIMATION_FRAME_COUNT} columns, no gutters, no extra outer margin, exactly ${ANIMATION_FRAME_COUNT * ANIMATION_DIRECTION_COUNT} cells total.`,
-    `Create exactly ${ANIMATION_DIRECTION_COUNT} direction rows in this order from top to bottom: ${ANIMATION_DIRECTIONS.join(", ")}.`,
-    `Each direction row must contain exactly ${ANIMATION_FRAME_COUNT} animation frames from left to right.`,
-    `Each cell must be exactly ${cell.width}x${cell.height} pixels; the full sheet target is ${cell.width * ANIMATION_FRAME_COUNT}x${cell.height * ANIMATION_DIRECTION_COUNT} pixels.`,
+    `Extract only the single character and create a direction-split pixel-art animation set of that same character ${motion}.`,
+    "Do not return one combined 5x8 sheet for the standard animation workflow. Return five separate direction images, and Image Cockpit will compose the final 5x8 sheet after import.",
+    `Each direction image must be exactly ${cell.width * DIRECTION_SPLIT_ANIMATION_GRID.columns}x${cell.height * DIRECTION_SPLIT_ANIMATION_GRID.rows}px: ${DIRECTION_SPLIT_ANIMATION_GRID.columns} columns x ${DIRECTION_SPLIT_ANIMATION_GRID.rows} rows, no gutters, no extra outer margin, exactly ${ANIMATION_FRAME_COUNT} cells.`,
+    `Required directions and file suffixes: ${ANIMATION_DIRECTIONS.map((direction, index) => `${direction}=${DIRECTION_SPLIT_ANIMATION_FILE_SLUGS[index]}`).join(", ")}.`,
+    `Each cell must be exactly ${cell.width}x${cell.height} pixels. Fill frames left-to-right on row 1, then left-to-right on row 2.`,
     "Every cell must contain exactly one full-body character, centered inside that cell, with the entire head, hair, hands, weapon, clothing, and both feet visible.",
     "Keep at least 10% empty chroma-key padding inside every cell above the head, below the feet, and on both sides.",
-    "The character center and foot baseline must stay aligned across all frames in the same row; do not drift left, right, up, or down between frames.",
+    "The character center and foot baseline must stay aligned across all eight frames in the same direction image; do not drift left, right, up, or down between frames.",
     "Do not crop the head, feet, hair, weapon, or effects. Do not let body parts cross cell borders. Do not place heads or body fragments under the feet.",
-    "Use consistent character scale, baseline, foot contact point, silhouette size, palette, outfit, and pixel density across all 40 cells.",
+    "Use consistent character scale, baseline, foot contact point, silhouette size, palette, outfit, and pixel density across all direction images.",
     `Prefer a transparent background in every cell. If true transparency is not available during generation, use a flat ${chromaKey.label} background (${chromaKey.hex}) in every cell; do not use black, white, gradients, scenery, shadows, UI, text, logos, watermarks, letters, or numbers.`,
-    "Include a temporary 1-pixel pure cyan #00FFFF guide grid only on the exact 5x8 cell boundaries, including the outer boundary; no labels, numbers, text, UI, or decorative borders. The cyan guide grid must not overlap character pixels and will be removed by the app after generation.",
+    "If you add a temporary guide grid, use a temporary 1-pixel pure cyan #00FFFF guide grid only on the exact 4x2 cell boundaries for each direction image; no labels, numbers, text, UI, or decorative borders.",
     "Quality gate before returning: inspect all 40 cells and regenerate if any cell is cropped, has missing feet, has a cut-off head, contains multiple heads, has a head below the feet, has a different character, or uses a non-flat background.",
-    "Return one complete raster sprite sheet PNG or WebP using the job id filename prefix."
+    `Return exactly these direction files using the real job id prefix: ${directionSplitAnimationFileSet("<job-id>").join(", ")}.`,
+    `Also return <job-id>-manifest.json with schema "${DIRECTION_SPLIT_ANIMATION_SCHEMA}".`
   ].join(" ");
 }
 
@@ -5446,13 +5696,15 @@ function buildAnimationCodexNotes({
 }) {
   return [
     userNotes.trim(),
-    `Animation sprite workflow: generate a source-image-driven sprite sheet through Codex imagegen / built-in image_gen, then Image Cockpit will remove the ${chromaKey.label} background.`,
+    `Animation sprite workflow: generate five source-image-driven direction images through Codex imagegen / built-in image_gen, then Image Cockpit will remove the ${chromaKey.label} background and compose the final sheet.`,
     `Chroma key decision: ${chromaKey.name} ${chromaKey.hex}. ${chromaReason}`,
-    `Expected sheet layout: ${grid.columns} columns x ${grid.rows} rows, ${cell.width}x${cell.height} per cell.`,
-    `Direction rows: ${ANIMATION_DIRECTIONS.join(", ")}.`,
+    `Final app sheet layout after import: ${grid.columns} columns x ${grid.rows} rows, ${cell.width}x${cell.height} per cell.`,
+    `Raw returned direction layout: ${DIRECTION_SPLIT_ANIMATION_GRID.columns} columns x ${DIRECTION_SPLIT_ANIMATION_GRID.rows} rows per direction image, ${cell.width}x${cell.height} per cell.`,
+    `Required direction files: ${directionSplitAnimationFileSet("<job-id>").join(", ")}.`,
+    `Manifest schema: ${DIRECTION_SPLIT_ANIMATION_SCHEMA}; include directions, files, grid, cell, and framesPerDirection=${ANIMATION_FRAME_COUNT}.`,
     "Cell QA is mandatory: one full-body character per cell, consistent baseline and scale, 10% inner padding, no cropping, no duplicated heads, no body fragments under feet, no character parts crossing cell borders.",
     "The generated sheet should keep the chroma key background simple and flat so the app can remove it reliably.",
-    "Temporary guide grid: ask for pure cyan #00FFFF on exact 5x8 cell boundaries only. Image Cockpit removes those guide pixels before slicing/export."
+    "Temporary guide grid: pure cyan #00FFFF on exact 4x2 direction-image cell boundaries only. Image Cockpit removes those guide pixels before slicing/export."
   ].filter(Boolean).join("\n");
 }
 
@@ -5564,6 +5816,289 @@ async function createTransparentSpriteSheetDataUrl(dataUrl: string, chromaKey: A
   removeChromaKeyPixels(context, canvas.width, canvas.height, chromaKey);
   removeAnimationGuideGridPixels(context, canvas.width, canvas.height);
   return canvas.toDataURL("image/png");
+}
+
+async function composeDirectionSplitAnimationSheet(
+  importedResults: CodexOutboxImportResponse[],
+  chromaKey: AnimationChromaKey,
+  cell: SpriteAction["cell"]
+) {
+  const preparedCells: DirectionSplitPreparedCell[] = [];
+  const warnings: string[] = [];
+  const failures: string[] = [];
+  const expectedWidth = cell.width * DIRECTION_SPLIT_ANIMATION_GRID.columns;
+  const expectedHeight = cell.height * DIRECTION_SPLIT_ANIMATION_GRID.rows;
+
+  for (let directionIndex = 0; directionIndex < DIRECTION_SPLIT_ANIMATION_RESULT_COUNT; directionIndex += 1) {
+    const result = importedResults[directionIndex];
+    const direction = ANIMATION_DIRECTIONS[directionIndex];
+    if (!result) {
+      failures.push(`${direction}: missing direction image`);
+      continue;
+    }
+
+    const transparentDataUrl = await createTransparentSpriteSheetDataUrl(result.dataUrl, chromaKey);
+    const image = await loadImage(transparentDataUrl);
+    if (image.width !== expectedWidth || image.height !== expectedHeight) {
+      failures.push(`${direction}: expected ${expectedWidth}x${expectedHeight}, got ${image.width}x${image.height}`);
+    }
+
+    const cells = calculateGridCells(image.width, image.height, DIRECTION_SPLIT_ANIMATION_GRID);
+    const canvas = document.createElement("canvas");
+    canvas.width = cell.width;
+    canvas.height = cell.height;
+    const context = canvas.getContext("2d", { willReadFrequently: true });
+    if (!context) {
+      failures.push(`${direction}: could not create direction cell canvas`);
+      continue;
+    }
+    context.imageSmoothingEnabled = false;
+
+    cells.slice(0, ANIMATION_FRAME_COUNT).forEach((gridCell) => {
+      context.clearRect(0, 0, cell.width, cell.height);
+      context.drawImage(image, gridCell.x, gridCell.y, gridCell.width, gridCell.height, 0, 0, cell.width, cell.height);
+      preparedCells.push(prepareDirectionSplitCell(canvas, direction, directionIndex, gridCell.index, chromaKey.name));
+    });
+  }
+
+  const normalizedCells = normalizeDirectionSplitCells(preparedCells, cell);
+  const qa = validateDirectionSplitAnimationCells(normalizedCells, cell);
+  warnings.push(...normalizedCells.flatMap((frame) => frame.warnings), ...qa.warnings);
+  failures.push(...normalizedCells.flatMap((frame) => frame.failures), ...qa.failures);
+
+  if (failures.length > 0) {
+    throw new Error(`Direction split QA failed: ${failures.slice(0, 10).join("; ")}`);
+  }
+
+  const canvas = document.createElement("canvas");
+  canvas.width = cell.width * ANIMATION_FRAME_COUNT;
+  canvas.height = cell.height * ANIMATION_DIRECTION_COUNT;
+  const context = canvas.getContext("2d");
+  if (!context) throw new Error("Could not compose direction split animation sheet.");
+  context.clearRect(0, 0, canvas.width, canvas.height);
+  context.imageSmoothingEnabled = false;
+
+  normalizedCells.forEach((frame) => {
+    context.drawImage(frame.canvas, frame.frameIndex * cell.width, frame.directionIndex * cell.height);
+  });
+
+  return {
+    dataUrl: canvas.toDataURL("image/png"),
+    warnings
+  };
+}
+
+function prepareDirectionSplitCell(
+  canvas: HTMLCanvasElement,
+  direction: string,
+  directionIndex: number,
+  frameIndex: number,
+  residueChromaKey: FrameResidueChromaKey
+): DirectionSplitPreparedCell {
+  const width = canvas.width;
+  const height = canvas.height;
+  const sourceContext = canvas.getContext("2d", { willReadFrequently: true });
+  const sourceCanvas = document.createElement("canvas");
+  sourceCanvas.width = width;
+  sourceCanvas.height = height;
+  const copyContext = sourceCanvas.getContext("2d", { willReadFrequently: true });
+  const failures: string[] = [];
+  const warnings: string[] = [];
+  const label = directionSplitCellLabel(direction, frameIndex);
+
+  if (!sourceContext || !copyContext) {
+    return { direction, directionIndex, frameIndex, sourceCanvas, bounds: null, warnings, failures: [`${label}: could not inspect pixels`] };
+  }
+
+  const imageData = sourceContext.getImageData(0, 0, width, height);
+  removeFrameEdgeResiduePixels(imageData, width, height, residueChromaKey);
+  const { labels, components } = labelOpaqueComponents(imageData, width, height, residueChromaKey);
+  const primary = selectPrimaryOpaqueComponent(components, width, height);
+  if (!primary || primary.count < 64) {
+    copyContext.putImageData(imageData, 0, 0);
+    return { direction, directionIndex, frameIndex, sourceCanvas, bounds: null, warnings, failures: [`${label}: no primary character component found`] };
+  }
+
+  const keepComponents = new Uint8Array(components.length);
+  components.forEach((component) => {
+    if (component.id === primary.id) {
+      keepComponents[component.id] = 1;
+      return;
+    }
+    if (isLikelyFrameGarbageComponent(component, primary, width, height)) return;
+
+    const distance = Math.round(componentCenterDistance(component, primary));
+    if (distance > DIRECTION_SPLIT_DETACHED_FAIL_DISTANCE) {
+      failures.push(`${label}: detached component ${distance}px from body`);
+    } else if (distance > DIRECTION_SPLIT_DETACHED_WARN_DISTANCE) {
+      warnings.push(`${label}: detached component ${distance}px from body`);
+    }
+
+    if (shouldKeepFrameComponent(component, primary, width, height)) keepComponents[component.id] = 1;
+  });
+
+  const cleaned = new ImageData(new Uint8ClampedArray(imageData.data), width, height);
+  const data = cleaned.data;
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      const index = y * width + x;
+      const offset = index * 4;
+      const componentId = labels[index];
+      if (data[offset + 3] <= FRAME_ALPHA_THRESHOLD || componentId < 0 || keepComponents[componentId] !== 1) {
+        data[offset + 3] = 0;
+      }
+    }
+  }
+
+  const bounds = findOpaqueBounds(cleaned, width, height);
+  if (!bounds || bounds.count < 64) failures.push(`${label}: no character pixels remained after cleanup`);
+  copyContext.putImageData(cleaned, 0, 0);
+  return { direction, directionIndex, frameIndex, sourceCanvas, bounds, warnings, failures };
+}
+
+function normalizeDirectionSplitCells(preparedCells: DirectionSplitPreparedCell[], cell: SpriteAction["cell"]): DirectionSplitNormalizedCell[] {
+  const validHeights = preparedCells
+    .map((frame) => frame.bounds ? frame.bounds.maxY - frame.bounds.minY + 1 : 0)
+    .filter((height) => height > 0);
+  const targetHeight = clampNumber(
+    Math.round(medianNumber(validHeights) || cell.height * 0.72),
+    Math.round(cell.height * 0.45),
+    Math.round(cell.height * 0.86)
+  );
+  const targetFootY = Math.round(cell.height * 0.9);
+
+  return preparedCells.map((frame) => {
+    const canvas = document.createElement("canvas");
+    canvas.width = cell.width;
+    canvas.height = cell.height;
+    const context = canvas.getContext("2d", { willReadFrequently: true });
+    if (!context || !frame.bounds) {
+      return { ...frame, canvas, bounds: null };
+    }
+
+    const cropWidth = frame.bounds.maxX - frame.bounds.minX + 1;
+    const cropHeight = frame.bounds.maxY - frame.bounds.minY + 1;
+    const scale = Math.min(
+      targetHeight / Math.max(1, cropHeight),
+      (cell.width * 0.86) / Math.max(1, cropWidth),
+      (cell.height * 0.86) / Math.max(1, cropHeight)
+    );
+    const targetWidth = Math.max(1, Math.round(cropWidth * scale));
+    const normalizedHeight = Math.max(1, Math.round(cropHeight * scale));
+    const targetX = clampNumber(Math.round(cell.width / 2 - targetWidth / 2), 0, Math.max(0, cell.width - targetWidth));
+    const targetY = clampNumber(targetFootY - normalizedHeight, 0, Math.max(0, cell.height - normalizedHeight));
+
+    context.clearRect(0, 0, cell.width, cell.height);
+    context.imageSmoothingEnabled = false;
+    context.drawImage(
+      frame.sourceCanvas,
+      frame.bounds.minX,
+      frame.bounds.minY,
+      cropWidth,
+      cropHeight,
+      targetX,
+      targetY,
+      targetWidth,
+      normalizedHeight
+    );
+
+    const imageData = context.getImageData(0, 0, cell.width, cell.height);
+    const bounds = findOpaqueBounds(imageData, cell.width, cell.height);
+    return { ...frame, canvas, bounds };
+  });
+}
+
+function validateDirectionSplitAnimationCells(cells: DirectionSplitNormalizedCell[], cell: SpriteAction["cell"]) {
+  const warnings: string[] = [];
+  const failures: string[] = [];
+
+  ANIMATION_DIRECTIONS.forEach((direction, directionIndex) => {
+    const rowCells = cells
+      .filter((frame) => frame.directionIndex === directionIndex)
+      .sort((left, right) => left.frameIndex - right.frameIndex);
+    if (rowCells.length !== ANIMATION_FRAME_COUNT) {
+      failures.push(`${direction}: expected ${ANIMATION_FRAME_COUNT} cells, got ${rowCells.length}`);
+      return;
+    }
+
+    const metrics = rowCells
+      .map((frame) => frame.bounds ? {
+        frame,
+        width: frame.bounds.maxX - frame.bounds.minX + 1,
+        height: frame.bounds.maxY - frame.bounds.minY + 1,
+        centerX: (frame.bounds.minX + frame.bounds.maxX) / 2,
+        bottomY: frame.bounds.maxY,
+        topMargin: frame.bounds.minY
+      } : null)
+      .filter((metric): metric is NonNullable<typeof metric> => Boolean(metric));
+    if (metrics.length !== rowCells.length) {
+      rowCells.forEach((frame) => {
+        if (!frame.bounds) failures.push(`${directionSplitCellLabel(direction, frame.frameIndex)}: blank normalized cell`);
+      });
+      return;
+    }
+
+    const centerDrift = rangeNumber(metrics.map((metric) => metric.centerX));
+    if (centerDrift > DIRECTION_SPLIT_CENTER_FAIL_DRIFT) {
+      failures.push(`${direction}: center drift ${Math.round(centerDrift)}px`);
+    } else if (centerDrift > DIRECTION_SPLIT_CENTER_WARN_DRIFT) {
+      warnings.push(`${direction}: center drift ${Math.round(centerDrift)}px`);
+    }
+
+    const bottomDrift = rangeNumber(metrics.map((metric) => metric.bottomY));
+    if (bottomDrift > DIRECTION_SPLIT_BOTTOM_FAIL_DRIFT) {
+      failures.push(`${direction}: foot baseline drift ${Math.round(bottomDrift)}px`);
+    } else if (bottomDrift > DIRECTION_SPLIT_BOTTOM_WARN_DRIFT) {
+      warnings.push(`${direction}: foot baseline drift ${Math.round(bottomDrift)}px`);
+    }
+
+    const widthVariation = variationRatio(metrics.map((metric) => metric.width));
+    if (widthVariation > 0.45) {
+      failures.push(`${direction}: bbox width variation ${Math.round(widthVariation * 100)}%`);
+    } else if (widthVariation > 0.3) {
+      warnings.push(`${direction}: bbox width variation ${Math.round(widthVariation * 100)}%`);
+    }
+
+    const heightVariation = variationRatio(metrics.map((metric) => metric.height));
+    if (heightVariation > 0.35) {
+      failures.push(`${direction}: bbox height variation ${Math.round(heightVariation * 100)}%`);
+    } else if (heightVariation > 0.22) {
+      warnings.push(`${direction}: bbox height variation ${Math.round(heightVariation * 100)}%`);
+    }
+
+    metrics.forEach((metric) => {
+      if (metric.topMargin < 4) failures.push(`${directionSplitCellLabel(direction, metric.frame.frameIndex)}: top margin ${metric.topMargin}px`);
+      else if (metric.topMargin < 10) warnings.push(`${directionSplitCellLabel(direction, metric.frame.frameIndex)}: top margin ${metric.topMargin}px`);
+      if (metric.bottomY > cell.height - 3) failures.push(`${directionSplitCellLabel(direction, metric.frame.frameIndex)}: feet touch cell bottom`);
+    });
+  });
+
+  return { warnings, failures };
+}
+
+function directionSplitCellLabel(direction: string, frameIndex: number) {
+  return `${direction} cell ${frameIndex + 1}`;
+}
+
+function componentCenterDistance(left: FrameComponentMetrics, right: FrameComponentMetrics) {
+  return Math.hypot(left.centerX - right.centerX, left.centerY - right.centerY);
+}
+
+function medianNumber(values: number[]) {
+  if (values.length === 0) return 0;
+  const sorted = values.slice().sort((left, right) => left - right);
+  const middle = Math.floor(sorted.length / 2);
+  return sorted.length % 2 === 0 ? (sorted[middle - 1] + sorted[middle]) / 2 : sorted[middle];
+}
+
+function rangeNumber(values: number[]) {
+  if (values.length === 0) return 0;
+  return Math.max(...values) - Math.min(...values);
+}
+
+function variationRatio(values: number[]) {
+  const median = medianNumber(values);
+  return median > 0 ? rangeNumber(values) / median : 0;
 }
 
 type AnimationDrawable = (HTMLCanvasElement | HTMLImageElement) & { width: number; height: number };

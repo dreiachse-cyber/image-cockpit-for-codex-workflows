@@ -36,15 +36,24 @@ async function runManualHandoffSmoke() {
     assert(runnerPreflight.runner?.state === "disabled", "autorun-off preflight should report disabled runner state");
     assert(runnerPreflight.runner?.autorun === false, "autorun-off preflight should include autorun=false");
 
+    const directionManifestName = "manual-manifest.json";
     await writeFile(join(handoffDir, "outbox", "manual-return.png"), tinyPngBytes);
+    await writeFile(join(handoffDir, "outbox", directionManifestName), JSON.stringify({
+      schema: "image-cockpit.direction-split-animation.v1",
+      directions: ["front", "front three-quarter", "side", "back three-quarter", "back"],
+      framesPerDirection: 8
+    }, null, 2), "utf8");
     await writeFile(join(handoffDir, "outbox", "manual-notes.txt"), "not an image", "utf8");
 
     const outboxList = await getJson(port, "/api/codex/results");
     assert(outboxList.results.some((result) => result.name === "manual-return.png"), "outbox image should be listed");
+    assert(outboxList.results.some((result) => result.name === directionManifestName), "direction split manifest should be listed");
     assert(!outboxList.results.some((result) => result.name === "manual-notes.txt"), "non-image outbox file should be ignored");
     const importedOutbox = await getJson(port, "/api/codex/results/manual-return.png");
     assert(importedOutbox.mimeType === "image/png", "outbox import should preserve image MIME type");
     assert(importedOutbox.dataUrl === tinyPng, "outbox import should return a data URL");
+    const importedManifest = await getJson(port, `/api/codex/results/${directionManifestName}`);
+    assert(importedManifest.mimeType === "application/json", "direction split manifest import should preserve JSON MIME type");
 
     const localImages = await postJson(port, "/api/generate", {
       workflowMode: "image-generate",

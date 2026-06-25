@@ -41,7 +41,7 @@ try {
     IMAGE_COCKPIT_CODEX_COMMAND: nodeCommand,
     IMAGE_COCKPIT_CODEX_HELP_ARGS_JSON: JSON.stringify([mockRunnerPath, "--help"]),
     IMAGE_COCKPIT_CODEX_EXEC_ARGS_JSON: JSON.stringify([mockRunnerPath]),
-    IMAGE_COCKPIT_MOCK_RUNNER_DELAY_MS: "1200"
+    IMAGE_COCKPIT_MOCK_RUNNER_DELAY_MS: "2600"
   });
   await waitForHttp(`http://127.0.0.1:${apiPort}/api/providers`, "local API");
 
@@ -411,6 +411,7 @@ async function assertCodexQueue() {
 
   await clickButtonByText("Generate Pixel Art");
   await waitForEval(() => `document.body.innerText.includes("Codex Jobs") && document.body.innerText.includes("Active 1/2")`, "first Codex job running");
+  await assertCodexLogFullscreen();
   await waitForButtonEnabled("Generate Pixel Art");
 
   await clickButtonByText("Generate Pixel Art");
@@ -431,6 +432,67 @@ async function assertCodexQueue() {
   await waitForEval(() => `document.querySelectorAll(".codex-job-row").length === 0`, "Codex queue drains after results return", 18000);
   await assertNoBrowserErrors("Codex queue");
   await selectWorkflowTab("Pixel Art Generation");
+}
+
+async function assertCodexLogFullscreen() {
+  await waitForEval(() => `Boolean(document.querySelector(".codex-log-panel .codex-log-fullscreen-button"))`, "Codex log fullscreen button");
+  await waitForEval(
+    () => `Array.from(document.querySelectorAll(".codex-log-card pre")).some((pre) => pre.innerText.includes("mock runner accepted"))`,
+    "mock Codex log output",
+    8000
+  );
+  const normalMetrics = await evaluate(`(() => {
+    const panel = document.querySelector(".codex-log-panel");
+    const pre = document.querySelector(".codex-log-card pre");
+    return {
+      panelHeight: Math.round(panel?.getBoundingClientRect().height || 0),
+      preHeight: Math.round(pre?.getBoundingClientRect().height || 0)
+    };
+  })()`);
+  assert(normalMetrics.panelHeight > 0, "Codex log panel should be visible before fullscreen");
+  assert(normalMetrics.preHeight > 0, "Codex log pre should be visible before fullscreen");
+
+  await clickButtonByAriaLabel("Full screen logs");
+  await waitForEval(() => `document.querySelector(".codex-log-panel")?.classList.contains("fullscreen")`, "Codex log fullscreen mode");
+  const fullscreenMetrics = await evaluate(`(() => {
+    const panel = document.querySelector(".codex-log-panel.fullscreen");
+    const pre = document.querySelector(".codex-log-panel.fullscreen .codex-log-card pre");
+    return {
+      panelHeight: Math.round(panel?.getBoundingClientRect().height || 0),
+      preHeight: Math.round(pre?.getBoundingClientRect().height || 0),
+      exitButton: Boolean(document.querySelector('button[aria-label="Exit full screen"]'))
+    };
+  })()`);
+  assert(fullscreenMetrics.exitButton, "Fullscreen Codex log should expose an exit button");
+  assert(fullscreenMetrics.panelHeight > normalMetrics.panelHeight + 120, "Fullscreen Codex log panel should be taller than the compact panel");
+  assert(fullscreenMetrics.preHeight > normalMetrics.preHeight + 120, "Fullscreen Codex log text area should be taller than normal");
+  await maybeCapture("codex-log-fullscreen");
+
+  await evaluate(`window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }))`);
+  await waitForEval(() => `!document.querySelector(".codex-log-panel")?.classList.contains("fullscreen")`, "Codex log fullscreen closes with Escape");
+
+  await cdp.send("Emulation.setDeviceMetricsOverride", { width: 390, height: 844, deviceScaleFactor: 1, mobile: true });
+  await delay(250);
+  await clickButtonByAriaLabel("Full screen logs");
+  await waitForEval(() => `document.querySelector(".codex-log-panel")?.classList.contains("fullscreen")`, "mobile Codex log fullscreen mode");
+  const mobileFit = await evaluate(`(() => {
+    const panel = document.querySelector(".codex-log-panel.fullscreen");
+    const header = document.querySelector(".codex-log-panel.fullscreen .codex-log-header");
+    const pre = document.querySelector(".codex-log-panel.fullscreen .codex-log-card pre");
+    const panelRect = panel?.getBoundingClientRect();
+    return {
+      panelFits: Boolean(panelRect && panelRect.left >= -1 && panelRect.right <= window.innerWidth + 1),
+      headerFits: Boolean(header && header.scrollWidth <= header.clientWidth + 1),
+      preFits: Boolean(pre && pre.scrollWidth <= pre.clientWidth + 1)
+    };
+  })()`);
+  assert(mobileFit.panelFits, "Mobile fullscreen Codex log panel should fit within the viewport");
+  assert(mobileFit.headerFits, "Mobile fullscreen Codex log header should not overflow horizontally");
+  assert(mobileFit.preFits, "Mobile fullscreen Codex log text should not overflow horizontally");
+  await evaluate(`window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }))`);
+  await waitForEval(() => `!document.querySelector(".codex-log-panel")?.classList.contains("fullscreen")`, "mobile Codex log fullscreen closes with Escape");
+  await cdp.send("Emulation.clearDeviceMetricsOverride");
+  await delay(250);
 }
 
 async function assertCodexFailureNotice() {
@@ -961,6 +1023,14 @@ async function clickButtonByText(label) {
   })()`);
 }
 
+async function clickButtonByAriaLabel(label) {
+  await evaluate(`(() => {
+    const button = Array.from(document.querySelectorAll("button")).find((item) => item.getAttribute("aria-label") === ${JSON.stringify(label)});
+    if (!button) throw new Error("Button not found by aria-label: ${label}");
+    button.click();
+  })()`);
+}
+
 async function setFileInputFiles(selector, files) {
   const { root } = await cdp.send("DOM.getDocument", { depth: 1 });
   const { nodeId } = await cdp.send("DOM.querySelector", { nodeId: root.nodeId, selector });
@@ -1014,6 +1084,9 @@ async function pageSnapshot() {
     historyVisibleCount: document.querySelector(".history-list")?.dataset.visibleCount || "",
     historyTotalCount: document.querySelector(".history-list")?.dataset.totalCount || "",
     codexFailureCards: document.querySelectorAll(".codex-failure-card").length,
+    codexLogPanelVisible: Boolean(document.querySelector(".codex-log-panel")),
+    codexLogFullscreen: Boolean(document.querySelector(".codex-log-panel.fullscreen")),
+    codexLogFullscreenButtons: document.querySelectorAll(".codex-log-fullscreen-button").length,
     spriteBenchVisible: Boolean(document.querySelector(".sprite-bench")),
     codexJobRows: document.querySelectorAll(".codex-job-row").length,
     codexJobShelfInHistory: Boolean(document.querySelector(".history-panel > .codex-job-shelf")),
@@ -1185,6 +1258,7 @@ if (!jobId || !jobPath || !outboxDir) {
 }
 
 const job = JSON.parse(await readFile(jobPath, "utf8"));
+console.log(\`mock runner accepted \${jobId} \${job.workflowMode || "unknown"}\`);
 const delayMs = Number(process.env.IMAGE_COCKPIT_MOCK_RUNNER_DELAY_MS || 0);
 if (delayMs > 0) {
   await new Promise((resolve) => setTimeout(resolve, delayMs));
@@ -1219,14 +1293,35 @@ const columns = Number(job.spriteContext?.grid?.columns || 8);
 const rows = Number(job.spriteContext?.grid?.rows || 5);
 const cellWidth = Number(job.spriteContext?.cell?.width || 256);
 const cellHeight = Number(job.spriteContext?.cell?.height || 256);
+const chroma = job.spriteContext?.chromaKey === "magenta" ? [255, 0, 255, 255] : [0, 255, 0, 255];
+if (job.spriteContext?.variant === "standard") {
+  const directionSlugs = ["front", "front-three-quarter", "side", "back-three-quarter", "back"];
+  const directionNames = ["front", "front three-quarter", "side", "back three-quarter", "back"];
+  for (const [index, slug] of directionSlugs.entries()) {
+    const png = makeSpriteSheetPng(cellWidth * 4, cellHeight * 2, 4, 2, cellWidth, cellHeight, chroma, index);
+    await writeFile(join(outboxDir, \`\${jobId}-\${slug}.png\`), png);
+  }
+  await writeFile(join(outboxDir, \`\${jobId}-manifest.json\`), JSON.stringify({
+    schema: "image-cockpit.direction-split-animation.v1",
+    jobId,
+    action: job.spriteContext?.action || "idle",
+    directions: directionNames,
+    framesPerDirection: 8,
+    grid: { columns: 4, rows: 2, gutter: 0 },
+    cell: { width: cellWidth, height: cellHeight },
+    files: Object.fromEntries(directionSlugs.map((slug, index) => [directionNames[index], \`\${jobId}-\${slug}.png\`]))
+  }, null, 2), "utf8");
+  console.log(\`mock direction split sprite sheet completed \${jobId}\`);
+  process.exit(0);
+}
+
 const width = columns * cellWidth;
 const height = rows * cellHeight;
-const chroma = job.spriteContext?.chromaKey === "magenta" ? [255, 0, 255, 255] : [0, 255, 0, 255];
 const png = makeSpriteSheetPng(width, height, columns, rows, cellWidth, cellHeight, chroma);
 await writeFile(join(outboxDir, \`\${jobId}-mock-sprite-sheet.png\`), png);
 console.log(\`mock sprite sheet completed \${jobId}\`);
 
-function makeSpriteSheetPng(width, height, columns, rows, cellWidth, cellHeight, chroma) {
+function makeSpriteSheetPng(width, height, columns, rows, cellWidth, cellHeight, chroma, directionIndex = 0) {
   const bytesPerPixel = 4;
   const stride = 1 + width * bytesPerPixel;
   const raw = Buffer.alloc(stride * height);
@@ -1244,12 +1339,12 @@ function makeSpriteSheetPng(width, height, columns, rows, cellWidth, cellHeight,
       const localX = x % cellWidth;
       const localY = y % cellHeight;
       const centerX = Math.round(cellWidth / 2 + Math.sin(column / Math.max(1, columns - 1) * Math.PI * 2) * 28);
-      const centerY = Math.round(cellHeight * 0.58 + row * 3);
+      const centerY = Math.round(cellHeight * 0.58 + row * 3 + directionIndex * 0.5);
       const body = Math.abs(localX - centerX) < 54 && Math.abs(localY - centerY) < 78;
       const head = (localX - centerX) ** 2 + (localY - (centerY - 82)) ** 2 < 42 ** 2;
       const feet = Math.abs(localX - centerX) < 72 && Math.abs(localY - (centerY + 88)) < 12;
       if (body || head || feet) {
-        raw[offset] = 32 + row * 28;
+        raw[offset] = 32 + row * 28 + directionIndex * 18;
         raw[offset + 1] = 44 + column * 10;
         raw[offset + 2] = 74 + row * 18;
         raw[offset + 3] = 255;
