@@ -52,7 +52,23 @@ const requiredFiles = [
   "docs/marketing/x-launch/launch-thread-ja.md",
   "docs/marketing/x-launch/asset-checklist.md",
   "docs/marketing/x-launch/social-preview.png",
-  ".github/PULL_REQUEST_TEMPLATE.md"
+  ".github/PULL_REQUEST_TEMPLATE.md",
+  "docs/prompt-examples/README.md",
+  "docs/prompt-examples/basic-character-prompts.md",
+  "docs/prompt-examples/profession-character-prompts.md",
+  "docs/prompt-examples/monster-prompts.md",
+  "public/prompt-examples/basic-boy-adventurer.png",
+  "public/prompt-examples/basic-girl-adventurer.png",
+  "public/prompt-examples/basic-young-male-hero.png",
+  "public/prompt-examples/basic-young-female-hero.png",
+  "public/prompt-examples/basic-middle-aged-male-mercenary.png",
+  "public/prompt-examples/basic-middle-aged-female-ranger.png",
+  "public/prompt-examples/basic-elder-male-sage.png",
+  "public/prompt-examples/basic-elder-female-herbalist.png",
+  "public/prompt-examples/basic-androgynous-traveler.png",
+  "public/prompt-examples/basic-small-village-child.png",
+  "public/prompt-examples/basic-large-veteran-warrior.png",
+  "public/prompt-examples/basic-hooded-mysterious-figure.png"
 ];
 
 const requiredEnvKeys = [
@@ -348,6 +364,22 @@ function checkWorkflowIds() {
     "Copy Prompt",
     "Use Prompt",
     "Clockwork Mushroom Courier",
+    "Basic Character",
+    "basicCharacterPromptExampleChecks",
+    "Boy Adventurer",
+    "Girl Adventurer",
+    "Young Male Hero",
+    "Young Female Hero",
+    "Middle-Aged Male Mercenary",
+    "Middle-Aged Female Ranger",
+    "Elder Male Sage",
+    "Elder Female Herbalist",
+    "Androgynous Traveler",
+    "Small Village Child",
+    "Large Veteran Warrior",
+    "Hooded Mysterious Figure",
+    "at least 18 image previews",
+    "generated from prompt example",
     "Prompt example loaded into Pixel Art Generation",
     "Generation can take a few minutes.",
     "assertCodexQueue",
@@ -508,6 +540,28 @@ function checkWorkflowIds() {
   ].forEach((marker) => {
     if (!uiSmokeText.includes(marker)) {
       failures.push(`UI smoke should cover workspace workflow review: ${marker}`);
+    }
+  });
+
+  [
+    "BASIC_CHARACTER_CATEGORY",
+    "Basic Character",
+    "docs/prompt-examples/basic-character-prompts.md",
+    "basic-boy-adventurer",
+    "basic-girl-adventurer",
+    "basic-young-male-hero",
+    "basic-young-female-hero",
+    "basic-middle-aged-male-mercenary",
+    "basic-middle-aged-female-ranger",
+    "basic-elder-male-sage",
+    "basic-elder-female-herbalist",
+    "basic-androgynous-traveler",
+    "basic-small-village-child",
+    "basic-large-veteran-warrior",
+    "basic-hooded-mysterious-figure"
+  ].forEach((marker) => {
+    if (!appText.includes(marker)) {
+      failures.push(`App should include the Basic Character prompt examples: ${marker}`);
     }
   });
 

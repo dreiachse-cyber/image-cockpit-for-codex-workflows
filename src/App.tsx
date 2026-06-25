@@ -2051,6 +2051,183 @@ const workflowOptions: Array<{
   }
 ];
 
+const BASIC_CHARACTER_CATEGORY = { en: "Basic Character", ja: "基本キャラクター" };
+const BASIC_CHARACTER_NEGATIVE_PROMPT =
+  "blur, text, watermark, logo, cropped head, cropped feet, cut off body, extra limbs, duplicate character, scenery, detailed background, floor shadow, photorealistic, 3d render, vector art";
+const BASIC_CHARACTER_PROMPT_SOURCE = "docs/prompt-examples/basic-character-prompts.md";
+const BASIC_CHARACTER_NOTES = `${BASIC_CHARACTER_PROMPT_SOURCE}: full-body transparent-background starter character.`;
+
+const basicCharacterPromptExamples: PromptExample[] = [
+  {
+    id: "basic-boy-adventurer",
+    category: BASIC_CHARACTER_CATEGORY,
+    title: { en: "Boy Adventurer", ja: "少年冒険者" },
+    previewImage: "/prompt-examples/basic-boy-adventurer.png",
+    summary: {
+      en: "Cheerful starter adventurer with backpack, cloak, boots, and sword.",
+      ja: "リュック、短いマント、ブーツ、剣を備えた明るい少年冒険者です。"
+    },
+    prompt:
+      "Create a single full-body pixel-art character asset: a cheerful young boy adventurer with a small backpack, short cloak, leather boots, simple sword at his side, friendly brave expression, centered idle-animation-ready stance, clear feet contact, readable silhouette, transparent background preferred, crisp 32-bit fantasy RPG pixel-art rendering, no scenery, no readable text, no logo, no watermark. Keep the entire head, hair, hands, props, and feet fully inside the image with comfortable transparent padding around the character. If transparency is unavailable, use a perfectly flat solid #00ff00 chroma-key background with no shadows, gradients, texture, floor plane, or lighting variation.",
+    negativePrompt: BASIC_CHARACTER_NEGATIVE_PROMPT,
+    notes: BASIC_CHARACTER_NOTES
+  },
+  {
+    id: "basic-girl-adventurer",
+    category: BASIC_CHARACTER_CATEGORY,
+    title: { en: "Girl Adventurer", ja: "少女冒険者" },
+    previewImage: "/prompt-examples/basic-girl-adventurer.png",
+    summary: {
+      en: "Curious starter adventurer with satchel, travel cape, boots, and dagger.",
+      ja: "サッチェル、旅マント、ブーツ、小さな短剣を持つ好奇心旺盛な少女冒険者です。"
+    },
+    prompt:
+      "Create a single full-body pixel-art character asset: a cheerful young girl adventurer with a small satchel, short travel cape, leather boots, tiny dagger, bright curious expression, centered idle-animation-ready stance, clear feet contact, readable silhouette, transparent background preferred, crisp 32-bit fantasy RPG pixel-art rendering, no scenery, no readable text, no logo, no watermark. Keep the entire head, hair, hands, props, and feet fully inside the image with comfortable transparent padding around the character. If transparency is unavailable, use a perfectly flat solid #00ff00 chroma-key background with no shadows, gradients, texture, floor plane, or lighting variation.",
+    negativePrompt: BASIC_CHARACTER_NEGATIVE_PROMPT,
+    notes: BASIC_CHARACTER_NOTES
+  },
+  {
+    id: "basic-young-male-hero",
+    category: BASIC_CHARACTER_CATEGORY,
+    title: { en: "Young Male Hero", ja: "若き男性勇者" },
+    previewImage: "/prompt-examples/basic-young-male-hero.png",
+    summary: {
+      en: "Light-armored hero with blue scarf and simple longsword.",
+      ja: "軽装鎧、青いスカーフ、シンプルな長剣を持つ若い男性勇者です。"
+    },
+    prompt:
+      "Create a single full-body pixel-art character asset: a young male fantasy hero with light armor, blue scarf, simple longsword, confident relaxed pose, clean heroic silhouette, centered idle-animation-ready stance, clear feet contact, transparent background preferred, crisp 32-bit RPG pixel-art rendering, no scenery, no readable text, no logo, no watermark. Keep the entire head, hair, hands, weapon, and feet fully inside the image with comfortable transparent padding around the character. If transparency is unavailable, use a perfectly flat solid #00ff00 chroma-key background with no shadows, gradients, texture, floor plane, or lighting variation.",
+    negativePrompt: BASIC_CHARACTER_NEGATIVE_PROMPT,
+    notes: BASIC_CHARACTER_NOTES
+  },
+  {
+    id: "basic-young-female-hero",
+    category: BASIC_CHARACTER_CATEGORY,
+    title: { en: "Young Female Hero", ja: "若き女性勇者" },
+    previewImage: "/prompt-examples/basic-young-female-hero.png",
+    summary: {
+      en: "Light-armored hero with red scarf and compact sword.",
+      ja: "軽装鎧、赤いスカーフ、短めの剣を持つ若い女性勇者です。"
+    },
+    prompt:
+      "Create a single full-body pixel-art character asset: a young female fantasy hero with light armor, red scarf, compact sword, confident relaxed pose, clean heroic silhouette, centered idle-animation-ready stance, clear feet contact, transparent background preferred, crisp 32-bit RPG pixel-art rendering, no scenery, no readable text, no logo, no watermark. Keep the entire head, hair, hands, weapon, and feet fully inside the image with comfortable transparent padding around the character. If transparency is unavailable, use a perfectly flat solid #00ff00 chroma-key background with no shadows, gradients, texture, floor plane, or lighting variation.",
+    negativePrompt: BASIC_CHARACTER_NEGATIVE_PROMPT,
+    notes: BASIC_CHARACTER_NOTES
+  },
+  {
+    id: "basic-middle-aged-male-mercenary",
+    category: BASIC_CHARACTER_CATEGORY,
+    title: { en: "Middle-Aged Male Mercenary", ja: "中年男性傭兵" },
+    previewImage: "/prompt-examples/basic-middle-aged-male-mercenary.png",
+    summary: {
+      en: "Experienced mercenary with worn leather armor, cloak, pouches, and sword.",
+      ja: "使い込まれた革鎧、マント、ポーチ、剣を備えた経験豊かな男性傭兵です。"
+    },
+    prompt:
+      "Create a single full-body pixel-art character asset: a middle-aged male mercenary with rugged leather armor, travel-worn cloak, stubble, heavy belt pouches, one hand resting near a sword, calm experienced expression, centered idle-animation-ready stance, clear feet contact, transparent background preferred, crisp 32-bit fantasy RPG pixel-art rendering, no scenery, no readable text, no logo, no watermark. Keep the entire head, hair, hands, sword, pouches, and feet fully inside the image with comfortable transparent padding around the character. If transparency is unavailable, use a perfectly flat solid #00ff00 chroma-key background with no shadows, gradients, texture, floor plane, or lighting variation.",
+    negativePrompt: BASIC_CHARACTER_NEGATIVE_PROMPT,
+    notes: BASIC_CHARACTER_NOTES
+  },
+  {
+    id: "basic-middle-aged-female-ranger",
+    category: BASIC_CHARACTER_CATEGORY,
+    title: { en: "Middle-Aged Female Ranger", ja: "中年女性レンジャー" },
+    previewImage: "/prompt-examples/basic-middle-aged-female-ranger.png",
+    summary: {
+      en: "Composed ranger with practical leather armor, green-brown cloak, bow, and quiver.",
+      ja: "実用的な革鎧、緑褐色のマント、弓と矢筒を持つ落ち着いた女性レンジャーです。"
+    },
+    prompt:
+      "Create a single full-body pixel-art character asset: a middle-aged female ranger with practical leather armor, short green-brown cloak, bow and quiver, composed experienced expression, centered idle-animation-ready stance, clear feet contact, readable silhouette, transparent background preferred, crisp 32-bit fantasy RPG pixel-art rendering, no scenery, no readable text, no logo, no watermark. Keep the entire head, hair, hands, bow, quiver, cloak, and feet fully inside the image with comfortable transparent padding around the character. If transparency is unavailable, use a perfectly flat solid #ff00ff chroma-key background because the character uses green clothing; no shadows, gradients, texture, floor plane, or lighting variation.",
+    negativePrompt: BASIC_CHARACTER_NEGATIVE_PROMPT,
+    notes: BASIC_CHARACTER_NOTES
+  },
+  {
+    id: "basic-elder-male-sage",
+    category: BASIC_CHARACTER_CATEGORY,
+    title: { en: "Elder Male Sage", ja: "老年男性賢者" },
+    previewImage: "/prompt-examples/basic-elder-male-sage.png",
+    summary: {
+      en: "Gentle sage with long white beard, layered robe, staff, and charm ornaments.",
+      ja: "長い白ひげ、重ね着のローブ、杖、小さな護符を持つ穏やかな賢者です。"
+    },
+    prompt:
+      "Create a single full-body pixel-art character asset: an elderly male sage with long white beard, layered robe, wooden staff, small charm ornaments, gentle wise expression, compact readable silhouette, centered idle-animation-ready stance, clear feet contact, transparent background preferred, crisp 32-bit fantasy RPG pixel-art rendering, no scenery, no readable text, no logo, no watermark. Keep the entire head, beard, hands, staff, robe hem, and feet fully inside the image with comfortable transparent padding around the character. If transparency is unavailable, use a perfectly flat solid #00ff00 chroma-key background with no shadows, gradients, texture, floor plane, or lighting variation.",
+    negativePrompt: BASIC_CHARACTER_NEGATIVE_PROMPT,
+    notes: BASIC_CHARACTER_NOTES
+  },
+  {
+    id: "basic-elder-female-herbalist",
+    category: BASIC_CHARACTER_CATEGORY,
+    title: { en: "Elder Female Herbalist", ja: "老年女性薬草師" },
+    previewImage: "/prompt-examples/basic-elder-female-herbalist.png",
+    summary: {
+      en: "Kind herbalist with gray hair, warm shawl, herb pouch, basket, and cane.",
+      ja: "白髪、温かなショール、薬草袋、かご、杖を持つ優しい薬草師です。"
+    },
+    prompt:
+      "Create a single full-body pixel-art character asset: an elderly female herbalist with gray hair, warm shawl, herb pouch, small basket, wooden cane, kind wise expression, compact readable silhouette, centered idle-animation-ready stance, clear feet contact, transparent background preferred, crisp 32-bit fantasy RPG pixel-art rendering, no scenery, no readable text, no logo, no watermark. Keep the entire head, hair, hands, basket, cane, shawl, and feet fully inside the image with comfortable transparent padding around the character. If transparency is unavailable, use a perfectly flat solid #00ff00 chroma-key background with no shadows, gradients, texture, floor plane, or lighting variation.",
+    negativePrompt: BASIC_CHARACTER_NEGATIVE_PROMPT,
+    notes: BASIC_CHARACTER_NOTES
+  },
+  {
+    id: "basic-androgynous-traveler",
+    category: BASIC_CHARACTER_CATEGORY,
+    title: { en: "Androgynous Traveler", ja: "中性的な旅人" },
+    previewImage: "/prompt-examples/basic-androgynous-traveler.png",
+    summary: {
+      en: "Neutral traveler with layered clothing, lowered hood, backpack, and map case.",
+      ja: "重ね着、下ろしたフード、リュック、地図筒を持つ中性的な旅人です。"
+    },
+    prompt:
+      "Create a single full-body pixel-art character asset: an androgynous fantasy traveler with layered neutral clothing, hood lowered, small backpack, map case, calm observant expression, balanced slim silhouette, centered idle-animation-ready stance, clear feet contact, transparent background preferred, crisp 32-bit RPG pixel-art rendering, no scenery, no readable text, no logo, no watermark. Keep the entire head, hair, hands, backpack, map case, and feet fully inside the image with comfortable transparent padding around the character. If transparency is unavailable, use a perfectly flat solid #00ff00 chroma-key background with no shadows, gradients, texture, floor plane, or lighting variation.",
+    negativePrompt: BASIC_CHARACTER_NEGATIVE_PROMPT,
+    notes: BASIC_CHARACTER_NOTES
+  },
+  {
+    id: "basic-small-village-child",
+    category: BASIC_CHARACTER_CATEGORY,
+    title: { en: "Small Village Child", ja: "村の子ども" },
+    previewImage: "/prompt-examples/basic-small-village-child.png",
+    summary: {
+      en: "Tiny non-combat NPC with simple tunic, boots, and shoulder bag.",
+      ja: "シンプルなチュニック、短いブーツ、小さな肩掛けバッグの非戦闘NPCです。"
+    },
+    prompt:
+      "Create a single full-body pixel-art character asset: a small village child NPC with simple tunic, short boots, tiny shoulder bag, innocent curious expression, non-combat pose, compact readable silhouette, centered idle-animation-ready stance, clear feet contact, transparent background preferred, crisp 32-bit fantasy RPG pixel-art rendering, no scenery, no readable text, no logo, no watermark. Keep the entire head, hair, hands, shoulder bag, and feet fully inside the image with comfortable transparent padding around the character. If transparency is unavailable, use a perfectly flat solid #00ff00 chroma-key background with no shadows, gradients, texture, floor plane, or lighting variation.",
+    negativePrompt: BASIC_CHARACTER_NEGATIVE_PROMPT,
+    notes: BASIC_CHARACTER_NOTES
+  },
+  {
+    id: "basic-large-veteran-warrior",
+    category: BASIC_CHARACTER_CATEGORY,
+    title: { en: "Large Veteran Warrior", ja: "大柄な歴戦の戦士" },
+    previewImage: "/prompt-examples/basic-large-veteran-warrior.png",
+    summary: {
+      en: "Broad veteran warrior with worn armor plates, gloves, boots, and short cape.",
+      ja: "使い込まれた鎧板、重い手袋、厚いブーツ、短いマントを備えた大柄な戦士です。"
+    },
+    prompt:
+      "Create a single full-body pixel-art character asset: a large veteran warrior with broad shoulders, worn armor plates, heavy gloves, thick boots, short cape, stern protective expression, strong readable silhouette, centered idle-animation-ready stance, clear feet contact, transparent background preferred, crisp 32-bit fantasy RPG pixel-art rendering, no scenery, no readable text, no logo, no watermark. Keep the entire head, armor, hands, cape, boots, and feet fully inside the image with comfortable transparent padding around the character. If transparency is unavailable, use a perfectly flat solid #00ff00 chroma-key background with no shadows, gradients, texture, floor plane, or lighting variation.",
+    negativePrompt: BASIC_CHARACTER_NEGATIVE_PROMPT,
+    notes: BASIC_CHARACTER_NOTES
+  },
+  {
+    id: "basic-hooded-mysterious-figure",
+    category: BASIC_CHARACTER_CATEGORY,
+    title: { en: "Hooded Mysterious Figure", ja: "フードの謎めいた人物" },
+    previewImage: "/prompt-examples/basic-hooded-mysterious-figure.png",
+    summary: {
+      en: "Dark cloaked figure with hidden face, glowing charm, and quiet neutral pose.",
+      ja: "暗い重ねマント、隠れた顔、光る護符、静かな立ち姿の謎めいた人物です。"
+    },
+    prompt:
+      "Create a single full-body pixel-art character asset: a hooded mysterious figure with dark layered cloak, subtle glowing charm, hidden face with visible lower jaw only, slim readable silhouette, quiet neutral pose, centered idle-animation-ready stance, clear feet contact, transparent background preferred, crisp 32-bit fantasy RPG pixel-art rendering, no scenery, no readable text, no logo, no watermark. Keep the entire hood, cloak edges, hands, charm, robe hem, and feet fully inside the image with comfortable transparent padding around the character. If transparency is unavailable, use a perfectly flat solid #00ff00 chroma-key background with no shadows, gradients, texture, floor plane, or lighting variation.",
+    negativePrompt: BASIC_CHARACTER_NEGATIVE_PROMPT,
+    notes: BASIC_CHARACTER_NOTES
+  }
+];
+
 const promptExamples: PromptExample[] = [
   {
     id: "clockwork-mushroom-courier",
@@ -2080,6 +2257,7 @@ const promptExamples: PromptExample[] = [
     negativePrompt: "cropped feet, extra arms, text, logo, watermark, blurry edges, realistic skin, busy background, gradient background, floor plane, cast shadow",
     notes: "Character should be easy to cut out and animate later. Keep pose neutral, balanced, readable, and background-free when possible."
   },
+  ...basicCharacterPromptExamples,
   {
     id: "ember-slime-companion",
     category: { en: "Creature", ja: "クリーチャー" },

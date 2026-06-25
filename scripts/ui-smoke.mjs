@@ -10,6 +10,20 @@ const nodeCommand = process.execPath;
 const browserCommand = process.env.IMAGE_COCKPIT_BROWSER_COMMAND || findBrowserCommand();
 const tinyPng =
   "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII=";
+const basicCharacterPromptExampleChecks = [
+  { title: "Boy Adventurer", promptText: "cheerful young boy adventurer" },
+  { title: "Girl Adventurer", promptText: "cheerful young girl adventurer" },
+  { title: "Young Male Hero", promptText: "young male fantasy hero" },
+  { title: "Young Female Hero", promptText: "young female fantasy hero" },
+  { title: "Middle-Aged Male Mercenary", promptText: "middle-aged male mercenary" },
+  { title: "Middle-Aged Female Ranger", promptText: "middle-aged female ranger" },
+  { title: "Elder Male Sage", promptText: "elderly male sage" },
+  { title: "Elder Female Herbalist", promptText: "elderly female herbalist" },
+  { title: "Androgynous Traveler", promptText: "androgynous fantasy traveler" },
+  { title: "Small Village Child", promptText: "small village child NPC" },
+  { title: "Large Veteran Warrior", promptText: "large veteran warrior" },
+  { title: "Hooded Mysterious Figure", promptText: "hooded mysterious figure" }
+];
 
 if (!browserCommand) {
   console.error("UI smoke requires Chrome or Edge. Set IMAGE_COCKPIT_BROWSER_COMMAND to a browser executable.");
@@ -251,28 +265,57 @@ async function assertPromptExamples() {
     return Boolean(trigger && promptField && promptField.nextElementSibling === trigger);
   })()`);
   assert(triggerPlacement, "Prompt Examples trigger should sit directly below the prompt field");
-  await clickButtonByText("Prompt Examples");
-  await waitForEval(() => `document.querySelector(".prompt-modal")?.innerText.includes("Clockwork Mushroom Courier")`, "Prompt Examples modal");
+  await openPromptExamplesModal();
   const snapshot = await pageSnapshot();
   assert(snapshot.text.includes("Pick by preview image"), "Prompt Examples intro should be visible");
   assert(snapshot.buttons.includes("Copy Prompt"), "Prompt Examples should expose copy buttons");
   assert(snapshot.buttons.includes("Use Prompt"), "Prompt Examples should expose use buttons");
-  assert(snapshot.promptPreviewImages >= 6, `Prompt Examples should show image previews, got ${snapshot.promptPreviewImages}`);
+  assert(snapshot.promptPreviewImages >= 18, `Prompt Examples should show image previews with at least 18 image previews, got ${snapshot.promptPreviewImages}`);
   assert(snapshot.promptRawTextBlocks === 0, `Prompt Examples should hide raw prompt text, got ${snapshot.promptRawTextBlocks} raw blocks`);
-  const firstPreviewLoaded = await evaluate(`Boolean(document.querySelector(".prompt-card-preview img")?.naturalWidth)`);
-  assert(firstPreviewLoaded, "Prompt Examples preview images should load");
+  const promptExampleCounts = await evaluate(`(() => {
+    const buttonLabels = Array.from(document.querySelectorAll(".prompt-modal button"))
+      .map((button) => button.innerText.replace(/\\s+/g, " ").trim());
+    return {
+      loadedImages: Array.from(document.querySelectorAll(".prompt-card-preview img"))
+        .filter((image) => image.complete && image.naturalWidth > 0).length,
+      copyButtons: buttonLabels.filter((label) => label === "Copy Prompt").length,
+      useButtons: buttonLabels.filter((label) => label === "Use Prompt").length,
+      categories: Array.from(document.querySelectorAll(".prompt-card-meta small"))
+        .map((node) => node.textContent?.trim() || "")
+    };
+  })()`);
+  assert(promptExampleCounts.loadedImages >= 18, `Prompt Examples preview images should load, got ${promptExampleCounts.loadedImages}`);
+  assert(promptExampleCounts.copyButtons >= 18, `Prompt Examples should expose copy buttons for every preview, got ${promptExampleCounts.copyButtons}`);
+  assert(promptExampleCounts.useButtons >= 18, `Prompt Examples should expose use buttons for every preview, got ${promptExampleCounts.useButtons}`);
+  assert(promptExampleCounts.categories.includes("Basic Character"), "Prompt Examples should include Basic Character category");
   assert(!snapshot.text.includes("Create one original pixel-art game asset"), "Prompt Examples should not display raw prompt contents");
+  assert(!snapshot.text.includes("Create a single full-body pixel-art character asset"), "Prompt Examples should not display raw basic character prompt contents");
+  for (const check of basicCharacterPromptExampleChecks) {
+    assert(snapshot.text.includes(check.title), `Prompt Examples should include ${check.title}`);
+  }
   await maybeCapture("prompt-examples-modal");
 
-  await clickButtonByText("Use Prompt");
-  await waitForEval(
-    () => `document.body.innerText.includes("Prompt example loaded into Pixel Art Generation")`,
-    "Prompt example loaded"
-  );
-  const loadedPrompt = await evaluate(`document.querySelector("textarea")?.value || ""`);
-  assert(loadedPrompt.includes("clockwork mushroom courier"), "Use Prompt should load the example into the prompt field");
-  const modalClosed = await evaluate(`!document.querySelector(".prompt-modal")`);
-  assert(modalClosed, "Use Prompt should close the Prompt Examples modal");
+  for (const check of basicCharacterPromptExampleChecks) {
+    await openPromptExamplesModal();
+    await clickPromptExampleCardButton(check.title, "Use Prompt");
+    await waitForEval(
+      () => `document.body.innerText.includes("Prompt example loaded into Pixel Art Generation")`,
+      `${check.title} prompt example loaded`
+    );
+    const loadedPrompt = await evaluate(`document.querySelector("textarea")?.value || ""`);
+    assert(loadedPrompt.includes(check.promptText), `Use Prompt should load ${check.title} into the prompt field`);
+    const modalClosed = await evaluate(`!document.querySelector(".prompt-modal")`);
+    assert(modalClosed, `${check.title} Use Prompt should close the Prompt Examples modal`);
+
+    const historyCountBefore = await evaluate(`document.querySelectorAll(".history-item").length`);
+    await clickButtonByText("Generate Pixel Art");
+    await waitForEval(
+      () => `document.querySelectorAll(".history-item").length > ${historyCountBefore}`,
+      `${check.title} generated from prompt example`,
+      18000
+    );
+    await waitForButtonEnabled("Generate Pixel Art");
+  }
 
   await selectWorkflowTab("Pixel Art Generation");
 }
@@ -545,7 +588,7 @@ async function assertCodexFailureNotice() {
 
   await setPromptValue("normal generation after failure");
   await clickButtonByText("Generate Pixel Art");
-  await waitForEval(() => `document.body.innerText.includes("Imported from Local Inbox")`, "Codex queue continues after failure", 18000);
+  await waitForEval(() => `document.querySelectorAll(".history-item").length > ${historyCountBefore}`, "Codex queue continues after failure", 18000);
   snapshot = await pageSnapshot();
   assert(snapshot.historyItems > historyCountBefore, "Codex should import a real image after a previous failure");
   assert(snapshot.codexFailureCards === 1, "Codex failure notice should remain visible after later success");
@@ -826,8 +869,16 @@ async function assertWorkflow({
     await waitForEval(() => `document.body.innerText.includes(${JSON.stringify(check.expectedText)})`, `${label} shows ${check.expectedText}`);
   }
   if (exerciseButton) {
+    const historyCountBeforeExercise = await evaluate(`document.querySelectorAll(".history-item").length`);
     await clickButtonByText(exerciseButton);
-    await waitForEval(() => `document.body.innerText.includes(${JSON.stringify(expectedAfterExercise)})`, `${label} generated result`);
+    if (expectedAfterExercise === "Imported from Local Inbox") {
+      await waitForEval(
+        () => `document.querySelectorAll(".history-item").length > ${historyCountBeforeExercise}`,
+        `${label} generated result`
+      );
+    } else {
+      await waitForEval(() => `document.body.innerText.includes(${JSON.stringify(expectedAfterExercise)})`, `${label} generated result`);
+    }
     for (const text of expectedAfterExerciseText) {
       await waitForEval(() => `document.body.innerText.includes(${JSON.stringify(text)})`, `${label} shows ${text}`);
     }
@@ -1120,6 +1171,24 @@ async function clickButtonByText(label) {
   await evaluate(`(() => {
     const button = Array.from(document.querySelectorAll("button")).find((item) => item.innerText.replace(/\\s+/g, " ").trim() === ${JSON.stringify(label)});
     if (!button) throw new Error("Button not found: ${label}");
+    button.click();
+  })()`);
+}
+
+async function openPromptExamplesModal() {
+  const isOpen = await evaluate(`Boolean(document.querySelector(".prompt-modal"))`);
+  if (!isOpen) await clickButtonByText("Prompt Examples");
+  await waitForEval(() => `document.querySelector(".prompt-modal")?.innerText.includes("Clockwork Mushroom Courier")`, "Prompt Examples modal");
+}
+
+async function clickPromptExampleCardButton(title, buttonLabel) {
+  await evaluate(`(() => {
+    const cards = Array.from(document.querySelectorAll(".prompt-card"));
+    const card = cards.find((item) => item.innerText.includes(${JSON.stringify(title)}));
+    if (!card) throw new Error("Prompt example card not found: ${title}");
+    const button = Array.from(card.querySelectorAll("button"))
+      .find((item) => item.innerText.replace(/\\s+/g, " ").trim() === ${JSON.stringify(buttonLabel)});
+    if (!button) throw new Error("Prompt example button not found: ${title} / ${buttonLabel}");
     button.click();
   })()`);
 }
