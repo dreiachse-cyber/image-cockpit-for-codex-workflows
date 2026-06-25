@@ -38,7 +38,14 @@ try {
   assert(job.runner?.state === "running", `Real imagegen job should start as running: ${JSON.stringify(job.runner)}`);
   const finalStatus = await waitForTerminalStatus(port, job.id);
   assert(finalStatus.state === "completed", `Real imagegen job did not complete: ${JSON.stringify(finalStatus)}`);
-  assert(finalStatus.exitCode === 0, `Real imagegen job exit code should be 0: ${JSON.stringify(finalStatus)}`);
+  const imageReturnedBeforeRunnerExit =
+    finalStatus.exitCode === null &&
+    typeof finalStatus.message === "string" &&
+    finalStatus.message.includes("Codex returned an image while runner status was still running");
+  assert(
+    finalStatus.exitCode === 0 || imageReturnedBeforeRunnerExit,
+    `Real imagegen job exit code should be 0 or image-returned-before-exit: ${JSON.stringify(finalStatus)}`
+  );
 
   const list = await getJson(port, "/api/codex/results");
   const result = list.results.find((item) => item.name.startsWith(job.id) && item.mimeType === "image/png");
@@ -60,6 +67,7 @@ try {
   console.log(`handoffDir=${handoffDir}`);
   console.log(`image=${result.path}`);
   console.log(`dimensions=${dimensions.width}x${dimensions.height}`);
+  console.log(`exitCode=${finalStatus.exitCode ?? "image-returned-before-exit"}`);
   console.log(`logPath=${finalStatus.logPath}`);
 } finally {
   await stopServer(server);

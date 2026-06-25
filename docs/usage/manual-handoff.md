@@ -34,10 +34,11 @@ Open the local Vite URL printed in the terminal.
 
 ## 3. Create A Handoff Job
 
-1. Choose `1. Image Generation` or `2. Image Editing` from Guided Start.
-2. Fill in the prompt and notes.
-3. For image editing, draw any needed annotations on the canvas.
-4. Click `Create Codex Job`.
+1. Choose the Pixel Art Generation, Image Editing, or Animation Generation tab.
+2. Fill in the prompt, edit notes, or animation preset fields required by that workflow.
+3. For image editing, select numbered rectangular regions on the canvas and add comments for each region.
+4. For animation generation, choose or upload a pixel-art source and select a validated motion preset.
+5. Click the workflow generation button.
 
 The local server writes a JSON job under:
 
@@ -57,11 +58,11 @@ Open the newest JSON file in `codex-handoff/inbox/`.
 
 Important fields:
 
-- `workflowMode`: `image-generate`, `image-edit`, `sprite-generate`, or `sprite-edit`
+- `workflowMode`: `image-generate`, `image-edit`, or `sprite-generate` (`sprite-generate` is the internal handoff name for Animation Generation)
 - `prompt`, `negativePrompt`, and `jobNotes`
 - `selectedImage.assetPath` for image editing jobs
 - `annotationContext.annotations` for canvas markup
-- `spriteContext` for sprite sheet jobs
+- `spriteContext` for animation / sprite-sheet jobs
 - `returnTo.outboxDir` for the required result location
 
 Use Codex or another local image workflow outside the app to create or edit the image. Do not put API keys, tokens, model weights, or license-unclear files into the repository.
@@ -87,14 +88,14 @@ If Codex or imagegen cannot return an image because of safety checks, usage-poli
 
 ## 6. Import Through Local Inbox
 
-In the app, click `Import Latest` to bring the returned image back into the cockpit. The button is visible in the simple workflow screen even when the provider list is hidden.
+In the app, use the local results import path or reload the workspace to bring returned outbox images back into the cockpit. The current UI also polls pending local Codex jobs and imports matching returned images automatically when the runner is available.
 
 From there you can:
 
 - keep editing the image,
-- split a sheet into sprite frames,
-- adjust frame order, size, anchors, and chroma key cleanup,
-- export PNG sheet, ZIP frames, GIF, or JSON metadata.
+- use it as an animation source,
+- review generated direction GIFs and sprite sheets,
+- export PNG stills, animation GIF/WebP previews, sprite sheets, frame ZIPs, or animation packs.
 
 ## Troubleshooting
 

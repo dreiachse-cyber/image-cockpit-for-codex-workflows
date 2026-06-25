@@ -4,7 +4,7 @@ Local image production cockpit for Codex-era workflows.
 
 This project is unofficial and not affiliated with OpenAI. It is a local workspace for generating pixel art, then turning selected pixel-art assets into animation frames and sprite sheets.
 
-![Image Cockpit MVP demo](docs/demo/mvp-demo.gif)
+![Image Cockpit demo](docs/demo/mvp-demo.gif)
 
 ## Product Boundary
 
@@ -34,18 +34,29 @@ The local generation endpoint is `POST /api/generate`. It writes deterministic f
 Manual handoff steps are documented in `docs/usage/manual-handoff.md`.
 The prompt-only imagegen handoff smoke result is recorded in `docs/qa/imagegen-handoff-smoke.md`.
 
-## MVP Flow
+## Core Flow
 
-- Choose one of two starting workflows: pixel art generation, or animation generation.
+- Start directly in the workspace and switch between three tabs: Pixel Art Generation, Image Editing, and Animation Generation.
 - Open Prompt Examples from directly below the Pixel Art Prompt field, then copy tuned prompts or load one into Pixel Art Generation from the modal.
 - Generate pixel art from a prompt through local Codex imagegen handoff.
-- Switch between Pixel Art Generation and Animation Generation tabs.
-- In Animation Generation, follow four steps: upload a pixel-art source, choose a motion preset or motion prompt, generate frames, then download animated GIF, animated WebP, or a sprite sheet.
-- Generate animation frames from the uploaded pixel-art source; a sprite sheet is produced as part of the process.
-- Select history items and review them on the canvas.
-- Reorder frames in the timeline and review action metadata.
-- Run lightweight QC checks for size consistency, transparency, duplicates, and anchor placement.
-- Export a PNG sprite sheet, frame ZIP, GIF, and sprite metadata JSON.
+- Use Image Editing to select numbered rectangular regions, add edit comments, and send the selected source plus notes through the local Codex handoff.
+- In Animation Generation, choose a pixel-art source, select a validated motion preset, generate direction frames, then download animated GIF, animated WebP, or the composed sprite sheet.
+- Review returned images and animation artifacts in the shared preview area.
+- Use the local download panel to export PNG still images, animation previews, sprite sheets, frame ZIPs, and animation packs when the selected result supports them.
+
+## Screenshots
+
+Pixel Art Generation:
+
+![Pixel Art Generation workspace](docs/demo/readme/pixel-art-generation.png)
+
+Prompt Examples:
+
+![Prompt Examples modal](docs/demo/readme/prompt-examples-modal.png)
+
+Animation Generation:
+
+![Animation Generation workspace](docs/demo/readme/animation-generation.png)
 
 ## Setup
 
@@ -136,7 +147,7 @@ Optional local browser review smoke:
 npm run ui:smoke
 ```
 
-`npm run ui:smoke` starts the local API and Vite app with a temporary handoff folder, opens a headless Chrome/Edge session, verifies the two-workflow start screen, verifies the Prompt Examples button sits directly below the Pixel Art Prompt field and opens a modal that can load a tuned prompt into Pixel Art Generation, checks the Pixel Art Generation / Animation Generation tabs, clicks pixel art generation through `Codex Handoff`, clicks animation generation through the four-step local animation route, and checks GIF / WebP / sprite sheet download actions.
+`npm run ui:smoke` starts the local API and Vite app with a temporary handoff folder, opens a headless Chrome/Edge session, verifies the three workspace tabs, verifies the Prompt Examples button sits directly below the Pixel Art Prompt field and opens a modal that can load a tuned prompt into Pixel Art Generation, checks Pixel Art Generation / Image Editing / Animation Generation, clicks pixel art generation through `Codex Handoff`, clicks animation generation through the local animation route, and checks download actions.
 
 Optional real Codex runner smoke:
 
@@ -160,16 +171,16 @@ Owner-review local sweep:
 npm run review:local
 ```
 
-`npm run review:local` runs `npm run verify`, `npm run ui:smoke`, and `npm run codex:smoke` in sequence. Use it on the Codex-installed review machine before approving the private MVP direction.
+`npm run review:local` runs `npm run verify`, `npm run ui:smoke`, and `npm run codex:smoke` in sequence. Use it on a Codex-installed review machine when validating local handoff behavior.
 
-## Review
+## Review Materials
 
-Use `docs/review/mvp-review-report.md` for the private MVP review path, QA evidence, and known constraints.
+Use `docs/review/mvp-review-report.md` for the v0.1.0 review history, QA evidence, and known constraints.
 
-## Release Candidate
+## Release Materials
 
 - Changelog: `CHANGELOG.md`
-- Release notes draft: `docs/release/v0.1.0-release-notes.md`
+- Release notes: `docs/release/v0.1.0-release-notes.md`
 - Owner review guide: `docs/release/v0.1.0-owner-review.md`
 - Final audit: `docs/release/v0.1.0-final-audit.md`
 - Acceptance evidence: `docs/release/v0.1.0-acceptance-evidence.md`
@@ -185,7 +196,7 @@ Use `docs/review/mvp-review-report.md` for the private MVP review path, QA evide
 
 ## Roadmap
 
-See `docs/roadmap/release-roadmap.md` for the path from the current private MVP to the first public release.
+See `docs/roadmap/release-roadmap.md` for the current product direction and next release priorities.
 
 ## Assets And Data
 
@@ -199,4 +210,4 @@ See `docs/roadmap/release-roadmap.md` for the path from the current private MVP 
 
 ## Demo
 
-The current MVP demo GIF is `docs/demo/mvp-demo.gif`. See `docs/demo/mvp-demo-capture.md` for the capture plan. Current QA screenshots live under `docs/qa/`.
+The current demo GIF is `docs/demo/mvp-demo.gif`. See `docs/demo/mvp-demo-capture.md` for the capture plan. Current QA screenshots live under `docs/qa/`.

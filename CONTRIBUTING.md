@@ -2,7 +2,9 @@
 
 Thanks for considering a contribution to Image Cockpit for Codex Workflows.
 
-This repository is still a private pre-release candidate. Until the first public release is approved, changes should stay on the `codex/mvp-local-cockpit` branch or another review branch and must not be merged to `main` without owner approval.
+Forks, experiments, local patches, and write-ups are welcome.
+
+Upstream pull requests are currently disabled or limited while the project direction is owner-curated. This keeps the public repository usable as an OSS reference without creating an ongoing PR review queue for the owner. If Issues are enabled, please use Issues for bug reports, usage notes, and small design discussions. Security reports must follow `SECURITY.md`.
 
 ## Product Boundary
 
@@ -13,14 +15,13 @@ This repository is still a private pre-release candidate. Until the first public
 
 ## Priority
 
-The first release prioritizes four workflows:
+The current public direction prioritizes three workflows:
 
-1. Image generation
+1. Pixel art generation
 2. Image editing
-3. Sprite sheet generation
-4. Sprite sheet editing
+3. Animation generation from generated or uploaded pixel art
 
-Design polish and additional adapters are welcome later, but they should not make these four workflows harder to understand.
+Sprite sheets are treated as an output of the animation flow. Design polish, additional adapters, engine-specific exports, and advanced sprite editing are welcome as fork experiments, but they should not make these three workflows harder to understand in the upstream project.
 
 ## Local Setup
 
@@ -29,7 +30,7 @@ npm install
 npm run dev:all
 ```
 
-Run checks before proposing a change:
+Run checks before publishing or sharing a local change:
 
 ```powershell
 npm run typecheck
@@ -39,7 +40,7 @@ npm run smoke
 npm run release:audit
 ```
 
-## Pull Request Checklist
+## Local Change Checklist
 
 - Keep changes focused on one behavior or doc update.
 - Update README, roadmap, review notes, or release checklist when behavior changes.

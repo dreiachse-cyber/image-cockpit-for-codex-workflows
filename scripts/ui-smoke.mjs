@@ -161,7 +161,7 @@ try {
 
 async function assertInitialWorkspace() {
   const snapshot = await pageSnapshot();
-  assert(snapshot.guidedOptions.length === 0, "Initial screen should not show Guided Start options");
+  assert(snapshot.guidedOptions.length === 0, "Initial screen should not show legacy Guided Start options");
   assert(!snapshot.buttons.includes("Start"), "Initial workspace should not expose the old Start button");
   assert(snapshot.text.includes("Pixel Art Generation"), "Initial screen should open the Pixel Art Generation workspace");
   assert(snapshot.buttons.includes("Pixel Art Generation"), "Initial workspace should expose Pixel Art Generation tab");

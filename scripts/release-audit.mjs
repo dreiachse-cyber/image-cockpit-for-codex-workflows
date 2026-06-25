@@ -44,7 +44,15 @@ const requiredFiles = [
   "docs/qa/simple-sprite-generate-actions-1280x720.png",
   "docs/qa/manual-handoff-import-latest-1280x720.png",
   "docs/qa/real-codex-runner-smoke.md",
-  "docs/qa/imagegen-handoff-smoke.md"
+  "docs/qa/imagegen-handoff-smoke.md",
+  "docs/demo/readme/pixel-art-generation.png",
+  "docs/demo/readme/prompt-examples-modal.png",
+  "docs/demo/readme/animation-generation.png",
+  "docs/marketing/x-launch/launch-post-ja.md",
+  "docs/marketing/x-launch/launch-thread-ja.md",
+  "docs/marketing/x-launch/asset-checklist.md",
+  "docs/marketing/x-launch/social-preview.png",
+  ".github/PULL_REQUEST_TEMPLATE.md"
 ];
 
 const requiredEnvKeys = [
@@ -135,7 +143,7 @@ function checkPackageJson() {
   if (!packageJson) return;
 
   if (packageJson.private !== true) {
-    failures.push("package.json must remain private until owner approval for the public release.");
+    failures.push("package.json must keep npm package publishing disabled unless the owner explicitly approves npm distribution.");
   }
 
   if (packageJson.license !== "MIT") {
@@ -322,7 +330,7 @@ function checkWorkflowIds() {
     "Image Editing",
     "Animation Generation",
     "Initial screen should open the Pixel Art Generation workspace",
-    "Initial screen should not show Guided Start options",
+    "Initial screen should not show legacy Guided Start options",
     "selectWorkflowTab",
     "Route: Codex Handoff",
     "5-direction chroma-key sprite sheet",
@@ -896,7 +904,7 @@ function checkReleaseDocs() {
   });
 
   [
-    "Do not merge `main`, change repository visibility, or create a public release until the owner explicitly approves those actions.",
+    "Do not change repository visibility, branch protection, or release assets without explicit owner approval.",
     "Do Not Ship If",
     "docs/release/v0.1.0-owner-review.md",
     "docs/release/v0.1.0-final-audit.md",
@@ -914,10 +922,9 @@ function checkReleaseDocs() {
     "npm run review:local",
     "npm run ui:smoke",
     "npm run codex:smoke",
-    "Image generation",
+    "Pixel art generation",
     "Image editing",
-    "Sprite sheet generation",
-    "Sprite sheet editing",
+    "Animation generation",
     "The app itself does not call OpenAI APIs directly",
     "manual handoff",
     "terminal-runnable `%LOCALAPPDATA%\\OpenAI\\Codex\\bin\\...\\codex.exe` CLI",
@@ -933,10 +940,10 @@ function checkReleaseDocs() {
   });
 
   [
-    "Image generation",
+    "Pixel art generation",
     "Image editing",
-    "Sprite sheet generation",
-    "Sprite sheet editing",
+    "Animation generation",
+    "Workspace simplicity",
     "Local-first boundary",
     "Manual handoff fallback",
     "Runner lifecycle wiring",
@@ -949,7 +956,7 @@ function checkReleaseDocs() {
     "docs/release/v0.1.0-owner-decision.md",
     "docs/release/v0.1.0-owner-review.md",
     "docs/release/v0.1.0-final-audit.md",
-    "Remaining Gates",
+    "Approval History",
     "codex exec",
     "npm run ui:smoke",
     "npm run smoke",
@@ -967,10 +974,10 @@ function checkReleaseDocs() {
     "Explicit User Requirements",
     "Local-only OSS that runs where Codex is installed",
     "Disable Codex job creation while waiting for a result",
-    "Keep repository private until first release approval",
-    "Approval-gated and intentionally not completed",
+    "Keep visibility / release changes owner-approved",
+    "Satisfied by approval history",
     "Real Codex smoke job `codex-job-2026-06-23T09-55-31-399Z`",
-    "The private MVP implementation is release-candidate ready for owner review."
+    "The v0.1.0 public baseline is release-ready for local-first usage"
   ].forEach((line) => {
     if (!finalAudit.includes(line)) {
       failures.push(`Final audit is missing expected content: ${line}`);
@@ -981,11 +988,10 @@ function checkReleaseDocs() {
   [
     "npm run review:local",
     "npm run dev:all",
-    "画像生成 / 画像編集 / スプライトシート生成 / スプライトシート編集",
-    "アプリ自身はOpenAI APIを直接呼ばず",
-    "release notes / changelog承認",
-    "main merge承認",
-    "repository public化承認",
+    "OpenAI API",
+    "GitHub About / Topics / Social preview",
+    "PR受付制限",
+    "X投稿文",
     "P0 / P1 / P2"
   ].forEach((line) => {
     if (!ownerReview.includes(line)) {
@@ -994,7 +1000,7 @@ function checkReleaseDocs() {
   });
 
   [
-    "Owner Decisions Still Required",
+    "Owner Decisions",
     "Do Not Proceed Without Approval",
     "Approve merge into `main`",
     "Approve changing repository visibility from private to public",

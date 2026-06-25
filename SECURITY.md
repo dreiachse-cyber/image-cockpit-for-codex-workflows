@@ -2,11 +2,11 @@
 
 ## Supported Versions
 
-The project is currently at `0.1.0-rc.1` and remains private until the first public release is approved. Security fixes target the current release candidate branch first.
+The public baseline is `v0.1.0`. Security fixes target the current `main` branch first, then the next tagged release.
 
 ## Reporting A Vulnerability
 
-While the repository is private, report security concerns through the project owner or the active review thread. After the repository is public, use GitHub's private vulnerability reporting when available.
+Use GitHub's private vulnerability reporting when available. If it is not available, contact the project owner directly instead of opening a public issue with exploit details.
 
 Please include:
 
