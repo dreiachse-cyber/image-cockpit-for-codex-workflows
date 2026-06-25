@@ -23,6 +23,7 @@ import {
   Scissors,
   Settings,
   Square,
+  Terminal,
   Trash2,
   Upload,
   X
@@ -62,6 +63,7 @@ import type {
   AnimationPackManifest,
   CodexFailureKind,
   CodexJobDiagnostic,
+  CodexJobLogResponse,
   GridSettings,
   HistoryItem,
   CodexJobResponse,
@@ -92,6 +94,9 @@ const ANIMATION_DIRECTION_COUNT = 5;
 const ANIMATION_CELL_SIZE = 256;
 const MIN_ANIMATION_CELL_SIZE = ANIMATION_CELL_SIZE;
 const MAX_ACTIVE_CODEX_JOBS = 2;
+const CODEX_LOG_POLL_INTERVAL_MS = 2000;
+const CODEX_LOG_TAIL_BYTES = 32768;
+const CODEX_LOG_HISTORY_LIMIT = 4;
 export const INITIAL_HISTORY_RENDER_COUNT = 100;
 export const HISTORY_RENDER_BATCH_SIZE = 20;
 const HISTORY_SCROLL_LOAD_THRESHOLD_PX = 160;
@@ -322,6 +327,20 @@ interface CodexFailureNotice {
   diagnostic: CodexJobDiagnostic;
 }
 
+interface CodexJobLogItem {
+  jobId: string;
+  label: string;
+  state: CodexJobQueueState | CodexRunnerStatus["state"];
+  createdAt: string;
+  text: string;
+  exists: boolean;
+  truncated: boolean;
+  size: number;
+  modifiedAt: string;
+  readAt: string;
+  error?: string;
+}
+
 const baseUiCopy = {
   en: {
     language: "Language",
@@ -504,6 +523,16 @@ const baseUiCopy = {
     codexFailureUnknownMessage: "The image could not be generated, and no specific reason was returned.",
     codexFailureUnknownSuggestion: "Retry with a simpler prompt or use manual handoff.",
     codexFailureRetryHint: "Retry suggestion",
+    codexLogTitle: "Codex Log",
+    codexLogLive: "stdout / stderr tail",
+    codexLogEmpty: "No Codex log yet",
+    codexLogWaiting: "Waiting for Codex log output...",
+    codexLogElapsed: "Elapsed",
+    codexLogUpdated: "Updated",
+    codexLogNoOutput: "No output yet. Codex may be preparing image generation.",
+    codexLogTruncated: "Showing latest log tail",
+    codexLogCollapse: "Collapse logs",
+    codexLogExpand: "Expand logs",
     runnerChecking: "Codex runner: checking",
     runnerReady: "Codex runner: ready",
     runnerDisabled: "Codex runner: manual handoff",
@@ -708,6 +737,16 @@ const baseUiCopy = {
     codexFailureUnknownMessage: "画像を生成できませんでしたが、具体的な理由は返されませんでした。",
     codexFailureUnknownSuggestion: "promptを簡単にして再試行するか、手動handoffを使ってください。",
     codexFailureRetryHint: "再試行ヒント",
+    codexLogTitle: "Codexログ",
+    codexLogLive: "stdout / stderr の末尾",
+    codexLogEmpty: "まだCodexログはありません",
+    codexLogWaiting: "Codexのログ出力を待っています...",
+    codexLogElapsed: "経過",
+    codexLogUpdated: "更新",
+    codexLogNoOutput: "まだ出力がありません。Codexが画像生成の準備中かもしれません。",
+    codexLogTruncated: "最新ログの末尾を表示中",
+    codexLogCollapse: "ログを閉じる",
+    codexLogExpand: "ログを開く",
     runnerChecking: "Codex runner: 確認中",
     runnerReady: "Codex runner: 使用可能",
     runnerDisabled: "Codex runner: 手動受け渡し",
@@ -2166,6 +2205,8 @@ function App() {
   const [animationChromaKey, setAnimationChromaKey] = useState<AnimationChromaKeyName>("green");
   const [imageEditComparison, setImageEditComparison] = useState<ImageEditComparison | null>(null);
   const [codexFailureNotices, setCodexFailureNotices] = useState<CodexFailureNotice[]>([]);
+  const [codexJobLogs, setCodexJobLogs] = useState<CodexJobLogItem[]>([]);
+  const [codexLogsCollapsed, setCodexLogsCollapsed] = useState(false);
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -2384,6 +2425,34 @@ function App() {
   useEffect(() => savePendingCodexJobs(codexJobs), [codexJobs]);
 
   useEffect(() => {
+    if (providerId !== "codex-handoff") return;
+    const runningJobs = codexJobs.filter((job) => job.state === "running");
+    if (runningJobs.length === 0) return;
+    let cancelled = false;
+
+    const pollCodexLogs = async () => {
+      const logItems = await Promise.all(
+        runningJobs.map(async (job) => {
+          try {
+            const log = await loadCodexJobLog(job.id);
+            return createCodexJobLogItem(job, log, "running");
+          } catch (error) {
+            return createCodexJobLogItem(job, undefined, "running", error instanceof Error ? error.message : "Could not read Codex log");
+          }
+        })
+      );
+      if (!cancelled) setCodexJobLogs((current) => mergeCodexJobLogs(current, logItems));
+    };
+
+    void pollCodexLogs();
+    const intervalId = window.setInterval(() => void pollCodexLogs(), CODEX_LOG_POLL_INTERVAL_MS);
+    return () => {
+      cancelled = true;
+      window.clearInterval(intervalId);
+    };
+  }, [codexJobs, providerId]);
+
+  useEffect(() => {
     fetch("/api/providers")
       .then((response) => response.json())
       .then((data: { providers: ProviderStatus[] }) => setProviders(data.providers))
@@ -2512,7 +2581,7 @@ function App() {
           if (runnerStatus && !shouldWaitForCodexRunner(runnerStatus)) {
             if (runnerStatus.state === "completed" && !runnerStatus.diagnostic) return "pending";
             recordCodexFailure(job, runnerStatus);
-            removeCodexJob(job.id);
+            removeCodexJob(job.id, runnerStatus.state);
             setStatus(`${runnerStatusMessage(runnerStatus, copy)}: ${job.id}`);
             return "terminal";
           }
@@ -2914,8 +2983,32 @@ function App() {
     }
   }
 
-  function removeCodexJob(jobId: string) {
+  function removeCodexJob(jobId: string, finalState?: CodexJobLogItem["state"]) {
+    const removedJob = codexJobs.find((job) => job.id === jobId);
     setCodexJobs((current) => current.filter((job) => job.id !== jobId));
+    if (!removedJob || !finalState) return;
+
+    setCodexJobLogs((logs) =>
+      mergeCodexJobLogs(logs, [
+        createCodexJobLogItem(removedJob, logs.find((item) => item.jobId === jobId), finalState)
+      ])
+    );
+    void loadCodexJobLog(jobId)
+      .then((log) => {
+        setCodexJobLogs((logs) => mergeCodexJobLogs(logs, [createCodexJobLogItem(removedJob, log, finalState)]));
+      })
+      .catch((error) => {
+        setCodexJobLogs((logs) =>
+          mergeCodexJobLogs(logs, [
+            createCodexJobLogItem(
+              removedJob,
+              logs.find((item) => item.jobId === jobId),
+              finalState,
+              error instanceof Error ? error.message : "Could not read Codex log"
+            )
+          ])
+        );
+      });
   }
 
   function recordCodexFailure(job: CodexJobQueueItem, runnerStatus: CodexRunnerStatus) {
@@ -3204,7 +3297,7 @@ function App() {
         }
         const importedResults = await Promise.all(directionalResults.map((result) => fetchOutboxResult(result.name)));
         await importDirectionalHatchPetResults(importedResults, pendingJob);
-        removeCodexJob(pendingJob.id);
+        removeCodexJob(pendingJob.id, "completed");
         return true;
       }
 
@@ -3217,7 +3310,7 @@ function App() {
       const imported = await fetchOutboxResult(latest.name);
       if (pendingJob?.workflowMode === "sprite-generate") {
         await importAnimationSheetResult(imported, pendingJob);
-        removeCodexJob(pendingJob.id);
+        removeCodexJob(pendingJob.id, "completed");
         return true;
       }
 
@@ -3247,7 +3340,7 @@ function App() {
       setHistory((current) => [item, ...current]);
       setSelectedId(item.id);
       setSelectedFrameId("");
-      if (pendingJob) removeCodexJob(pendingJob.id);
+      if (pendingJob) removeCodexJob(pendingJob.id, "completed");
       setStatus(`${copy.statusInboxImported}: ${imported.name}`);
       return true;
     } catch (error) {
@@ -4625,6 +4718,14 @@ function App() {
         )}
       </main>
 
+      <CodexLogPanel
+        logs={codexJobLogs}
+        jobs={codexJobs}
+        collapsed={codexLogsCollapsed}
+        language={language}
+        onToggle={() => setCodexLogsCollapsed((current) => !current)}
+      />
+
       <footer className="statusbar">
         <span className="live-dot" />
         <span>{status}</span>
@@ -4870,6 +4971,68 @@ function CodexJobShelf({
           </div>
         ))}
       </div>
+    </section>
+  );
+}
+
+function CodexLogPanel({
+  logs,
+  jobs,
+  collapsed,
+  language,
+  onToggle
+}: {
+  logs: CodexJobLogItem[];
+  jobs: CodexJobQueueItem[];
+  collapsed: boolean;
+  language: Language;
+  onToggle: () => void;
+}) {
+  const copy = uiCopy[language];
+  const runningCount = jobs.filter((job) => job.state === "running").length;
+  const hasContent = logs.length > 0 || jobs.length > 0;
+  if (!hasContent) return null;
+
+  const visibleLogs = logs.length > 0
+    ? logs
+    : jobs.slice(0, CODEX_LOG_HISTORY_LIMIT).map((job) => createCodexJobLogItem(job, undefined, job.state));
+
+  return (
+    <section className={`codex-log-panel ${collapsed ? "collapsed" : ""}`} aria-label={copy.codexLogTitle}>
+      <div className="codex-log-header">
+        <span>
+          <Terminal size={15} aria-hidden="true" />
+          <strong>{copy.codexLogTitle}</strong>
+          <small>{copy.codexLogLive}</small>
+        </span>
+        <span className="codex-log-meta">
+          <em>{runningCount}/{MAX_ACTIVE_CODEX_JOBS}</em>
+          <button className="secondary-button mini" onClick={onToggle}>
+            {collapsed ? copy.codexLogExpand : copy.codexLogCollapse}
+          </button>
+        </span>
+      </div>
+      {!collapsed && (
+        <div className="codex-log-list">
+          {visibleLogs.map((log) => (
+            <article className={`codex-log-card state-${log.state}`} key={log.jobId}>
+              <div className="codex-log-card-heading">
+                <span className={`codex-job-state ${log.state === "queued" ? "queued" : "running"}`}>
+                  {log.state}
+                </span>
+                <strong>{log.label}</strong>
+                <small>{log.jobId}</small>
+              </div>
+              <div className="codex-log-card-meta">
+                <span>{copy.codexLogElapsed}: {formatDurationSince(log.createdAt)}</span>
+                <span>{copy.codexLogUpdated}: {log.modifiedAt ? formatTime(log.modifiedAt) : "-"}</span>
+                {log.truncated && <span>{copy.codexLogTruncated}</span>}
+              </div>
+              <pre>{log.error || log.text || (log.exists ? copy.codexLogNoOutput : copy.codexLogWaiting)}</pre>
+            </article>
+          ))}
+        </div>
+      )}
     </section>
   );
 }
@@ -5694,6 +5857,44 @@ async function loadCodexRunnerStatus(jobId: string) {
   }
 }
 
+async function loadCodexJobLog(jobId: string) {
+  const response = await fetch(`/api/codex/jobs/${encodeURIComponent(jobId)}/log?bytes=${CODEX_LOG_TAIL_BYTES}`);
+  if (!response.ok) throw new Error(await response.text());
+  return (await response.json()) as CodexJobLogResponse;
+}
+
+function createCodexJobLogItem(
+  job: Pick<CodexJobQueueItem, "id" | "label" | "createdAt" | "state">,
+  log?: Partial<CodexJobLogResponse & CodexJobLogItem>,
+  state: CodexJobLogItem["state"] = job.state,
+  error?: string
+): CodexJobLogItem {
+  return {
+    jobId: job.id,
+    label: job.label,
+    state,
+    createdAt: job.createdAt,
+    text: log?.text ?? "",
+    exists: Boolean(log?.exists),
+    truncated: Boolean(log?.truncated),
+    size: log?.size ?? 0,
+    modifiedAt: log?.modifiedAt ?? "",
+    readAt: log?.readAt ?? new Date().toISOString(),
+    error
+  };
+}
+
+function mergeCodexJobLogs(current: CodexJobLogItem[], incoming: CodexJobLogItem[]) {
+  const merged = new Map(current.map((item) => [item.jobId, item]));
+  incoming.forEach((item) => {
+    const previous = merged.get(item.jobId);
+    merged.set(item.jobId, { ...previous, ...item });
+  });
+  return Array.from(merged.values())
+    .sort((left, right) => Date.parse(right.readAt || right.createdAt) - Date.parse(left.readAt || left.createdAt))
+    .slice(0, CODEX_LOG_HISTORY_LIMIT);
+}
+
 export function shouldWaitForCodexRunner(status?: CodexRunnerStatus) {
   if (!status) return true;
   return status.state === "running";
@@ -6456,6 +6657,18 @@ function formatTime(value: string) {
   return new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }).format(
     new Date(value)
   );
+}
+
+function formatDurationSince(value: string) {
+  const start = Date.parse(value);
+  if (!Number.isFinite(start)) return "-";
+  const seconds = Math.max(0, Math.floor((Date.now() - start) / 1000));
+  const minutes = Math.floor(seconds / 60);
+  const remainingSeconds = seconds % 60;
+  if (minutes < 60) return `${String(minutes).padStart(2, "0")}:${String(remainingSeconds).padStart(2, "0")}`;
+  const hours = Math.floor(minutes / 60);
+  const remainingMinutes = minutes % 60;
+  return `${hours}:${String(remainingMinutes).padStart(2, "0")}:${String(remainingSeconds).padStart(2, "0")}`;
 }
 
 export function resolveInitialLanguage(stored: string | null, browserLanguages: readonly string[] = []): Language {

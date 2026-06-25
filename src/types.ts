@@ -169,6 +169,17 @@ export interface CodexJobStatusResponse {
   status: CodexRunnerStatus;
 }
 
+export interface CodexJobLogResponse {
+  jobId: string;
+  exists: boolean;
+  path: string;
+  size: number;
+  modifiedAt: string;
+  readAt: string;
+  truncated: boolean;
+  text: string;
+}
+
 export interface CodexOutboxResult {
   name: string;
   path: string;

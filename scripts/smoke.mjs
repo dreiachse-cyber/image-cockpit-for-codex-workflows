@@ -314,6 +314,11 @@ async function runMockAutorunSmoke() {
     assert(completedStatus.status.logPath, "completed mock autorun status should include log path");
     assert(!completedStatus.status.diagnostic, "mock autorun exact job-id result should not create a diagnostic");
     await stat(completedStatus.status.logPath);
+    const completedLog = await getJson(port, `/api/codex/jobs/${encodeURIComponent(job.id)}/log?bytes=4096`);
+    assert(completedLog.jobId === job.id, "job log endpoint should return the matching job id");
+    assert(completedLog.exists === true, "job log endpoint should report an existing log");
+    assert(completedLog.text.includes("mock completed"), "job log endpoint should expose runner output");
+    assert(typeof completedLog.readAt === "string", "job log endpoint should include readAt");
 
     const outboxList = await getJson(port, "/api/codex/results");
     const resultName = `${job.id}.png`;

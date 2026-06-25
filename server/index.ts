@@ -1,5 +1,5 @@
 import { spawn } from "node:child_process";
-import { createWriteStream, existsSync, readFileSync, readdirSync } from "node:fs";
+import { closeSync, createWriteStream, existsSync, openSync, readFileSync, readSync, readdirSync } from "node:fs";
 import { copyFile, mkdir, readFile, readdir, stat, writeFile } from "node:fs/promises";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { delimiter, extname, join, resolve, sep } from "node:path";
@@ -31,6 +31,8 @@ const codexExecArgs = parseJsonStringArray("IMAGE_COCKPIT_CODEX_EXEC_ARGS_JSON",
 ]);
 const runnerStaleTimeoutMs = parsePositiveNumber("IMAGE_COCKPIT_CODEX_STALE_MS", 15 * 60 * 1000);
 const runnerStaleLogIdleMs = parsePositiveNumber("IMAGE_COCKPIT_CODEX_STALE_LOG_IDLE_MS", 5 * 60 * 1000);
+const runnerLogTailDefaultBytes = 24 * 1024;
+const runnerLogTailMaxBytes = 96 * 1024;
 const resultRoutePrefix = "/api/codex/results/";
 const runnerPreflightTimeoutMs = 4000;
 
@@ -201,6 +203,18 @@ const server = createServer(async (request, response) => {
         return;
       }
       sendJson(response, 200, { status: await getRunnerStatus(jobId) });
+      return;
+    }
+
+    const jobLogMatch = pathname.match(/^\/api\/codex\/jobs\/([^/]+)\/log$/);
+    if (request.method === "GET" && jobLogMatch) {
+      const jobId = decodeURIComponent(jobLogMatch[1]);
+      if (!isSafeJobId(jobId)) {
+        sendJson(response, 400, { error: "Unsupported or unsafe job id" });
+        return;
+      }
+      const requestedBytes = Number(requestUrl.searchParams.get("bytes") ?? runnerLogTailDefaultBytes);
+      sendJson(response, 200, await readRunnerLogTail(jobId, requestedBytes));
       return;
     }
 
@@ -1005,6 +1019,75 @@ async function readShortFile(path?: string) {
   } catch {
     return "";
   }
+}
+
+async function readRunnerLogTail(jobId: string, requestedBytes: number) {
+  const logPath = join(logsDir, `${jobId}.log`);
+  const bytesToRead = clampRunnerLogBytes(requestedBytes);
+  const readAt = new Date().toISOString();
+
+  try {
+    const logStats = await stat(logPath);
+    const fileSize = logStats.size;
+    const readLength = Math.min(bytesToRead, fileSize);
+    const start = Math.max(0, fileSize - readLength);
+    const buffer = Buffer.alloc(readLength);
+    const fd = openSync(logPath, "r");
+    try {
+      readSync(fd, buffer, 0, readLength, start);
+    } finally {
+      closeSync(fd);
+    }
+
+    return {
+      jobId,
+      exists: true,
+      path: logPath,
+      size: fileSize,
+      modifiedAt: logStats.mtime.toISOString(),
+      readAt,
+      truncated: start > 0,
+      text: sanitizeRunnerLogText(buffer.toString("utf8"))
+    };
+  } catch {
+    return {
+      jobId,
+      exists: false,
+      path: logPath,
+      size: 0,
+      modifiedAt: "",
+      readAt,
+      truncated: false,
+      text: ""
+    };
+  }
+}
+
+function clampRunnerLogBytes(value: number) {
+  if (!Number.isFinite(value) || value <= 0) return runnerLogTailDefaultBytes;
+  return Math.min(Math.max(Math.floor(value), 1024), runnerLogTailMaxBytes);
+}
+
+function sanitizeRunnerLogText(text: string) {
+  const userProfile = process.env.USERPROFILE ?? "";
+  const shortenedRoots = [
+    [userProfile, "~"],
+    [handoffRoot, "<handoff>"]
+  ] as const;
+  let sanitized = text.replace(/\u001b\[[0-9;]*m/g, "");
+  for (const [from, to] of shortenedRoots) {
+    if (!from) continue;
+    sanitized = sanitized.split(from).join(to);
+  }
+  sanitized = sanitized
+    .split(/\r?\n/)
+    .slice(-240)
+    .map((line) => {
+      const cleanLine = line.replace(/[\x00-\x08\x0b\x0c\x0e-\x1f]/g, "");
+      return cleanLine.length > 720 ? `${cleanLine.slice(0, 720)} ...[truncated]` : cleanLine;
+    })
+    .join("\n");
+  return sanitized.trimEnd();
 }
 
 function normalizeFailureKind(value: unknown): CodexFailureKind | null {
