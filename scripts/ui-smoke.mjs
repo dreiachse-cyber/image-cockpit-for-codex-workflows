@@ -352,9 +352,14 @@ async function assertAnimationPresetExamples() {
     { title: "Jump / Hop", className: "sample-jump-sheet", sheet: "jump-hop-sheet.png", direction: "normal", playback: "normal playback", includeMessage: "Choose Animation should include the Jump / Hop animation card" },
     { title: "Guard / Block", className: "sample-guard-sheet", sheet: "guard-block-sheet.png", direction: "normal", playback: "normal playback", includeMessage: "Choose Animation should include the Guard / Block animation card" },
     { title: "Victory Cheer", className: "sample-cheer-sheet", sheet: "victory-cheer-sheet.png", direction: "normal", playback: "normal loop", includeMessage: "Choose Animation should include the Victory Cheer animation card" },
-    { title: "Interact / Pickup", className: "sample-interact-sheet", sheet: "interact-pickup-sheet.png", direction: "normal", playback: "normal playback", includeMessage: "Choose Animation should include the Interact / Pickup animation card" }
+    { title: "Interact / Pickup", className: "sample-interact-sheet", sheet: "interact-pickup-sheet.png", direction: "normal", playback: "normal playback", includeMessage: "Choose Animation should include the Interact / Pickup animation card" },
+    { title: "Ranged Attack", className: "sample-ranged-sheet", sheet: "ranged-attack-sheet.png", direction: "normal", playback: "normal playback", includeMessage: "Choose Animation should include the Ranged Attack animation card" },
+    { title: "Skill Release", className: "sample-skill-sheet", sheet: "skill-release-sheet.png", direction: "normal", playback: "normal playback", includeMessage: "Choose Animation should include the Skill Release animation card" },
+    { title: "Knockback", className: "sample-knockback-sheet", sheet: "knockback-sheet.png", direction: "normal", playback: "normal playback", includeMessage: "Choose Animation should include the Knockback animation card" },
+    { title: "Item Use", className: "sample-item-sheet", sheet: "item-use-sheet.png", direction: "normal", playback: "normal playback", includeMessage: "Choose Animation should include the Item Use animation card" },
+    { title: "Talk / NPC Reaction", className: "sample-talk-sheet", sheet: "talk-sheet.png", direction: "normal", playback: "normal loop", includeMessage: "Choose Animation should include the Talk / NPC Reaction animation card" }
   ];
-  assert(snapshot.animationPresetModalSampleSprites === expectedAnimationPresetSamples.length, `Choose Animation should show 11 verified animated sprite samples, got ${snapshot.animationPresetModalSampleSprites}`);
+  assert(snapshot.animationPresetModalSampleSprites === expectedAnimationPresetSamples.length, `Choose Animation should show 16 verified animated sprite samples, got ${snapshot.animationPresetModalSampleSprites}`);
   for (const sample of expectedAnimationPresetSamples) {
     assert(snapshot.text.includes(sample.title), sample.includeMessage);
     const usesGeneratedSheet = await evaluate(`(() => {

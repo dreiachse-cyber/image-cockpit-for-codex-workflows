@@ -2539,6 +2539,36 @@ button:disabled {
   --sample-y: 50%;
 }
 
+.sample-ranged-sheet {
+  --sample-image: url("/samples/ranged-attack-sheet.png");
+  --sample-sheet-rows: 500%;
+  --sample-y: 50%;
+}
+
+.sample-skill-sheet {
+  --sample-image: url("/samples/skill-release-sheet.png");
+  --sample-sheet-rows: 500%;
+  --sample-y: 25%;
+}
+
+.sample-knockback-sheet {
+  --sample-image: url("/samples/knockback-sheet.png");
+  --sample-sheet-rows: 500%;
+  --sample-y: 50%;
+}
+
+.sample-item-sheet {
+  --sample-image: url("/samples/item-use-sheet.png");
+  --sample-sheet-rows: 500%;
+  --sample-y: 25%;
+}
+
+.sample-talk-sheet {
+  --sample-image: url("/samples/talk-sheet.png");
+  --sample-sheet-rows: 500%;
+  --sample-y: 0%;
+}
+
 .sample-fast {
   --sample-duration: 0.62s;
 }
@@ -2559,13 +2589,18 @@ button:disabled {
 .sample-attack,
 .sample-hurt,
 .sample-guard,
-.sample-interact {
+.sample-interact,
+.sample-ranged,
+.sample-knockback,
+.sample-item {
   --sample-duration: 0.72s;
 }
 
 .sample-cast,
 .sample-cheer,
-.sample-jump {
+.sample-jump,
+.sample-skill,
+.sample-talk {
   --sample-duration: 0.86s;
 }
 

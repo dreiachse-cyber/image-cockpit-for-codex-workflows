@@ -93,6 +93,46 @@ export const OFFICIAL_ANIMATION_LIBRARY: AnimationLibraryItem[] = [
     sheetDataUrl: "/samples/interact-pickup-sheet.png",
     playback: "normal",
     tags: ["interact", "pickup", "utility", "character", "sprite"]
+  }),
+  createOfficialAnimation({
+    id: "official-ranged-attack",
+    title: "Ranged Attack",
+    action: "ranged",
+    sheetDataUrl: "/samples/ranged-attack-sheet.png",
+    playback: "normal",
+    tags: ["ranged", "attack", "combat", "projectile", "character", "sprite"]
+  }),
+  createOfficialAnimation({
+    id: "official-skill-release",
+    title: "Skill Release",
+    action: "skill",
+    sheetDataUrl: "/samples/skill-release-sheet.png",
+    playback: "normal",
+    tags: ["skill", "release", "magic", "character", "sprite"]
+  }),
+  createOfficialAnimation({
+    id: "official-knockback",
+    title: "Knockback",
+    action: "knockback",
+    sheetDataUrl: "/samples/knockback-sheet.png",
+    playback: "normal",
+    tags: ["knockback", "combat", "reaction", "character", "sprite"]
+  }),
+  createOfficialAnimation({
+    id: "official-item-use",
+    title: "Item Use",
+    action: "item",
+    sheetDataUrl: "/samples/item-use-sheet.png",
+    playback: "normal",
+    tags: ["item", "use", "utility", "character", "sprite"]
+  }),
+  createOfficialAnimation({
+    id: "official-talk",
+    title: "Talk / NPC Reaction",
+    action: "talk",
+    sheetDataUrl: "/samples/talk-sheet.png",
+    playback: "normal",
+    tags: ["talk", "npc", "emotion", "social", "character", "sprite"]
   })
 ];
 

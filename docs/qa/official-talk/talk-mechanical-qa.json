@@ -1,0 +1,1056 @@
+{
+  "presetId": "talk",
+  "sourceJobId": "codex-job-2026-06-25T23-18-46-956Z",
+  "sheetPath": "public/samples/talk-sheet.png",
+  "sheetSize": [
+    2048,
+    1280
+  ],
+  "cell": [
+    256,
+    256
+  ],
+  "grid": [
+    8,
+    5
+  ],
+  "directions": [
+    "front",
+    "front-three-quarter",
+    "side",
+    "back-three-quarter",
+    "back"
+  ],
+  "fps": 10,
+  "loop": true,
+  "mechanicalResult": "pass",
+  "warnings": [],
+  "failures": [],
+  "frames": [
+    {
+      "direction": "front",
+      "frames": [
+        {
+          "index": 1,
+          "ok": true,
+          "sourceBox": [
+            86,
+            25,
+            169,
+            230
+          ],
+          "normalizedBox": [
+            86,
+            24,
+            169,
+            229
+          ],
+          "minPadding": 24,
+          "padding": {
+            "left": 86,
+            "top": 24,
+            "right": 86,
+            "bottom": 26
+          },
+          "scale": 1.0,
+          "pixels": 11404
+        },
+        {
+          "index": 2,
+          "ok": true,
+          "sourceBox": [
+            81,
+            25,
+            173,
+            230
+          ],
+          "normalizedBox": [
+            82,
+            24,
+            174,
+            229
+          ],
+          "minPadding": 24,
+          "padding": {
+            "left": 82,
+            "top": 24,
+            "right": 81,
+            "bottom": 26
+          },
+          "scale": 1.0,
+          "pixels": 11378
+        },
+        {
+          "index": 3,
+          "ok": true,
+          "sourceBox": [
+            85,
+            30,
+            169,
+            230
+          ],
+          "normalizedBox": [
+            84,
+            24,
+            170,
+            229
+          ],
+          "minPadding": 24,
+          "padding": {
+            "left": 84,
+            "top": 24,
+            "right": 85,
+            "bottom": 26
+          },
+          "scale": 1.025,
+          "pixels": 11444
+        },
+        {
+          "index": 4,
+          "ok": true,
+          "sourceBox": [
+            86,
+            25,
+            169,
+            230
+          ],
+          "normalizedBox": [
+            86,
+            24,
+            169,
+            229
+          ],
+          "minPadding": 24,
+          "padding": {
+            "left": 86,
+            "top": 24,
+            "right": 86,
+            "bottom": 26
+          },
+          "scale": 1.0,
+          "pixels": 11734
+        },
+        {
+          "index": 5,
+          "ok": true,
+          "sourceBox": [
+            86,
+            26,
+            169,
+            230
+          ],
+          "normalizedBox": [
+            86,
+            24,
+            169,
+            229
+          ],
+          "minPadding": 24,
+          "padding": {
+            "left": 86,
+            "top": 24,
+            "right": 86,
+            "bottom": 26
+          },
+          "scale": 1.005,
+          "pixels": 11349
+        },
+        {
+          "index": 6,
+          "ok": true,
+          "sourceBox": [
+            85,
+            25,
+            170,
+            230
+          ],
+          "normalizedBox": [
+            85,
+            24,
+            170,
+            229
+          ],
+          "minPadding": 24,
+          "padding": {
+            "left": 85,
+            "top": 24,
+            "right": 85,
+            "bottom": 26
+          },
+          "scale": 1.0,
+          "pixels": 11371
+        },
+        {
+          "index": 7,
+          "ok": true,
+          "sourceBox": [
+            86,
+            25,
+            169,
+            230
+          ],
+          "normalizedBox": [
+            86,
+            24,
+            169,
+            229
+          ],
+          "minPadding": 24,
+          "padding": {
+            "left": 86,
+            "top": 24,
+            "right": 86,
+            "bottom": 26
+          },
+          "scale": 1.0,
+          "pixels": 11399
+        },
+        {
+          "index": 8,
+          "ok": true,
+          "sourceBox": [
+            86,
+            25,
+            169,
+            230
+          ],
+          "normalizedBox": [
+            86,
+            24,
+            169,
+            229
+          ],
+          "minPadding": 24,
+          "padding": {
+            "left": 86,
+            "top": 24,
+            "right": 86,
+            "bottom": 26
+          },
+          "scale": 1.0,
+          "pixels": 11377
+        }
+      ]
+    },
+    {
+      "direction": "front-three-quarter",
+      "frames": [
+        {
+          "index": 1,
+          "ok": true,
+          "sourceBox": [
+            88,
+            26,
+            167,
+            230
+          ],
+          "normalizedBox": [
+            88,
+            25,
+            167,
+            229
+          ],
+          "minPadding": 25,
+          "padding": {
+            "left": 88,
+            "top": 25,
+            "right": 88,
+            "bottom": 26
+          },
+          "scale": 1.0,
+          "pixels": 11023
+        },
+        {
+          "index": 2,
+          "ok": true,
+          "sourceBox": [
+            76,
+            26,
+            178,
+            230
+          ],
+          "normalizedBox": [
+            76,
+            25,
+            178,
+            229
+          ],
+          "minPadding": 25,
+          "padding": {
+            "left": 76,
+            "top": 25,
+            "right": 77,
+            "bottom": 26
+          },
+          "scale": 1.0,
+          "pixels": 11302
+        },
+        {
+          "index": 3,
+          "ok": true,
+          "sourceBox": [
+            88,
+            26,
+            167,
+            230
+          ],
+          "normalizedBox": [
+            88,
+            25,
+            167,
+            229
+          ],
+          "minPadding": 25,
+          "padding": {
+            "left": 88,
+            "top": 25,
+            "right": 88,
+            "bottom": 26
+          },
+          "scale": 1.0,
+          "pixels": 11098
+        },
+        {
+          "index": 4,
+          "ok": true,
+          "sourceBox": [
+            81,
+            26,
+            174,
+            230
+          ],
+          "normalizedBox": [
+            81,
+            25,
+            174,
+            229
+          ],
+          "minPadding": 25,
+          "padding": {
+            "left": 81,
+            "top": 25,
+            "right": 81,
+            "bottom": 26
+          },
+          "scale": 1.0,
+          "pixels": 11412
+        },
+        {
+          "index": 5,
+          "ok": true,
+          "sourceBox": [
+            88,
+            26,
+            166,
+            230
+          ],
+          "normalizedBox": [
+            88,
+            25,
+            166,
+            229
+          ],
+          "minPadding": 25,
+          "padding": {
+            "left": 88,
+            "top": 25,
+            "right": 89,
+            "bottom": 26
+          },
+          "scale": 1.0,
+          "pixels": 10872
+        },
+        {
+          "index": 6,
+          "ok": true,
+          "sourceBox": [
+            79,
+            26,
+            175,
+            230
+          ],
+          "normalizedBox": [
+            80,
+            25,
+            176,
+            229
+          ],
+          "minPadding": 25,
+          "padding": {
+            "left": 80,
+            "top": 25,
+            "right": 79,
+            "bottom": 26
+          },
+          "scale": 1.0,
+          "pixels": 11214
+        },
+        {
+          "index": 7,
+          "ok": true,
+          "sourceBox": [
+            88,
+            26,
+            167,
+            230
+          ],
+          "normalizedBox": [
+            88,
+            25,
+            167,
+            229
+          ],
+          "minPadding": 25,
+          "padding": {
+            "left": 88,
+            "top": 25,
+            "right": 88,
+            "bottom": 26
+          },
+          "scale": 1.0,
+          "pixels": 11021
+        },
+        {
+          "index": 8,
+          "ok": true,
+          "sourceBox": [
+            88,
+            25,
+            167,
+            230
+          ],
+          "normalizedBox": [
+            88,
+            25,
+            167,
+            229
+          ],
+          "minPadding": 25,
+          "padding": {
+            "left": 88,
+            "top": 25,
+            "right": 88,
+            "bottom": 26
+          },
+          "scale": 0.995,
+          "pixels": 11096
+        }
+      ]
+    },
+    {
+      "direction": "side",
+      "frames": [
+        {
+          "index": 1,
+          "ok": true,
+          "sourceBox": [
+            88,
+            27,
+            166,
+            230
+          ],
+          "normalizedBox": [
+            88,
+            25,
+            166,
+            229
+          ],
+          "minPadding": 25,
+          "padding": {
+            "left": 88,
+            "top": 25,
+            "right": 89,
+            "bottom": 26
+          },
+          "scale": 1.005,
+          "pixels": 8796
+        },
+        {
+          "index": 2,
+          "ok": true,
+          "sourceBox": [
+            82,
+            27,
+            173,
+            230
+          ],
+          "normalizedBox": [
+            82,
+            25,
+            173,
+            229
+          ],
+          "minPadding": 25,
+          "padding": {
+            "left": 82,
+            "top": 25,
+            "right": 82,
+            "bottom": 26
+          },
+          "scale": 1.005,
+          "pixels": 9302
+        },
+        {
+          "index": 3,
+          "ok": true,
+          "sourceBox": [
+            88,
+            27,
+            166,
+            230
+          ],
+          "normalizedBox": [
+            88,
+            25,
+            166,
+            229
+          ],
+          "minPadding": 25,
+          "padding": {
+            "left": 88,
+            "top": 25,
+            "right": 89,
+            "bottom": 26
+          },
+          "scale": 1.005,
+          "pixels": 8749
+        },
+        {
+          "index": 4,
+          "ok": true,
+          "sourceBox": [
+            81,
+            27,
+            173,
+            230
+          ],
+          "normalizedBox": [
+            82,
+            25,
+            174,
+            229
+          ],
+          "minPadding": 25,
+          "padding": {
+            "left": 82,
+            "top": 25,
+            "right": 81,
+            "bottom": 26
+          },
+          "scale": 1.005,
+          "pixels": 9161
+        },
+        {
+          "index": 5,
+          "ok": true,
+          "sourceBox": [
+            89,
+            25,
+            166,
+            230
+          ],
+          "normalizedBox": [
+            89,
+            25,
+            166,
+            229
+          ],
+          "minPadding": 25,
+          "padding": {
+            "left": 89,
+            "top": 25,
+            "right": 89,
+            "bottom": 26
+          },
+          "scale": 0.995,
+          "pixels": 8783
+        },
+        {
+          "index": 6,
+          "ok": true,
+          "sourceBox": [
+            85,
+            25,
+            169,
+            230
+          ],
+          "normalizedBox": [
+            86,
+            25,
+            170,
+            229
+          ],
+          "minPadding": 25,
+          "padding": {
+            "left": 86,
+            "top": 25,
+            "right": 85,
+            "bottom": 26
+          },
+          "scale": 0.995,
+          "pixels": 9230
+        },
+        {
+          "index": 7,
+          "ok": true,
+          "sourceBox": [
+            89,
+            25,
+            166,
+            230
+          ],
+          "normalizedBox": [
+            89,
+            25,
+            166,
+            229
+          ],
+          "minPadding": 25,
+          "padding": {
+            "left": 89,
+            "top": 25,
+            "right": 89,
+            "bottom": 26
+          },
+          "scale": 0.995,
+          "pixels": 8816
+        },
+        {
+          "index": 8,
+          "ok": true,
+          "sourceBox": [
+            89,
+            25,
+            166,
+            230
+          ],
+          "normalizedBox": [
+            89,
+            25,
+            166,
+            229
+          ],
+          "minPadding": 25,
+          "padding": {
+            "left": 89,
+            "top": 25,
+            "right": 89,
+            "bottom": 26
+          },
+          "scale": 0.995,
+          "pixels": 8735
+        }
+      ]
+    },
+    {
+      "direction": "back-three-quarter",
+      "frames": [
+        {
+          "index": 1,
+          "ok": true,
+          "sourceBox": [
+            86,
+            25,
+            168,
+            230
+          ],
+          "normalizedBox": [
+            88,
+            28,
+            168,
+            229
+          ],
+          "minPadding": 26,
+          "padding": {
+            "left": 88,
+            "top": 28,
+            "right": 87,
+            "bottom": 26
+          },
+          "scale": 0.981,
+          "pixels": 11206
+        },
+        {
+          "index": 2,
+          "ok": true,
+          "sourceBox": [
+            81,
+            25,
+            173,
+            230
+          ],
+          "normalizedBox": [
+            82,
+            28,
+            172,
+            229
+          ],
+          "minPadding": 26,
+          "padding": {
+            "left": 82,
+            "top": 28,
+            "right": 83,
+            "bottom": 26
+          },
+          "scale": 0.981,
+          "pixels": 11557
+        },
+        {
+          "index": 3,
+          "ok": true,
+          "sourceBox": [
+            88,
+            28,
+            167,
+            230
+          ],
+          "normalizedBox": [
+            88,
+            28,
+            167,
+            229
+          ],
+          "minPadding": 26,
+          "padding": {
+            "left": 88,
+            "top": 28,
+            "right": 88,
+            "bottom": 26
+          },
+          "scale": 0.995,
+          "pixels": 11083
+        },
+        {
+          "index": 4,
+          "ok": true,
+          "sourceBox": [
+            79,
+            28,
+            176,
+            230
+          ],
+          "normalizedBox": [
+            79,
+            28,
+            176,
+            229
+          ],
+          "minPadding": 26,
+          "padding": {
+            "left": 79,
+            "top": 28,
+            "right": 79,
+            "bottom": 26
+          },
+          "scale": 0.995,
+          "pixels": 11323
+        },
+        {
+          "index": 5,
+          "ok": true,
+          "sourceBox": [
+            90,
+            30,
+            165,
+            230
+          ],
+          "normalizedBox": [
+            90,
+            28,
+            165,
+            229
+          ],
+          "minPadding": 26,
+          "padding": {
+            "left": 90,
+            "top": 28,
+            "right": 90,
+            "bottom": 26
+          },
+          "scale": 1.005,
+          "pixels": 10665
+        },
+        {
+          "index": 6,
+          "ok": true,
+          "sourceBox": [
+            85,
+            30,
+            169,
+            230
+          ],
+          "normalizedBox": [
+            86,
+            28,
+            170,
+            229
+          ],
+          "minPadding": 26,
+          "padding": {
+            "left": 86,
+            "top": 28,
+            "right": 85,
+            "bottom": 26
+          },
+          "scale": 1.005,
+          "pixels": 11043
+        },
+        {
+          "index": 7,
+          "ok": true,
+          "sourceBox": [
+            90,
+            30,
+            165,
+            230
+          ],
+          "normalizedBox": [
+            90,
+            28,
+            165,
+            229
+          ],
+          "minPadding": 26,
+          "padding": {
+            "left": 90,
+            "top": 28,
+            "right": 90,
+            "bottom": 26
+          },
+          "scale": 1.005,
+          "pixels": 10738
+        },
+        {
+          "index": 8,
+          "ok": true,
+          "sourceBox": [
+            87,
+            30,
+            167,
+            230
+          ],
+          "normalizedBox": [
+            88,
+            28,
+            168,
+            229
+          ],
+          "minPadding": 26,
+          "padding": {
+            "left": 88,
+            "top": 28,
+            "right": 87,
+            "bottom": 26
+          },
+          "scale": 1.005,
+          "pixels": 10816
+        }
+      ]
+    },
+    {
+      "direction": "back",
+      "frames": [
+        {
+          "index": 1,
+          "ok": true,
+          "sourceBox": [
+            87,
+            25,
+            168,
+            230
+          ],
+          "normalizedBox": [
+            87,
+            24,
+            168,
+            229
+          ],
+          "minPadding": 24,
+          "padding": {
+            "left": 87,
+            "top": 24,
+            "right": 87,
+            "bottom": 26
+          },
+          "scale": 1.0,
+          "pixels": 11426
+        },
+        {
+          "index": 2,
+          "ok": true,
+          "sourceBox": [
+            81,
+            25,
+            174,
+            230
+          ],
+          "normalizedBox": [
+            81,
+            24,
+            174,
+            229
+          ],
+          "minPadding": 24,
+          "padding": {
+            "left": 81,
+            "top": 24,
+            "right": 81,
+            "bottom": 26
+          },
+          "scale": 1.0,
+          "pixels": 11397
+        },
+        {
+          "index": 3,
+          "ok": true,
+          "sourceBox": [
+            87,
+            25,
+            168,
+            230
+          ],
+          "normalizedBox": [
+            87,
+            24,
+            168,
+            229
+          ],
+          "minPadding": 24,
+          "padding": {
+            "left": 87,
+            "top": 24,
+            "right": 87,
+            "bottom": 26
+          },
+          "scale": 1.0,
+          "pixels": 11382
+        },
+        {
+          "index": 4,
+          "ok": true,
+          "sourceBox": [
+            82,
+            25,
+            173,
+            230
+          ],
+          "normalizedBox": [
+            82,
+            24,
+            173,
+            229
+          ],
+          "minPadding": 24,
+          "padding": {
+            "left": 82,
+            "top": 24,
+            "right": 82,
+            "bottom": 26
+          },
+          "scale": 1.0,
+          "pixels": 11347
+        },
+        {
+          "index": 5,
+          "ok": true,
+          "sourceBox": [
+            87,
+            25,
+            168,
+            230
+          ],
+          "normalizedBox": [
+            87,
+            24,
+            168,
+            229
+          ],
+          "minPadding": 24,
+          "padding": {
+            "left": 87,
+            "top": 24,
+            "right": 87,
+            "bottom": 26
+          },
+          "scale": 1.0,
+          "pixels": 11396
+        },
+        {
+          "index": 6,
+          "ok": true,
+          "sourceBox": [
+            81,
+            25,
+            174,
+            230
+          ],
+          "normalizedBox": [
+            81,
+            24,
+            174,
+            229
+          ],
+          "minPadding": 24,
+          "padding": {
+            "left": 81,
+            "top": 24,
+            "right": 81,
+            "bottom": 26
+          },
+          "scale": 1.0,
+          "pixels": 11566
+        },
+        {
+          "index": 7,
+          "ok": true,
+          "sourceBox": [
+            87,
+            25,
+            168,
+            230
+          ],
+          "normalizedBox": [
+            87,
+            24,
+            168,
+            229
+          ],
+          "minPadding": 24,
+          "padding": {
+            "left": 87,
+            "top": 24,
+            "right": 87,
+            "bottom": 26
+          },
+          "scale": 1.0,
+          "pixels": 11406
+        },
+        {
+          "index": 8,
+          "ok": true,
+          "sourceBox": [
+            87,
+            25,
+            167,
+            230
+          ],
+          "normalizedBox": [
+            88,
+            24,
+            168,
+            229
+          ],
+          "minPadding": 24,
+          "padding": {
+            "left": 88,
+            "top": 24,
+            "right": 87,
+            "bottom": 26
+          },
+          "scale": 1.0,
+          "pixels": 11294
+        }
+      ]
+    }
+  ]
+}
