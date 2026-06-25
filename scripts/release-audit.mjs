@@ -637,6 +637,7 @@ function checkWorkflowIds() {
     "sprite edit job should not carry edit annotations",
     "mock autorun preflight should report ready",
     "mock autorun job should start in running state",
+    "mock autorun exact job-id result should not create a diagnostic",
     "mock autorun result image should be listed",
     "waitForJobState"
   ].forEach((marker) => {

@@ -892,7 +892,7 @@ async function findJobSidecar(jobId: string) {
     const entries = await readdir(outboxDir, { withFileTypes: true });
     const candidates = entries
       .filter((entry) => entry.isFile())
-      .filter((entry) => entry.name.startsWith(`${jobId}-`) || entry.name.startsWith(`${jobId}.`))
+      .filter((entry) => isJobOutboxFileName(jobId, entry.name))
       .filter((entry) => [".json", ".md", ".txt"].includes(extname(entry.name).toLowerCase()))
       .sort((left, right) => left.name.localeCompare(right.name));
     for (const entry of candidates) {
@@ -927,12 +927,16 @@ async function hasOutboxImageForJob(jobId: string) {
     return entries.some(
       (entry) =>
         entry.isFile() &&
-        entry.name.startsWith(`${jobId}-`) &&
+        isJobOutboxFileName(jobId, entry.name) &&
         Boolean(mimeTypeForImage(entry.name))
     );
   } catch {
     return false;
   }
+}
+
+function isJobOutboxFileName(jobId: string, name: string) {
+  return name.startsWith(`${jobId}-`) || name.startsWith(`${jobId}.`);
 }
 
 async function readShortFile(path?: string) {

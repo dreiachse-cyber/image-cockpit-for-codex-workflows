@@ -312,10 +312,11 @@ async function runMockAutorunSmoke() {
 
     const completedStatus = await waitForJobState(port, job.id, "completed");
     assert(completedStatus.status.logPath, "completed mock autorun status should include log path");
+    assert(!completedStatus.status.diagnostic, "mock autorun exact job-id result should not create a diagnostic");
     await stat(completedStatus.status.logPath);
 
     const outboxList = await getJson(port, "/api/codex/results");
-    const resultName = `${job.id}-mock.png`;
+    const resultName = `${job.id}.png`;
     assert(outboxList.results.some((result) => result.name === resultName), "mock autorun result image should be listed");
     const importedResult = await getJson(port, `/api/codex/results/${encodeURIComponent(resultName)}`);
     assert(importedResult.dataUrl === tinyPng, "mock autorun result should import as expected PNG data URL");
@@ -528,7 +529,11 @@ if (job.prompt.includes("no image returned")) {
   process.exit(0);
 }
 
-await writeFile(join(outboxDir, \`\${jobId}-mock.png\`), Buffer.from(tinyPng.split(",")[1], "base64"));
+await writeFile(join(outboxDir, \`\${jobId}.png\`), Buffer.from(tinyPng.split(",")[1], "base64"));
+await writeFile(join(outboxDir, \`\${jobId}.meta.json\`), JSON.stringify({
+  status: "succeeded",
+  imageGenUsed: true
+}, null, 2), "utf8");
 console.log(\`mock completed \${jobId}\`);
 `;
 }
