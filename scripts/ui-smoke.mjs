@@ -110,22 +110,21 @@ try {
   await assertWorkflow({
     label: "Pixel Art Generation",
     route: "Route: Codex Handoff",
-    buttons: ["Generate Pixel Art", "PNG", "Animated GIF", "Animated WebP"],
-    hiddenButtons: ["Import Latest", "Import File"],
+    buttons: ["Generate Pixel Art", "PNG"],
+    hiddenButtons: ["Import Latest", "Import File", "Animated GIF", "Animated WebP"],
     hiddenText: ["Sprite Actions", "Export Sprite", "Generation Method"],
     requiredText: ["Pixel Art Prompt", "Generation Notes", "Preview", "Generation can take a few minutes."],
     exerciseButton: "Generate Pixel Art",
     expectedAfterExercise: "Imported from Local Inbox",
     expectedCanvasPreviewModeAfterExercise: "result",
-    // release-audit marker: downloadSelectedImageAnimation
-    postExerciseButtons: ["Animated GIF", "Animated WebP"]
+    postExerciseButtons: ["PNG"]
   });
   await assertWorkflow({
     label: "Animation Generation",
     route: "Route: Codex Handoff",
-    buttons: ["Upload Pixel Art", "Choose Animation", "Generate Animation", "Animated GIF", "Animated WebP"],
+    buttons: ["Upload Pixel Art", "Choose Animation", "Generate Animation", "PNG"],
     hiddenButtons: ["Import Latest", "Import File", "5-Direction Sheet", "hatch-pet", "5-Direction hatch-pet"],
-    hiddenText: ["Sprite Actions", "Export Sprite", "Generation Method", "Run Cycle", "Hop Bounce", "Victory Cheer"],
+    hiddenText: ["Sprite Actions", "Export Sprite", "Generation Method", "Walk Cycle", "Idle Breathing Loop", "Hop Bounce", "Victory Cheer"],
     requiredText: ["1. Upload Pixel Art", "2. Choose Motion", "3. Generate", "4. Download", "Selected animation", "Choose Animation", "Fixed cells: 256 x 256 px", "5-direction chroma-key sprite sheet"],
     exerciseButton: "Generate Animation",
     expectedAfterExercise: "Animation generated",
@@ -231,12 +230,15 @@ async function assertAnimationPresetExamples() {
   assert(triggerPlacement, "Choose Animation trigger should sit directly below the selected animation card");
 
   await clickButtonByText("Choose Animation");
-  await waitForEval(() => `document.querySelector(".animation-preset-modal")?.innerText.includes("Idle Breathing Loop")`, "Choose Animation modal");
+  await waitForEval(() => `document.querySelector(".animation-preset-modal")?.innerText.includes("Run Cycle")`, "Choose Animation modal");
   const snapshot = await pageSnapshot();
   assert(snapshot.text.includes("Pick an animated sample"), "Choose Animation intro should be visible");
   assert(snapshot.buttons.includes("Select Animation"), "Choose Animation should expose select buttons");
-  assert(snapshot.animationPresetSampleSprites === 10, `Choose Animation should show 10 animated sprite samples, got ${snapshot.animationPresetSampleSprites}`);
+  assert(snapshot.animationPresetSampleSprites === 1, `Choose Animation should show 1 verified animated sprite sample, got ${snapshot.animationPresetSampleSprites}`);
   assert(snapshot.text.includes("Run Cycle"), "Choose Animation should include the Run Cycle animation card");
+  assert(!snapshot.text.includes("Walk Cycle"), "Choose Animation should hide unverified Walk Cycle card");
+  assert(!snapshot.text.includes("Idle Breathing Loop"), "Choose Animation should hide unverified Idle Breathing Loop card");
+  assert(!snapshot.text.includes("Victory Cheer"), "Choose Animation should hide unverified extra animation cards");
   const runCycleUsesGeneratedSheet = await evaluate(`(() => {
     const cards = [...document.querySelectorAll(".animation-preset-card")];
     const card = cards.find((item) => item.innerText.includes("Run Cycle"));
@@ -248,7 +250,6 @@ async function assertAnimationPresetExamples() {
       && style.backgroundSize.includes("500%");
   })()`);
   assert(runCycleUsesGeneratedSheet, "Run Cycle card should use the generated run-cycle sprite sheet sample");
-  assert(snapshot.text.includes("Victory Cheer"), "Choose Animation should include the added animation cards");
   assert(snapshot.promptRawTextBlocks === 0, `Choose Animation should hide raw prompt text, got ${snapshot.promptRawTextBlocks} raw blocks`);
   const animationName = await evaluate(`getComputedStyle(document.querySelector(".animation-sample-sprite")).animationName`);
   assert(animationName && animationName !== "none", "Choose Animation samples should be animated");
@@ -260,7 +261,7 @@ async function assertAnimationPresetExamples() {
     "Animation selected"
   );
   const selectedPreset = await evaluate(`document.querySelector(".selected-animation-card")?.innerText.replace(/\\s+/g, " ").trim() || ""`);
-  assert(selectedPreset.includes("Idle Breathing Loop"), `Select Animation should update the selected animation card, got ${selectedPreset}`);
+  assert(selectedPreset.includes("Run Cycle"), `Select Animation should keep the verified Run Cycle selected, got ${selectedPreset}`);
   const stillNoFreePrompt = await evaluate(`document.querySelectorAll(".animation-step textarea").length === 0`);
   assert(stillNoFreePrompt, "Select Animation should keep free-form motion prompt textareas hidden");
   const modalClosed = await evaluate(`!document.querySelector(".animation-preset-modal")`);
@@ -346,8 +347,8 @@ async function assertImageEditing() {
   assert(snapshot.buttons.includes("Image Editing"), "Image Editing should expose Image Editing tab");
   assert(snapshot.buttons.includes("Animation Generation"), "Image Editing should expose Animation Generation tab");
   assert(snapshot.buttons.includes("PNG"), "Image Editing should expose the image PNG download action");
-  assert(snapshot.buttons.includes("Animated GIF"), "Image Editing should expose the animated GIF download action");
-  assert(snapshot.buttons.includes("Animated WebP"), "Image Editing should expose the animated WebP download action");
+  assert(!snapshot.buttons.includes("Animated GIF"), "Image Editing should hide animated GIF download for non-animation results");
+  assert(!snapshot.buttons.includes("Animated WebP"), "Image Editing should hide animated WebP download for non-animation results");
   assert(snapshot.resultDownloadPanelInWorkspace, "Image Editing should place the result download card under the preview workspace");
   assert(snapshot.annotationToolbarVisible, "Image Editing should show the rectangle selection toolbar");
   assert(snapshot.canvasPreviewMode === "edit", `Image Editing should use edit canvas mode, got ${snapshot.canvasPreviewMode}`);

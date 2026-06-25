@@ -352,7 +352,7 @@ const uiCopy = {
     imageEditGeneratedFrom: "Edited from",
     imageEditSourceUnknown: "Edit source not recorded",
     imageDownloadTitle: "Download",
-    imageDownloadBody: "Export the image currently shown in the preview as PNG, animated GIF, or animated WebP.",
+    imageDownloadBody: "Export the image currently shown in the preview as PNG.",
     imageDownloadReady: "Selected image ready",
     imageDownloadLocked: "Select or generate an image before downloading.",
     downloadPng: "PNG",
@@ -529,7 +529,7 @@ const uiCopy = {
     imageEditGeneratedFrom: "編集元",
     imageEditSourceUnknown: "編集元画像が記録されていません",
     imageDownloadTitle: "ダウンロード",
-    imageDownloadBody: "プレビューに表示している画像をPNG、アニメGIF、アニメWebPで書き出します。",
+    imageDownloadBody: "プレビューに表示している画像をPNGで書き出します。",
     imageDownloadReady: "選択中の画像を書き出せます",
     imageDownloadLocked: "画像を生成または選択するとダウンロードできます。",
     downloadPng: "PNG",
@@ -707,7 +707,7 @@ const workflowFormCopy: Record<
   }
 };
 
-const DEFAULT_ANIMATION_PRESET_ID = "walk-cycle";
+const DEFAULT_ANIMATION_PRESET_ID = "run-cycle";
 
 const defaultActions: SpriteAction[] = [
   { name: "idle", fps: 12, loop: true, frameIds: [], cell: STANDARD_ANIMATION_CELL, anchor: STANDARD_ANIMATION_ANCHOR },
@@ -718,32 +718,6 @@ const defaultActions: SpriteAction[] = [
 ];
 
 const animationPresetExamples: AnimationPresetExample[] = [
-  {
-    id: "idle-breathing-loop",
-    actionName: "idle",
-    previewClassName: "sample-row-idle",
-    category: { en: "Idle", ja: "待機" },
-    title: { en: "Idle Breathing Loop", ja: "待機ブレスループ" },
-    summary: {
-      en: "Small torso bounce, robe sway, and readable neutral pose.",
-      ja: "小さな上下動、布の揺れ、読みやすいニュートラル姿勢です。"
-    },
-    prompt: "idle breathing loop with subtle torso bounce, gentle cloth sway, stable feet, calm readable ready pose",
-    notes: "Preset example: keep the character centered and full body in every frame, with only small secondary motion."
-  },
-  {
-    id: "walk-cycle",
-    actionName: "walk",
-    previewClassName: "sample-row-walk",
-    category: { en: "Move", ja: "移動" },
-    title: { en: "Walk Cycle", ja: "歩行ループ" },
-    summary: {
-      en: "Alternating steps with steady baseline and clean silhouette.",
-      ja: "足運びが交互に読めて、基準線が安定した歩行です。"
-    },
-    prompt: "walk cycle with clear alternating steps, steady baseline, readable arm swing, full-body side-readable motion",
-    notes: "Preset example: keep the foot contact point consistent and avoid sliding, cropped feet, or pose drift."
-  },
   {
     id: "run-cycle",
     actionName: "run",
@@ -756,97 +730,6 @@ const animationPresetExamples: AnimationPresetExample[] = [
     },
     prompt: "run cycle with fast alternating strides, clear airborne frames, forward torso lean, strong opposite arm drive, readable foot crossover, full-body side-readable motion",
     notes: "Preset example: show a real run with lift-off frames and longer stride than walking; avoid skating, tiny shuffling steps, cropped feet, or pose drift."
-  },
-  {
-    id: "spell-cast",
-    actionName: "cast",
-    previewClassName: "sample-row-cast",
-    category: { en: "Cast", ja: "詠唱" },
-    title: { en: "Spell Cast", ja: "魔法詠唱" },
-    summary: {
-      en: "Anticipation, staff lift, charge glow, and return pose.",
-      ja: "予備動作、杖上げ、発光、戻り姿勢まである詠唱です。"
-    },
-    prompt: "spell cast animation with anticipation, staff lift, bright charge glow, release flash, and return to ready pose",
-    notes: "Preset example: effects must stay inside each cell and remain separate from the character silhouette."
-  },
-  {
-    id: "quick-attack",
-    actionName: "attack",
-    previewClassName: "sample-row-attack",
-    category: { en: "Attack", ja: "攻撃" },
-    title: { en: "Quick Attack", ja: "クイック攻撃" },
-    summary: {
-      en: "Wind-up, slash arc, follow-through, and recovery frames.",
-      ja: "振りかぶり、斬撃、フォロースルー、復帰までの動きです。"
-    },
-    prompt: "quick attack animation with anticipation, clean slash arc, follow-through, recovery frame, stable full-body silhouette",
-    notes: "Preset example: keep weapon trails inside the cell, do not crop the slash, and keep scale consistent."
-  },
-  {
-    id: "hop-bounce",
-    actionName: "walk",
-    previewClassName: "sample-row-walk sample-fast",
-    category: { en: "Hop", ja: "跳ね" },
-    title: { en: "Hop Bounce", ja: "ホップバウンス" },
-    summary: {
-      en: "Light bouncing motion for small creatures or playful characters.",
-      ja: "小さなキャラや軽い雰囲気に向いた跳ねる動きです。"
-    },
-    prompt: "short hop bounce loop with clear squash-and-stretch feel, stable landing, centered full-body silhouette",
-    notes: "Preset example: make the rise and landing readable, keep the baseline stable after each hop, and do not crop the feet."
-  },
-  {
-    id: "dash-start",
-    actionName: "walk",
-    previewClassName: "sample-row-walk sample-fast sample-reverse",
-    category: { en: "Move", ja: "移動" },
-    title: { en: "Dash Start", ja: "ダッシュ開始" },
-    summary: {
-      en: "Fast lean-forward start with readable acceleration frames.",
-      ja: "前傾と加速が読める、素早い走り出しです。"
-    },
-    prompt: "dash start animation with forward lean, quick foot push-off, acceleration smear kept inside the cell, recovery to run-ready pose",
-    notes: "Preset example: keep the character inside every cell, make the first push-off frame clear, and avoid stretching beyond the frame boundary."
-  },
-  {
-    id: "guard-stance",
-    actionName: "idle",
-    previewClassName: "sample-row-idle sample-slow",
-    category: { en: "Guard", ja: "防御" },
-    title: { en: "Guard Stance", ja: "ガード姿勢" },
-    summary: {
-      en: "Defensive ready pose with small breathing and equipment sway.",
-      ja: "防御姿勢を保ちつつ、呼吸と装備だけが少し動きます。"
-    },
-    prompt: "guard stance loop with raised arms or shield-ready posture, subtle breathing, small equipment sway, stable feet",
-    notes: "Preset example: keep the pose defensive but readable, with minimal body travel and no cropped hands or weapon."
-  },
-  {
-    id: "hit-react",
-    actionName: "attack",
-    previewClassName: "sample-row-attack sample-fast sample-reverse",
-    category: { en: "React", ja: "リアクション" },
-    title: { en: "Hit React", ja: "被弾リアクション" },
-    summary: {
-      en: "Brief recoil, impact pose, and return to balance.",
-      ja: "短いのけぞり、衝撃姿勢、体勢復帰の流れです。"
-    },
-    prompt: "hit reaction animation with brief recoil, clear impact pose, small recovery step, no gore, stable full-body read",
-    notes: "Preset example: make the recoil readable without moving the character out of the cell; avoid extreme deformation."
-  },
-  {
-    id: "victory-cheer",
-    actionName: "cast",
-    previewClassName: "sample-row-cast sample-slow",
-    category: { en: "Emote", ja: "感情" },
-    title: { en: "Victory Cheer", ja: "勝利ポーズ" },
-    summary: {
-      en: "Celebration lift, sparkle beat, and relaxed return pose.",
-      ja: "持ち上げ、きらめき、戻り姿勢がある勝利モーションです。"
-    },
-    prompt: "victory cheer animation with small celebratory lift, bright sparkle beat, happy readable pose, and relaxed return frame",
-    notes: "Preset example: keep celebration effects simple, contained inside each cell, and separated from the character silhouette."
   }
 ];
 
@@ -2244,35 +2127,6 @@ function App() {
     downloadBlob(blob, `${selectedImageSafeBaseName(selected)}.${extension}`);
   }
 
-  async function downloadSelectedImageAnimation(format: "gif" | "webp") {
-    if (!selected || selectedIsAnimationResult) return;
-    const image = await loadImage(selected.dataUrl);
-    const width = image.naturalWidth || image.width;
-    const height = image.naturalHeight || image.height;
-    const frameId = `${selected.id}-still-frame`;
-    const frame: SpriteFrame = {
-      id: frameId,
-      name: selected.name,
-      dataUrl: selected.dataUrl,
-      width,
-      height,
-      sourceId: selected.id,
-      index: 0
-    };
-    const action: SpriteAction = {
-      name: selectedImageSafeBaseName(selected),
-      fps: 1,
-      loop: true,
-      frameIds: [frameId],
-      cell: { width, height },
-      anchor: { x: Math.round(width / 2), y: Math.round(height * 0.92) }
-    };
-    const blob = format === "gif"
-      ? await createGifBlob([frame], action)
-      : await createAnimatedWebpBlob([frame], action);
-    downloadBlob(blob, `${action.name}.${format}`);
-  }
-
   async function addSelectedAsFrame() {
     if (!selected) return;
     const image = await loadImage(selected.dataUrl);
@@ -3110,14 +2964,6 @@ function App() {
                   <button onClick={downloadSelectedImage} disabled={!selectedImageDownloadReady}>
                     <FileImage size={16} aria-hidden="true" />
                     {copy.downloadPng}
-                  </button>
-                  <button onClick={() => void downloadSelectedImageAnimation("gif")} disabled={!selectedImageDownloadReady}>
-                    <Film size={16} aria-hidden="true" />
-                    {copy.animatedGif}
-                  </button>
-                  <button onClick={() => void downloadSelectedImageAnimation("webp")} disabled={!selectedImageDownloadReady}>
-                    <FileArchive size={16} aria-hidden="true" />
-                    {copy.animatedWebP}
                   </button>
                 </div>
               )}
