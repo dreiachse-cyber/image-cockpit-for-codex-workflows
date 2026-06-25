@@ -6,6 +6,7 @@ import {
   Brush,
   CheckCircle2,
   Copy,
+  Download,
   FileArchive,
   FileImage,
   FileJson,
@@ -98,7 +99,7 @@ const MIN_ANIMATION_CELL_SIZE = ANIMATION_CELL_SIZE;
 const MAX_ACTIVE_CODEX_JOBS = 2;
 const CODEX_LOG_POLL_INTERVAL_MS = 2000;
 const CODEX_LOG_TAIL_BYTES = 32768;
-const CODEX_LOG_HISTORY_LIMIT = 4;
+const CODEX_LOG_HISTORY_LIMIT = 2;
 export const INITIAL_HISTORY_RENDER_COUNT = 100;
 export const HISTORY_RENDER_BATCH_SIZE = 20;
 const HISTORY_SCROLL_LOAD_THRESHOLD_PX = 160;
@@ -503,6 +504,10 @@ const baseUiCopy = {
     imageDownloadBody: "Export the image currently shown in the preview as PNG.",
     imageDownloadReady: "Selected image ready",
     imageDownloadLocked: "Select or generate an image before downloading.",
+    openDownloadModal: "Download",
+    downloadModalTitle: "Download",
+    downloadModalIntro: "Choose the file to export from the selected preview.",
+    closeDownloadModal: "Close downloads",
     downloadPng: "PNG",
     animationLibraryTitle: "Animation Library",
     animationLibraryBody: "Use official presets or imported user animation packs as reusable materials.",
@@ -721,6 +726,10 @@ const baseUiCopy = {
     imageDownloadBody: "プレビューに表示している画像をPNGで書き出します。",
     imageDownloadReady: "選択中の画像を書き出せます",
     imageDownloadLocked: "画像を生成または選択するとダウンロードできます。",
+    openDownloadModal: "ダウンロード",
+    downloadModalTitle: "ダウンロード",
+    downloadModalIntro: "選択中のプレビューから書き出すファイルを選びます。",
+    closeDownloadModal: "ダウンロードを閉じる",
     downloadPng: "PNG",
     animationLibraryTitle: "アニメーションライブラリ",
     animationLibraryBody: "公式プリセットとインポートしたユーザー素材を、再利用できる棚として扱います。",
@@ -2323,6 +2332,7 @@ function App() {
   const [animationLibraryTab, setAnimationLibraryTab] = useState<AnimationLibraryKind>("official");
   const [userAnimationLibrary, setUserAnimationLibrary] = useState<AnimationLibraryItem[]>(() => loadUserAnimationLibrary());
   const [showAnimationPackExportModal, setShowAnimationPackExportModal] = useState(false);
+  const [downloadModalOpen, setDownloadModalOpen] = useState(false);
   const [animationPackExportDraft, setAnimationPackExportDraft] = useState<AnimationPackExportDraft>(() => createAnimationPackExportDraft());
   const [language, setLanguage] = useState<Language>(loadLanguage);
   const [storageHydrated, setStorageHydrated] = useState(false);
@@ -2389,6 +2399,10 @@ function App() {
     [history, visibleHistoryCount]
   );
   const hasMoreHistory = visibleHistoryCount < history.length;
+
+  useEffect(() => {
+    setDownloadModalOpen(false);
+  }, [selected?.id]);
 
   const animationSource = useMemo(
     () => history.find((item) => item.id === animationSourceId) ?? (isAnimationSource(selected) ? selected : undefined),
@@ -4101,6 +4115,7 @@ function App() {
 
   function openSelectedAnimationPackExportModal() {
     if (!selectedAnimationExportReady) return;
+    setDownloadModalOpen(false);
     setAnimationPackExportDraft(createAnimationPackExportDraft({
       title: selected?.name.replace(/\.[^.]+$/, "") || selectedAnimationAction.name,
       tags: [activeAction.name, "character", "sprite"].join(", "),
@@ -4175,15 +4190,20 @@ function App() {
     : selectedAnimationVariant === "hatch-pet"
       ? copy.hatchPetDownloadBody
       : copy.animationStepDownloadBody;
-  const selectedImageDownloadReady = Boolean(selected && !selectedIsAnimationResult);
-  const resultDownloadReady = Boolean(selected);
   const resultDownloadIsAnimation = selectedAnimationExportReady;
+  const selectedImageDownloadReady = Boolean(selected && !resultDownloadIsAnimation);
+  const resultDownloadReady = resultDownloadIsAnimation ? selectedAnimationExportReady : selectedImageDownloadReady;
   const resultDownloadBody = resultDownloadIsAnimation ? selectedAnimationDownloadBody : copy.imageDownloadBody;
   const resultDownloadStatus = !selected
     ? copy.imageDownloadLocked
     : resultDownloadIsAnimation
       ? copy.animationReady
       : copy.imageDownloadReady;
+
+  function openDownloadModal() {
+    if (!resultDownloadReady) return;
+    setDownloadModalOpen(true);
+  }
 
   return (
     <div className="app-shell">
@@ -4764,36 +4784,17 @@ function App() {
             <div className="result-download-body">
               <div className="step-heading">
                 <strong>{selected?.name ?? copy.imageDownloadTitle}</strong>
-                <span>{resultDownloadBody}</span>
+                <span>{resultDownloadStatus}</span>
               </div>
-              <small className="step-kicker">{resultDownloadStatus}</small>
-              {resultDownloadIsAnimation ? (
-                <div className="download-grid result-download-grid">
-                  <button onClick={() => void exportDirectionalAnimations("gif")} disabled={!selectedAnimationExportReady}>
-                    <Film size={16} aria-hidden="true" />
-                    {copy.animatedGif}
-                  </button>
-                  <button onClick={() => void exportDirectionalAnimations("webp")} disabled={!selectedAnimationExportReady}>
-                    <FileArchive size={16} aria-hidden="true" />
-                    {copy.animatedWebP}
-                  </button>
-                  <button onClick={() => void exportSpriteSheet(frames, selectedAnimationAction, ANIMATION_FRAME_COUNT)} disabled={!selectedAnimationExportReady}>
-                    <FileImage size={16} aria-hidden="true" />
-                    {copy.spriteSheetDownload}
-                  </button>
-                  <button onClick={openSelectedAnimationPackExportModal} disabled={!selectedAnimationExportReady}>
-                    <FileArchive size={16} aria-hidden="true" />
-                    {copy.exportAnimationPack}
-                  </button>
-                </div>
-              ) : (
-                <div className="download-grid result-download-grid">
-                  <button onClick={downloadSelectedImage} disabled={!selectedImageDownloadReady}>
-                    <FileImage size={16} aria-hidden="true" />
-                    {copy.downloadPng}
-                  </button>
-                </div>
-              )}
+              <button
+                className="primary-button result-download-action"
+                onClick={openDownloadModal}
+                disabled={!resultDownloadReady}
+                aria-haspopup="dialog"
+              >
+                <Download size={16} aria-hidden="true" />
+                {copy.openDownloadModal}
+              </button>
             </div>
           </section>
         </section>
@@ -5035,6 +5036,23 @@ function App() {
           language={language}
           onClose={() => setShowAnimationPresetExamples(false)}
           onUse={useAnimationPresetExample}
+        />
+      )}
+      {downloadModalOpen && (
+        <DownloadOptionsModal
+          language={language}
+          selectedName={selected?.name ?? copy.imageDownloadTitle}
+          isAnimation={resultDownloadIsAnimation}
+          body={resultDownloadBody}
+          status={resultDownloadStatus}
+          imageReady={selectedImageDownloadReady}
+          animationReady={selectedAnimationExportReady}
+          onClose={() => setDownloadModalOpen(false)}
+          onDownloadImage={downloadSelectedImage}
+          onExportGif={() => void exportDirectionalAnimations("gif")}
+          onExportWebp={() => void exportDirectionalAnimations("webp")}
+          onExportSpriteSheet={() => void exportSpriteSheet(frames, selectedAnimationAction, ANIMATION_FRAME_COUNT)}
+          onExportAnimationPack={openSelectedAnimationPackExportModal}
         />
       )}
       {showAnimationPackExportModal && (
@@ -6704,6 +6722,93 @@ function AnimationPresetExamplesModal({
               </div>
             </article>
           ))}
+        </div>
+      </section>
+    </div>
+  );
+}
+
+function DownloadOptionsModal({
+  language,
+  selectedName,
+  isAnimation,
+  body,
+  status,
+  imageReady,
+  animationReady,
+  onClose,
+  onDownloadImage,
+  onExportGif,
+  onExportWebp,
+  onExportSpriteSheet,
+  onExportAnimationPack
+}: {
+  language: Language;
+  selectedName: string;
+  isAnimation: boolean;
+  body: string;
+  status: string;
+  imageReady: boolean;
+  animationReady: boolean;
+  onClose: () => void;
+  onDownloadImage: () => void;
+  onExportGif: () => void;
+  onExportWebp: () => void;
+  onExportSpriteSheet: () => void;
+  onExportAnimationPack: () => void;
+}) {
+  const copy = uiCopy[language];
+  return (
+    <div className="prompt-modal-backdrop" role="presentation" onMouseDown={onClose}>
+      <section
+        className="prompt-modal download-options-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="download-options-title"
+        onMouseDown={(event) => event.stopPropagation()}
+      >
+        <div className="prompt-library-heading">
+          <div>
+            <strong id="download-options-title">{copy.downloadModalTitle}</strong>
+            <span>{copy.downloadModalIntro}</span>
+          </div>
+          <button className="icon-button" title={copy.closeDownloadModal} aria-label={copy.closeDownloadModal} onClick={onClose}>
+            <X size={18} aria-hidden="true" />
+          </button>
+        </div>
+
+        <div className="download-options-summary">
+          <strong>{selectedName}</strong>
+          <span>{body}</span>
+          <small>{status}</small>
+        </div>
+
+        <div className="download-grid result-download-grid download-options-grid">
+          {isAnimation ? (
+            <>
+              <button onClick={onExportGif} disabled={!animationReady}>
+                <Film size={16} aria-hidden="true" />
+                {copy.animatedGif}
+              </button>
+              <button onClick={onExportWebp} disabled={!animationReady}>
+                <FileArchive size={16} aria-hidden="true" />
+                {copy.animatedWebP}
+              </button>
+              <button onClick={onExportSpriteSheet} disabled={!animationReady}>
+                <FileImage size={16} aria-hidden="true" />
+                {copy.spriteSheetDownload}
+              </button>
+              <button onClick={onExportAnimationPack} disabled={!animationReady}>
+                <FileArchive size={16} aria-hidden="true" />
+                {copy.exportAnimationPack}
+              </button>
+            </>
+          ) : (
+            <button onClick={onDownloadImage} disabled={!imageReady}>
+              <FileImage size={16} aria-hidden="true" />
+              {copy.downloadPng}
+            </button>
+          )}
         </div>
       </section>
     </div>
