@@ -24,6 +24,13 @@ const basicCharacterPromptExampleChecks = [
   { title: "Large Veteran Warrior", promptText: "large veteran warrior" },
   { title: "Hooded Mysterious Figure", promptText: "hooded mysterious figure" }
 ];
+const expandedPromptExampleChecks = [
+  { title: "Boy Warrior Apprentice", promptText: "boy warrior apprentice" },
+  { title: "Middle-Aged Female Captain", promptText: "middle-aged female captain" },
+  { title: "Classic Green Slime", promptText: "classic small green slime" },
+  { title: "Earth Spirit", promptText: "earth spirit" }
+];
+const expectedPromptExampleCount = 78;
 
 if (!browserCommand) {
   console.error("UI smoke requires Chrome or Edge. Set IMAGE_COCKPIT_BROWSER_COMMAND to a browser executable.");
@@ -270,12 +277,22 @@ async function assertPromptExamples() {
   assert(snapshot.text.includes("Pick by preview image"), "Prompt Examples intro should be visible");
   assert(snapshot.buttons.includes("Copy Prompt"), "Prompt Examples should expose copy buttons");
   assert(snapshot.buttons.includes("Use Prompt"), "Prompt Examples should expose use buttons");
-  assert(snapshot.promptPreviewImages >= 18, `Prompt Examples should show image previews with at least 18 image previews, got ${snapshot.promptPreviewImages}`);
+  assert(
+    snapshot.promptPreviewImages >= expectedPromptExampleCount,
+    `Prompt Examples should show image previews with at least 78 image previews, got ${snapshot.promptPreviewImages}`
+  );
   assert(snapshot.promptRawTextBlocks === 0, `Prompt Examples should hide raw prompt text, got ${snapshot.promptRawTextBlocks} raw blocks`);
+  await waitForEval(
+    () => `Array.from(document.querySelectorAll(".prompt-card-preview img"))
+      .filter((image) => image.complete && image.naturalWidth > 0).length >= ${expectedPromptExampleCount}`,
+    "Prompt Examples preview images loaded",
+    60000
+  );
   const promptExampleCounts = await evaluate(`(() => {
     const buttonLabels = Array.from(document.querySelectorAll(".prompt-modal button"))
       .map((button) => button.innerText.replace(/\\s+/g, " ").trim());
     return {
+      hasCategoryTabs: Boolean(document.querySelector(".prompt-category-tabs")),
       loadedImages: Array.from(document.querySelectorAll(".prompt-card-preview img"))
         .filter((image) => image.complete && image.naturalWidth > 0).length,
       copyButtons: buttonLabels.filter((label) => label === "Copy Prompt").length,
@@ -284,13 +301,26 @@ async function assertPromptExamples() {
         .map((node) => node.textContent?.trim() || "")
     };
   })()`);
-  assert(promptExampleCounts.loadedImages >= 18, `Prompt Examples preview images should load, got ${promptExampleCounts.loadedImages}`);
-  assert(promptExampleCounts.copyButtons >= 18, `Prompt Examples should expose copy buttons for every preview, got ${promptExampleCounts.copyButtons}`);
-  assert(promptExampleCounts.useButtons >= 18, `Prompt Examples should expose use buttons for every preview, got ${promptExampleCounts.useButtons}`);
+  assert(promptExampleCounts.hasCategoryTabs, "Prompt Examples should show prompt-category-tabs for large catalogs");
+  assert(promptExampleCounts.loadedImages >= expectedPromptExampleCount, `Prompt Examples preview images should load, got ${promptExampleCounts.loadedImages}`);
+  assert(
+    promptExampleCounts.copyButtons >= expectedPromptExampleCount,
+    `Prompt Examples should expose copy buttons for every preview, got ${promptExampleCounts.copyButtons}`
+  );
+  assert(
+    promptExampleCounts.useButtons >= expectedPromptExampleCount,
+    `Prompt Examples should expose use buttons for every preview, got ${promptExampleCounts.useButtons}`
+  );
   assert(promptExampleCounts.categories.includes("Basic Character"), "Prompt Examples should include Basic Character category");
+  assert(promptExampleCounts.categories.includes("Profession Character"), "Prompt Examples should include Profession Character category");
+  assert(promptExampleCounts.categories.includes("Monster"), "Prompt Examples should include Monster category");
   assert(!snapshot.text.includes("Create one original pixel-art game asset"), "Prompt Examples should not display raw prompt contents");
   assert(!snapshot.text.includes("Create a single full-body pixel-art character asset"), "Prompt Examples should not display raw basic character prompt contents");
+  assert(!snapshot.text.includes("Create a single full-body pixel-art monster asset"), "Prompt Examples should not display raw monster prompt contents");
   for (const check of basicCharacterPromptExampleChecks) {
+    assert(snapshot.text.includes(check.title), `Prompt Examples should include ${check.title}`);
+  }
+  for (const check of expandedPromptExampleChecks) {
     assert(snapshot.text.includes(check.title), `Prompt Examples should include ${check.title}`);
   }
   await maybeCapture("prompt-examples-modal");
@@ -315,6 +345,19 @@ async function assertPromptExamples() {
       18000
     );
     await waitForButtonEnabled("Generate Pixel Art");
+  }
+
+  for (const check of expandedPromptExampleChecks) {
+    await openPromptExamplesModal();
+    await clickPromptExampleCardButton(check.title, "Use Prompt");
+    await waitForEval(
+      () => `document.body.innerText.includes("Prompt example loaded into Pixel Art Generation")`,
+      `${check.title} prompt example loaded`
+    );
+    const loadedPrompt = await evaluate(`document.querySelector("textarea")?.value || ""`);
+    assert(loadedPrompt.includes(check.promptText), `Use Prompt should load ${check.title} into the prompt field`);
+    const modalClosed = await evaluate(`!document.querySelector(".prompt-modal")`);
+    assert(modalClosed, `${check.title} Use Prompt should close the Prompt Examples modal`);
   }
 
   await selectWorkflowTab("Pixel Art Generation");

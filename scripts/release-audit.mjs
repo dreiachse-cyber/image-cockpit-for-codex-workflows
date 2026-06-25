@@ -6,6 +6,17 @@ const root = process.cwd();
 const failures = [];
 const privacyTextExtensions = new Set(["", ".css", ".html", ".js", ".json", ".md", ".mjs", ".ts", ".tsx", ".txt", ".yaml", ".yml"]);
 
+function slugPromptExampleTitle(value) {
+  return value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+}
+
+function promptPreviewFilesFromMarkdown(file, prefix) {
+  const text = readText(file)?.replace(/\r\n/g, "\n") ?? "";
+  return [...text.matchAll(/###\s+\d+\.\s+([^\n]+)\n\n```text\n[\s\S]*?\n```/g)].map(
+    (match) => `public/prompt-examples/${prefix}-${slugPromptExampleTitle(match[1].trim())}.png`
+  );
+}
+
 const requiredFiles = [
   "README.md",
   "CHANGELOG.md",
@@ -68,7 +79,9 @@ const requiredFiles = [
   "public/prompt-examples/basic-androgynous-traveler.png",
   "public/prompt-examples/basic-small-village-child.png",
   "public/prompt-examples/basic-large-veteran-warrior.png",
-  "public/prompt-examples/basic-hooded-mysterious-figure.png"
+  "public/prompt-examples/basic-hooded-mysterious-figure.png",
+  ...promptPreviewFilesFromMarkdown("docs/prompt-examples/profession-character-prompts.md", "profession"),
+  ...promptPreviewFilesFromMarkdown("docs/prompt-examples/monster-prompts.md", "monster")
 ];
 
 const requiredEnvKeys = [
@@ -135,6 +148,7 @@ checkWorkflowIds();
 checkPendingJobCoverage();
 checkSimpleLocalInboxAction();
 checkCoreLocalization();
+checkPromptCatalogExamples();
 checkCiWorkflow();
 checkReleaseDocs();
 
@@ -361,11 +375,16 @@ function checkWorkflowIds() {
     "Prompt Examples should show image previews",
     "Prompt Examples should hide raw prompt text",
     "prompt-card-preview",
+    "prompt-category-tabs",
     "Copy Prompt",
     "Use Prompt",
     "Clockwork Mushroom Courier",
     "Basic Character",
+    "Profession Character",
+    "Monster",
     "basicCharacterPromptExampleChecks",
+    "expandedPromptExampleChecks",
+    "expectedPromptExampleCount",
     "Boy Adventurer",
     "Girl Adventurer",
     "Young Male Hero",
@@ -378,7 +397,11 @@ function checkWorkflowIds() {
     "Small Village Child",
     "Large Veteran Warrior",
     "Hooded Mysterious Figure",
-    "at least 18 image previews",
+    "Boy Warrior Apprentice",
+    "Middle-Aged Female Captain",
+    "Classic Green Slime",
+    "Earth Spirit",
+    "at least 78 image previews",
     "generated from prompt example",
     "Prompt example loaded into Pixel Art Generation",
     "Generation can take a few minutes.",
@@ -558,10 +581,19 @@ function checkWorkflowIds() {
     "basic-androgynous-traveler",
     "basic-small-village-child",
     "basic-large-veteran-warrior",
-    "basic-hooded-mysterious-figure"
+    "basic-hooded-mysterious-figure",
+    "PROFESSION_CHARACTER_CATEGORY",
+    "MONSTER_CATEGORY",
+    "parsePromptCatalogMarkdown",
+    "professionCharacterPromptsMarkdown",
+    "monsterPromptsMarkdown",
+    "professionCharacterPromptExamples",
+    "monsterPromptExamples",
+    "docs/prompt-examples/profession-character-prompts.md",
+    "docs/prompt-examples/monster-prompts.md"
   ].forEach((marker) => {
     if (!appText.includes(marker)) {
-      failures.push(`App should include the Basic Character prompt examples: ${marker}`);
+      failures.push(`App should include the expanded Prompt Examples catalog: ${marker}`);
     }
   });
 
@@ -911,6 +943,63 @@ function checkCoreLocalization() {
   if (!appTestText.includes("zh-Hant-TW") || !appTestText.includes("pt-PT") || !appTestText.includes("SUPPORTED_LANGUAGE_IDS")) {
     failures.push("App tests should cover extended locale resolution and stored locale ids.");
   }
+}
+
+function checkPromptCatalogExamples() {
+  const catalogs = [
+    {
+      file: "docs/prompt-examples/profession-character-prompts.md",
+      prefix: "profession",
+      expectedCount: 30,
+      sampleTitles: ["Boy Warrior Apprentice", "Middle-Aged Female Captain"]
+    },
+    {
+      file: "docs/prompt-examples/monster-prompts.md",
+      prefix: "monster",
+      expectedCount: 30,
+      sampleTitles: ["Classic Green Slime", "Earth Spirit"]
+    }
+  ];
+
+  catalogs.forEach((catalog) => {
+    const text = readText(catalog.file)?.replace(/\r\n/g, "\n");
+    if (!text) return;
+    const negativePrompt = text.match(/## Common Negative Prompt[\s\S]*?```text\n([\s\S]*?)\n```/)?.[1]?.trim() ?? "";
+    if (!negativePrompt) {
+      failures.push(`${catalog.file} should include a common negative prompt.`);
+    }
+    const examples = [...text.matchAll(/###\s+\d+\.\s+([^\n]+)\n\n```text\n([\s\S]*?)\n```/g)].map((match) => ({
+      title: match[1].trim(),
+      prompt: match[2].trim()
+    }));
+    if (examples.length !== catalog.expectedCount) {
+      failures.push(`${catalog.file} should include ${catalog.expectedCount} prompt examples, got ${examples.length}.`);
+    }
+    catalog.sampleTitles.forEach((title) => {
+      if (!examples.some((example) => example.title === title)) {
+        failures.push(`${catalog.file} should include sample prompt: ${title}`);
+      }
+    });
+    examples.forEach((example) => {
+      if (!example.prompt.includes("transparent background preferred")) {
+        failures.push(`${catalog.file} prompt should prefer transparent background: ${example.title}`);
+      }
+      const imageFile = `public/prompt-examples/${catalog.prefix}-${slugPromptExampleTitle(example.title)}.png`;
+      const imagePath = join(root, imageFile);
+      if (!existsSync(imagePath)) return;
+      const image = readFileSync(imagePath);
+      const isPng = image.length > 24 && image[0] === 0x89 && image[1] === 0x50 && image[2] === 0x4e && image[3] === 0x47;
+      if (!isPng) {
+        failures.push(`Prompt example preview should be PNG: ${imageFile}`);
+        return;
+      }
+      const width = image.readUInt32BE(16);
+      const height = image.readUInt32BE(20);
+      if (width < 1024 || height < 1024) {
+        failures.push(`Prompt example preview should be at least 1024px in both dimensions: ${imageFile} is ${width}x${height}`);
+      }
+    });
+  });
 }
 
 function checkCiWorkflow() {

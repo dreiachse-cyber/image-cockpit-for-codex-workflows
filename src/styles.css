@@ -2263,6 +2263,42 @@ button:disabled {
   font-size: 13px;
 }
 
+.prompt-category-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  align-items: center;
+}
+
+.prompt-category-tabs button {
+  min-height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  background: var(--panel);
+  color: #28342c;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.prompt-category-tabs button.active {
+  border-color: #167543;
+  background: #e5f4ea;
+  color: #123c24;
+}
+
+.prompt-category-tabs small {
+  min-width: 20px;
+  border-radius: 999px;
+  background: rgb(20 113 65 / 12%);
+  color: var(--green);
+  padding: 2px 6px;
+  font-size: 11px;
+}
+
 .prompt-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));

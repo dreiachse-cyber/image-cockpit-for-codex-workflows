@@ -33,6 +33,8 @@ import {
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties, UIEvent } from "react";
+import monsterPromptsMarkdown from "../docs/prompt-examples/monster-prompts.md?raw";
+import professionCharacterPromptsMarkdown from "../docs/prompt-examples/profession-character-prompts.md?raw";
 import {
   createAnimatedWebpBlob,
   createGifBlob,
@@ -2056,6 +2058,43 @@ const BASIC_CHARACTER_NEGATIVE_PROMPT =
   "blur, text, watermark, logo, cropped head, cropped feet, cut off body, extra limbs, duplicate character, scenery, detailed background, floor shadow, photorealistic, 3d render, vector art";
 const BASIC_CHARACTER_PROMPT_SOURCE = "docs/prompt-examples/basic-character-prompts.md";
 const BASIC_CHARACTER_NOTES = `${BASIC_CHARACTER_PROMPT_SOURCE}: full-body transparent-background starter character.`;
+const PROFESSION_CHARACTER_CATEGORY = { en: "Profession Character", ja: "職業キャラクター" };
+const PROFESSION_CHARACTER_PROMPT_SOURCE = "docs/prompt-examples/profession-character-prompts.md";
+const PROFESSION_CHARACTER_NOTES = `${PROFESSION_CHARACTER_PROMPT_SOURCE}: full-body animation-ready profession character.`;
+const MONSTER_CATEGORY = { en: "Monster", ja: "モンスター" };
+const MONSTER_PROMPT_SOURCE = "docs/prompt-examples/monster-prompts.md";
+const MONSTER_NOTES = `${MONSTER_PROMPT_SOURCE}: full-body animation-ready monster asset.`;
+
+interface PromptCatalogOptions {
+  idPrefix: string;
+  category: LocalizedText;
+  sourcePath: string;
+  summary: LocalizedText;
+  notes: string;
+}
+
+function promptExampleSlug(value: string) {
+  return value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+}
+
+function parsePromptCatalogMarkdown(markdown: string, options: PromptCatalogOptions): PromptExample[] {
+  const text = markdown.replace(/\r\n/g, "\n");
+  const negativePrompt = text.match(/## Common Negative Prompt[\s\S]*?```text\n([\s\S]*?)\n```/)?.[1]?.trim() ?? "";
+  return [...text.matchAll(/###\s+\d+\.\s+([^\n]+)\n\n```text\n([\s\S]*?)\n```/g)].map((match) => {
+    const title = match[1].trim();
+    const id = `${options.idPrefix}-${promptExampleSlug(title)}`;
+    return {
+      id,
+      category: options.category,
+      title: { en: title, ja: title },
+      previewImage: `/prompt-examples/${id}.png`,
+      summary: options.summary,
+      prompt: match[2].trim(),
+      negativePrompt,
+      notes: options.notes
+    };
+  });
+}
 
 const basicCharacterPromptExamples: PromptExample[] = [
   {
@@ -2228,6 +2267,28 @@ const basicCharacterPromptExamples: PromptExample[] = [
   }
 ];
 
+const professionCharacterPromptExamples = parsePromptCatalogMarkdown(professionCharacterPromptsMarkdown, {
+  idPrefix: "profession",
+  category: PROFESSION_CHARACTER_CATEGORY,
+  sourcePath: PROFESSION_CHARACTER_PROMPT_SOURCE,
+  summary: {
+    en: "Full-body profession character asset prepared for later animation.",
+    ja: "後でアニメーション素材にしやすい全身職業キャラクター素材です。"
+  },
+  notes: PROFESSION_CHARACTER_NOTES
+});
+
+const monsterPromptExamples = parsePromptCatalogMarkdown(monsterPromptsMarkdown, {
+  idPrefix: "monster",
+  category: MONSTER_CATEGORY,
+  sourcePath: MONSTER_PROMPT_SOURCE,
+  summary: {
+    en: "Single full-body monster asset with a clean readable silhouette.",
+    ja: "読みやすいシルエットで単体化した全身モンスター素材です。"
+  },
+  notes: MONSTER_NOTES
+});
+
 const promptExamples: PromptExample[] = [
   {
     id: "clockwork-mushroom-courier",
@@ -2258,6 +2319,8 @@ const promptExamples: PromptExample[] = [
     notes: "Character should be easy to cut out and animate later. Keep pose neutral, balanced, readable, and background-free when possible."
   },
   ...basicCharacterPromptExamples,
+  ...professionCharacterPromptExamples,
+  ...monsterPromptExamples,
   {
     id: "ember-slime-companion",
     category: { en: "Creature", ja: "クリーチャー" },
@@ -6804,6 +6867,28 @@ function PromptExamplesModal({
   onUse: (example: PromptExample) => void;
 }) {
   const copy = uiCopy[language];
+  const [activeCategory, setActiveCategory] = useState("all");
+  const categoryOptions = useMemo(() => {
+    const categoryMap = new Map<string, { id: string; label: string; count: number }>();
+    promptExamples.forEach((example) => {
+      const id = localizedText(example.category, "en");
+      const current = categoryMap.get(id);
+      if (current) {
+        current.count += 1;
+        return;
+      }
+      categoryMap.set(id, { id, label: localizedText(example.category, language), count: 1 });
+    });
+    return [
+      { id: "all", label: language === "ja" ? "すべて" : "All", count: promptExamples.length },
+      ...Array.from(categoryMap.values())
+    ];
+  }, [language]);
+  const visiblePromptExamples =
+    activeCategory === "all"
+      ? promptExamples
+      : promptExamples.filter((example) => localizedText(example.category, "en") === activeCategory);
+
   return (
     <div className="prompt-modal-backdrop" role="presentation" onMouseDown={onClose}>
       <section
@@ -6823,8 +6908,23 @@ function PromptExamplesModal({
           </button>
         </div>
 
+        <div className="prompt-category-tabs" role="tablist" aria-label="Prompt example categories">
+          {categoryOptions.map((category) => (
+            <button
+              key={category.id}
+              className={activeCategory === category.id ? "active" : ""}
+              role="tab"
+              aria-selected={activeCategory === category.id}
+              onClick={() => setActiveCategory(category.id)}
+            >
+              <span>{category.label}</span>
+              <small>{category.count}</small>
+            </button>
+          ))}
+        </div>
+
         <div className="prompt-grid">
-          {promptExamples.map((example) => (
+          {visiblePromptExamples.map((example) => (
             <article key={example.id} className="prompt-card">
               <div className="prompt-card-preview">
                 <img src={example.previewImage} alt={`${localizedText(example.title, language)} example`} />
