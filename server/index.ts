@@ -418,6 +418,7 @@ function workflowNotes(mode: CodexWorkflowMode) {
   return [
     "For prompt-only pixel art generation, use the imagegen skill default built-in image generation path when it is available.",
     "Use the job prompt as the creative brief. Interpret complex prompts literally and preserve concrete subject, style, palette, composition, and production constraints.",
+    "For character or creature assets, keep the full body inside the image with clear transparent or chroma-key padding around the head, hair, hands, props, and both feet; reject and retry if the subject is cropped by the canvas edge.",
     "Create a real raster image. Do not create a procedural placeholder, SVG, diagram, or text-only result.",
     "Avoid readable text, logos, watermarks, labels, UI words, and numbers unless the user explicitly asks for them.",
     "If the first result contains unwanted text or numbers, retry once with stricter no-text/no-number constraints.",
