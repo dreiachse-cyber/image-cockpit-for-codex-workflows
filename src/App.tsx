@@ -728,8 +728,8 @@ const animationPresetExamples: AnimationPresetExample[] = [
       en: "Fast alternating strides with clear airborne beats and arm drive.",
       ja: "大きな歩幅、空中フレーム、強い腕振りが読める走りです。"
     },
-    prompt: "run cycle with fast alternating strides, clear airborne frames, forward torso lean, strong opposite arm drive, readable foot crossover, full-body side-readable motion",
-    notes: "Preset example: show a real run with lift-off frames and longer stride than walking; avoid skating, tiny shuffling steps, cropped feet, or pose drift."
+    prompt: "run cycle with fast alternating strides, clear airborne frames, forward torso lean, strong opposite arm drive, explicit right-front and left-front foot crossover passing frames, full-body side-readable motion",
+    notes: "Preset example: show a real run with lift-off frames, two explicit crossover passing frames, and longer stride than walking; avoid skating, tiny shuffling steps, cropped feet, or pose drift."
   }
 ];
 
@@ -758,8 +758,9 @@ function buildAnimationPresetMotionPrompt(preset: AnimationPresetExample) {
   const runCycleGaitLines = preset.id === "run-cycle"
     ? [
         "Running gait must be visible in every row, especially front three-quarter, side, and back three-quarter.",
-        "Use a true 8-frame run loop: frames 1 and 5 are opposite extended contact poses, frames 3 and 7 are airborne or near-airborne passing poses with both feet clearly switching sides, and frames 2, 4, 6, and 8 are smooth in-betweens.",
-        "For side and diagonal rows, the leading foot must swap across the row; do not keep the same leg in front, do not make a walking shuffle, and do not make a sliding pose cycle.",
+        "Use a true 8-frame run loop: frame 1 right foot forward extended contact / left foot back push-off, frame 2 feet move closer with the left knee tucking under the body, frame 3 left leg crosses in front of the body while the right leg trails in a passing pose, frame 4 left foot reaches forward in an airborne stride, frame 5 left foot forward extended contact / right foot back push-off, frame 6 feet move closer with the right knee tucking under the body, frame 7 right leg crosses in front of the body while the left leg trails in a passing pose, frame 8 right foot reaches forward in an airborne stride back into frame 1.",
+        "For side and diagonal rows, frames 3 and 7 are mandatory crossover passing frames: one left-front crossover and one right-front crossover. Do not skip these frames, do not hide them behind clothing, and do not replace them with two open-leg stride poses.",
+        "The leading foot must swap across the row; do not keep the same leg in front, do not make a walking shuffle, and do not make a sliding pose cycle.",
         "Add a clear forward torso lean, stronger opposite arm drive than walking, longer stride length, and a small vertical bounce while keeping the character centered inside each cell."
       ]
     : [];
