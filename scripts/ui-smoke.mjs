@@ -116,26 +116,29 @@ try {
   await assertWorkflow({
     label: "Pixel Art Generation",
     route: "Route: Codex Handoff",
-    buttons: ["Generate Pixel Art", "PNG"],
-    hiddenButtons: ["Import Latest", "Import File", "Animated GIF", "Animated WebP"],
+    buttons: ["Generate Pixel Art", "Download"],
+    hiddenButtons: ["Import Latest", "Import File", "PNG", "Animated GIF", "Animated WebP"],
     hiddenText: ["Sprite Actions", "Export Sprite", "Generation Method"],
     requiredText: ["Pixel Art Prompt", "Generation Notes", "Preview", "Generation can take a few minutes."],
     exerciseButton: "Generate Pixel Art",
     expectedAfterExercise: "Imported from Local Inbox",
     expectedCanvasPreviewModeAfterExercise: "result",
-    postExerciseButtons: ["PNG"]
+    expectedDownloadModalButtons: ["PNG"],
+    downloadModalAbsentButtons: ["Animated GIF", "Animated WebP", "Sprite Sheet", "Export Animation Pack"],
+    downloadModalClickButtons: ["PNG"]
   });
   await assertWorkflow({
     label: "Animation Generation",
     route: "Route: Codex Handoff",
-    buttons: ["Upload Pixel Art", "Choose Animation", "Generate Animation", "PNG"],
-    hiddenButtons: ["Import Latest", "Import File", "Official Animations", "User Animations", "Import Animation", "Export Sample", "Use", "5-Direction Sheet", "hatch-pet", "5-Direction hatch-pet"],
+    buttons: ["Upload Pixel Art", "Choose Animation", "Generate Animation", "Download"],
+    hiddenButtons: ["Import Latest", "Import File", "PNG", "Animated GIF", "Animated WebP", "Official Animations", "User Animations", "Import Animation", "Export Sample", "Use", "5-Direction Sheet", "hatch-pet", "5-Direction hatch-pet"],
     hiddenText: ["Animation Library", "Official Animations", "User Animations", "No user animations yet", "Sprite Actions", "Export Sprite", "Generation Method", "Hop Bounce", "Victory Cheer"],
     requiredText: ["1. Upload Pixel Art", "2. Choose Motion", "3. Generate", "4. Download", "Selected animation", "Choose Animation", "Fixed cells: 256 x 256 px", "5-direction chroma-key sprite sheet"],
     exerciseButton: "Generate Animation",
     expectedAfterExercise: "Animation generated",
-    expectedAfterExerciseText: ["Animation frames ready", "Generated from", "Directional Previews", "GIF Preview", "Sprite Sheet Preview", "Animated WebP", "256 x 256 px"],
-    postExerciseButtons: ["Animated WebP", "Sprite Sheet"],
+    expectedAfterExerciseText: ["Animation frames ready", "Generated from", "Directional Previews", "GIF Preview", "Sprite Sheet Preview", "256 x 256 px"],
+    expectedDownloadModalButtons: ["Animated GIF", "Animated WebP", "Sprite Sheet", "Export Animation Pack"],
+    downloadModalClickButtons: ["Animated WebP", "Sprite Sheet"],
     expectedCanvasPreviewModeAfterExercise: "result",
     expectedPreviewImages: 6,
     expectedAnimationPreviewImagesAfterExercise: 6,
@@ -167,6 +170,9 @@ async function assertInitialWorkspace() {
   assert(snapshot.workflowTabsInsidePanel, "Initial workspace should place workflow tabs under 1. Workflow");
   assert(snapshot.canvasVisible, "Initial workspace should render the preview canvas immediately");
   assert(snapshot.resultDownloadPanelInWorkspace, "Initial workspace should place the result download card under the preview workspace");
+  assert(snapshot.resultDownloadActionButtons === 1, "Initial workspace should expose one compact Download button");
+  assert(snapshot.resultDownloadGridButtonsInWorkspace === 0, "Initial workspace should not expose detailed download buttons under the preview");
+  assert(snapshot.resultDownloadPanelHeight <= 110, `Initial download panel should stay compact, got ${snapshot.resultDownloadPanelHeight}`);
   await maybeCapture("initial-workspace");
 }
 
@@ -384,9 +390,15 @@ async function assertAnimationLibraryImport() {
   snapshot = await pageSnapshot();
   assert(snapshot.resultDownloadPanelInWorkspace, "Imported animation should use the shared result download panel");
   assert(snapshot.resultDownloadPanelComplete, "Imported animation should make the download panel ready");
-  assert(snapshot.workspaceExportAnimationPackButtons >= 1, "Selected imported animation should expose Export Animation Pack in the workspace download panel");
+  assert(snapshot.resultDownloadActionButtons === 1, "Selected imported animation should expose one compact Download button");
+  assert(snapshot.resultDownloadGridButtonsInWorkspace === 0, "Selected imported animation should keep detailed download buttons out of the preview area");
 
-  await evaluate(`document.querySelector(".workspace .result-download-grid button:last-child")?.click()`);
+  await openDownloadModal();
+  snapshot = await pageSnapshot();
+  assert(snapshot.downloadModalVisible, "Selected imported animation should open the Download modal");
+  assert(snapshot.downloadModalButtons.includes("Export Animation Pack"), "Download modal should expose Export Animation Pack");
+  assert(snapshot.workspaceExportAnimationPackButtons >= 1, "Selected imported animation should expose Export Animation Pack in the Download modal");
+  await clickDownloadModalButtonByText("Export Animation Pack");
   await waitForEval(() => `document.querySelector(".animation-pack-export-modal")?.innerText.includes("Export Animation Pack")`, "Export Animation Pack modal");
   await clickButtonByText("Cancel");
   await waitForEval(() => `!document.querySelector(".animation-pack-export-modal")`, "Export Animation Pack modal closed");
@@ -431,6 +443,9 @@ async function assertCodexQueue() {
   await maybeCapture("codex-job-shelf-results");
 
   await waitForEval(() => `document.querySelectorAll(".codex-job-row").length === 0`, "Codex queue drains after results return", 18000);
+  const drainedSnapshot = await pageSnapshot();
+  assert(drainedSnapshot.codexLogPanelVisible, "Codex log panel should keep latest logs after jobs complete");
+  assert(drainedSnapshot.codexLogCards <= 2, `Codex log panel should retain at most 2 completed log cards, got ${drainedSnapshot.codexLogCards}`);
   await assertNoBrowserErrors("Codex queue");
   await selectWorkflowTab("Pixel Art Generation");
 }
@@ -447,11 +462,13 @@ async function assertCodexLogFullscreen() {
     const pre = document.querySelector(".codex-log-card pre");
     return {
       panelHeight: Math.round(panel?.getBoundingClientRect().height || 0),
-      preHeight: Math.round(pre?.getBoundingClientRect().height || 0)
+      preHeight: Math.round(pre?.getBoundingClientRect().height || 0),
+      cardCount: document.querySelectorAll(".codex-log-panel .codex-log-card").length
     };
   })()`);
   assert(normalMetrics.panelHeight > 0, "Codex log panel should be visible before fullscreen");
   assert(normalMetrics.preHeight > 0, "Codex log pre should be visible before fullscreen");
+  assert(normalMetrics.cardCount <= 2, `Compact Codex log panel should show at most 2 cards, got ${normalMetrics.cardCount}`);
 
   await clickButtonByAriaLabel("Full screen logs");
   await waitForEval(() => `document.querySelector(".codex-log-panel")?.classList.contains("fullscreen")`, "Codex log fullscreen mode");
@@ -461,10 +478,12 @@ async function assertCodexLogFullscreen() {
     return {
       panelHeight: Math.round(panel?.getBoundingClientRect().height || 0),
       preHeight: Math.round(pre?.getBoundingClientRect().height || 0),
-      exitButton: Boolean(document.querySelector('button[aria-label="Exit full screen"]'))
+      exitButton: Boolean(document.querySelector('button[aria-label="Exit full screen"]')),
+      cardCount: document.querySelectorAll(".codex-log-panel.fullscreen .codex-log-card").length
     };
   })()`);
   assert(fullscreenMetrics.exitButton, "Fullscreen Codex log should expose an exit button");
+  assert(fullscreenMetrics.cardCount <= 2, `Fullscreen Codex log panel should show at most 2 cards, got ${fullscreenMetrics.cardCount}`);
   assert(fullscreenMetrics.panelHeight > normalMetrics.panelHeight + 120, "Fullscreen Codex log panel should be taller than the compact panel");
   assert(fullscreenMetrics.preHeight > normalMetrics.preHeight + 120, "Fullscreen Codex log text area should be taller than normal");
   await maybeCapture("codex-log-fullscreen");
@@ -484,12 +503,14 @@ async function assertCodexLogFullscreen() {
     return {
       panelFits: Boolean(panelRect && panelRect.left >= -1 && panelRect.right <= window.innerWidth + 1),
       headerFits: Boolean(header && header.scrollWidth <= header.clientWidth + 1),
-      preFits: Boolean(pre && pre.scrollWidth <= pre.clientWidth + 1)
+      preFits: Boolean(pre && pre.scrollWidth <= pre.clientWidth + 1),
+      cardCount: document.querySelectorAll(".codex-log-panel.fullscreen .codex-log-card").length
     };
   })()`);
   assert(mobileFit.panelFits, "Mobile fullscreen Codex log panel should fit within the viewport");
   assert(mobileFit.headerFits, "Mobile fullscreen Codex log header should not overflow horizontally");
   assert(mobileFit.preFits, "Mobile fullscreen Codex log text should not overflow horizontally");
+  assert(mobileFit.cardCount <= 2, `Mobile fullscreen Codex log panel should show at most 2 cards, got ${mobileFit.cardCount}`);
   await evaluate(`window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }))`);
   await waitForEval(() => `!document.querySelector(".codex-log-panel")?.classList.contains("fullscreen")`, "mobile Codex log fullscreen closes with Escape");
   await cdp.send("Emulation.clearDeviceMetricsOverride");
@@ -543,10 +564,14 @@ async function assertImageEditing() {
   assert(snapshot.buttons.includes("Pixel Art Generation"), "Image Editing should expose Pixel Art Generation tab");
   assert(snapshot.buttons.includes("Image Editing"), "Image Editing should expose Image Editing tab");
   assert(snapshot.buttons.includes("Animation Generation"), "Image Editing should expose Animation Generation tab");
-  assert(snapshot.buttons.includes("PNG"), "Image Editing should expose the image PNG download action");
+  assert(snapshot.buttons.includes("Download"), "Image Editing should expose one compact Download action");
+  assert(!snapshot.buttons.includes("PNG"), "Image Editing should keep PNG download details inside the modal");
   assert(!snapshot.buttons.includes("Animated GIF"), "Image Editing should hide animated GIF download for non-animation results");
   assert(!snapshot.buttons.includes("Animated WebP"), "Image Editing should hide animated WebP download for non-animation results");
   assert(snapshot.resultDownloadPanelInWorkspace, "Image Editing should place the result download card under the preview workspace");
+  assert(snapshot.resultDownloadActionButtons === 1, "Image Editing should expose one compact Download button");
+  assert(snapshot.resultDownloadGridButtonsInWorkspace === 0, "Image Editing should not expose detailed download buttons under the preview");
+  assert(snapshot.resultDownloadPanelHeight <= 110, `Image Editing download panel should stay compact, got ${snapshot.resultDownloadPanelHeight}`);
   assert(snapshot.annotationToolbarVisible, "Image Editing should show the rectangle selection toolbar");
   assert(snapshot.canvasPreviewMode === "edit", `Image Editing should use edit canvas mode, got ${snapshot.canvasPreviewMode}`);
   assert(snapshot.text.includes("Numbered edit regions"), "Image Editing should show numbered edit regions");
@@ -554,6 +579,11 @@ async function assertImageEditing() {
   assert(!snapshot.buttons.includes("Annotated PNG"), "Image Editing should hide the old annotation PNG button");
   assert(!snapshot.buttons.includes("Brush"), "Image Editing should hide the old brush tool");
   assert(!snapshot.buttons.includes("Arrow"), "Image Editing should hide the old arrow tool");
+  await assertDownloadModal({
+    expectedButtons: ["PNG"],
+    absentButtons: ["Animated GIF", "Animated WebP", "Sprite Sheet", "Export Animation Pack"],
+    label: "Image Editing non-animation download modal"
+  });
   await waitForEval(
     () => `(() => {
       const canvas = document.querySelector("canvas");
@@ -588,7 +618,18 @@ async function assertImageEditing() {
   assert(snapshot.imageEditSourceButton, "Image Editing should make the edit source selectable from the preview status");
   assert(snapshot.resultDownloadPanelInWorkspace, "Image Editing should keep the result download card under the preview after edit");
   assert(snapshot.resultDownloadPanelComplete, "Image Editing should mark the selected edited image as downloadable");
+  assert(snapshot.resultDownloadActionButtons === 1, "Image Editing edited result should keep one compact Download button");
+  assert(snapshot.resultDownloadGridButtonsInWorkspace === 0, "Image Editing edited result should keep detailed downloads in the modal");
   assert(snapshot.canvasPreviewMode === "edit", `Image Editing should keep edit canvas mode after import, got ${snapshot.canvasPreviewMode}`);
+  await assertSelectedPreviewHasTransparentPixels("Image Editing edited result preview should preserve transparent alpha");
+  await installDownloadSpy();
+  await assertDownloadModal({
+    expectedButtons: ["PNG"],
+    absentButtons: ["Animated GIF", "Animated WebP", "Sprite Sheet", "Export Animation Pack"],
+    clickButtons: ["PNG"],
+    label: "Image Editing edited result PNG download modal"
+  });
+  await assertLatestDownloadHasTransparentPixels("Image Editing PNG download should preserve transparent alpha");
   await assertNoBrowserErrors("Image Editing");
   await maybeCapture("image-editing-edit-source");
   await assertSourceStatusRoundTrip("Image Editing", ".image-edit-source-status.source-status-button");
@@ -725,6 +766,9 @@ async function assertWorkflow({
   expectedAfterExercise,
   expectedAfterExerciseText = [],
   postExerciseButtons = [],
+  expectedDownloadModalButtons = [],
+  downloadModalAbsentButtons = [],
+  downloadModalClickButtons = [],
   expectedPreviewImages = 0,
   expectedAnimationPreviewImagesAfterExercise,
   expectedDirectionPreviewCount = 0,
@@ -758,6 +802,9 @@ async function assertWorkflow({
     assert(snapshot.resultDownloadPanelInWorkspace, `${label} should place the shared download card under the preview workspace`);
     assert(!snapshot.resultDownloadPanelInSource, `${label} should not put download cards in the left source panel`);
   }
+  assert(snapshot.resultDownloadActionButtons === 1, `${label} should expose one compact Download button`);
+  assert(snapshot.resultDownloadGridButtonsInWorkspace === 0, `${label} should keep detailed download buttons out of the preview area`);
+  assert(snapshot.resultDownloadPanelHeight <= 110, `${label} download panel should stay compact, got ${snapshot.resultDownloadPanelHeight}`);
   buttons.forEach((button) => {
     assert(snapshot.buttons.includes(button), `${label} missing action button: ${button}`);
   });
@@ -838,7 +885,17 @@ async function assertWorkflow({
         assert(previewSnapshot.resultPreviewLoaded, `${label} should load the selected result preview image`);
         assert(previewSnapshot.resultPreviewFrameHeight >= 240, `${label} result preview frame should be tall enough to inspect, got ${previewSnapshot.resultPreviewFrameHeight}`);
         assert(previewSnapshot.resultDownloadPanelComplete, `${label} should mark the selected result as downloadable`);
+        assert(previewSnapshot.resultDownloadActionButtons === 1, `${label} should keep one compact Download button after generation`);
+        assert(previewSnapshot.resultDownloadGridButtonsInWorkspace === 0, `${label} should keep detailed download buttons inside the modal after generation`);
       }
+    }
+    if (expectedDownloadModalButtons.length > 0) {
+      await assertDownloadModal({
+        expectedButtons: expectedDownloadModalButtons,
+        absentButtons: downloadModalAbsentButtons,
+        clickButtons: downloadModalClickButtons,
+        label: `${label} download modal`
+      });
     }
     for (const button of postExerciseButtons) {
       await clickButtonByText(button);
@@ -1075,11 +1132,111 @@ async function clickButtonByAriaLabel(label) {
   })()`);
 }
 
+async function openDownloadModal() {
+  await evaluate(`(() => {
+    const button = document.querySelector(".workspace .result-download-action");
+    if (!button) throw new Error("Download action button not found");
+    button.click();
+  })()`);
+  await waitForEval(() => `Boolean(document.querySelector(".download-options-modal"))`, "Download modal opens");
+}
+
+async function assertDownloadModal({ expectedButtons, absentButtons = [], clickButtons = [], label }) {
+  await openDownloadModal();
+  const snapshot = await pageSnapshot();
+  assert(snapshot.downloadModalVisible, `${label} should open the Download modal`);
+  assert(
+    snapshot.downloadModalButtons.length === expectedButtons.length,
+    `${label} should show ${expectedButtons.length} download option(s), got ${snapshot.downloadModalButtons.length}: ${snapshot.downloadModalButtons.join(", ")}`
+  );
+  expectedButtons.forEach((button) => {
+    assert(snapshot.downloadModalButtons.includes(button), `${label} missing modal option: ${button}`);
+  });
+  absentButtons.forEach((button) => {
+    assert(!snapshot.downloadModalButtons.includes(button), `${label} should not show modal option: ${button}`);
+  });
+  for (const button of clickButtons) {
+    await clickDownloadModalButtonByText(button);
+  }
+  if (await evaluate(`Boolean(document.querySelector(".download-options-modal"))`)) {
+    await clickButtonByAriaLabel("Close downloads");
+    await waitForEval(() => `!document.querySelector(".download-options-modal")`, `${label} modal closes`);
+  }
+}
+
+async function installDownloadSpy() {
+  await evaluate(`(() => {
+    window.__uiSmokeDownloads = [];
+    if (window.__uiSmokeDownloadSpyInstalled) return;
+    const originalCreateObjectURL = URL.createObjectURL.bind(URL);
+    URL.createObjectURL = (object) => {
+      if (object instanceof Blob) {
+        const reader = new FileReader();
+        reader.addEventListener("load", () => {
+          window.__uiSmokeDownloads.push({ type: object.type, dataUrl: String(reader.result || "") });
+        });
+        reader.readAsDataURL(object);
+      }
+      return originalCreateObjectURL(object);
+    };
+    window.__uiSmokeDownloadSpyInstalled = true;
+  })()`);
+}
+
+async function assertSelectedPreviewHasTransparentPixels(label) {
+  const alpha = await inspectImageAlpha(`document.querySelector(".result-preview-image")?.src || document.querySelector(".history-item.selected img")?.src || ""`);
+  assert(alpha.transparentPixels > 0, `${label}: expected transparent pixels, got ${JSON.stringify(alpha)}`);
+  assert(alpha.opaquePixels > 0, `${label}: expected opaque pixels, got ${JSON.stringify(alpha)}`);
+}
+
+async function assertLatestDownloadHasTransparentPixels(label) {
+  await waitForEval(() => `(window.__uiSmokeDownloads || []).length > 0`, "PNG download captured");
+  const alpha = await inspectImageAlpha(`(window.__uiSmokeDownloads || []).at(-1)?.dataUrl || ""`);
+  assert(alpha.transparentPixels > 0, `${label}: expected transparent pixels, got ${JSON.stringify(alpha)}`);
+  assert(alpha.opaquePixels > 0, `${label}: expected opaque pixels, got ${JSON.stringify(alpha)}`);
+}
+
+async function inspectImageAlpha(dataUrlExpression) {
+  return evaluate(`(async () => {
+    const source = ${dataUrlExpression};
+    if (!source) throw new Error("Image source not found for alpha inspection");
+    const image = new Image();
+    image.src = source;
+    await new Promise((resolve, reject) => {
+      image.onload = resolve;
+      image.onerror = () => reject(new Error("Could not load image for alpha inspection"));
+    });
+    const canvas = document.createElement("canvas");
+    canvas.width = image.naturalWidth;
+    canvas.height = image.naturalHeight;
+    const context = canvas.getContext("2d", { willReadFrequently: true });
+    if (!context) throw new Error("Could not inspect image alpha");
+    context.clearRect(0, 0, canvas.width, canvas.height);
+    context.drawImage(image, 0, 0);
+    const data = context.getImageData(0, 0, canvas.width, canvas.height).data;
+    let transparentPixels = 0;
+    let opaquePixels = 0;
+    for (let index = 3; index < data.length; index += 4) {
+      if (data[index] === 0) transparentPixels += 1;
+      if (data[index] > 240) opaquePixels += 1;
+    }
+    return { width: canvas.width, height: canvas.height, transparentPixels, opaquePixels };
+  })()`);
+}
+
 async function clickSelector(selector) {
   await evaluate(`(() => {
     const target = document.querySelector(${JSON.stringify(selector)});
     if (!target) throw new Error("Selector not found: ${selector}");
     target.click();
+  })()`);
+}
+
+async function clickDownloadModalButtonByText(label) {
+  await evaluate(`(() => {
+    const button = Array.from(document.querySelectorAll(".download-options-modal button")).find((item) => item.innerText.replace(/\\s+/g, " ").trim() === ${JSON.stringify(label)});
+    if (!button) throw new Error("Download modal button not found: ${label}");
+    button.click();
   })()`);
 }
 
@@ -1132,6 +1289,13 @@ async function pageSnapshot() {
     resultDownloadPanelInSource: Boolean(document.querySelector(".source-panel .result-download-panel")),
     resultDownloadPanelInWorkspace: Boolean(document.querySelector(".workspace .result-download-panel")),
     resultDownloadPanelComplete: Boolean(document.querySelector(".workspace .result-download-panel.complete")),
+    resultDownloadPanelHeight: Math.round(document.querySelector(".workspace .result-download-panel")?.getBoundingClientRect().height || 0),
+    resultDownloadActionButtons: document.querySelectorAll(".workspace .result-download-action").length,
+    resultDownloadGridButtonsInWorkspace: document.querySelectorAll(".workspace .result-download-grid button").length,
+    downloadModalVisible: Boolean(document.querySelector(".download-options-modal")),
+    downloadModalButtons: Array.from(document.querySelectorAll(".download-options-modal .result-download-grid button"))
+      .map((button) => button.innerText.replace(/\\s+/g, " ").trim())
+      .filter(Boolean),
     animationSourceStatus: document.querySelector(".animation-source-status")?.innerText || "",
     animationSourceButton: Boolean(document.querySelector(".animation-source-status.source-status-button")),
     animationSourceCard: document.querySelector(".animation-step.complete .source-preview")?.innerText.replace(/\s+/g, " ").trim() || "",
@@ -1151,6 +1315,7 @@ async function pageSnapshot() {
     codexLogPanelVisible: Boolean(document.querySelector(".codex-log-panel")),
     codexLogFullscreen: Boolean(document.querySelector(".codex-log-panel.fullscreen")),
     codexLogFullscreenButtons: document.querySelectorAll(".codex-log-fullscreen-button").length,
+    codexLogCards: document.querySelectorAll(".codex-log-card").length,
     spriteBenchVisible: Boolean(document.querySelector(".sprite-bench")),
     codexJobRows: document.querySelectorAll(".codex-job-row").length,
     codexJobShelfInHistory: Boolean(document.querySelector(".history-panel > .codex-job-shelf")),
@@ -1167,7 +1332,7 @@ async function pageSnapshot() {
     animationPresetSampleSprites: document.querySelectorAll(".animation-sample-sprite").length,
     animationPresetModalSampleSprites: document.querySelectorAll(".animation-preset-modal .animation-sample-sprite").length,
     animationLibraryCards: document.querySelectorAll(".animation-library-card").length,
-    workspaceExportAnimationPackButtons: Array.from(document.querySelectorAll(".workspace .result-download-grid button"))
+    workspaceExportAnimationPackButtons: Array.from(document.querySelectorAll(".download-options-modal .result-download-grid button"))
       .filter((button) => button.innerText.replace(/\\s+/g, " ").trim() === "Export Animation Pack").length,
     promptRawTextBlocks: document.querySelectorAll(".prompt-card-text, .prompt-card-negative").length
   }))()`);
@@ -1345,6 +1510,9 @@ if (job.workflowMode === "image-edit") {
     console.error("image edit job missing selected asset, numbered annotation, or comment");
     process.exit(4);
   }
+  await writeFile(join(outboxDir, \`\${jobId}.png\`), makeSpriteSheetPng(512, 512, 1, 1, 512, 512, [0, 0, 0, 0]));
+  console.log(\`mock transparent image edit completed \${jobId}\`);
+  process.exit(0);
 }
 
 if (job.workflowMode !== "sprite-generate") {
