@@ -1,0 +1,329 @@
+{
+  "generatedAt": "2026-06-27T01:23:00+09:00",
+  "phase": "A",
+  "status": "audit-only",
+  "officialReplacement": false,
+  "note": "No new retake generation was run by this script. Future generated candidates must record job id, outbox path, manifest, QA, comparison, and adoption decision here.",
+  "items": [
+    {
+      "presetId": "jump-hop",
+      "title": "Jump / Hop",
+      "priorityScore": 32,
+      "decision": "needs-retake",
+      "runStatus": "not-run-phase-a",
+      "reason": "high-value/high-risk core action should get early multi-run stability retake; current sample also has padding polish below the preferred 24px contract",
+      "officialReplacement": false,
+      "replacementGate": "ご主人確認前に公式sample / prompt contract / Animation選択モーダル採用版を置換しない",
+      "requiredArtifactsForFutureRetake": [
+        "raw direction PNG x5",
+        "direction split manifest",
+        "candidate final sheet",
+        "five direction GIF preview",
+        "mechanical QA JSON",
+        "grid QA image",
+        "transparency / contact audit",
+        "before / after comparison"
+      ]
+    },
+    {
+      "presetId": "basic-attack",
+      "title": "Basic Attack",
+      "priorityScore": 26,
+      "decision": "needs-retake",
+      "runStatus": "not-run-phase-a",
+      "reason": "high-value/high-risk core action should get early multi-run stability retake; current sample also has padding polish below the preferred 24px contract",
+      "officialReplacement": false,
+      "replacementGate": "ご主人確認前に公式sample / prompt contract / Animation選択モーダル採用版を置換しない",
+      "requiredArtifactsForFutureRetake": [
+        "raw direction PNG x5",
+        "direction split manifest",
+        "candidate final sheet",
+        "five direction GIF preview",
+        "mechanical QA JSON",
+        "grid QA image",
+        "transparency / contact audit",
+        "before / after comparison"
+      ]
+    },
+    {
+      "presetId": "ranged-attack",
+      "title": "Ranged Attack",
+      "priorityScore": 21,
+      "decision": "needs-retake",
+      "runStatus": "not-run-phase-a",
+      "reason": "high-value/high-risk core action should get early multi-run stability retake; current sample also has padding polish below the preferred 24px contract",
+      "officialReplacement": false,
+      "replacementGate": "ご主人確認前に公式sample / prompt contract / Animation選択モーダル採用版を置換しない",
+      "requiredArtifactsForFutureRetake": [
+        "raw direction PNG x5",
+        "direction split manifest",
+        "candidate final sheet",
+        "five direction GIF preview",
+        "mechanical QA JSON",
+        "grid QA image",
+        "transparency / contact audit",
+        "before / after comparison"
+      ]
+    },
+    {
+      "presetId": "idle-breathing",
+      "title": "Idle Breathing",
+      "priorityScore": 12,
+      "decision": "keep-current",
+      "runStatus": "not-run-phase-a",
+      "reason": "current sample passes but has padding polish below the preferred 24px contract",
+      "officialReplacement": false,
+      "replacementGate": "ご主人確認前に公式sample / prompt contract / Animation選択モーダル採用版を置換しない",
+      "requiredArtifactsForFutureRetake": [
+        "raw direction PNG x5",
+        "direction split manifest",
+        "candidate final sheet",
+        "five direction GIF preview",
+        "mechanical QA JSON",
+        "grid QA image",
+        "transparency / contact audit",
+        "before / after comparison"
+      ]
+    },
+    {
+      "presetId": "death-downed",
+      "title": "Death / Downed",
+      "priorityScore": 10,
+      "decision": "needs-retake",
+      "runStatus": "not-run-phase-a",
+      "reason": "high-value/high-risk core action should get early multi-run stability retake",
+      "officialReplacement": false,
+      "replacementGate": "ご主人確認前に公式sample / prompt contract / Animation選択モーダル採用版を置換しない",
+      "requiredArtifactsForFutureRetake": [
+        "raw direction PNG x5",
+        "direction split manifest",
+        "candidate final sheet",
+        "five direction GIF preview",
+        "mechanical QA JSON",
+        "grid QA image",
+        "transparency / contact audit",
+        "before / after comparison"
+      ]
+    },
+    {
+      "presetId": "run-cycle",
+      "title": "Run Cycle",
+      "priorityScore": 9,
+      "decision": "needs-retake",
+      "runStatus": "not-run-phase-a",
+      "reason": "high-value/high-risk core action should get early multi-run stability retake",
+      "officialReplacement": false,
+      "replacementGate": "ご主人確認前に公式sample / prompt contract / Animation選択モーダル採用版を置換しない",
+      "requiredArtifactsForFutureRetake": [
+        "raw direction PNG x5",
+        "direction split manifest",
+        "candidate final sheet",
+        "five direction GIF preview",
+        "mechanical QA JSON",
+        "grid QA image",
+        "transparency / contact audit",
+        "before / after comparison"
+      ]
+    },
+    {
+      "presetId": "skill-release",
+      "title": "Skill Release",
+      "priorityScore": 9,
+      "decision": "needs-retake",
+      "runStatus": "not-run-phase-a",
+      "reason": "high-value/high-risk core action should get early multi-run stability retake",
+      "officialReplacement": false,
+      "replacementGate": "ご主人確認前に公式sample / prompt contract / Animation選択モーダル採用版を置換しない",
+      "requiredArtifactsForFutureRetake": [
+        "raw direction PNG x5",
+        "direction split manifest",
+        "candidate final sheet",
+        "five direction GIF preview",
+        "mechanical QA JSON",
+        "grid QA image",
+        "transparency / contact audit",
+        "before / after comparison"
+      ]
+    },
+    {
+      "presetId": "knockback",
+      "title": "Knockback",
+      "priorityScore": 9,
+      "decision": "needs-retake",
+      "runStatus": "not-run-phase-a",
+      "reason": "high-value/high-risk core action should get early multi-run stability retake; current sample also has padding polish below the preferred 24px contract",
+      "officialReplacement": false,
+      "replacementGate": "ご主人確認前に公式sample / prompt contract / Animation選択モーダル採用版を置換しない",
+      "requiredArtifactsForFutureRetake": [
+        "raw direction PNG x5",
+        "direction split manifest",
+        "candidate final sheet",
+        "five direction GIF preview",
+        "mechanical QA JSON",
+        "grid QA image",
+        "transparency / contact audit",
+        "before / after comparison"
+      ]
+    },
+    {
+      "presetId": "walk-cycle",
+      "title": "Walk Cycle",
+      "priorityScore": 8,
+      "decision": "needs-retake",
+      "runStatus": "not-run-phase-a",
+      "reason": "high-value/high-risk core action should get early multi-run stability retake",
+      "officialReplacement": false,
+      "replacementGate": "ご主人確認前に公式sample / prompt contract / Animation選択モーダル採用版を置換しない",
+      "requiredArtifactsForFutureRetake": [
+        "raw direction PNG x5",
+        "direction split manifest",
+        "candidate final sheet",
+        "five direction GIF preview",
+        "mechanical QA JSON",
+        "grid QA image",
+        "transparency / contact audit",
+        "before / after comparison"
+      ]
+    },
+    {
+      "presetId": "spell-cast",
+      "title": "Spell Cast",
+      "priorityScore": 8,
+      "decision": "needs-retake",
+      "runStatus": "not-run-phase-a",
+      "reason": "high-value/high-risk core action should get early multi-run stability retake",
+      "officialReplacement": false,
+      "replacementGate": "ご主人確認前に公式sample / prompt contract / Animation選択モーダル採用版を置換しない",
+      "requiredArtifactsForFutureRetake": [
+        "raw direction PNG x5",
+        "direction split manifest",
+        "candidate final sheet",
+        "five direction GIF preview",
+        "mechanical QA JSON",
+        "grid QA image",
+        "transparency / contact audit",
+        "before / after comparison"
+      ]
+    },
+    {
+      "presetId": "victory-cheer",
+      "title": "Victory Cheer",
+      "priorityScore": 6,
+      "decision": "keep-current",
+      "runStatus": "not-run-phase-a",
+      "reason": "keep current for now; run stability gate after higher-risk presets",
+      "officialReplacement": false,
+      "replacementGate": "ご主人確認前に公式sample / prompt contract / Animation選択モーダル採用版を置換しない",
+      "requiredArtifactsForFutureRetake": [
+        "raw direction PNG x5",
+        "direction split manifest",
+        "candidate final sheet",
+        "five direction GIF preview",
+        "mechanical QA JSON",
+        "grid QA image",
+        "transparency / contact audit",
+        "before / after comparison"
+      ]
+    },
+    {
+      "presetId": "hurt-reaction",
+      "title": "Hurt Reaction",
+      "priorityScore": 5,
+      "decision": "keep-current",
+      "runStatus": "not-run-phase-a",
+      "reason": "current sample passes but has padding polish below the preferred 24px contract",
+      "officialReplacement": false,
+      "replacementGate": "ご主人確認前に公式sample / prompt contract / Animation選択モーダル採用版を置換しない",
+      "requiredArtifactsForFutureRetake": [
+        "raw direction PNG x5",
+        "direction split manifest",
+        "candidate final sheet",
+        "five direction GIF preview",
+        "mechanical QA JSON",
+        "grid QA image",
+        "transparency / contact audit",
+        "before / after comparison"
+      ]
+    },
+    {
+      "presetId": "guard-block",
+      "title": "Guard / Block",
+      "priorityScore": 5,
+      "decision": "keep-current",
+      "runStatus": "not-run-phase-a",
+      "reason": "keep current for now; run stability gate after higher-risk presets",
+      "officialReplacement": false,
+      "replacementGate": "ご主人確認前に公式sample / prompt contract / Animation選択モーダル採用版を置換しない",
+      "requiredArtifactsForFutureRetake": [
+        "raw direction PNG x5",
+        "direction split manifest",
+        "candidate final sheet",
+        "five direction GIF preview",
+        "mechanical QA JSON",
+        "grid QA image",
+        "transparency / contact audit",
+        "before / after comparison"
+      ]
+    },
+    {
+      "presetId": "item-use",
+      "title": "Item Use",
+      "priorityScore": 5,
+      "decision": "keep-current",
+      "runStatus": "not-run-phase-a",
+      "reason": "current sample passes but has padding polish below the preferred 24px contract",
+      "officialReplacement": false,
+      "replacementGate": "ご主人確認前に公式sample / prompt contract / Animation選択モーダル採用版を置換しない",
+      "requiredArtifactsForFutureRetake": [
+        "raw direction PNG x5",
+        "direction split manifest",
+        "candidate final sheet",
+        "five direction GIF preview",
+        "mechanical QA JSON",
+        "grid QA image",
+        "transparency / contact audit",
+        "before / after comparison"
+      ]
+    },
+    {
+      "presetId": "interact-pickup",
+      "title": "Interact / Pickup",
+      "priorityScore": 4,
+      "decision": "keep-current",
+      "runStatus": "not-run-phase-a",
+      "reason": "keep current for now; run stability gate after higher-risk presets",
+      "officialReplacement": false,
+      "replacementGate": "ご主人確認前に公式sample / prompt contract / Animation選択モーダル採用版を置換しない",
+      "requiredArtifactsForFutureRetake": [
+        "raw direction PNG x5",
+        "direction split manifest",
+        "candidate final sheet",
+        "five direction GIF preview",
+        "mechanical QA JSON",
+        "grid QA image",
+        "transparency / contact audit",
+        "before / after comparison"
+      ]
+    },
+    {
+      "presetId": "talk",
+      "title": "Talk / NPC Reaction",
+      "priorityScore": 4,
+      "decision": "keep-current",
+      "runStatus": "not-run-phase-a",
+      "reason": "keep current for now; run stability gate after higher-risk presets",
+      "officialReplacement": false,
+      "replacementGate": "ご主人確認前に公式sample / prompt contract / Animation選択モーダル採用版を置換しない",
+      "requiredArtifactsForFutureRetake": [
+        "raw direction PNG x5",
+        "direction split manifest",
+        "candidate final sheet",
+        "five direction GIF preview",
+        "mechanical QA JSON",
+        "grid QA image",
+        "transparency / contact audit",
+        "before / after comparison"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,641 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Core Animation Quality Uplift Gallery</title>
+  <style>
+    body { margin: 0; font-family: Arial, sans-serif; background: #f6f7f9; color: #17191f; }
+    header.page { padding: 24px; background: #20242d; color: white; }
+    main { display: grid; gap: 18px; padding: 18px; }
+    .card { background: white; border: 1px solid #d7dbe3; border-radius: 8px; padding: 16px; }
+    h1, h2, h3, p { margin: 0; }
+    h2 { font-size: 20px; margin-bottom: 6px; }
+    h3 { font-size: 14px; margin-bottom: 8px; }
+    code { font-size: 0.85em; }
+    .comparison { display: grid; grid-template-columns: minmax(0, 1fr) minmax(220px, 0.45fr); gap: 12px; margin-top: 12px; }
+    .sheet { width: 100%; image-rendering: pixelated; background: repeating-conic-gradient(#e9ecf2 0% 25%, #ffffff 0% 50%) 50% / 24px 24px; border: 1px solid #d7dbe3; }
+    .pending { min-height: 160px; display: grid; place-items: center; border: 1px dashed #aab1bf; color: #5a6270; background: #fafbfc; }
+    .gifs { display: grid; grid-template-columns: repeat(auto-fit, minmax(132px, 1fr)); gap: 10px; margin-top: 12px; }
+    figure { margin: 0; border: 1px solid #d7dbe3; padding: 8px; background: #fbfcfd; }
+    figure img { width: 100%; image-rendering: pixelated; background: repeating-conic-gradient(#e9ecf2 0% 25%, #ffffff 0% 50%) 50% / 16px 16px; }
+    figcaption { font-size: 12px; color: #4b5260; margin-top: 4px; }
+    @media (max-width: 760px) { .comparison { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <header class="page">
+    <h1>Core Animation Quality Uplift Gallery</h1>
+    <p>Phase A baseline review. Retake candidates are pending future real generation.</p>
+  </header>
+  <main>
+      <section class="card">
+        <header>
+          <h2>Idle Breathing <code>idle-breathing</code></h2>
+          <p>Score 92/100 · excellent · keep-current</p>
+        </header>
+        <div class="comparison">
+          <div>
+            <h3>Current official</h3>
+            <img class="sheet" src="../../../public/samples/idle-breathing-sheet.png" alt="idle-breathing current official sheet">
+          </div>
+          <div>
+            <h3>Retake candidate</h3>
+            <div class="pending">Pending future real generation</div>
+          </div>
+        </div>
+        <div class="gifs">
+          <figure>
+            <img src="../official-idle-breathing/idle-breathing-front.gif" alt="idle-breathing front preview">
+            <figcaption>front</figcaption>
+          </figure>
+          <figure>
+            <img src="../official-idle-breathing/idle-breathing-front-three-quarter.gif" alt="idle-breathing front-three-quarter preview">
+            <figcaption>front three-quarter</figcaption>
+          </figure>
+          <figure>
+            <img src="../official-idle-breathing/idle-breathing-side.gif" alt="idle-breathing side preview">
+            <figcaption>side</figcaption>
+          </figure>
+          <figure>
+            <img src="../official-idle-breathing/idle-breathing-back-three-quarter.gif" alt="idle-breathing back-three-quarter preview">
+            <figcaption>back three-quarter</figcaption>
+          </figure>
+          <figure>
+            <img src="../official-idle-breathing/idle-breathing-back.gif" alt="idle-breathing back preview">
+            <figcaption>back</figcaption>
+          </figure></div>
+      </section>
+
+      <section class="card">
+        <header>
+          <h2>Walk Cycle <code>walk-cycle</code></h2>
+          <p>Score 98/100 · excellent · needs-retake</p>
+        </header>
+        <div class="comparison">
+          <div>
+            <h3>Current official</h3>
+            <img class="sheet" src="../../../public/samples/walk-cycle-sheet.png" alt="walk-cycle current official sheet">
+          </div>
+          <div>
+            <h3>Retake candidate</h3>
+            <div class="pending">Pending future real generation</div>
+          </div>
+        </div>
+        <div class="gifs">
+          <figure>
+            <img src="../official-walk-cycle/walk-cycle-front.gif" alt="walk-cycle front preview">
+            <figcaption>front</figcaption>
+          </figure>
+          <figure>
+            <img src="../official-walk-cycle/walk-cycle-front-three-quarter.gif" alt="walk-cycle front-three-quarter preview">
+            <figcaption>front three-quarter</figcaption>
+          </figure>
+          <figure>
+            <img src="../official-walk-cycle/walk-cycle-side.gif" alt="walk-cycle side preview">
+            <figcaption>side</figcaption>
+          </figure>
+          <figure>
+            <img src="../official-walk-cycle/walk-cycle-back-three-quarter.gif" alt="walk-cycle back-three-quarter preview">
+            <figcaption>back three-quarter</figcaption>
+          </figure>
+          <figure>
+            <img src="../official-walk-cycle/walk-cycle-back.gif" alt="walk-cycle back preview">
+            <figcaption>back</figcaption>
+          </figure></div>
+      </section>
+
+      <section class="card">
+        <header>
+          <h2>Run Cycle <code>run-cycle</code></h2>
+          <p>Score 96/100 · excellent · needs-retake</p>
+        </header>
+        <div class="comparison">
+          <div>
+            <h3>Current official</h3>
+            <img class="sheet" src="../../../public/samples/run-cycle-sheet.png" alt="run-cycle current official sheet">
+          </div>
+          <div>
+            <h3>Retake candidate</h3>
+            <div class="pending">Pending future real generation</div>
+          </div>
+        </div>
+        <div class="gifs">
+          <figure>
+            <img src="../official-run-cycle/run-cycle-front.gif" alt="run-cycle front preview">
+            <figcaption>front</figcaption>
+          </figure>
+          <figure>
+            <img src="../official-run-cycle/run-cycle-front-three-quarter.gif" alt="run-cycle front-three-quarter preview">
+            <figcaption>front three-quarter</figcaption>
+          </figure>
+          <figure>
+            <img src="../official-run-cycle/run-cycle-side.gif" alt="run-cycle side preview">
+            <figcaption>side</figcaption>
+          </figure>
+          <figure>
+            <img src="../official-run-cycle/run-cycle-back-three-quarter.gif" alt="run-cycle back-three-quarter preview">
+            <figcaption>back three-quarter</figcaption>
+          </figure>
+          <figure>
+            <img src="../official-run-cycle/run-cycle-back.gif" alt="run-cycle back preview">
+            <figcaption>back</figcaption>
+          </figure></div>
+      </section>
+
+      <section class="card">
+        <header>
+          <h2>Basic Attack <code>basic-attack</code></h2>
+          <p>Score 86/100 · pass-with-retake-priority · needs-retake</p>
+        </header>
+        <div class="comparison">
+          <div>
+            <h3>Current official</h3>
+            <img class="sheet" src="../../../public/samples/basic-attack-sheet.png" alt="basic-attack current official sheet">
+          </div>
+          <div>
+            <h3>Retake candidate</h3>
+            <div class="pending">Pending future real generation</div>
+          </div>
+        </div>
+        <div class="gifs">
+          <figure>
+            <img src="../official-basic-attack/basic-attack-front.gif" alt="basic-attack front preview">
+            <figcaption>front</figcaption>
+          </figure>
+          <figure>
+            <img src="../official-basic-attack/basic-attack-front-three-quarter.gif" alt="basic-attack front-three-quarter preview">
+            <figcaption>front three-quarter</figcaption>
+          </figure>
+          <figure>
+            <img src="../official-basic-attack/basic-attack-side.gif" alt="basic-attack side preview">
+            <figcaption>side</figcaption>
+          </figure>
+          <figure>
+            <img src="../official-basic-attack/basic-attack-back-three-quarter.gif" alt="basic-attack back-three-quarter preview">
+            <figcaption>back three-quarter</figcaption>
+          </figure>
+          <figure>
+            <img src="../official-basic-attack/basic-attack-back.gif" alt="basic-attack back preview">
+            <figcaption>back</figcaption>
+          </figure></div>
+      </section>
+
+      <section class="card">
+        <header>
+          <h2>Hurt Reaction <code>hurt-reaction</code></h2>
+          <p>Score 97/100 · excellent · keep-current</p>
+        </header>
+        <div class="comparison">
+          <div>
+            <h3>Current official</h3>
+            <img class="sheet" src="../../../public/samples/hurt-reaction-sheet.png" alt="hurt-reaction current official sheet">
+          </div>
+          <div>
+            <h3>Retake candidate</h3>
+            <div class="pending">Pending future real generation</div>
+          </div>
+        </div>
+        <div class="gifs">
+          <figure>
+            <img src="../official-hurt-reaction/hurt-reaction-front.gif" alt="hurt-reaction front preview">
+            <figcaption>front</figcaption>
+          </figure>
+          <figure>
+            <img src="../official-hurt-reaction/hurt-reaction-front-three-quarter.gif" alt="hurt-reaction front-three-quarter preview">
+            <figcaption>front three-quarter</figcaption>
+          </figure>
+          <figure>
+            <img src="../official-hurt-reaction/hurt-reaction-side.gif" alt="hurt-reaction side preview">
+            <figcaption>side</figcaption>
+          </figure>
+          <figure>
+            <img src="../official-hurt-reaction/hurt-reaction-back-three-quarter.gif" alt="hurt-reaction back-three-quarter preview">
+            <figcaption>back three-quarter</figcaption>
+          </figure>
+          <figure>
+            <img src="../official-hurt-reaction/hurt-reaction-back.gif" alt="hurt-reaction back preview">
+            <figcaption>back</figcaption>
+          </figure></div>
+      </section>
+
+      <section class="card">
+        <header>
+          <h2>Death / Downed <code>death-downed</code></h2>
+          <p>Score 93/100 · excellent · needs-retake</p>
+        </header>
+        <div class="comparison">
+          <div>
+            <h3>Current official</h3>
+            <img class="sheet" src="../../../public/samples/death-downed-sheet.png" alt="death-downed current official sheet">
+          </div>
+          <div>
+            <h3>Retake candidate</h3>
+            <div class="pending">Pending future real generation</div>
+          </div>
+        </div>
+        <div class="gifs">
+          <figure>
+            <img src="../official-death-downed/death-downed-front.gif" alt="death-downed front preview">
+            <figcaption>front</figcaption>
+          </figure>
+          <figure>
+            <img src="../official-death-downed/death-downed-front-three-quarter.gif" alt="death-downed front-three-quarter preview">
+            <figcaption>front three-quarter</figcaption>
+          </figure>
+          <figure>
+            <img src="../official-death-downed/death-downed-side.gif" alt="death-downed side preview">
+            <figcaption>side</figcaption>
+          </figure>
+          <figure>
+            <img src="../official-death-downed/death-downed-back-three-quarter.gif" alt="death-downed back-three-quarter preview">
+            <figcaption>back three-quarter</figcaption>
+          </figure>
+          <figure>
+            <img src="../official-death-downed/death-downed-back.gif" alt="death-downed back preview">
+            <figcaption>back</figcaption>
+          </figure></div>
+      </section>
+
+      <section class="card">
+        <header>
+          <h2>Spell Cast <code>spell-cast</code></h2>
+          <p>Score 94/100 · excellent · needs-retake</p>
+        </header>
+        <div class="comparison">
+          <div>
+            <h3>Current official</h3>
+            <img class="sheet" src="../../../public/samples/spell-cast-sheet.png" alt="spell-cast current official sheet">
+          </div>
+          <div>
+            <h3>Retake candidate</h3>
+            <div class="pending">Pending future real generation</div>
+          </div>
+        </div>
+        <div class="gifs">
+          <figure>
+            <img src="../official-spell-cast/spell-cast-front.gif" alt="spell-cast front preview">
+            <figcaption>front</figcaption>
+          </figure>
+          <figure>
+            <img src="../official-spell-cast/spell-cast-front-three-quarter.gif" alt="spell-cast front-three-quarter preview">
+            <figcaption>front three-quarter</figcaption>
+          </figure>
+          <figure>
+            <img src="../official-spell-cast/spell-cast-side.gif" alt="spell-cast side preview">
+            <figcaption>side</figcaption>
+          </figure>
+          <figure>
+            <img src="../official-spell-cast/spell-cast-back-three-quarter.gif" alt="spell-cast back-three-quarter preview">
+            <figcaption>back three-quarter</figcaption>
+          </figure>
+          <figure>
+            <img src="../official-spell-cast/spell-cast-back.gif" alt="spell-cast back preview">
+            <figcaption>back</figcaption>
+          </figure></div>
+      </section>
+
+      <section class="card">
+        <header>
+          <h2>Jump / Hop <code>jump-hop</code></h2>
+          <p>Score 88/100 · pass-with-retake-priority · needs-retake</p>
+        </header>
+        <div class="comparison">
+          <div>
+            <h3>Current official</h3>
+            <img class="sheet" src="../../../public/samples/jump-hop-sheet.png" alt="jump-hop current official sheet">
+          </div>
+          <div>
+            <h3>Retake candidate</h3>
+            <div class="pending">Pending future real generation</div>
+          </div>
+        </div>
+        <div class="gifs">
+          <figure>
+            <img src="../official-jump-hop/jump-hop-front.gif" alt="jump-hop front preview">
+            <figcaption>front</figcaption>
+          </figure>
+          <figure>
+            <img src="../official-jump-hop/jump-hop-front-three-quarter.gif" alt="jump-hop front-three-quarter preview">
+            <figcaption>front three-quarter</figcaption>
+          </figure>
+          <figure>
+            <img src="../official-jump-hop/jump-hop-side.gif" alt="jump-hop side preview">
+            <figcaption>side</figcaption>
+          </figure>
+          <figure>
+            <img src="../official-jump-hop/jump-hop-back-three-quarter.gif" alt="jump-hop back-three-quarter preview">
+            <figcaption>back three-quarter</figcaption>
+          </figure>
+          <figure>
+            <img src="../official-jump-hop/jump-hop-back.gif" alt="jump-hop back preview">
+            <figcaption>back</figcaption>
+          </figure></div>
+      </section>
+
+      <section class="card">
+        <header>
+          <h2>Guard / Block <code>guard-block</code></h2>
+          <p>Score 98/100 · excellent · keep-current</p>
+        </header>
+        <div class="comparison">
+          <div>
+            <h3>Current official</h3>
+            <img class="sheet" src="../../../public/samples/guard-block-sheet.png" alt="guard-block current official sheet">
+          </div>
+          <div>
+            <h3>Retake candidate</h3>
+            <div class="pending">Pending future real generation</div>
+          </div>
+        </div>
+        <div class="gifs">
+          <figure>
+            <img src="../official-guard-block/guard-block-front.gif" alt="guard-block front preview">
+            <figcaption>front</figcaption>
+          </figure>
+          <figure>
+            <img src="../official-guard-block/guard-block-front-three-quarter.gif" alt="guard-block front-three-quarter preview">
+            <figcaption>front three-quarter</figcaption>
+          </figure>
+          <figure>
+            <img src="../official-guard-block/guard-block-side.gif" alt="guard-block side preview">
+            <figcaption>side</figcaption>
+          </figure>
+          <figure>
+            <img src="../official-guard-block/guard-block-back-three-quarter.gif" alt="guard-block back-three-quarter preview">
+            <figcaption>back three-quarter</figcaption>
+          </figure>
+          <figure>
+            <img src="../official-guard-block/guard-block-back.gif" alt="guard-block back preview">
+            <figcaption>back</figcaption>
+          </figure></div>
+      </section>
+
+      <section class="card">
+        <header>
+          <h2>Victory Cheer <code>victory-cheer</code></h2>
+          <p>Score 95/100 · excellent · keep-current</p>
+        </header>
+        <div class="comparison">
+          <div>
+            <h3>Current official</h3>
+            <img class="sheet" src="../../../public/samples/victory-cheer-sheet.png" alt="victory-cheer current official sheet">
+          </div>
+          <div>
+            <h3>Retake candidate</h3>
+            <div class="pending">Pending future real generation</div>
+          </div>
+        </div>
+        <div class="gifs">
+          <figure>
+            <img src="../official-victory-cheer/victory-cheer-front.gif" alt="victory-cheer front preview">
+            <figcaption>front</figcaption>
+          </figure>
+          <figure>
+            <img src="../official-victory-cheer/victory-cheer-front-three-quarter.gif" alt="victory-cheer front-three-quarter preview">
+            <figcaption>front three-quarter</figcaption>
+          </figure>
+          <figure>
+            <img src="../official-victory-cheer/victory-cheer-side.gif" alt="victory-cheer side preview">
+            <figcaption>side</figcaption>
+          </figure>
+          <figure>
+            <img src="../official-victory-cheer/victory-cheer-back-three-quarter.gif" alt="victory-cheer back-three-quarter preview">
+            <figcaption>back three-quarter</figcaption>
+          </figure>
+          <figure>
+            <img src="../official-victory-cheer/victory-cheer-back.gif" alt="victory-cheer back preview">
+            <figcaption>back</figcaption>
+          </figure></div>
+      </section>
+
+      <section class="card">
+        <header>
+          <h2>Interact / Pickup <code>interact-pickup</code></h2>
+          <p>Score 98/100 · excellent · keep-current</p>
+        </header>
+        <div class="comparison">
+          <div>
+            <h3>Current official</h3>
+            <img class="sheet" src="../../../public/samples/interact-pickup-sheet.png" alt="interact-pickup current official sheet">
+          </div>
+          <div>
+            <h3>Retake candidate</h3>
+            <div class="pending">Pending future real generation</div>
+          </div>
+        </div>
+        <div class="gifs">
+          <figure>
+            <img src="../official-interact-pickup/interact-pickup-front.gif" alt="interact-pickup front preview">
+            <figcaption>front</figcaption>
+          </figure>
+          <figure>
+            <img src="../official-interact-pickup/interact-pickup-front-three-quarter.gif" alt="interact-pickup front-three-quarter preview">
+            <figcaption>front three-quarter</figcaption>
+          </figure>
+          <figure>
+            <img src="../official-interact-pickup/interact-pickup-side.gif" alt="interact-pickup side preview">
+            <figcaption>side</figcaption>
+          </figure>
+          <figure>
+            <img src="../official-interact-pickup/interact-pickup-back-three-quarter.gif" alt="interact-pickup back-three-quarter preview">
+            <figcaption>back three-quarter</figcaption>
+          </figure>
+          <figure>
+            <img src="../official-interact-pickup/interact-pickup-back.gif" alt="interact-pickup back preview">
+            <figcaption>back</figcaption>
+          </figure></div>
+      </section>
+
+      <section class="card">
+        <header>
+          <h2>Ranged Attack <code>ranged-attack</code></h2>
+          <p>Score 87/100 · pass-with-retake-priority · needs-retake</p>
+        </header>
+        <div class="comparison">
+          <div>
+            <h3>Current official</h3>
+            <img class="sheet" src="../../../public/samples/ranged-attack-sheet.png" alt="ranged-attack current official sheet">
+          </div>
+          <div>
+            <h3>Retake candidate</h3>
+            <div class="pending">Pending future real generation</div>
+          </div>
+        </div>
+        <div class="gifs">
+          <figure>
+            <img src="../official-ranged-attack/ranged-attack-front.gif" alt="ranged-attack front preview">
+            <figcaption>front</figcaption>
+          </figure>
+          <figure>
+            <img src="../official-ranged-attack/ranged-attack-front-three-quarter.gif" alt="ranged-attack front-three-quarter preview">
+            <figcaption>front three-quarter</figcaption>
+          </figure>
+          <figure>
+            <img src="../official-ranged-attack/ranged-attack-side.gif" alt="ranged-attack side preview">
+            <figcaption>side</figcaption>
+          </figure>
+          <figure>
+            <img src="../official-ranged-attack/ranged-attack-back-three-quarter.gif" alt="ranged-attack back-three-quarter preview">
+            <figcaption>back three-quarter</figcaption>
+          </figure>
+          <figure>
+            <img src="../official-ranged-attack/ranged-attack-back.gif" alt="ranged-attack back preview">
+            <figcaption>back</figcaption>
+          </figure></div>
+      </section>
+
+      <section class="card">
+        <header>
+          <h2>Skill Release <code>skill-release</code></h2>
+          <p>Score 95/100 · excellent · needs-retake</p>
+        </header>
+        <div class="comparison">
+          <div>
+            <h3>Current official</h3>
+            <img class="sheet" src="../../../public/samples/skill-release-sheet.png" alt="skill-release current official sheet">
+          </div>
+          <div>
+            <h3>Retake candidate</h3>
+            <div class="pending">Pending future real generation</div>
+          </div>
+        </div>
+        <div class="gifs">
+          <figure>
+            <img src="../official-skill-release/skill-release-front.gif" alt="skill-release front preview">
+            <figcaption>front</figcaption>
+          </figure>
+          <figure>
+            <img src="../official-skill-release/skill-release-front-three-quarter.gif" alt="skill-release front-three-quarter preview">
+            <figcaption>front three-quarter</figcaption>
+          </figure>
+          <figure>
+            <img src="../official-skill-release/skill-release-side.gif" alt="skill-release side preview">
+            <figcaption>side</figcaption>
+          </figure>
+          <figure>
+            <img src="../official-skill-release/skill-release-back-three-quarter.gif" alt="skill-release back-three-quarter preview">
+            <figcaption>back three-quarter</figcaption>
+          </figure>
+          <figure>
+            <img src="../official-skill-release/skill-release-back.gif" alt="skill-release back preview">
+            <figcaption>back</figcaption>
+          </figure></div>
+      </section>
+
+      <section class="card">
+        <header>
+          <h2>Knockback <code>knockback</code></h2>
+          <p>Score 94/100 · excellent · needs-retake</p>
+        </header>
+        <div class="comparison">
+          <div>
+            <h3>Current official</h3>
+            <img class="sheet" src="../../../public/samples/knockback-sheet.png" alt="knockback current official sheet">
+          </div>
+          <div>
+            <h3>Retake candidate</h3>
+            <div class="pending">Pending future real generation</div>
+          </div>
+        </div>
+        <div class="gifs">
+          <figure>
+            <img src="../official-knockback/knockback-front.gif" alt="knockback front preview">
+            <figcaption>front</figcaption>
+          </figure>
+          <figure>
+            <img src="../official-knockback/knockback-front-three-quarter.gif" alt="knockback front-three-quarter preview">
+            <figcaption>front three-quarter</figcaption>
+          </figure>
+          <figure>
+            <img src="../official-knockback/knockback-side.gif" alt="knockback side preview">
+            <figcaption>side</figcaption>
+          </figure>
+          <figure>
+            <img src="../official-knockback/knockback-back-three-quarter.gif" alt="knockback back-three-quarter preview">
+            <figcaption>back three-quarter</figcaption>
+          </figure>
+          <figure>
+            <img src="../official-knockback/knockback-back.gif" alt="knockback back preview">
+            <figcaption>back</figcaption>
+          </figure></div>
+      </section>
+
+      <section class="card">
+        <header>
+          <h2>Item Use <code>item-use</code></h2>
+          <p>Score 96/100 · excellent · keep-current</p>
+        </header>
+        <div class="comparison">
+          <div>
+            <h3>Current official</h3>
+            <img class="sheet" src="../../../public/samples/item-use-sheet.png" alt="item-use current official sheet">
+          </div>
+          <div>
+            <h3>Retake candidate</h3>
+            <div class="pending">Pending future real generation</div>
+          </div>
+        </div>
+        <div class="gifs">
+          <figure>
+            <img src="../official-item-use/item-use-front.gif" alt="item-use front preview">
+            <figcaption>front</figcaption>
+          </figure>
+          <figure>
+            <img src="../official-item-use/item-use-front-three-quarter.gif" alt="item-use front-three-quarter preview">
+            <figcaption>front three-quarter</figcaption>
+          </figure>
+          <figure>
+            <img src="../official-item-use/item-use-side.gif" alt="item-use side preview">
+            <figcaption>side</figcaption>
+          </figure>
+          <figure>
+            <img src="../official-item-use/item-use-back-three-quarter.gif" alt="item-use back-three-quarter preview">
+            <figcaption>back three-quarter</figcaption>
+          </figure>
+          <figure>
+            <img src="../official-item-use/item-use-back.gif" alt="item-use back preview">
+            <figcaption>back</figcaption>
+          </figure></div>
+      </section>
+
+      <section class="card">
+        <header>
+          <h2>Talk / NPC Reaction <code>talk</code></h2>
+          <p>Score 98/100 · excellent · keep-current</p>
+        </header>
+        <div class="comparison">
+          <div>
+            <h3>Current official</h3>
+            <img class="sheet" src="../../../public/samples/talk-sheet.png" alt="talk current official sheet">
+          </div>
+          <div>
+            <h3>Retake candidate</h3>
+            <div class="pending">Pending future real generation</div>
+          </div>
+        </div>
+        <div class="gifs">
+          <figure>
+            <img src="../official-talk/talk-front.gif" alt="talk front preview">
+            <figcaption>front</figcaption>
+          </figure>
+          <figure>
+            <img src="../official-talk/talk-front-three-quarter.gif" alt="talk front-three-quarter preview">
+            <figcaption>front three-quarter</figcaption>
+          </figure>
+          <figure>
+            <img src="../official-talk/talk-side.gif" alt="talk side preview">
+            <figcaption>side</figcaption>
+          </figure>
+          <figure>
+            <img src="../official-talk/talk-back-three-quarter.gif" alt="talk back-three-quarter preview">
+            <figcaption>back three-quarter</figcaption>
+          </figure>
+          <figure>
+            <img src="../official-talk/talk-back.gif" alt="talk back preview">
+            <figcaption>back</figcaption>
+          </figure></div>
+      </section>
+  </main>
+</body>
+</html>

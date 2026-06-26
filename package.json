@@ -14,6 +14,7 @@
     "codex:smoke": "node scripts/real-codex-runner-smoke.mjs",
     "imagegen:smoke": "node scripts/real-imagegen-smoke.mjs",
     "lint": "tsc --noEmit",
+    "qa:core-animation": "node scripts/core-animation-quality-audit.mjs",
     "release:audit": "node scripts/release-audit.mjs",
     "review:local": "npm run verify && npm run ui:smoke && npm run codex:smoke",
     "smoke": "node scripts/smoke.mjs",

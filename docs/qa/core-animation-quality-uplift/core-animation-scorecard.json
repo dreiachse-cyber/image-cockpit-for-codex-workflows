@@ -1,0 +1,615 @@
+{
+  "generatedAt": "2026-06-27T01:23:00+09:00",
+  "scope": "phase-a current official sample scorecard",
+  "officialReplacement": false,
+  "criteria": [
+    {
+      "id": "identityStyle",
+      "label": "Identity / style consistency",
+      "max": 15
+    },
+    {
+      "id": "directionCorrectness",
+      "label": "Direction correctness",
+      "max": 15
+    },
+    {
+      "id": "motionReadability",
+      "label": "Motion readability",
+      "max": 20
+    },
+    {
+      "id": "frameContinuity",
+      "label": "Frame continuity / timing",
+      "max": 15
+    },
+    {
+      "id": "cellSafety",
+      "label": "Cell safety / anchor / scale",
+      "max": 15
+    },
+    {
+      "id": "transparencyCleanup",
+      "label": "Transparency / cleanup",
+      "max": 10
+    },
+    {
+      "id": "gameplayReadability",
+      "label": "Gameplay readability at 1x/2x",
+      "max": 10
+    }
+  ],
+  "passRules": {
+    "mechanicalBlockerCount": 0,
+    "blockerIssueCount": 0,
+    "minimumScore": 85,
+    "excellentScore": 92,
+    "promptFailureRateTarget": "5% or lower after future multi-run retake loop"
+  },
+  "stabilityGate": {
+    "status": "pending",
+    "note": "Current official samples are real generations, but the full 5-attempt prompt stability gate has not been run in this phase."
+  },
+  "items": [
+    {
+      "presetId": "idle-breathing",
+      "title": "Idle Breathing",
+      "titleJa": "待機呼吸ループ",
+      "category": "Core",
+      "focus": "足固定、呼吸だけで読めるか、ループ継ぎ目",
+      "sourceJobId": "019ef1ff-b668-7400-8bf3-d8ffcff8f989",
+      "scoreBreakdown": {
+        "identityStyle": 15,
+        "directionCorrectness": 15,
+        "motionReadability": 19,
+        "frameContinuity": 15,
+        "cellSafety": 11,
+        "transparencyCleanup": 10,
+        "gameplayReadability": 10
+      },
+      "totalScore": 92,
+      "rating": "excellent",
+      "issueCounts": {
+        "blocker": 0,
+        "major": 0,
+        "minor": 3,
+        "polish": 4
+      },
+      "mechanicalBlockers": 0,
+      "promptStability": {
+        "status": "pending",
+        "acceptedRuns": 1,
+        "requiredRuns": 5,
+        "note": "Current sample is real generation evidence; prompt reproducibility is not proven until future multi-run loop."
+      },
+      "decision": "keep-current",
+      "retakeReason": "current sample passes but has padding polish below the preferred 24px contract",
+      "replacementGate": "official replacement not performed in this branch"
+    },
+    {
+      "presetId": "walk-cycle",
+      "title": "Walk Cycle",
+      "titleJa": "歩行ループ",
+      "category": "Move",
+      "focus": "接地、通過pose、足滑り、横方向の歩行感",
+      "sourceJobId": "pilot-official-walk-cycle",
+      "scoreBreakdown": {
+        "identityStyle": 15,
+        "directionCorrectness": 15,
+        "motionReadability": 19,
+        "frameContinuity": 15,
+        "cellSafety": 14,
+        "transparencyCleanup": 10,
+        "gameplayReadability": 10
+      },
+      "totalScore": 98,
+      "rating": "excellent",
+      "issueCounts": {
+        "blocker": 0,
+        "major": 0,
+        "minor": 0,
+        "polish": 0
+      },
+      "mechanicalBlockers": 0,
+      "promptStability": {
+        "status": "pending",
+        "acceptedRuns": 1,
+        "requiredRuns": 5,
+        "note": "Current sample is real generation evidence; prompt reproducibility is not proven until future multi-run loop."
+      },
+      "decision": "needs-retake",
+      "retakeReason": "high-value/high-risk core action should get early multi-run stability retake",
+      "replacementGate": "official replacement not performed in this branch"
+    },
+    {
+      "presetId": "run-cycle",
+      "title": "Run Cycle",
+      "titleJa": "走行ループ",
+      "category": "Move",
+      "focus": "空中beat、強い腕振り、走りと歩きの差",
+      "sourceJobId": "pilot-official-run-cycle",
+      "scoreBreakdown": {
+        "identityStyle": 15,
+        "directionCorrectness": 15,
+        "motionReadability": 18,
+        "frameContinuity": 15,
+        "cellSafety": 14,
+        "transparencyCleanup": 10,
+        "gameplayReadability": 9
+      },
+      "totalScore": 96,
+      "rating": "excellent",
+      "issueCounts": {
+        "blocker": 0,
+        "major": 0,
+        "minor": 0,
+        "polish": 0
+      },
+      "mechanicalBlockers": 0,
+      "promptStability": {
+        "status": "pending",
+        "acceptedRuns": 1,
+        "requiredRuns": 5,
+        "note": "Current sample is real generation evidence; prompt reproducibility is not proven until future multi-run loop."
+      },
+      "decision": "needs-retake",
+      "retakeReason": "high-value/high-risk core action should get early multi-run stability retake",
+      "replacementGate": "official replacement not performed in this branch"
+    },
+    {
+      "presetId": "basic-attack",
+      "title": "Basic Attack",
+      "titleJa": "基本攻撃",
+      "category": "Combat",
+      "focus": "構え、溜め、打撃、戻り、effectの小ささ",
+      "sourceJobId": "codex-job-2026-06-25T21-02-07-575Z",
+      "scoreBreakdown": {
+        "identityStyle": 15,
+        "directionCorrectness": 15,
+        "motionReadability": 17,
+        "frameContinuity": 15,
+        "cellSafety": 9,
+        "transparencyCleanup": 10,
+        "gameplayReadability": 9
+      },
+      "totalScore": 86,
+      "rating": "pass-with-retake-priority",
+      "issueCounts": {
+        "blocker": 0,
+        "major": 0,
+        "minor": 5,
+        "polish": 1
+      },
+      "mechanicalBlockers": 0,
+      "promptStability": {
+        "status": "pending",
+        "acceptedRuns": 1,
+        "requiredRuns": 5,
+        "note": "Current sample is real generation evidence; prompt reproducibility is not proven until future multi-run loop."
+      },
+      "decision": "needs-retake",
+      "retakeReason": "high-value/high-risk core action should get early multi-run stability retake; current sample also has padding polish below the preferred 24px contract",
+      "replacementGate": "official replacement not performed in this branch"
+    },
+    {
+      "presetId": "hurt-reaction",
+      "title": "Hurt Reaction",
+      "titleJa": "被弾リアクション",
+      "category": "Combat",
+      "focus": "のけぞり、踏ん張り、復帰、非ゴア",
+      "sourceJobId": "codex-job-2026-06-25T21-19-09-228Z",
+      "scoreBreakdown": {
+        "identityStyle": 15,
+        "directionCorrectness": 15,
+        "motionReadability": 19,
+        "frameContinuity": 15,
+        "cellSafety": 13,
+        "transparencyCleanup": 10,
+        "gameplayReadability": 10
+      },
+      "totalScore": 97,
+      "rating": "excellent",
+      "issueCounts": {
+        "blocker": 0,
+        "major": 0,
+        "minor": 0,
+        "polish": 2
+      },
+      "mechanicalBlockers": 0,
+      "promptStability": {
+        "status": "pending",
+        "acceptedRuns": 1,
+        "requiredRuns": 5,
+        "note": "Current sample is real generation evidence; prompt reproducibility is not proven until future multi-run loop."
+      },
+      "decision": "keep-current",
+      "retakeReason": "current sample passes but has padding polish below the preferred 24px contract",
+      "replacementGate": "official replacement not performed in this branch"
+    },
+    {
+      "presetId": "death-downed",
+      "title": "Death / Downed",
+      "titleJa": "ダウン",
+      "category": "Combat",
+      "focus": "倒れ込み、最終pose、cell内収まり、非ゴア",
+      "sourceJobId": "codex-job-2026-06-25T21-33-50-902Z",
+      "scoreBreakdown": {
+        "identityStyle": 13,
+        "directionCorrectness": 15,
+        "motionReadability": 18,
+        "frameContinuity": 15,
+        "cellSafety": 14,
+        "transparencyCleanup": 10,
+        "gameplayReadability": 9
+      },
+      "totalScore": 93,
+      "rating": "excellent",
+      "issueCounts": {
+        "blocker": 0,
+        "major": 0,
+        "minor": 1,
+        "polish": 0
+      },
+      "mechanicalBlockers": 0,
+      "promptStability": {
+        "status": "pending",
+        "acceptedRuns": 1,
+        "requiredRuns": 5,
+        "note": "Current sample is real generation evidence; prompt reproducibility is not proven until future multi-run loop."
+      },
+      "decision": "needs-retake",
+      "retakeReason": "high-value/high-risk core action should get early multi-run stability retake",
+      "replacementGate": "official replacement not performed in this branch"
+    },
+    {
+      "presetId": "spell-cast",
+      "title": "Spell Cast",
+      "titleJa": "詠唱 / 発動",
+      "category": "Magic / Skill",
+      "focus": "同一術者、手元/杖先effect、方向別identity維持",
+      "sourceJobId": "codex-job-2026-06-26T04-21-32-475Z",
+      "scoreBreakdown": {
+        "identityStyle": 13,
+        "directionCorrectness": 15,
+        "motionReadability": 18,
+        "frameContinuity": 15,
+        "cellSafety": 14,
+        "transparencyCleanup": 10,
+        "gameplayReadability": 9
+      },
+      "totalScore": 94,
+      "rating": "excellent",
+      "issueCounts": {
+        "blocker": 0,
+        "major": 0,
+        "minor": 0,
+        "polish": 1
+      },
+      "mechanicalBlockers": 0,
+      "promptStability": {
+        "status": "pending",
+        "acceptedRuns": 1,
+        "requiredRuns": 5,
+        "note": "Current sample is real generation evidence; prompt reproducibility is not proven until future multi-run loop."
+      },
+      "decision": "needs-retake",
+      "retakeReason": "high-value/high-risk core action should get early multi-run stability retake",
+      "replacementGate": "official replacement not performed in this branch"
+    },
+    {
+      "presetId": "jump-hop",
+      "title": "Jump / Hop",
+      "titleJa": "ジャンプ",
+      "category": "Move",
+      "focus": "頭上余白、踏み切り、頂点、着地、足元baseline",
+      "sourceJobId": "codex-job-2026-06-25T21-33-50-977Z",
+      "scoreBreakdown": {
+        "identityStyle": 15,
+        "directionCorrectness": 15,
+        "motionReadability": 18,
+        "frameContinuity": 13,
+        "cellSafety": 11,
+        "transparencyCleanup": 10,
+        "gameplayReadability": 10
+      },
+      "totalScore": 88,
+      "rating": "pass-with-retake-priority",
+      "issueCounts": {
+        "blocker": 0,
+        "major": 0,
+        "minor": 10,
+        "polish": 4
+      },
+      "mechanicalBlockers": 0,
+      "promptStability": {
+        "status": "pending",
+        "acceptedRuns": 1,
+        "requiredRuns": 5,
+        "note": "Current sample is real generation evidence; prompt reproducibility is not proven until future multi-run loop."
+      },
+      "decision": "needs-retake",
+      "retakeReason": "high-value/high-risk core action should get early multi-run stability retake; current sample also has padding polish below the preferred 24px contract",
+      "replacementGate": "official replacement not performed in this branch"
+    },
+    {
+      "presetId": "guard-block",
+      "title": "Guard / Block",
+      "titleJa": "ガード",
+      "category": "Combat",
+      "focus": "防御に見えるか、顔や胴体を隠しすぎないか",
+      "sourceJobId": "codex-job-2026-06-25T21-54-18-523Z",
+      "scoreBreakdown": {
+        "identityStyle": 15,
+        "directionCorrectness": 15,
+        "motionReadability": 19,
+        "frameContinuity": 15,
+        "cellSafety": 14,
+        "transparencyCleanup": 10,
+        "gameplayReadability": 10
+      },
+      "totalScore": 98,
+      "rating": "excellent",
+      "issueCounts": {
+        "blocker": 0,
+        "major": 0,
+        "minor": 0,
+        "polish": 0
+      },
+      "mechanicalBlockers": 0,
+      "promptStability": {
+        "status": "pending",
+        "acceptedRuns": 1,
+        "requiredRuns": 5,
+        "note": "Current sample is real generation evidence; prompt reproducibility is not proven until future multi-run loop."
+      },
+      "decision": "keep-current",
+      "retakeReason": "keep current for now; run stability gate after higher-risk presets",
+      "replacementGate": "official replacement not performed in this branch"
+    },
+    {
+      "presetId": "victory-cheer",
+      "title": "Victory Cheer",
+      "titleJa": "勝利ポーズ",
+      "category": "Emotion / Social",
+      "focus": "jumpとの差別化、腕/表情/小bounce、ループ",
+      "sourceJobId": "codex-job-2026-06-25T21-54-18-553Z",
+      "scoreBreakdown": {
+        "identityStyle": 13,
+        "directionCorrectness": 15,
+        "motionReadability": 19,
+        "frameContinuity": 15,
+        "cellSafety": 14,
+        "transparencyCleanup": 10,
+        "gameplayReadability": 10
+      },
+      "totalScore": 95,
+      "rating": "excellent",
+      "issueCounts": {
+        "blocker": 0,
+        "major": 0,
+        "minor": 1,
+        "polish": 3
+      },
+      "mechanicalBlockers": 0,
+      "promptStability": {
+        "status": "pending",
+        "acceptedRuns": 1,
+        "requiredRuns": 5,
+        "note": "Current sample is real generation evidence; prompt reproducibility is not proven until future multi-run loop."
+      },
+      "decision": "keep-current",
+      "retakeReason": "keep current for now; run stability gate after higher-risk presets",
+      "replacementGate": "official replacement not performed in this branch"
+    },
+    {
+      "presetId": "interact-pickup",
+      "title": "Interact / Pickup",
+      "titleJa": "調べる / 拾う",
+      "category": "Utility",
+      "focus": "手の動き、拾う/調べる意図、潰れすぎないシルエット",
+      "sourceJobId": "codex-job-2026-06-25T22-10-11-861Z",
+      "scoreBreakdown": {
+        "identityStyle": 15,
+        "directionCorrectness": 15,
+        "motionReadability": 19,
+        "frameContinuity": 15,
+        "cellSafety": 14,
+        "transparencyCleanup": 10,
+        "gameplayReadability": 10
+      },
+      "totalScore": 98,
+      "rating": "excellent",
+      "issueCounts": {
+        "blocker": 0,
+        "major": 0,
+        "minor": 0,
+        "polish": 0
+      },
+      "mechanicalBlockers": 0,
+      "promptStability": {
+        "status": "pending",
+        "acceptedRuns": 1,
+        "requiredRuns": 5,
+        "note": "Current sample is real generation evidence; prompt reproducibility is not proven until future multi-run loop."
+      },
+      "decision": "keep-current",
+      "retakeReason": "keep current for now; run stability gate after higher-risk presets",
+      "replacementGate": "official replacement not performed in this branch"
+    },
+    {
+      "presetId": "ranged-attack",
+      "title": "Ranged Attack",
+      "titleJa": "遠距離攻撃",
+      "category": "Combat",
+      "focus": "狙い、発射、小projectile、同一prop、effect過多防止",
+      "sourceJobId": "codex-job-2026-06-26T04-20-29-885Z",
+      "scoreBreakdown": {
+        "identityStyle": 14,
+        "directionCorrectness": 15,
+        "motionReadability": 17,
+        "frameContinuity": 14,
+        "cellSafety": 11,
+        "transparencyCleanup": 10,
+        "gameplayReadability": 9
+      },
+      "totalScore": 87,
+      "rating": "pass-with-retake-priority",
+      "issueCounts": {
+        "blocker": 0,
+        "major": 0,
+        "minor": 3,
+        "polish": 5
+      },
+      "mechanicalBlockers": 0,
+      "promptStability": {
+        "status": "pending",
+        "acceptedRuns": 1,
+        "requiredRuns": 5,
+        "note": "Current sample is real generation evidence; prompt reproducibility is not proven until future multi-run loop."
+      },
+      "decision": "needs-retake",
+      "retakeReason": "high-value/high-risk core action should get early multi-run stability retake; current sample also has padding polish below the preferred 24px contract",
+      "replacementGate": "official replacement not performed in this branch"
+    },
+    {
+      "presetId": "skill-release",
+      "title": "Skill Release",
+      "titleJa": "スキル発動",
+      "category": "Magic / Skill",
+      "focus": "spell/rangedとの差別化、発動瞬間、compact burst",
+      "sourceJobId": "codex-job-2026-06-25T23-05-13-732Z",
+      "scoreBreakdown": {
+        "identityStyle": 15,
+        "directionCorrectness": 15,
+        "motionReadability": 17,
+        "frameContinuity": 15,
+        "cellSafety": 14,
+        "transparencyCleanup": 10,
+        "gameplayReadability": 9
+      },
+      "totalScore": 95,
+      "rating": "excellent",
+      "issueCounts": {
+        "blocker": 0,
+        "major": 0,
+        "minor": 0,
+        "polish": 1
+      },
+      "mechanicalBlockers": 0,
+      "promptStability": {
+        "status": "pending",
+        "acceptedRuns": 1,
+        "requiredRuns": 5,
+        "note": "Current sample is real generation evidence; prompt reproducibility is not proven until future multi-run loop."
+      },
+      "decision": "needs-retake",
+      "retakeReason": "high-value/high-risk core action should get early multi-run stability retake",
+      "replacementGate": "official replacement not performed in this branch"
+    },
+    {
+      "presetId": "knockback",
+      "title": "Knockback",
+      "titleJa": "ノックバック",
+      "category": "Combat",
+      "focus": "hurtより大きい反応、後退、cell外にはみ出さないこと",
+      "sourceJobId": "codex-job-2026-06-25T23-05-13-783Z",
+      "scoreBreakdown": {
+        "identityStyle": 15,
+        "directionCorrectness": 15,
+        "motionReadability": 17,
+        "frameContinuity": 15,
+        "cellSafety": 13,
+        "transparencyCleanup": 10,
+        "gameplayReadability": 9
+      },
+      "totalScore": 94,
+      "rating": "excellent",
+      "issueCounts": {
+        "blocker": 0,
+        "major": 0,
+        "minor": 0,
+        "polish": 5
+      },
+      "mechanicalBlockers": 0,
+      "promptStability": {
+        "status": "pending",
+        "acceptedRuns": 1,
+        "requiredRuns": 5,
+        "note": "Current sample is real generation evidence; prompt reproducibility is not proven until future multi-run loop."
+      },
+      "decision": "needs-retake",
+      "retakeReason": "high-value/high-risk core action should get early multi-run stability retake; current sample also has padding polish below the preferred 24px contract",
+      "replacementGate": "official replacement not performed in this branch"
+    },
+    {
+      "presetId": "item-use",
+      "title": "Item Use",
+      "titleJa": "アイテム使用",
+      "category": "Utility",
+      "focus": "小物を出す、使う、戻す、地面pickupと混ざらないこと",
+      "sourceJobId": "codex-job-2026-06-25T23-15-35-242Z",
+      "scoreBreakdown": {
+        "identityStyle": 15,
+        "directionCorrectness": 15,
+        "motionReadability": 18,
+        "frameContinuity": 15,
+        "cellSafety": 13,
+        "transparencyCleanup": 10,
+        "gameplayReadability": 10
+      },
+      "totalScore": 96,
+      "rating": "excellent",
+      "issueCounts": {
+        "blocker": 0,
+        "major": 0,
+        "minor": 0,
+        "polish": 2
+      },
+      "mechanicalBlockers": 0,
+      "promptStability": {
+        "status": "pending",
+        "acceptedRuns": 1,
+        "requiredRuns": 5,
+        "note": "Current sample is real generation evidence; prompt reproducibility is not proven until future multi-run loop."
+      },
+      "decision": "keep-current",
+      "retakeReason": "current sample passes but has padding polish below the preferred 24px contract",
+      "replacementGate": "official replacement not performed in this branch"
+    },
+    {
+      "presetId": "talk",
+      "title": "Talk / NPC Reaction",
+      "titleJa": "会話 / NPCリアクション",
+      "category": "Emotion / Social",
+      "focus": "手振り、うなずき、肩、会話感、控えめなloop",
+      "sourceJobId": "codex-job-2026-06-25T23-18-46-956Z",
+      "scoreBreakdown": {
+        "identityStyle": 15,
+        "directionCorrectness": 15,
+        "motionReadability": 19,
+        "frameContinuity": 15,
+        "cellSafety": 14,
+        "transparencyCleanup": 10,
+        "gameplayReadability": 10
+      },
+      "totalScore": 98,
+      "rating": "excellent",
+      "issueCounts": {
+        "blocker": 0,
+        "major": 0,
+        "minor": 0,
+        "polish": 0
+      },
+      "mechanicalBlockers": 0,
+      "promptStability": {
+        "status": "pending",
+        "acceptedRuns": 1,
+        "requiredRuns": 5,
+        "note": "Current sample is real generation evidence; prompt reproducibility is not proven until future multi-run loop."
+      },
+      "decision": "keep-current",
+      "retakeReason": "keep current for now; run stability gate after higher-risk presets",
+      "replacementGate": "official replacement not performed in this branch"
+    }
+  ]
+}

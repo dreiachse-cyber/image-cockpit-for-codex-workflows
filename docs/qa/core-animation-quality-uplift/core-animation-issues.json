@@ -1,0 +1,884 @@
+{
+  "generatedAt": "2026-06-27T01:23:00+09:00",
+  "scope": "core animation issue labels from structural audit, existing QA notes, and phase-a desk review",
+  "officialReplacement": false,
+  "labelSet": [
+    "identity_drift",
+    "direction_mismatch",
+    "back_face_leak",
+    "motion_unclear",
+    "frame_pop",
+    "foot_slide",
+    "anchor_drift",
+    "scale_drift",
+    "cropped_body",
+    "edge_contact",
+    "alpha_residue",
+    "effect_overpower",
+    "prop_mismatch",
+    "loop_seam_bad",
+    "action_structure_bad",
+    "game_readability_low"
+  ],
+  "issues": [
+    {
+      "id": "idle-breathing-01",
+      "presetId": "idle-breathing",
+      "label": "edge_contact",
+      "severity": "polish",
+      "direction": "front",
+      "frames": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8
+      ],
+      "evidence": "Padding below preferred 24px in front; min=21px.",
+      "source": "sheet structural audit",
+      "adoptionImpact": "retake or polish candidate"
+    },
+    {
+      "id": "idle-breathing-02",
+      "presetId": "idle-breathing",
+      "label": "edge_contact",
+      "severity": "polish",
+      "direction": "front-three-quarter",
+      "frames": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8
+      ],
+      "evidence": "Padding below preferred 24px in front-three-quarter; min=22px.",
+      "source": "sheet structural audit",
+      "adoptionImpact": "retake or polish candidate"
+    },
+    {
+      "id": "idle-breathing-03",
+      "presetId": "idle-breathing",
+      "label": "edge_contact",
+      "severity": "polish",
+      "direction": "side",
+      "frames": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8
+      ],
+      "evidence": "Padding below preferred 24px in side; min=18px.",
+      "source": "sheet structural audit",
+      "adoptionImpact": "retake or polish candidate"
+    },
+    {
+      "id": "idle-breathing-04",
+      "presetId": "idle-breathing",
+      "label": "edge_contact",
+      "severity": "polish",
+      "direction": "back-three-quarter",
+      "frames": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8
+      ],
+      "evidence": "Padding below preferred 24px in back-three-quarter; min=17px.",
+      "source": "sheet structural audit",
+      "adoptionImpact": "retake or polish candidate"
+    },
+    {
+      "id": "idle-breathing-05",
+      "presetId": "idle-breathing",
+      "label": "cropped_body",
+      "severity": "minor",
+      "direction": "back-three-quarter",
+      "frames": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8
+      ],
+      "evidence": "Top margin is tight in back-three-quarter; minTop=17px.",
+      "source": "sheet structural audit",
+      "adoptionImpact": "retake or polish candidate"
+    },
+    {
+      "id": "idle-breathing-06",
+      "presetId": "idle-breathing",
+      "label": "edge_contact",
+      "severity": "minor",
+      "direction": "back",
+      "frames": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8
+      ],
+      "evidence": "Minimum padding below 16px in back; min=13px.",
+      "source": "sheet structural audit",
+      "adoptionImpact": "retake or polish candidate"
+    },
+    {
+      "id": "idle-breathing-07",
+      "presetId": "idle-breathing",
+      "label": "cropped_body",
+      "severity": "minor",
+      "direction": "back",
+      "frames": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8
+      ],
+      "evidence": "Top margin is tight in back; minTop=13px.",
+      "source": "sheet structural audit",
+      "adoptionImpact": "retake or polish candidate"
+    },
+    {
+      "id": "basic-attack-01",
+      "presetId": "basic-attack",
+      "label": "edge_contact",
+      "severity": "minor",
+      "direction": "front",
+      "frames": [
+        2,
+        4
+      ],
+      "evidence": "Minimum padding below 16px in front; min=11px.",
+      "source": "sheet structural audit",
+      "adoptionImpact": "retake or polish candidate"
+    },
+    {
+      "id": "basic-attack-02",
+      "presetId": "basic-attack",
+      "label": "edge_contact",
+      "severity": "minor",
+      "direction": "front-three-quarter",
+      "frames": [
+        4
+      ],
+      "evidence": "Minimum padding below 16px in front-three-quarter; min=10px.",
+      "source": "sheet structural audit",
+      "adoptionImpact": "retake or polish candidate"
+    },
+    {
+      "id": "basic-attack-03",
+      "presetId": "basic-attack",
+      "label": "edge_contact",
+      "severity": "minor",
+      "direction": "side",
+      "frames": [
+        2,
+        3,
+        4,
+        5,
+        6
+      ],
+      "evidence": "Minimum padding below 16px in side; min=5px.",
+      "source": "sheet structural audit",
+      "adoptionImpact": "retake or polish candidate"
+    },
+    {
+      "id": "basic-attack-04",
+      "presetId": "basic-attack",
+      "label": "edge_contact",
+      "severity": "minor",
+      "direction": "back-three-quarter",
+      "frames": [
+        4,
+        5
+      ],
+      "evidence": "Minimum padding below 16px in back-three-quarter; min=8px.",
+      "source": "sheet structural audit",
+      "adoptionImpact": "retake or polish candidate"
+    },
+    {
+      "id": "basic-attack-05",
+      "presetId": "basic-attack",
+      "label": "edge_contact",
+      "severity": "minor",
+      "direction": "back",
+      "frames": [
+        4,
+        5
+      ],
+      "evidence": "Minimum padding below 16px in back; min=10px.",
+      "source": "sheet structural audit",
+      "adoptionImpact": "retake or polish candidate"
+    },
+    {
+      "id": "basic-attack-06",
+      "presetId": "basic-attack",
+      "label": "action_structure_bad",
+      "severity": "polish",
+      "direction": "all",
+      "frames": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8
+      ],
+      "evidence": "High-structure action should be first in the multi-run stability retake queue even when the current sample passes structural QA.",
+      "source": "phase-a review",
+      "adoptionImpact": "retake or polish candidate"
+    },
+    {
+      "id": "hurt-reaction-01",
+      "presetId": "hurt-reaction",
+      "label": "edge_contact",
+      "severity": "polish",
+      "direction": "front",
+      "frames": [
+        3,
+        4
+      ],
+      "evidence": "Padding below preferred 24px in front; min=22px.",
+      "source": "sheet structural audit",
+      "adoptionImpact": "retake or polish candidate"
+    },
+    {
+      "id": "hurt-reaction-02",
+      "presetId": "hurt-reaction",
+      "label": "edge_contact",
+      "severity": "polish",
+      "direction": "front-three-quarter",
+      "frames": [
+        3,
+        4
+      ],
+      "evidence": "Padding below preferred 24px in front-three-quarter; min=17px.",
+      "source": "sheet structural audit",
+      "adoptionImpact": "retake or polish candidate"
+    },
+    {
+      "id": "death-downed-01",
+      "presetId": "death-downed",
+      "label": "scale_drift",
+      "severity": "minor",
+      "direction": "back-three-quarter",
+      "frames": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8
+      ],
+      "evidence": "Height ratio is 2.46 in back-three-quarter.",
+      "source": "sheet structural audit",
+      "adoptionImpact": "retake or polish candidate"
+    },
+    {
+      "id": "spell-cast-01",
+      "presetId": "spell-cast",
+      "label": "scale_drift",
+      "severity": "polish",
+      "direction": "back-three-quarter",
+      "frames": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8
+      ],
+      "evidence": "Height ratio is 1.104 in back-three-quarter.",
+      "source": "sheet structural audit",
+      "adoptionImpact": "retake or polish candidate"
+    },
+    {
+      "id": "jump-hop-01",
+      "presetId": "jump-hop",
+      "label": "edge_contact",
+      "severity": "minor",
+      "direction": "front",
+      "frames": [
+        5
+      ],
+      "evidence": "Minimum padding below 16px in front; min=12px.",
+      "source": "sheet structural audit",
+      "adoptionImpact": "retake or polish candidate"
+    },
+    {
+      "id": "jump-hop-02",
+      "presetId": "jump-hop",
+      "label": "cropped_body",
+      "severity": "minor",
+      "direction": "front",
+      "frames": [
+        5
+      ],
+      "evidence": "Top margin is tight in front; minTop=12px.",
+      "source": "sheet structural audit",
+      "adoptionImpact": "retake or polish candidate"
+    },
+    {
+      "id": "jump-hop-03",
+      "presetId": "jump-hop",
+      "label": "edge_contact",
+      "severity": "minor",
+      "direction": "front-three-quarter",
+      "frames": [
+        5
+      ],
+      "evidence": "Minimum padding below 16px in front-three-quarter; min=12px.",
+      "source": "sheet structural audit",
+      "adoptionImpact": "retake or polish candidate"
+    },
+    {
+      "id": "jump-hop-04",
+      "presetId": "jump-hop",
+      "label": "cropped_body",
+      "severity": "minor",
+      "direction": "front-three-quarter",
+      "frames": [
+        5
+      ],
+      "evidence": "Top margin is tight in front-three-quarter; minTop=12px.",
+      "source": "sheet structural audit",
+      "adoptionImpact": "retake or polish candidate"
+    },
+    {
+      "id": "jump-hop-05",
+      "presetId": "jump-hop",
+      "label": "anchor_drift",
+      "severity": "polish",
+      "direction": "front-three-quarter",
+      "frames": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8
+      ],
+      "evidence": "Bottom anchor drift is 59px in front-three-quarter.",
+      "source": "sheet structural audit",
+      "adoptionImpact": "retake or polish candidate"
+    },
+    {
+      "id": "jump-hop-06",
+      "presetId": "jump-hop",
+      "label": "edge_contact",
+      "severity": "minor",
+      "direction": "side",
+      "frames": [
+        5,
+        6
+      ],
+      "evidence": "Minimum padding below 16px in side; min=13px.",
+      "source": "sheet structural audit",
+      "adoptionImpact": "retake or polish candidate"
+    },
+    {
+      "id": "jump-hop-07",
+      "presetId": "jump-hop",
+      "label": "cropped_body",
+      "severity": "minor",
+      "direction": "side",
+      "frames": [
+        5,
+        6
+      ],
+      "evidence": "Top margin is tight in side; minTop=13px.",
+      "source": "sheet structural audit",
+      "adoptionImpact": "retake or polish candidate"
+    },
+    {
+      "id": "jump-hop-08",
+      "presetId": "jump-hop",
+      "label": "anchor_drift",
+      "severity": "polish",
+      "direction": "side",
+      "frames": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8
+      ],
+      "evidence": "Center drift is 77px in side.",
+      "source": "sheet structural audit",
+      "adoptionImpact": "retake or polish candidate"
+    },
+    {
+      "id": "jump-hop-09",
+      "presetId": "jump-hop",
+      "label": "anchor_drift",
+      "severity": "polish",
+      "direction": "side",
+      "frames": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8
+      ],
+      "evidence": "Bottom anchor drift is 73px in side.",
+      "source": "sheet structural audit",
+      "adoptionImpact": "retake or polish candidate"
+    },
+    {
+      "id": "jump-hop-10",
+      "presetId": "jump-hop",
+      "label": "edge_contact",
+      "severity": "minor",
+      "direction": "back-three-quarter",
+      "frames": [
+        5
+      ],
+      "evidence": "Minimum padding below 16px in back-three-quarter; min=9px.",
+      "source": "sheet structural audit",
+      "adoptionImpact": "retake or polish candidate"
+    },
+    {
+      "id": "jump-hop-11",
+      "presetId": "jump-hop",
+      "label": "cropped_body",
+      "severity": "minor",
+      "direction": "back-three-quarter",
+      "frames": [
+        5
+      ],
+      "evidence": "Top margin is tight in back-three-quarter; minTop=9px.",
+      "source": "sheet structural audit",
+      "adoptionImpact": "retake or polish candidate"
+    },
+    {
+      "id": "jump-hop-12",
+      "presetId": "jump-hop",
+      "label": "anchor_drift",
+      "severity": "polish",
+      "direction": "back-three-quarter",
+      "frames": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8
+      ],
+      "evidence": "Bottom anchor drift is 59px in back-three-quarter.",
+      "source": "sheet structural audit",
+      "adoptionImpact": "retake or polish candidate"
+    },
+    {
+      "id": "jump-hop-13",
+      "presetId": "jump-hop",
+      "label": "edge_contact",
+      "severity": "minor",
+      "direction": "back",
+      "frames": [
+        5
+      ],
+      "evidence": "Minimum padding below 16px in back; min=12px.",
+      "source": "sheet structural audit",
+      "adoptionImpact": "retake or polish candidate"
+    },
+    {
+      "id": "jump-hop-14",
+      "presetId": "jump-hop",
+      "label": "cropped_body",
+      "severity": "minor",
+      "direction": "back",
+      "frames": [
+        5
+      ],
+      "evidence": "Top margin is tight in back; minTop=12px.",
+      "source": "sheet structural audit",
+      "adoptionImpact": "retake or polish candidate"
+    },
+    {
+      "id": "victory-cheer-01",
+      "presetId": "victory-cheer",
+      "label": "scale_drift",
+      "severity": "polish",
+      "direction": "front",
+      "frames": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8
+      ],
+      "evidence": "Height ratio is 1.162 in front.",
+      "source": "sheet structural audit",
+      "adoptionImpact": "retake or polish candidate"
+    },
+    {
+      "id": "victory-cheer-02",
+      "presetId": "victory-cheer",
+      "label": "scale_drift",
+      "severity": "minor",
+      "direction": "front-three-quarter",
+      "frames": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8
+      ],
+      "evidence": "Height ratio is 1.222 in front-three-quarter.",
+      "source": "sheet structural audit",
+      "adoptionImpact": "retake or polish candidate"
+    },
+    {
+      "id": "victory-cheer-03",
+      "presetId": "victory-cheer",
+      "label": "scale_drift",
+      "severity": "polish",
+      "direction": "back-three-quarter",
+      "frames": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8
+      ],
+      "evidence": "Height ratio is 1.179 in back-three-quarter.",
+      "source": "sheet structural audit",
+      "adoptionImpact": "retake or polish candidate"
+    },
+    {
+      "id": "victory-cheer-04",
+      "presetId": "victory-cheer",
+      "label": "scale_drift",
+      "severity": "polish",
+      "direction": "back",
+      "frames": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8
+      ],
+      "evidence": "Height ratio is 1.107 in back.",
+      "source": "sheet structural audit",
+      "adoptionImpact": "retake or polish candidate"
+    },
+    {
+      "id": "ranged-attack-01",
+      "presetId": "ranged-attack",
+      "label": "edge_contact",
+      "severity": "minor",
+      "direction": "front",
+      "frames": [
+        4
+      ],
+      "evidence": "Minimum padding below 16px in front; min=12px.",
+      "source": "sheet structural audit",
+      "adoptionImpact": "retake or polish candidate"
+    },
+    {
+      "id": "ranged-attack-02",
+      "presetId": "ranged-attack",
+      "label": "edge_contact",
+      "severity": "polish",
+      "direction": "front-three-quarter",
+      "frames": [
+        5,
+        6,
+        7,
+        8
+      ],
+      "evidence": "Padding below preferred 24px in front-three-quarter; min=22px.",
+      "source": "sheet structural audit",
+      "adoptionImpact": "retake or polish candidate"
+    },
+    {
+      "id": "ranged-attack-03",
+      "presetId": "ranged-attack",
+      "label": "edge_contact",
+      "severity": "polish",
+      "direction": "side",
+      "frames": [
+        5,
+        6,
+        7,
+        8
+      ],
+      "evidence": "Padding below preferred 24px in side; min=18px.",
+      "source": "sheet structural audit",
+      "adoptionImpact": "retake or polish candidate"
+    },
+    {
+      "id": "ranged-attack-04",
+      "presetId": "ranged-attack",
+      "label": "anchor_drift",
+      "severity": "polish",
+      "direction": "side",
+      "frames": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8
+      ],
+      "evidence": "Center drift is 70px in side.",
+      "source": "sheet structural audit",
+      "adoptionImpact": "retake or polish candidate"
+    },
+    {
+      "id": "ranged-attack-05",
+      "presetId": "ranged-attack",
+      "label": "edge_contact",
+      "severity": "minor",
+      "direction": "back-three-quarter",
+      "frames": [
+        5
+      ],
+      "evidence": "Minimum padding below 16px in back-three-quarter; min=15px.",
+      "source": "sheet structural audit",
+      "adoptionImpact": "retake or polish candidate"
+    },
+    {
+      "id": "ranged-attack-06",
+      "presetId": "ranged-attack",
+      "label": "anchor_drift",
+      "severity": "polish",
+      "direction": "back-three-quarter",
+      "frames": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8
+      ],
+      "evidence": "Center drift is 58px in back-three-quarter.",
+      "source": "sheet structural audit",
+      "adoptionImpact": "retake or polish candidate"
+    },
+    {
+      "id": "ranged-attack-07",
+      "presetId": "ranged-attack",
+      "label": "edge_contact",
+      "severity": "minor",
+      "direction": "back",
+      "frames": [
+        4
+      ],
+      "evidence": "Minimum padding below 16px in back; min=14px.",
+      "source": "sheet structural audit",
+      "adoptionImpact": "retake or polish candidate"
+    },
+    {
+      "id": "ranged-attack-08",
+      "presetId": "ranged-attack",
+      "label": "action_structure_bad",
+      "severity": "polish",
+      "direction": "all",
+      "frames": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8
+      ],
+      "evidence": "High-structure action should be first in the multi-run stability retake queue even when the current sample passes structural QA.",
+      "source": "phase-a review",
+      "adoptionImpact": "retake or polish candidate"
+    },
+    {
+      "id": "skill-release-01",
+      "presetId": "skill-release",
+      "label": "action_structure_bad",
+      "severity": "polish",
+      "direction": "all",
+      "frames": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8
+      ],
+      "evidence": "High-structure action should be first in the multi-run stability retake queue even when the current sample passes structural QA.",
+      "source": "phase-a review",
+      "adoptionImpact": "retake or polish candidate"
+    },
+    {
+      "id": "knockback-01",
+      "presetId": "knockback",
+      "label": "edge_contact",
+      "severity": "polish",
+      "direction": "front",
+      "frames": [
+        4,
+        5
+      ],
+      "evidence": "Padding below preferred 24px in front; min=18px.",
+      "source": "sheet structural audit",
+      "adoptionImpact": "retake or polish candidate"
+    },
+    {
+      "id": "knockback-02",
+      "presetId": "knockback",
+      "label": "edge_contact",
+      "severity": "polish",
+      "direction": "front-three-quarter",
+      "frames": [
+        3,
+        4,
+        5,
+        6
+      ],
+      "evidence": "Padding below preferred 24px in front-three-quarter; min=18px.",
+      "source": "sheet structural audit",
+      "adoptionImpact": "retake or polish candidate"
+    },
+    {
+      "id": "knockback-03",
+      "presetId": "knockback",
+      "label": "edge_contact",
+      "severity": "polish",
+      "direction": "side",
+      "frames": [
+        4
+      ],
+      "evidence": "Padding below preferred 24px in side; min=18px.",
+      "source": "sheet structural audit",
+      "adoptionImpact": "retake or polish candidate"
+    },
+    {
+      "id": "knockback-04",
+      "presetId": "knockback",
+      "label": "edge_contact",
+      "severity": "polish",
+      "direction": "back-three-quarter",
+      "frames": [
+        4
+      ],
+      "evidence": "Padding below preferred 24px in back-three-quarter; min=18px.",
+      "source": "sheet structural audit",
+      "adoptionImpact": "retake or polish candidate"
+    },
+    {
+      "id": "knockback-05",
+      "presetId": "knockback",
+      "label": "action_structure_bad",
+      "severity": "polish",
+      "direction": "all",
+      "frames": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8
+      ],
+      "evidence": "High-structure action should be first in the multi-run stability retake queue even when the current sample passes structural QA.",
+      "source": "phase-a review",
+      "adoptionImpact": "retake or polish candidate"
+    },
+    {
+      "id": "item-use-01",
+      "presetId": "item-use",
+      "label": "edge_contact",
+      "severity": "polish",
+      "direction": "front-three-quarter",
+      "frames": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8
+      ],
+      "evidence": "Padding below preferred 24px in front-three-quarter; min=22px.",
+      "source": "sheet structural audit",
+      "adoptionImpact": "retake or polish candidate"
+    },
+    {
+      "id": "item-use-02",
+      "presetId": "item-use",
+      "label": "edge_contact",
+      "severity": "polish",
+      "direction": "back",
+      "frames": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8
+      ],
+      "evidence": "Padding below preferred 24px in back; min=23px.",
+      "source": "sheet structural audit",
+      "adoptionImpact": "retake or polish candidate"
+    }
+  ]
+}
