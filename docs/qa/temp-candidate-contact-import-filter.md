@@ -78,6 +78,25 @@ Browser/API confirmation, slot1:
 - `/api/codex/results` did not list `slot1-browser-candidate-contact.tmp.png`, `slot1-browser-preview-grid.png`, or `slot1-browser-debug-preview.png`.
 - Browser console errors: none.
 
+2026-06-27 04:47 JST, slot0 main after fast-forward merge and origin/main push:
+
+- `npm run release:audit`: pass
+- `git diff --check HEAD~1..HEAD`: pass
+- URL: `http://127.0.0.1:5241/`
+- API target: `http://127.0.0.1:8841`
+- Viewport: `1280x720`
+- Fixture files placed in `slot0/codex-handoff/outbox/`:
+  - `slot0-browser-return.png`
+  - `slot0-browser-candidate-contact.tmp.png`
+  - `slot0-browser-preview-grid.png`
+  - `slot0-browser-debug-preview.png`
+- Browser DOM loaded the Pixel Art Generation workspace in Japanese UI.
+- Results/history text did not include `candidate-contact.tmp` or `preview-grid`.
+- `/api/codex/results` listed `slot0-browser-return.png`.
+- `/api/codex/results` did not list `slot0-browser-candidate-contact.tmp.png`, `slot0-browser-preview-grid.png`, or `slot0-browser-debug-preview.png`.
+- Browser console errors: none.
+- Slot0 local servers on ports `5241` and `8841` were stopped after confirmation.
+
 ## Notes
 
 - A bad item already stored in a user's browser history may remain until manually removed.
