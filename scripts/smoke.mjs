@@ -48,6 +48,15 @@ async function runManualHandoffSmoke() {
     await writeFile(join(handoffDir, "outbox", "manual-qa.json"), JSON.stringify({ status: "pass" }), "utf8");
     await writeFile(join(handoffDir, "outbox", "manual-work-output.png"), tinyPngBytes);
     await writeFile(join(handoffDir, "outbox", ".staging-manual.png"), tinyPngBytes);
+    await writeFile(join(handoffDir, "outbox", "manual-candidate-contact.tmp.png"), tinyPngBytes);
+    await writeFile(join(handoffDir, "outbox", "manual-candidate-contact.tmp_transparent.png"), tinyPngBytes);
+    await writeFile(join(handoffDir, "outbox", "manual-contact-sheet.png"), tinyPngBytes);
+    await writeFile(join(handoffDir, "outbox", "manual-grid-qa.png"), tinyPngBytes);
+    await writeFile(join(handoffDir, "outbox", "manual-mechanical-qa.png"), tinyPngBytes);
+    await writeFile(join(handoffDir, "outbox", "manual-transparent-contact.png"), tinyPngBytes);
+    await writeFile(join(handoffDir, "outbox", "manual-debug-preview.png"), tinyPngBytes);
+    await writeFile(join(handoffDir, "outbox", "manual-preview-grid.png"), tinyPngBytes);
+    await writeFile(join(handoffDir, "outbox", "manual-ab-gallery.png"), tinyPngBytes);
 
     const outboxList = await getJson(port, "/api/codex/results");
     assert(outboxList.results.some((result) => result.name === "manual-return.png"), "outbox image should be listed");
@@ -56,6 +65,15 @@ async function runManualHandoffSmoke() {
     assert(!outboxList.results.some((result) => result.name === "manual-qa.json"), "QA JSON outbox file should be ignored");
     assert(!outboxList.results.some((result) => result.name === "manual-work-output.png"), "work-in-progress outbox image should be ignored");
     assert(!outboxList.results.some((result) => result.name === ".staging-manual.png"), "staging outbox image should be ignored");
+    assert(!outboxList.results.some((result) => result.name === "manual-candidate-contact.tmp.png"), "candidate contact temp outbox image should be ignored");
+    assert(!outboxList.results.some((result) => result.name === "manual-candidate-contact.tmp_transparent.png"), "tmp transparent derivative outbox image should be ignored");
+    assert(!outboxList.results.some((result) => result.name === "manual-contact-sheet.png"), "contact sheet outbox image should be ignored");
+    assert(!outboxList.results.some((result) => result.name === "manual-grid-qa.png"), "grid QA outbox image should be ignored");
+    assert(!outboxList.results.some((result) => result.name === "manual-mechanical-qa.png"), "mechanical QA outbox image should be ignored");
+    assert(!outboxList.results.some((result) => result.name === "manual-transparent-contact.png"), "transparent contact outbox image should be ignored");
+    assert(!outboxList.results.some((result) => result.name === "manual-debug-preview.png"), "debug outbox image should be ignored");
+    assert(!outboxList.results.some((result) => result.name === "manual-preview-grid.png"), "preview grid outbox image should be ignored");
+    assert(!outboxList.results.some((result) => result.name === "manual-ab-gallery.png"), "AB gallery outbox image should be ignored");
     const importedOutbox = await getJson(port, "/api/codex/results/manual-return.png");
     assert(importedOutbox.mimeType === "image/png", "outbox import should preserve image MIME type");
     assert(importedOutbox.dataUrl === tinyPng, "outbox import should return a data URL");

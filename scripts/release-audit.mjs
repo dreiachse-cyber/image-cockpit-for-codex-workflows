@@ -75,6 +75,7 @@ const requiredFiles = [
   "docs/qa/codex-log-card-limit-3.md",
   "docs/qa/generation-job-reliability-hardening.md",
   "docs/qa/artifact-staging-and-real-browser-generation-qa.md",
+  "docs/qa/temp-candidate-contact-import-filter.md",
   "docs/qa/official-animation-gallery.html",
   "docs/qa/official-animation-batch-2-to-10.md",
   "docs/qa/official-animation-next-5-gallery.html",
@@ -756,10 +757,28 @@ function checkWorkflowIds() {
   [
     "QA JSON outbox file should be ignored",
     "work-in-progress outbox image should be ignored",
-    "staging outbox image should be ignored"
+    "staging outbox image should be ignored",
+    "candidate contact temp outbox image should be ignored",
+    "tmp transparent derivative outbox image should be ignored",
+    "contact sheet outbox image should be ignored",
+    "grid QA outbox image should be ignored",
+    "debug outbox image should be ignored",
+    "preview grid outbox image should be ignored",
+    "AB gallery outbox image should be ignored"
   ].forEach((marker) => {
     if (!smokeText.includes(marker)) {
       failures.push(`Smoke test should cover hardened outbox result filtering: ${marker}`);
+    }
+  });
+
+  [
+    "assertTempCandidateContactImportFilter",
+    "temp candidate contact filter setup",
+    "candidate-contact.tmp",
+    "preview-grid history item"
+  ].forEach((marker) => {
+    if (!uiSmokeText.includes(marker)) {
+      failures.push(`UI smoke should cover temp/contact import filtering: ${marker}`);
     }
   });
 
@@ -813,7 +832,9 @@ function checkWorkflowIds() {
     "publishVerifiedDirectionSplitArtifact",
     "outbox/.staging/<job-id>/",
     "Do not run git status",
-    "Do not place *-qa.json or work files in the outbox root",
+    "Do not place *-qa.json, work files",
+    "candidate-contact sheets",
+    "preview grids",
     "write them as a small Markdown sidecar"
   ].forEach((marker) => {
     if (!serverText?.includes(marker)) {
@@ -834,6 +855,8 @@ function checkWorkflowIds() {
     "importDirectionSplitBronzeCandidate",
     "clearCodexFailureNotice",
     "retryCodexFailureImport",
+    "shouldIgnoreOutboxResultName",
+    "hasTemporaryOutboxResultMarker",
     "composeDirectionSplitAnimationSheet",
     "validateDirectionSplitAnimationCells",
     "selectDirectionalHatchPetResults",

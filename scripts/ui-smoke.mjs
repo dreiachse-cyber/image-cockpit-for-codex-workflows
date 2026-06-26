@@ -137,6 +137,7 @@ try {
   await assertAnimationPresetExamples();
   await assertAnimationLibraryHidden();
   await assertCodexFailureNotice();
+  await assertTempCandidateContactImportFilter();
   await assertPartialDirectionSplitRecovery();
   await assertManifestFirstDirectionSplitRecovery();
   await assertCompletedDirectionSplitImportFailure();
@@ -677,6 +678,30 @@ async function assertCodexFailureNotice() {
   assert(snapshot.codexFailureCards === 1, "Codex failure notice should remain visible after later success");
   await assertNoBrowserErrors("Codex failure notice");
   await maybeCapture("codex-failure-notice");
+  await selectWorkflowTab("Pixel Art Generation");
+}
+
+async function assertTempCandidateContactImportFilter() {
+  await selectWorkflowTab("Pixel Art Generation");
+  await waitForEval(() => `document.body.innerText.includes("Pixel Art Generation")`, "Pixel Art Generation for temp contact filter");
+  await setPromptValue("temp candidate contact filter setup");
+  const before = await pageSnapshot();
+
+  await clickButtonByText("Generate Pixel Art");
+  await waitForEval(
+    () => `document.querySelectorAll(".history-item").length > ${before.historyItems}`,
+    "temp candidate contact import filter imports final image",
+    18000
+  );
+  await waitForEval(() => `document.querySelectorAll(".codex-job-row").length === 0`, "temp candidate contact filter job drains", 6000);
+  const historyTexts = await evaluate(`Array.from(document.querySelectorAll(".history-item")).map((node) => node.innerText.replace(/\\s+/g, " ").trim())`);
+  assert(
+    !historyTexts.some((text) => text.includes("candidate-contact.tmp")),
+    "Import Latest should not create a candidate-contact.tmp history item"
+  );
+  assert(!historyTexts.some((text) => text.includes("preview-grid")), "Import Latest should not create a preview-grid history item");
+  await assertNoBrowserErrors("temp candidate contact import filter");
+  await maybeCapture("temp-candidate-contact-import-filter");
   await selectWorkflowTab("Pixel Art Generation");
 }
 
@@ -1762,6 +1787,15 @@ if (job.workflowMode === "image-edit") {
   }
   await writeFile(join(outboxDir, \`\${jobId}.png\`), makeSpriteSheetPng(512, 512, 1, 1, 512, 512, [0, 0, 0, 0]));
   console.log(\`mock transparent image edit completed \${jobId}\`);
+  process.exit(0);
+}
+
+if (job.prompt.includes("temp candidate contact filter setup")) {
+  await writeFile(join(outboxDir, \`\${jobId}.png\`), makeSpriteSheetPng(512, 512, 1, 1, 512, 512, [0, 255, 0, 255]));
+  await new Promise((resolve) => setTimeout(resolve, 80));
+  await writeFile(join(outboxDir, \`\${jobId}-candidate-contact.tmp.png\`), makeSpriteSheetPng(1024, 1024, 1, 1, 1024, 1024, [0, 255, 0, 255]));
+  await writeFile(join(outboxDir, \`\${jobId}-preview-grid.png\`), makeSpriteSheetPng(1024, 1024, 1, 1, 1024, 1024, [0, 255, 0, 255]));
+  console.log(\`mock temp candidate contact fixture completed \${jobId}\`);
   process.exit(0);
 }
 

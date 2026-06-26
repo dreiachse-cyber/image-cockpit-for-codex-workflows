@@ -2833,8 +2833,49 @@ export function isDirectionSplitAnimationManifestName(resultName: string, jobId:
   return resultName === `${jobId}-manifest.json`;
 }
 
+export function shouldIgnoreOutboxResultName(name: string) {
+  const normalized = name.toLowerCase();
+  const filterName = normalizeOutboxResultNameForFiltering(name);
+  return (
+    normalized.startsWith(".") ||
+    filterName.includes(".staging") ||
+    hasTemporaryOutboxResultMarker(normalized) ||
+    filterName.includes("-work-") ||
+    filterName.endsWith("-qa.json") ||
+    filterName.endsWith(".qa.json") ||
+    hasQaOutboxResultMarker(filterName) ||
+    hasDebugOutboxResultMarker(filterName) ||
+    [
+      "candidate-contact",
+      "contact-sheet",
+      "contact.tmp",
+      "grid-qa",
+      "mechanical-qa",
+      "transparent-contact",
+      "preview-grid",
+      "ab-gallery"
+    ].some((marker) => filterName.includes(marker))
+  );
+}
+
+function normalizeOutboxResultNameForFiltering(name: string) {
+  return name.toLowerCase().replace(/[_\s]+/g, "-");
+}
+
+function hasTemporaryOutboxResultMarker(normalizedName: string) {
+  return /(^|[._-])tmp([._-]|$)/.test(normalizedName);
+}
+
+function hasQaOutboxResultMarker(filterName: string) {
+  return /(^|[-.])qa([-.]|$)/.test(filterName);
+}
+
+function hasDebugOutboxResultMarker(filterName: string) {
+  return /(^|[-.])debug([-.]|$)/.test(filterName);
+}
+
 function isStaticImageResult(result: CodexOutboxResult) {
-  return result.mimeType.startsWith("image/") && result.mimeType !== "image/gif";
+  return !shouldIgnoreOutboxResultName(result.name) && result.mimeType.startsWith("image/") && result.mimeType !== "image/gif";
 }
 
 export function selectDirectionSplitAnimationResults(
@@ -4253,13 +4294,14 @@ function App() {
   }
 
   async function fetchOutboxResult(name: string) {
+    if (shouldIgnoreOutboxResultName(name)) throw new Error(`Ignored temporary or QA outbox result: ${name}`);
     const importResponse = await fetch(`/api/codex/results/${encodeURIComponent(name)}`);
     if (!importResponse.ok) throw new Error(await importResponse.text());
     return (await importResponse.json()) as CodexOutboxImportResponse;
   }
 
   function selectDirectionalHatchPetResults(results: CodexOutboxResult[], jobId: string) {
-    const staticImageResults = results.filter((result) => result.mimeType !== "image/gif");
+    const staticImageResults = results.filter(isStaticImageResult);
     const sheetCandidates = staticImageResults.filter((result) => !/(?:animated|animation|gif|preview)/i.test(result.name));
     const sortedResults = (sheetCandidates.length >= DIRECTIONAL_HATCH_PET_RESULT_COUNT ? sheetCandidates : staticImageResults)
       .slice()
@@ -4315,6 +4357,7 @@ function App() {
       const listData = (await listResponse.json()) as { outboxPath: string; results: CodexOutboxResult[] };
       const newerThanTime = options.newerThan ? Date.parse(options.newerThan) : Number.NEGATIVE_INFINITY;
       const jobResults = listData.results.filter((result) => {
+        if (shouldIgnoreOutboxResultName(result.name)) return false;
         if (Date.parse(result.modifiedAt) < newerThanTime) return false;
         return pendingJob ? isOutboxResultForJob(result.name, pendingJob.id) : true;
       });

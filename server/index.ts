@@ -468,7 +468,7 @@ function workflowNotes(mode: CodexWorkflowMode) {
       "Every cell must contain exactly one full-body character with head, hair, hands, equipment, and both feet visible, centered with at least 10% inner padding.",
       "Reject and retry the sprite sheet if any cell has a cropped head, missing feet, multiple heads, a head below the feet, inconsistent scale, body fragments, or a different character.",
       "Use the requested chroma-key background color as a flat simple background in every cell so Image Cockpit can remove it after import.",
-      "For standard direction-split output, prefer writing all generated direction images and any source manifest under outbox/.staging/<job-id>/; Image Cockpit will verify, publish, and write the final manifest. If you must write to the outbox root, write only final direction images with the job id prefix and keep *-qa.json/work files outside the root.",
+      "For standard direction-split output, prefer writing all generated direction images and any source manifest under outbox/.staging/<job-id>/; Image Cockpit will verify, publish, and write the final manifest. If you must write to the outbox root, write only final direction images with the job id prefix and keep *-qa.json, work files, temporary files, contact sheets, comparison sheets, and debug images outside the root.",
       "Avoid readable text, logos, watermarks, labels, UI words, numbers, scenery, and complex backgrounds.",
       blockerSidecarNote
     ];
@@ -486,7 +486,7 @@ function workflowNotes(mode: CodexWorkflowMode) {
     "Create a real raster image. Do not create a procedural placeholder, SVG, diagram, or text-only result.",
     "Avoid readable text, logos, watermarks, labels, UI words, and numbers unless the user explicitly asks for them.",
     "If the first result contains unwanted text or numbers, retry once with stricter no-text/no-number constraints.",
-    "Write the final image with the job id prefix. If you include notes, prefer a short Markdown sidecar and do not place *-qa.json or work files in the outbox root.",
+    "Write the final image with the job id prefix. If you include notes, prefer a short Markdown sidecar and do not place *-qa.json, work files, temporary files, contact sheets, comparison sheets, or debug images in the outbox root.",
     blockerSidecarNote,
     "This is a text-to-image style generation job. Do not treat the current UI sample image as a source image unless selectedImage.assetPath is populated.",
     "Use prompt, negativePrompt, generationHints, and jobNotes as the generation brief."
@@ -828,7 +828,7 @@ function buildCodexRunnerPrompt(job: { id: string; path: string }) {
     "For workflowMode=sprite-generate, inspect selectedImage.assetPath, then use imagegen / built-in image_gen when available to create the requested sprite sheet assets from the source character image. Never create a procedural placeholder or SVG.",
     "For workflowMode=sprite-generate, follow spriteContext.grid, spriteContext.cell, spriteContext.directions, spriteContext.variant, and spriteContext.chromaKey exactly. Keep one full-body character centered inside each strict cell with padding, no cropping, no duplicated heads, and no body parts crossing cells.",
     "For workflowMode=sprite-generate with spriteContext.variant=standard, return exactly five separate direction PNG/WebP images using the suffixes front, front-three-quarter, side, back-three-quarter, and back. Each direction image must be 4 columns x 2 rows, 256x256 cells unless spriteContext.cell says otherwise. Do not return only one combined 5x8 sheet.",
-    "For standard direction-split output, write generated direction images and any source manifest under outbox/.staging/<job-id>/ when possible. Image Cockpit will decode, verify, publish final direction files to the outbox root, and write the final <job-id>-manifest.json last. If you must write directly to the outbox root, use final job-id filenames only; Image Cockpit will still verify and may rewrite the manifest.",
+    "For standard direction-split output, write generated direction images and any source manifest under outbox/.staging/<job-id>/ when possible. Image Cockpit will decode, verify, publish final direction files to the outbox root, and write the final <job-id>-manifest.json last. If you must write directly to the outbox root, use final job-id filenames only; Image Cockpit will still verify and may rewrite the manifest. Keep QA contact sheets, comparison sheets, and .tmp files outside the outbox root.",
     "For workflowMode=sprite-generate, inspect all cells before writing the final file and retry if any head is cut off, feet are missing, a head appears below feet, scale changes wildly, or the background is not flat chroma key.",
     "For workflowMode=sprite-generate with spriteContext.variant=hatch-pet, use the installed hatch-pet skill/scripts when available. Build a Codex pet atlas with 8 columns x 9 rows, 192x208 cells, 1536x1872 total, transparent unused cells, contact-sheet QA, and final spritesheet PNG/WebP returned with the job id filename prefix. Include pet.json as a sidecar if produced.",
     "For workflowMode=sprite-generate with spriteContext.variant=directional-hatch-pet, use the installed hatch-pet skill/scripts when available and return exactly five separate Codex pet atlas images: direction-01-front, direction-02-front-three-quarter, direction-03-side, direction-04-back-three-quarter, and direction-05-back. Each atlas must be 8 columns x 9 rows, 192x208 cells, 1536x1872 total, transparent unused cells, and use the job id filename prefix plus the direction suffix. Do not return only one giant combined sheet.",
@@ -842,7 +842,7 @@ function buildCodexRunnerPrompt(job: { id: string; path: string }) {
     "- Do not run git status, git diff, git clean, Remove-Item cleanup, or other repository/cleanup commands for this handoff job.",
     "- Do not write API keys, access tokens, model weights, or license-unclear assets.",
     "- If image generation or editing is unavailable in this Codex environment, write no placeholder image.",
-    "- Prefer PNG or WebP for still images. If you produce notes, write them as a small Markdown sidecar in the outbox. Do not place *-qa.json or work files in the outbox root.",
+    "- Prefer PNG or WebP for still images. If you produce notes, write them as a small Markdown sidecar in the outbox. Do not place *-qa.json, work files, .tmp files, candidate-contact sheets, contact sheets, preview grids, AB galleries, or debug images in the outbox root.",
     "- If image generation/editing is blocked by safety, policy, or unavailable imagegen capability, do not create a placeholder image.",
     "- Write a small JSON blocker sidecar only, using this schema:",
     '{ "status": "blocked", "reasonKind": "policy_or_safety" | "imagegen_unavailable" | "unknown", "userMessage": "A short user-safe reason.", "suggestion": "A short retry suggestion." }',
@@ -1643,13 +1643,43 @@ function isDirectionSplitManifestFileName(name: string) {
 
 function shouldIgnoreOutboxResultName(name: string) {
   const normalized = name.toLowerCase();
+  const filterName = normalizeOutboxResultNameForFiltering(name);
   return (
     normalized.startsWith(".") ||
-    normalized.includes(".staging") ||
-    normalized.includes("-work-") ||
-    normalized.endsWith("-qa.json") ||
-    normalized.endsWith(".qa.json")
+    filterName.includes(".staging") ||
+    hasTemporaryOutboxResultMarker(normalized) ||
+    filterName.includes("-work-") ||
+    filterName.endsWith("-qa.json") ||
+    filterName.endsWith(".qa.json") ||
+    hasQaOutboxResultMarker(filterName) ||
+    hasDebugOutboxResultMarker(filterName) ||
+    [
+      "candidate-contact",
+      "contact-sheet",
+      "contact.tmp",
+      "grid-qa",
+      "mechanical-qa",
+      "transparent-contact",
+      "preview-grid",
+      "ab-gallery"
+    ].some((marker) => filterName.includes(marker))
   );
+}
+
+function normalizeOutboxResultNameForFiltering(name: string) {
+  return name.toLowerCase().replace(/[_\s]+/g, "-");
+}
+
+function hasTemporaryOutboxResultMarker(normalizedName: string) {
+  return /(^|[._-])tmp([._-]|$)/.test(normalizedName);
+}
+
+function hasQaOutboxResultMarker(filterName: string) {
+  return /(^|[-.])qa([-.]|$)/.test(filterName);
+}
+
+function hasDebugOutboxResultMarker(filterName: string) {
+  return /(^|[-.])debug([-.]|$)/.test(filterName);
 }
 
 function extensionForMimeType(mimeType: string) {

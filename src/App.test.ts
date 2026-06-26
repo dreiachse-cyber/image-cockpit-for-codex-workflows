@@ -11,6 +11,7 @@ import {
   isLikelyFrameGarbageComponent,
   resolveInitialLanguage,
   selectDirectionSplitAnimationResults,
+  shouldIgnoreOutboxResultName,
   shouldReportCompletedCodexImportFailure,
   shouldWaitForCodexRunner,
   summarizeCodexImportFailureReason,
@@ -131,6 +132,41 @@ describe("Codex outbox job result matching", () => {
     expect(isDirectionSplitAnimationManifestName(`${jobId.replace("42", "43")}-manifest.json`, jobId)).toBe(false);
   });
 
+  it("ignores temp, contact sheet, QA, and debug outbox names without blocking final assets", () => {
+    const jobId = "codex-job-2026-06-25T13-01-42-060Z";
+    [
+      `${jobId}-candidate-contact.tmp.png`,
+      `${jobId}-candidate-contact.tmp_transparent.png`,
+      `${jobId}-contact.tmp.png`,
+      `${jobId}-contact-sheet.png`,
+      `${jobId}-grid-qa.png`,
+      `${jobId}-mechanical-qa.png`,
+      `${jobId}-transparent-contact.png`,
+      `${jobId}-debug-preview.png`,
+      `${jobId}-preview-grid.png`,
+      `${jobId}-ab-gallery.png`,
+      `${jobId}-qa.png`,
+      `${jobId}-qa.json`,
+      `${jobId}-work-output.png`,
+      `.staging-${jobId}.png`
+    ].forEach((name) => {
+      expect(shouldIgnoreOutboxResultName(name), name).toBe(true);
+    });
+
+    [
+      `${jobId}.png`,
+      `${jobId}-sprite-sheet.png`,
+      `${jobId}-front.png`,
+      `${jobId}-front-three-quarter.png`,
+      `${jobId}-side.png`,
+      `${jobId}-back-three-quarter.png`,
+      `${jobId}-back.png`,
+      `${jobId}-manifest.json`
+    ].forEach((name) => {
+      expect(shouldIgnoreOutboxResultName(name), name).toBe(false);
+    });
+  });
+
   it("treats partial direction files without a manifest as waiting, not ready", () => {
     const jobId = "codex-job-2026-06-25T13-01-42-060Z";
     const selection = selectDirectionSplitAnimationResults(
@@ -146,6 +182,38 @@ describe("Codex outbox job result matching", () => {
     expect(selection.waitingForFinalManifest).toBe(true);
     expect(selection.ready).toBe(false);
     expect(selection.missingDirections).toContain("front three-quarter");
+  });
+
+  it("keeps ignored QA and contact files out of direction split imports", () => {
+    const jobId = "codex-job-2026-06-25T13-01-42-060Z";
+    const directionNames = [
+      `${jobId}-front.png`,
+      `${jobId}-front-three-quarter.png`,
+      `${jobId}-side.png`,
+      `${jobId}-back-three-quarter.png`,
+      `${jobId}-back.png`
+    ];
+    const results = [
+      makeOutboxResult(`${jobId}-manifest.json`, "application/json"),
+      ...directionNames.map((name) => makeOutboxResult(name)),
+      makeOutboxResult(`${jobId}-candidate-contact.tmp.png`),
+      makeOutboxResult(`${jobId}-transparent-contact.png`),
+      makeOutboxResult(`${jobId}-preview-grid.png`)
+    ];
+
+    const selection = selectDirectionSplitAnimationResults(results, jobId, {
+      schema: "image-cockpit.direction-split-animation.v1",
+      files: {
+        front: `${jobId}-front.png`,
+        "front-three-quarter": `${jobId}-front-three-quarter.png`,
+        side: `${jobId}-side.png`,
+        "back-three-quarter": `${jobId}-back-three-quarter.png`,
+        back: `${jobId}-back.png`
+      }
+    });
+
+    expect(selection.ready).toBe(true);
+    expect(selection.directionResults.map((result) => result.name)).toEqual(directionNames);
   });
 
   it("requires the direction split manifest plus all five direction images before import is ready", () => {
