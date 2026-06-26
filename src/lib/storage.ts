@@ -2,6 +2,8 @@ import type { AnimationLibraryItem, HistoryItem, SpriteAction, SpriteFrame } fro
 
 const HISTORY_KEY = "image-cockpit.v3.history";
 const FRAMES_KEY = "image-cockpit.v3.frames";
+const HISTORY_SUMMARY_KEY = "image-cockpit.v3.history.summary";
+const FRAMES_SUMMARY_KEY = "image-cockpit.v3.frames.summary";
 const ACTIONS_KEY = "image-cockpit.v3.actions";
 const ANIMATION_LIBRARY_KEY = "image-cockpit.v3.animation-library";
 export const MAX_USER_ANIMATION_LIBRARY_ITEMS = 30;
@@ -41,8 +43,7 @@ export async function loadPersistedState(fallbackActions: SpriteAction[]) {
 }
 
 export function saveHistory(history: HistoryItem[]) {
-  saveJson(HISTORY_KEY, history);
-  void saveIndexedJson(HISTORY_KEY, history);
+  void saveLargeState(HISTORY_KEY, HISTORY_SUMMARY_KEY, history, history.length);
 }
 
 export function loadFrames() {
@@ -50,8 +51,7 @@ export function loadFrames() {
 }
 
 export function saveFrames(frames: SpriteFrame[]) {
-  saveJson(FRAMES_KEY, frames);
-  void saveIndexedJson(FRAMES_KEY, frames);
+  void saveLargeState(FRAMES_KEY, FRAMES_SUMMARY_KEY, frames, frames.length);
 }
 
 export function loadActions(fallback: SpriteAction[]) {
@@ -88,18 +88,48 @@ async function loadIndexedJson<T>(key: string, fallback: T): Promise<T> {
   }
 }
 
+async function saveLargeState<T>(key: string, summaryKey: string, value: T, count: number) {
+  const saved = await saveIndexedJson(key, value);
+  if (!saved) {
+    saveJson(summaryKey, {
+      storedIn: "indexedDB-unavailable",
+      count,
+      updatedAt: new Date().toISOString()
+    });
+    return;
+  }
+
+  removeJson(key);
+  saveJson(summaryKey, {
+    storedIn: "indexedDB",
+    count,
+    updatedAt: new Date().toISOString()
+  });
+}
+
+function removeJson(key: string) {
+  try {
+    localStorage.removeItem(key);
+  } catch (error) {
+    console.warn(`Could not clear ${key} localStorage mirror`, error);
+  }
+}
+
 async function saveIndexedJson<T>(key: string, value: T) {
   try {
     const db = await openStateDb();
-    if (!db) return;
+    if (!db) return false;
     await new Promise<void>((resolve, reject) => {
       const transaction = db.transaction(STORE_NAME, "readwrite");
       transaction.objectStore(STORE_NAME).put(value, key);
       transaction.oncomplete = () => resolve();
       transaction.onerror = () => reject(transaction.error);
+      transaction.onabort = () => reject(transaction.error);
     });
+    return true;
   } catch (error) {
     console.warn(`Could not persist ${key} to IndexedDB`, error);
+    return false;
   }
 }
 

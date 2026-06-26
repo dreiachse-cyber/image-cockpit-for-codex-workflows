@@ -363,6 +363,8 @@ interface ImportLatestOptions {
   newerThan?: string;
   quietEmpty?: boolean;
   job?: CodexJobQueueItem;
+  throwOnError?: boolean;
+  failOnIncompleteDirectionSplit?: boolean;
 }
 
 interface ImageEditComparison {
@@ -576,6 +578,11 @@ const baseUiCopy = {
     codexFailureRunnerFailedTitle: "Codex runner failed",
     codexFailureRunnerFailedMessage: "Codex runner failed before returning an image.",
     codexFailureRunnerFailedSuggestion: "Check the runner setup or retry with a simpler prompt.",
+    codexFailureImportFailedTitle: "Outbox import failed",
+    codexFailureDirectionSplitImportFailedTitle: "Direction split import failed",
+    codexFailureImportFailedMessage: "The completed Codex job returned outbox files, but the app could not import them.",
+    codexFailureImportFailedReason: "Reason",
+    codexFailureImportFailedSuggestion: "Use Import Latest after freeing browser storage, or retry the job. The outbox files were not deleted.",
     codexFailureNoImageTitle: "No image returned",
     codexFailureNoImageMessage: "Codex runner completed, but no returned image was found.",
     codexFailureNoImageSuggestion: "Retry the job, or place a returned image with the job id prefix in the outbox.",
@@ -798,6 +805,11 @@ const baseUiCopy = {
     codexFailureRunnerFailedTitle: "Codex runnerが失敗しました",
     codexFailureRunnerFailedMessage: "Codex runnerが画像を返す前に失敗しました。",
     codexFailureRunnerFailedSuggestion: "runner設定を確認するか、promptを簡単にして再試行してください。",
+    codexFailureImportFailedTitle: "outbox取り込みに失敗しました",
+    codexFailureDirectionSplitImportFailedTitle: "Direction split import failed",
+    codexFailureImportFailedMessage: "完了したCodex jobのoutboxファイルはありますが、アプリで取り込めませんでした。",
+    codexFailureImportFailedReason: "理由",
+    codexFailureImportFailedSuggestion: "ブラウザ保存容量を空けてImport Latestを押すか、jobを再試行してください。outboxファイルは削除していません。",
     codexFailureNoImageTitle: "戻り画像が見つかりません",
     codexFailureNoImageMessage: "Codex runnerは完了しましたが、戻り画像が見つかりませんでした。",
     codexFailureNoImageSuggestion: "ジョブを再試行するか、job id prefix付きの画像をoutboxへ置いてください。",
@@ -2882,6 +2894,10 @@ function directionSplitAnimationFileSet(jobIdPrefix: string) {
   return DIRECTION_SPLIT_ANIMATION_FILE_SLUGS.map((slug) => `${jobIdPrefix}-${slug}.png`);
 }
 
+function isStandardDirectionSplitJob(job: Pick<CodexJobQueueItem, "workflowMode" | "spriteVariant">) {
+  return job.workflowMode === "sprite-generate" && (job.spriteVariant ?? "standard") === "standard";
+}
+
 function parseDirectionSplitAnimationManifest(imported: CodexOutboxImportResponse) {
   const text = textFromDataUrl(imported.dataUrl);
   const parsed = JSON.parse(text) as DirectionSplitAnimationManifest;
@@ -2901,6 +2917,19 @@ function textFromDataUrl(dataUrl: string) {
     return new TextDecoder().decode(bytes);
   }
   return decodeURIComponent(payload);
+}
+
+export function shouldReportCompletedCodexImportFailure(status: CodexRunnerStatus | undefined, imported: boolean) {
+  return Boolean(status && status.state === "completed" && !status.diagnostic && !imported);
+}
+
+export function summarizeCodexImportFailureReason(error: unknown, fallback = "Import Latest did not complete.") {
+  const raw = error instanceof Error ? error.message : typeof error === "string" ? error : "";
+  const firstLine = (raw || fallback).split(/\r?\n/)[0]?.trim() || fallback;
+  return firstLine
+    .replace(/\bfile:\/\/\/?[^\s"'`)]+/g, "local file")
+    .replace(/[A-Za-z]:[\\/][^\s"'`)]+/g, "local file")
+    .slice(0, 220);
 }
 
 function App() {
@@ -3332,19 +3361,39 @@ function App() {
     const pollForReturnedImages = async () => {
       const outcomes = await Promise.all(
         runningJobs.map(async (job) => {
+          let importError: unknown;
           const imported = await importLatestOutboxResult({
             background: true,
             newerThan: job.createdAt,
             quietEmpty: true,
-            job
+            job,
+            throwOnError: true,
+            failOnIncompleteDirectionSplit: true
+          }).catch((error) => {
+            importError = error;
+            return false;
           });
           if (cancelled || imported) return imported ? "imported" : "cancelled";
 
-          const runnerStatus = await loadCodexRunnerStatus(job.id);
+          let runnerStatus: CodexRunnerStatus | null | undefined;
+          try {
+            runnerStatus = await loadCodexRunnerStatus(job.id);
+          } catch (error) {
+            if (importError) console.warn(`Could not verify completed Codex import for ${job.id}`, error);
+            return "pending";
+          }
           if (cancelled) return "cancelled";
 
           if (runnerStatus && !shouldWaitForCodexRunner(runnerStatus)) {
-            if (runnerStatus.state === "completed" && !runnerStatus.diagnostic) return "pending";
+            if (shouldReportCompletedCodexImportFailure(runnerStatus, imported)) {
+              const diagnostic = recordCodexImportFailure(
+                job,
+                importError ?? new Error("No matching outbox result could be imported after the runner completed.")
+              );
+              removeCodexJob(job.id, "completed");
+              setStatus(`${diagnostic.title}: ${job.id}`);
+              return "terminal";
+            }
             recordCodexFailure(job, runnerStatus);
             removeCodexJob(job.id, runnerStatus.state);
             setStatus(`${runnerStatusMessage(runnerStatus, copy)}: ${job.id}`);
@@ -3793,6 +3842,33 @@ function App() {
     );
   }
 
+  function recordCodexImportFailure(job: CodexJobQueueItem, error: unknown) {
+    const reason = summarizeCodexImportFailureReason(error);
+    const title = isStandardDirectionSplitJob(job)
+      ? copy.codexFailureDirectionSplitImportFailedTitle
+      : copy.codexFailureImportFailedTitle;
+    const diagnostic: CodexJobDiagnostic = {
+      kind: "import_failed",
+      title,
+      userMessage: `${copy.codexFailureImportFailedMessage} ${copy.codexFailureImportFailedReason}: ${reason}`,
+      suggestion: copy.codexFailureImportFailedSuggestion
+    };
+    const notice: CodexFailureNotice = {
+      id: `${job.id}-import-failed`,
+      jobId: job.id,
+      label: job.label,
+      createdAt: new Date().toISOString(),
+      workflowMode: job.workflowMode,
+      diagnostic
+    };
+    setCodexFailureNotices((current) =>
+      current.some((item) => item.jobId === notice.jobId)
+        ? current.map((item) => (item.jobId === notice.jobId ? notice : item))
+        : [notice, ...current].slice(0, 12)
+    );
+    return diagnostic;
+  }
+
   async function generateLocally() {
     setIsBusy(true);
     try {
@@ -4109,8 +4185,11 @@ function App() {
         const directionSplitSelection = selectDirectionSplitAnimationResults(jobResults, pendingJob.id, manifest);
         if (directionSplitSelection.detected) {
           if (directionSplitSelection.directionResults.length < DIRECTION_SPLIT_ANIMATION_RESULT_COUNT) {
+            const missing = directionSplitSelection.missingDirections.join(", ") || "direction images";
+            if (options.failOnIncompleteDirectionSplit) {
+              throw new Error(`Direction split import failed for ${pendingJob.id}: missing ${missing}. Outbox files are still available.`);
+            }
             if (!options.quietEmpty) {
-              const missing = directionSplitSelection.missingDirections.join(", ") || "direction images";
               setStatus(`${copy.statusInboxEmpty}: ${listData.outboxPath} (waiting for direction split: ${missing})`);
             }
             return false;
@@ -4176,6 +4255,7 @@ function App() {
       setStatus(`${copy.statusInboxImported}: ${imported.name}`);
       return true;
     } catch (error) {
+      if (options.throwOnError) throw error;
       if (!options.background) setStatus(error instanceof Error ? error.message : copy.statusInboxError);
       return false;
     } finally {
@@ -5987,7 +6067,7 @@ function CodexFailureCard({
   language: Language;
 }) {
   const copy = uiCopy[language];
-  const failure = codexFailureDisplay(notice.diagnostic.kind, copy);
+  const failure = codexFailureDisplay(notice.diagnostic.kind, copy, notice.diagnostic);
   return (
     <article className={`codex-failure-card ${notice.diagnostic.kind}`}>
       <div className="codex-failure-icon">
@@ -6004,7 +6084,7 @@ function CodexFailureCard({
   );
 }
 
-function codexFailureDisplay(kind: CodexFailureKind, copy: Record<string, string>) {
+function codexFailureDisplay(kind: CodexFailureKind, copy: Record<string, string>, diagnostic?: CodexJobDiagnostic) {
   if (kind === "policy_or_safety") {
     return {
       title: copy.codexFailureTitle,
@@ -6024,6 +6104,13 @@ function codexFailureDisplay(kind: CodexFailureKind, copy: Record<string, string
       title: copy.codexFailureRunnerFailedTitle,
       message: copy.codexFailureRunnerFailedMessage,
       suggestion: copy.codexFailureRunnerFailedSuggestion
+    };
+  }
+  if (kind === "import_failed") {
+    return {
+      title: diagnostic?.title || copy.codexFailureImportFailedTitle,
+      message: diagnostic?.userMessage || copy.codexFailureImportFailedMessage,
+      suggestion: diagnostic?.suggestion || copy.codexFailureImportFailedSuggestion
     };
   }
   if (kind === "no_image_returned") {
@@ -7249,7 +7336,7 @@ export function shouldWaitForCodexRunner(status?: CodexRunnerStatus) {
 function runnerStatusMessage(status: CodexRunnerStatus | undefined, copy: Record<string, string>) {
   if (!status || status.state === "running") return copy.statusCodexJobPending;
   if (status.diagnostic) {
-    const failure = codexFailureDisplay(status.diagnostic.kind, copy);
+    const failure = codexFailureDisplay(status.diagnostic.kind, copy, status.diagnostic);
     return `${failure.title}: ${failure.message}`;
   }
   if (status.state === "disabled" || status.state === "unavailable" || status.state === "unknown") {

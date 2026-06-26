@@ -33,6 +33,7 @@ const requiredFiles = [
   "scripts/real-imagegen-smoke.mjs",
   "scripts/ui-smoke.mjs",
   "scripts/capture-readme-screenshots.mjs",
+  "docs/qa/completed-codex-job-import-storage-quota.md",
   "public/samples/idle-breathing-sheet.png",
   "public/samples/walk-cycle-sheet.png",
   "public/samples/run-cycle-sheet.png",
@@ -938,10 +939,46 @@ function checkPendingJobCoverage() {
   [
     'status.state === "running"',
     'status.state === "unknown"',
-    "shouldWaitForCodexRunner"
+    "shouldWaitForCodexRunner",
+    "shouldReportCompletedCodexImportFailure",
+    "recordCodexImportFailure",
+    "Direction split import failed"
   ].forEach((marker) => {
     if (!appText.includes(marker) && !appTestText.includes(marker)) {
       failures.push(`Pending job coverage is missing marker: ${marker}`);
+    }
+  });
+
+  const uiSmokeText = readText("scripts/ui-smoke.mjs");
+  const storageText = readText("src/lib/storage.ts");
+  const qaText = readText("docs/qa/completed-codex-job-import-storage-quota.md");
+  [
+    "assertCompletedDirectionSplitImportFailure",
+    "mock-direction-split-import-failure.flag",
+    "Completed direction split import failure should release the active job slot"
+  ].forEach((marker) => {
+    if (!uiSmokeText.includes(marker)) {
+      failures.push(`Completed Codex import UI smoke coverage is missing marker: ${marker}`);
+    }
+  });
+  [
+    "HISTORY_SUMMARY_KEY",
+    "FRAMES_SUMMARY_KEY",
+    "saveLargeState",
+    "localStorage mirror"
+  ].forEach((marker) => {
+    if (!storageText.includes(marker)) {
+      failures.push(`Large history/frame storage quota guard is missing marker: ${marker}`);
+    }
+  });
+  [
+    "completed + outboxあり + import失敗",
+    "Direction split import failed",
+    "localStorage容量超過",
+    "ui-smoke"
+  ].forEach((marker) => {
+    if (!qaText.includes(marker)) {
+      failures.push(`Completed Codex import QA doc is missing marker: ${marker}`);
     }
   });
 }

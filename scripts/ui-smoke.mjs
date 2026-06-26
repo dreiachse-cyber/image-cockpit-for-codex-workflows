@@ -42,6 +42,7 @@ const handoffDir = join(tempRoot, "handoff");
 const chromeProfileDir = join(tempRoot, "chrome-profile");
 const mockRunnerPath = join(tempRoot, "mock-codex-runner.mjs");
 const mockAnimationPackPath = join(tempRoot, "mock-run-cycle.image-cockpit-animation.zip");
+const mockImportFailureMarkerPath = join(tempRoot, "mock-direction-split-import-failure.flag");
 const apiPort = await getOpenPort();
 const vitePort = await getOpenPort();
 const debugPort = await getOpenPort();
@@ -132,6 +133,7 @@ try {
   await assertAnimationPresetExamples();
   await assertAnimationLibraryHidden();
   await assertCodexFailureNotice();
+  await assertCompletedDirectionSplitImportFailure();
   await assertCodexQueue();
   await assertImageEditing();
   await assertWorkflow({
@@ -635,6 +637,33 @@ async function assertCodexFailureNotice() {
   assert(snapshot.codexFailureCards === 1, "Codex failure notice should remain visible after later success");
   await assertNoBrowserErrors("Codex failure notice");
   await maybeCapture("codex-failure-notice");
+  await selectWorkflowTab("Pixel Art Generation");
+}
+
+async function assertCompletedDirectionSplitImportFailure() {
+  await selectWorkflowTab("Pixel Art Generation");
+  await setPromptValue("completed direction split import failure setup");
+  await writeFile(mockImportFailureMarkerPath, "1", "utf8");
+  await selectWorkflowTab("Animation Generation");
+  await waitForEval(() => `document.body.innerText.includes("Animation Generation")`, "Animation Generation for completed import failure");
+  const before = await pageSnapshot();
+
+  await clickButtonByText("Generate Animation");
+  await waitForEval(
+    () => `document.body.innerText.includes("Direction split import failed") && document.body.innerText.includes("missing side")`,
+    "completed direction split import failure notice",
+    25000
+  );
+  const snapshot = await pageSnapshot();
+  assert(snapshot.codexJobRows === 0, "Completed direction split import failure should release the active job slot");
+  assert(
+    snapshot.codexFailureCards === before.codexFailureCards + 1,
+    `Completed direction split import failure should add one failure card, got ${snapshot.codexFailureCards}`
+  );
+  assert(snapshot.historyItems === before.historyItems, "Completed direction split import failure should not add a broken history item");
+  assert(snapshot.text.includes("outbox files"), "Completed direction split import failure should tell the user outbox files remain available");
+  await assertNoBrowserErrors("completed direction split import failure");
+  await maybeCapture("completed-direction-split-import-failure");
   await selectWorkflowTab("Pixel Art Generation");
 }
 
@@ -1568,7 +1597,8 @@ async function createMockAnimationPack() {
 }
 
 function mockRunnerSource() {
-  return `import { readFile, writeFile } from "node:fs/promises";
+  return `import { existsSync } from "node:fs";
+import { readFile, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { deflateSync } from "node:zlib";
 
@@ -1639,6 +1669,26 @@ const chroma = job.spriteContext?.chromaKey === "magenta" ? [255, 0, 255, 255] :
 if (job.spriteContext?.variant === "standard") {
   const directionSlugs = ["front", "front-three-quarter", "side", "back-three-quarter", "back"];
   const directionNames = ["front", "front three-quarter", "side", "back three-quarter", "back"];
+  if (existsSync(${JSON.stringify(mockImportFailureMarkerPath)})) {
+    await rm(${JSON.stringify(mockImportFailureMarkerPath)}, { force: true });
+    for (const [index, slug] of directionSlugs.entries()) {
+      if (slug === "side") continue;
+      const png = makeSpriteSheetPng(cellWidth * 4, cellHeight * 2, 4, 2, cellWidth, cellHeight, chroma, index);
+      await writeFile(join(outboxDir, \`\${jobId}-\${slug}.png\`), png);
+    }
+    await writeFile(join(outboxDir, \`\${jobId}-manifest.json\`), JSON.stringify({
+      schema: "image-cockpit.direction-split-animation.v1",
+      jobId,
+      action: job.spriteContext?.action || "idle",
+      directions: directionNames,
+      framesPerDirection: 8,
+      grid: { columns: 4, rows: 2, gutter: 0 },
+      cell: { width: cellWidth, height: cellHeight },
+      files: Object.fromEntries(directionSlugs.map((slug, index) => [directionNames[index], \`\${jobId}-\${slug}.png\`]))
+    }, null, 2), "utf8");
+    console.log(\`mock incomplete direction split completed \${jobId}\`);
+    process.exit(0);
+  }
   for (const [index, slug] of directionSlugs.entries()) {
     const png = makeSpriteSheetPng(cellWidth * 4, cellHeight * 2, 4, 2, cellWidth, cellHeight, chroma, index);
     await writeFile(join(outboxDir, \`\${jobId}-\${slug}.png\`), png);

@@ -128,6 +128,7 @@ export type CodexFailureKind =
   | "policy_or_safety"
   | "imagegen_unavailable"
   | "runner_failed"
+  | "import_failed"
   | "no_image_returned"
   | "unknown";
 

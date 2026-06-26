@@ -10,7 +10,9 @@ import {
   isOutboxResultForJob,
   isLikelyFrameGarbageComponent,
   resolveInitialLanguage,
+  shouldReportCompletedCodexImportFailure,
   shouldWaitForCodexRunner,
+  summarizeCodexImportFailureReason,
   SUPPORTED_LANGUAGE_IDS
 } from "./App";
 import type { CodexRunnerStatus } from "./types";
@@ -27,6 +29,36 @@ describe("Codex runner wait state", () => {
     expect(shouldWaitForCodexRunner(makeStatus("unavailable"))).toBe(false);
     expect(shouldWaitForCodexRunner(makeStatus("failed"))).toBe(false);
     expect(shouldWaitForCodexRunner(makeStatus("completed"))).toBe(false);
+  });
+
+  it("reports completed jobs as import failures when no import succeeded", () => {
+    expect(shouldReportCompletedCodexImportFailure(makeStatus("completed"), false)).toBe(true);
+    expect(shouldReportCompletedCodexImportFailure(makeStatus("completed"), true)).toBe(false);
+    expect(shouldReportCompletedCodexImportFailure(makeStatus("running"), false)).toBe(false);
+    expect(
+      shouldReportCompletedCodexImportFailure(
+        {
+          ...makeStatus("completed"),
+          diagnostic: {
+            kind: "no_image_returned",
+            title: "No image returned",
+            userMessage: "No image was found."
+          }
+        },
+        false
+      )
+    ).toBe(false);
+  });
+
+  it("summarizes import failures without leaking local absolute paths or stack traces", () => {
+    const reason = summarizeCodexImportFailureReason(
+      new Error("Direction split import failed for codex-job-test: missing side at D:\\codex\\secret\\outbox\\file.png\nstack line")
+    );
+
+    expect(reason).toContain("Direction split import failed");
+    expect(reason).toContain("local file");
+    expect(reason).not.toContain("D:\\codex");
+    expect(reason).not.toContain("stack line");
   });
 });
 
