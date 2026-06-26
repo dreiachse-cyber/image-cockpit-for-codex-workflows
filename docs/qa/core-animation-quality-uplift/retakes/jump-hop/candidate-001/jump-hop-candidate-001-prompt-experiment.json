@@ -1,0 +1,35 @@
+{
+  "generatedAt": "2026-06-27T02:14:00+09:00",
+  "presetId": "jump-hop",
+  "title": "Jump / Hop",
+  "candidateId": "candidate-001",
+  "currentSheet": "public/samples/jump-hop-sheet.png",
+  "candidateSheet": "docs/qa/core-animation-quality-uplift/retakes/jump-hop/candidate-001/jump-hop-candidate-001-sheet.png",
+  "prompt": "docs/qa/core-animation-quality-uplift/retakes/jump-hop/candidate-001/jump-hop-candidate-001-prompt.md",
+  "abDecision": "hold-current-candidate-needs-rework",
+  "officialReplacement": false,
+  "status": "not-adopted-useful-learning",
+  "baselinePromptAssessment": "The current jump/hop prompt remains a better official prompt for now because the generated candidate did not preserve sheet safety.",
+  "changeIntent": [
+    "Improve scale consistency between frames.",
+    "Create safer top padding at the jump apex.",
+    "Keep all five directions readable while preserving the girl adventurer identity."
+  ],
+  "successLog": [
+    "The candidate preserved character identity and produced readable midair poses.",
+    "The candidate reduced some extreme frame-to-frame size changes.",
+    "Direction rows stayed coherent enough to inspect as an animation idea."
+  ],
+  "failureLog": [
+    "The image model returned 1586x992 instead of the requested 2048x1280 contract.",
+    "The raw magenta background had gradient/noise and required cleanup.",
+    "After normalization, many frames touched cell edges or fell below the 16px safety padding target.",
+    "The landing squash was not clearly better than the current official sample."
+  ],
+  "nextPromptNotes": [
+    "Ask for a smaller sprite inside each cell, with an explicit 24px empty safe border.",
+    "Prefer 'do not let hair, weapon, boots, cape, or effects enter the outer 24px of any cell' over generic 'safe padding'.",
+    "State that exact canvas/grid compliance is more important than adding visual polish.",
+    "Keep the current prompt as baseline until a candidate passes mechanical padding and edge checks."
+  ]
+}

@@ -85,5 +85,31 @@
       "After normalization, more frames fall below the 16px safety padding target than the current official sheet.",
       "The current official sheet has a punchier hit effect, so gameplay readability should be judged in motion."
     ]
+  },
+  "promptExperiment": {
+    "status": "not-adopted-useful-learning",
+    "baselinePromptAssessment": "The current basic attack prompt remains the official baseline; the retake showed useful body/sword wording but failed padding safety.",
+    "changeIntent": [
+      "Improve body scale and head size consistency.",
+      "Keep the sword visibly attached to the hand throughout the slash.",
+      "Reduce oversized slash effects without losing the attack read."
+    ],
+    "successLog": [
+      "The candidate improved body and sword relationship in several frames.",
+      "Effects were more contained than the current official sheet.",
+      "The five direction rows remained readable enough for motion review."
+    ],
+    "failureLog": [
+      "The image model returned 1586x992 instead of the requested 2048x1280 contract.",
+      "The raw background needed magenta flood-fill cleanup.",
+      "The normalized candidate produced more below-16px padding frames than current A.",
+      "The current official sheet still has a stronger hit accent for gameplay readability."
+    ],
+    "nextPromptNotes": [
+      "Keep the body/sword consistency wording.",
+      "Add a hard inner-frame rule: all body, sword, cape, and effects must stay inside a 208x208 safe area centered in each 256x256 cell.",
+      "Constrain attack flashes to short-lived compact accents and forbid full-cell sweeps.",
+      "Do not adopt a prompt update unless it beats current A on padding and visible hit timing together."
+    ]
   }
 }

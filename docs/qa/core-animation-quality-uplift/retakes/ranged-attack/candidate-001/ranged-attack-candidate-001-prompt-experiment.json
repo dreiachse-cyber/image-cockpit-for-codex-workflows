@@ -1,0 +1,35 @@
+{
+  "generatedAt": "2026-06-27T02:14:00+09:00",
+  "presetId": "ranged-attack",
+  "title": "Ranged Attack",
+  "candidateId": "candidate-001",
+  "currentSheet": "public/samples/ranged-attack-sheet.png",
+  "candidateSheet": "docs/qa/core-animation-quality-uplift/retakes/ranged-attack/candidate-001/ranged-attack-candidate-001-sheet.png",
+  "prompt": "docs/qa/core-animation-quality-uplift/retakes/ranged-attack/candidate-001/ranged-attack-candidate-001-prompt.md",
+  "abDecision": "reject-candidate-keep-current",
+  "officialReplacement": false,
+  "status": "not-adopted-rejected",
+  "baselinePromptAssessment": "The current ranged attack prompt is stronger. The retake prompt made a cleaner but less faithful and less dynamic candidate.",
+  "changeIntent": [
+    "Preserve the traveler identity while clarifying the firing moment.",
+    "Keep the projectile small and inside the cell.",
+    "Improve weapon/hand connection without distracting effects."
+  ],
+  "successLog": [
+    "The candidate kept a tidy projectile moment.",
+    "Direction rows stayed coherent after normalization.",
+    "The small-effect instruction prevented oversized visual noise."
+  ],
+  "failureLog": [
+    "The candidate simplified the traveler silhouette and lost source-character fidelity.",
+    "The firing motion had less pose contrast than the current official sheet.",
+    "The raw image again missed the exact 2048x1280 sheet contract.",
+    "There was no quality win large enough to justify replacing the current prompt."
+  ],
+  "nextPromptNotes": [
+    "Keep current ranged prompt unless future tests can preserve the backpack, coat silhouette, and pose contrast.",
+    "Add stronger source-fidelity wording before asking for cleaner projectile timing.",
+    "Require a clear aim-fire-recoil-return sequence with visible shoulder/arm change, not only a projectile flash.",
+    "Reject cleaner-looking candidates that reduce character identity."
+  ]
+}

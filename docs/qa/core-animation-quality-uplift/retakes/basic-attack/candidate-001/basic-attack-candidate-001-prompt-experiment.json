@@ -1,0 +1,35 @@
+{
+  "generatedAt": "2026-06-27T02:14:00+09:00",
+  "presetId": "basic-attack",
+  "title": "Basic Attack",
+  "candidateId": "candidate-001",
+  "currentSheet": "public/samples/basic-attack-sheet.png",
+  "candidateSheet": "docs/qa/core-animation-quality-uplift/retakes/basic-attack/candidate-001/basic-attack-candidate-001-sheet.png",
+  "prompt": "docs/qa/core-animation-quality-uplift/retakes/basic-attack/candidate-001/basic-attack-candidate-001-prompt.md",
+  "abDecision": "hold-current-candidate-needs-rework",
+  "officialReplacement": false,
+  "status": "not-adopted-useful-learning",
+  "baselinePromptAssessment": "The current basic attack prompt remains the official baseline; the retake showed useful body/sword wording but failed padding safety.",
+  "changeIntent": [
+    "Improve body scale and head size consistency.",
+    "Keep the sword visibly attached to the hand throughout the slash.",
+    "Reduce oversized slash effects without losing the attack read."
+  ],
+  "successLog": [
+    "The candidate improved body and sword relationship in several frames.",
+    "Effects were more contained than the current official sheet.",
+    "The five direction rows remained readable enough for motion review."
+  ],
+  "failureLog": [
+    "The image model returned 1586x992 instead of the requested 2048x1280 contract.",
+    "The raw background needed magenta flood-fill cleanup.",
+    "The normalized candidate produced more below-16px padding frames than current A.",
+    "The current official sheet still has a stronger hit accent for gameplay readability."
+  ],
+  "nextPromptNotes": [
+    "Keep the body/sword consistency wording.",
+    "Add a hard inner-frame rule: all body, sword, cape, and effects must stay inside a 208x208 safe area centered in each 256x256 cell.",
+    "Constrain attack flashes to short-lived compact accents and forbid full-cell sweeps.",
+    "Do not adopt a prompt update unless it beats current A on padding and visible hit timing together."
+  ]
+}

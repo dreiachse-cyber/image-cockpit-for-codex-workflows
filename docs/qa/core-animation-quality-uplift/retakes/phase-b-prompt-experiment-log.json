@@ -1,0 +1,120 @@
+{
+  "generatedAt": "2026-06-27T02:14:00+09:00",
+  "phase": "B",
+  "scope": [
+    "jump-hop",
+    "basic-attack",
+    "ranged-attack"
+  ],
+  "officialReplacement": false,
+  "visibility": "committed-knowledge-only",
+  "note": "Prompt update success/failure knowledge from Phase B retakes. This log is not wired into UI or adoption tables.",
+  "adoptionRule": "A prompt update is not adopted unless the candidate beats current A on mechanical sheet safety and visual/gameplay readability.",
+  "experiments": [
+    {
+      "presetId": "jump-hop",
+      "title": "Jump / Hop",
+      "candidateId": "candidate-001",
+      "status": "not-adopted-useful-learning",
+      "officialReplacement": false,
+      "currentSheet": "public/samples/jump-hop-sheet.png",
+      "candidateSheet": "docs/qa/core-animation-quality-uplift/retakes/jump-hop/candidate-001/jump-hop-candidate-001-sheet.png",
+      "prompt": "docs/qa/core-animation-quality-uplift/retakes/jump-hop/candidate-001/jump-hop-candidate-001-prompt.md",
+      "promptExperimentLog": "docs/qa/core-animation-quality-uplift/retakes/jump-hop/candidate-001/jump-hop-candidate-001-prompt-experiment.json",
+      "abDecision": "hold-current-candidate-needs-rework",
+      "baselinePromptAssessment": "The current jump/hop prompt remains a better official prompt for now because the generated candidate did not preserve sheet safety.",
+      "changeIntent": [
+        "Improve scale consistency between frames.",
+        "Create safer top padding at the jump apex.",
+        "Keep all five directions readable while preserving the girl adventurer identity."
+      ],
+      "successLog": [
+        "The candidate preserved character identity and produced readable midair poses.",
+        "The candidate reduced some extreme frame-to-frame size changes.",
+        "Direction rows stayed coherent enough to inspect as an animation idea."
+      ],
+      "failureLog": [
+        "The image model returned 1586x992 instead of the requested 2048x1280 contract.",
+        "The raw magenta background had gradient/noise and required cleanup.",
+        "After normalization, many frames touched cell edges or fell below the 16px safety padding target.",
+        "The landing squash was not clearly better than the current official sample."
+      ],
+      "nextPromptNotes": [
+        "Ask for a smaller sprite inside each cell, with an explicit 24px empty safe border.",
+        "Prefer 'do not let hair, weapon, boots, cape, or effects enter the outer 24px of any cell' over generic 'safe padding'.",
+        "State that exact canvas/grid compliance is more important than adding visual polish.",
+        "Keep the current prompt as baseline until a candidate passes mechanical padding and edge checks."
+      ]
+    },
+    {
+      "presetId": "basic-attack",
+      "title": "Basic Attack",
+      "candidateId": "candidate-001",
+      "status": "not-adopted-useful-learning",
+      "officialReplacement": false,
+      "currentSheet": "public/samples/basic-attack-sheet.png",
+      "candidateSheet": "docs/qa/core-animation-quality-uplift/retakes/basic-attack/candidate-001/basic-attack-candidate-001-sheet.png",
+      "prompt": "docs/qa/core-animation-quality-uplift/retakes/basic-attack/candidate-001/basic-attack-candidate-001-prompt.md",
+      "promptExperimentLog": "docs/qa/core-animation-quality-uplift/retakes/basic-attack/candidate-001/basic-attack-candidate-001-prompt-experiment.json",
+      "abDecision": "hold-current-candidate-needs-rework",
+      "baselinePromptAssessment": "The current basic attack prompt remains the official baseline; the retake showed useful body/sword wording but failed padding safety.",
+      "changeIntent": [
+        "Improve body scale and head size consistency.",
+        "Keep the sword visibly attached to the hand throughout the slash.",
+        "Reduce oversized slash effects without losing the attack read."
+      ],
+      "successLog": [
+        "The candidate improved body and sword relationship in several frames.",
+        "Effects were more contained than the current official sheet.",
+        "The five direction rows remained readable enough for motion review."
+      ],
+      "failureLog": [
+        "The image model returned 1586x992 instead of the requested 2048x1280 contract.",
+        "The raw background needed magenta flood-fill cleanup.",
+        "The normalized candidate produced more below-16px padding frames than current A.",
+        "The current official sheet still has a stronger hit accent for gameplay readability."
+      ],
+      "nextPromptNotes": [
+        "Keep the body/sword consistency wording.",
+        "Add a hard inner-frame rule: all body, sword, cape, and effects must stay inside a 208x208 safe area centered in each 256x256 cell.",
+        "Constrain attack flashes to short-lived compact accents and forbid full-cell sweeps.",
+        "Do not adopt a prompt update unless it beats current A on padding and visible hit timing together."
+      ]
+    },
+    {
+      "presetId": "ranged-attack",
+      "title": "Ranged Attack",
+      "candidateId": "candidate-001",
+      "status": "not-adopted-rejected",
+      "officialReplacement": false,
+      "currentSheet": "public/samples/ranged-attack-sheet.png",
+      "candidateSheet": "docs/qa/core-animation-quality-uplift/retakes/ranged-attack/candidate-001/ranged-attack-candidate-001-sheet.png",
+      "prompt": "docs/qa/core-animation-quality-uplift/retakes/ranged-attack/candidate-001/ranged-attack-candidate-001-prompt.md",
+      "promptExperimentLog": "docs/qa/core-animation-quality-uplift/retakes/ranged-attack/candidate-001/ranged-attack-candidate-001-prompt-experiment.json",
+      "abDecision": "reject-candidate-keep-current",
+      "baselinePromptAssessment": "The current ranged attack prompt is stronger. The retake prompt made a cleaner but less faithful and less dynamic candidate.",
+      "changeIntent": [
+        "Preserve the traveler identity while clarifying the firing moment.",
+        "Keep the projectile small and inside the cell.",
+        "Improve weapon/hand connection without distracting effects."
+      ],
+      "successLog": [
+        "The candidate kept a tidy projectile moment.",
+        "Direction rows stayed coherent after normalization.",
+        "The small-effect instruction prevented oversized visual noise."
+      ],
+      "failureLog": [
+        "The candidate simplified the traveler silhouette and lost source-character fidelity.",
+        "The firing motion had less pose contrast than the current official sheet.",
+        "The raw image again missed the exact 2048x1280 sheet contract.",
+        "There was no quality win large enough to justify replacing the current prompt."
+      ],
+      "nextPromptNotes": [
+        "Keep current ranged prompt unless future tests can preserve the backpack, coat silhouette, and pose contrast.",
+        "Add stronger source-fidelity wording before asking for cleaner projectile timing.",
+        "Require a clear aim-fire-recoil-return sequence with visible shoulder/arm change, not only a projectile flash.",
+        "Reject cleaner-looking candidates that reduce character identity."
+      ]
+    }
+  ]
+}

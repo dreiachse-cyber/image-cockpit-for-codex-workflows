@@ -60,6 +60,32 @@ Quality requirements: every frame must be centered inside its 256x256 cell, no c
         "After normalization, many frames have below-16px padding and some touch the cell edge.",
         "The current official sheet still has a stronger squash/landing accent in some views."
       ]
+    },
+    promptExperiment: {
+      status: "not-adopted-useful-learning",
+      baselinePromptAssessment: "The current jump/hop prompt remains a better official prompt for now because the generated candidate did not preserve sheet safety.",
+      changeIntent: [
+        "Improve scale consistency between frames.",
+        "Create safer top padding at the jump apex.",
+        "Keep all five directions readable while preserving the girl adventurer identity."
+      ],
+      successLog: [
+        "The candidate preserved character identity and produced readable midair poses.",
+        "The candidate reduced some extreme frame-to-frame size changes.",
+        "Direction rows stayed coherent enough to inspect as an animation idea."
+      ],
+      failureLog: [
+        "The image model returned 1586x992 instead of the requested 2048x1280 contract.",
+        "The raw magenta background had gradient/noise and required cleanup.",
+        "After normalization, many frames touched cell edges or fell below the 16px safety padding target.",
+        "The landing squash was not clearly better than the current official sample."
+      ],
+      nextPromptNotes: [
+        "Ask for a smaller sprite inside each cell, with an explicit 24px empty safe border.",
+        "Prefer 'do not let hair, weapon, boots, cape, or effects enter the outer 24px of any cell' over generic 'safe padding'.",
+        "State that exact canvas/grid compliance is more important than adding visual polish.",
+        "Keep the current prompt as baseline until a candidate passes mechanical padding and edge checks."
+      ]
     }
   },
   {
@@ -96,6 +122,32 @@ Quality requirements: every frame must be centered inside its 256x256 cell, no c
         "After normalization, more frames fall below the 16px safety padding target than the current official sheet.",
         "The current official sheet has a punchier hit effect, so gameplay readability should be judged in motion."
       ]
+    },
+    promptExperiment: {
+      status: "not-adopted-useful-learning",
+      baselinePromptAssessment: "The current basic attack prompt remains the official baseline; the retake showed useful body/sword wording but failed padding safety.",
+      changeIntent: [
+        "Improve body scale and head size consistency.",
+        "Keep the sword visibly attached to the hand throughout the slash.",
+        "Reduce oversized slash effects without losing the attack read."
+      ],
+      successLog: [
+        "The candidate improved body and sword relationship in several frames.",
+        "Effects were more contained than the current official sheet.",
+        "The five direction rows remained readable enough for motion review."
+      ],
+      failureLog: [
+        "The image model returned 1586x992 instead of the requested 2048x1280 contract.",
+        "The raw background needed magenta flood-fill cleanup.",
+        "The normalized candidate produced more below-16px padding frames than current A.",
+        "The current official sheet still has a stronger hit accent for gameplay readability."
+      ],
+      nextPromptNotes: [
+        "Keep the body/sword consistency wording.",
+        "Add a hard inner-frame rule: all body, sword, cape, and effects must stay inside a 208x208 safe area centered in each 256x256 cell.",
+        "Constrain attack flashes to short-lived compact accents and forbid full-cell sweeps.",
+        "Do not adopt a prompt update unless it beats current A on padding and visible hit timing together."
+      ]
     }
   },
   {
@@ -130,6 +182,32 @@ Quality requirements: every frame must be centered inside its 256x256 cell, no c
         "The firing motion has less pose contrast than the current official sheet.",
         "The generated raw canvas and background both needed normalization, with no clear quality win to justify replacement."
       ]
+    },
+    promptExperiment: {
+      status: "not-adopted-rejected",
+      baselinePromptAssessment: "The current ranged attack prompt is stronger. The retake prompt made a cleaner but less faithful and less dynamic candidate.",
+      changeIntent: [
+        "Preserve the traveler identity while clarifying the firing moment.",
+        "Keep the projectile small and inside the cell.",
+        "Improve weapon/hand connection without distracting effects."
+      ],
+      successLog: [
+        "The candidate kept a tidy projectile moment.",
+        "Direction rows stayed coherent after normalization.",
+        "The small-effect instruction prevented oversized visual noise."
+      ],
+      failureLog: [
+        "The candidate simplified the traveler silhouette and lost source-character fidelity.",
+        "The firing motion had less pose contrast than the current official sheet.",
+        "The raw image again missed the exact 2048x1280 sheet contract.",
+        "There was no quality win large enough to justify replacing the current prompt."
+      ],
+      nextPromptNotes: [
+        "Keep current ranged prompt unless future tests can preserve the backpack, coat silhouette, and pose contrast.",
+        "Add stronger source-fidelity wording before asking for cleaner projectile timing.",
+        "Require a clear aim-fire-recoil-return sequence with visible shoulder/arm change, not only a projectile flash.",
+        "Reject cleaner-looking candidates that reduce character identity."
+      ]
     }
   }
 ];
@@ -146,6 +224,7 @@ function main() {
     note: "Generated retake candidates were AB-reviewed against current official samples. No public sample, prompt contract, or UI adoption path was replaced.",
     results
   });
+  writeJson(path.join(retakeRoot, "phase-b-prompt-experiment-log.json"), buildPromptExperimentLog(results));
   writeFileSync(path.join(retakeRoot, "phase-b-ab-summary.md"), buildSummaryMarkdown(results), "utf8");
   writeFileSync(path.join(retakeRoot, "phase-b-ab-gallery.html"), buildGalleryHtml(results), "utf8");
   updateRetakeLog(results);
@@ -163,6 +242,7 @@ function processCandidate(candidate) {
     mechanicalQa: path.join(candidateDir, `${candidate.presetId}-${candidate.candidateId}-mechanical-qa.json`),
     manifest: path.join(candidateDir, `${candidate.presetId}-${candidate.candidateId}-manifest.json`),
     prompt: path.join(candidateDir, `${candidate.presetId}-${candidate.candidateId}-prompt.md`),
+    promptExperiment: path.join(candidateDir, `${candidate.presetId}-${candidate.candidateId}-prompt-experiment.json`),
     review: path.join(candidateDir, `${candidate.presetId}-${candidate.candidateId}-ab-review.md`),
     directionsDir: path.join(candidateDir, "directions"),
     chromaDirectionsDir: path.join(candidateDir, "directions-chroma"),
@@ -234,6 +314,7 @@ function processCandidate(candidate) {
     mechanicalQa: rel(outputs.mechanicalQa),
     manifest: rel(outputs.manifest),
     prompt: rel(outputs.prompt),
+    promptExperimentLog: rel(outputs.promptExperiment),
     review: rel(outputs.review),
     directions: directionRecords,
     gifs: gifRecords,
@@ -247,6 +328,7 @@ function processCandidate(candidate) {
     candidateMechanical: summarizeMechanical(candidateAnalysis),
     comparison,
     abDecision: candidate.abDecision,
+    promptExperiment: candidate.promptExperiment,
     officialReplacement: false
   };
 
@@ -276,7 +358,20 @@ function processCandidate(candidate) {
     transparentContact: rel(outputs.transparentContact),
     mechanicalQa: rel(outputs.mechanicalQa),
     officialReplacement: false,
-    abDecision: candidate.abDecision
+    abDecision: candidate.abDecision,
+    promptExperiment: candidate.promptExperiment
+  });
+  writeJson(outputs.promptExperiment, {
+    generatedAt,
+    presetId: candidate.presetId,
+    title: candidate.title,
+    candidateId: candidate.candidateId,
+    currentSheet: candidate.currentSheet,
+    candidateSheet: rel(outputs.transparentSheet),
+    prompt: rel(outputs.prompt),
+    abDecision: candidate.abDecision.outcome,
+    officialReplacement: false,
+    ...candidate.promptExperiment
   });
   writeFileSync(outputs.prompt, buildPromptMarkdown(candidate), "utf8");
   writeFileSync(outputs.review, buildReviewMarkdown(result), "utf8");
@@ -375,6 +470,35 @@ ${rows}
 - \`ranged-attack\` candidate B is rejected for now; keep current A.
 - All candidates were generated as 1586x992 raw sheets and normalized to the 2048x1280 sheet contract for AB review.
 `;
+}
+
+function buildPromptExperimentLog(results) {
+  return {
+    generatedAt,
+    phase: "B",
+    scope: results.map((result) => result.presetId),
+    officialReplacement: false,
+    visibility: "committed-knowledge-only",
+    note: "Prompt update success/failure knowledge from Phase B retakes. This log is not wired into UI or adoption tables.",
+    adoptionRule: "A prompt update is not adopted unless the candidate beats current A on mechanical sheet safety and visual/gameplay readability.",
+    experiments: results.map((result) => ({
+      presetId: result.presetId,
+      title: result.title,
+      candidateId: result.candidateId,
+      status: result.promptExperiment.status,
+      officialReplacement: false,
+      currentSheet: result.currentSheet,
+      candidateSheet: result.candidateSheet,
+      prompt: result.prompt,
+      promptExperimentLog: result.promptExperimentLog,
+      abDecision: result.abDecision.outcome,
+      baselinePromptAssessment: result.promptExperiment.baselinePromptAssessment,
+      changeIntent: result.promptExperiment.changeIntent,
+      successLog: result.promptExperiment.successLog,
+      failureLog: result.promptExperiment.failureLog,
+      nextPromptNotes: result.promptExperiment.nextPromptNotes
+    }))
+  };
 }
 
 function buildGalleryHtml(results) {
