@@ -101,7 +101,7 @@ const MIN_ANIMATION_CELL_SIZE = ANIMATION_CELL_SIZE;
 const MAX_ACTIVE_CODEX_JOBS = 3;
 const CODEX_LOG_POLL_INTERVAL_MS = 2000;
 const CODEX_LOG_TAIL_BYTES = 32768;
-const CODEX_LOG_HISTORY_LIMIT = 2;
+const CODEX_LOG_HISTORY_LIMIT = MAX_ACTIVE_CODEX_JOBS;
 export const INITIAL_HISTORY_RENDER_COUNT = 100;
 export const HISTORY_RENDER_BATCH_SIZE = 20;
 const HISTORY_SCROLL_LOAD_THRESHOLD_PX = 160;
@@ -6005,11 +6005,56 @@ function CodexLogPanel({
   const copy = uiCopy[language];
   const runningCount = jobs.filter((job) => job.state === "running").length;
   const hasContent = logs.length > 0 || jobs.length > 0;
-  if (!hasContent) return null;
-
   const visibleLogs = logs.length > 0
     ? logs
     : jobs.slice(0, CODEX_LOG_HISTORY_LIMIT).map((job) => createCodexJobLogItem(job, undefined, job.state));
+  const visibleLogSignature = visibleLogs
+    .map((log) => `${log.jobId}:${log.state}:${log.readAt}:${log.modifiedAt}:${log.size}:${log.error ? "error" : ""}`)
+    .join("|");
+  const codexLogPreRefs = useRef(new Map<string, HTMLPreElement>());
+  const codexLogAutoScrollRef = useRef(new Map<string, boolean>());
+  const previousFullscreenRef = useRef(fullscreen);
+
+  const setCodexLogPreRef = useCallback((jobId: string, node: HTMLPreElement | null) => {
+    if (!node) {
+      codexLogPreRefs.current.delete(jobId);
+      return;
+    }
+    codexLogPreRefs.current.set(jobId, node);
+    if (!codexLogAutoScrollRef.current.has(jobId)) {
+      codexLogAutoScrollRef.current.set(jobId, true);
+    }
+  }, []);
+
+  const handleCodexLogScroll = useCallback((jobId: string, event: UIEvent<HTMLPreElement>) => {
+    const target = event.currentTarget;
+    const distanceFromBottom = target.scrollHeight - target.scrollTop - target.clientHeight;
+    codexLogAutoScrollRef.current.set(jobId, distanceFromBottom < 24);
+  }, []);
+
+  useEffect(() => {
+    const fullscreenChanged = previousFullscreenRef.current !== fullscreen;
+    previousFullscreenRef.current = fullscreen;
+    const visibleJobIds = new Set(visibleLogs.map((log) => log.jobId));
+    Array.from(codexLogAutoScrollRef.current.keys()).forEach((jobId) => {
+      if (!visibleJobIds.has(jobId)) {
+        codexLogAutoScrollRef.current.delete(jobId);
+      }
+    });
+    const frame = window.requestAnimationFrame(() => {
+      visibleLogs.forEach((log) => {
+        const pre = codexLogPreRefs.current.get(log.jobId);
+        if (!pre) return;
+        const shouldAutoScroll = fullscreenChanged || (codexLogAutoScrollRef.current.get(log.jobId) ?? true);
+        if (!shouldAutoScroll) return;
+        pre.scrollTop = pre.scrollHeight;
+        codexLogAutoScrollRef.current.set(log.jobId, true);
+      });
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [fullscreen, visibleLogSignature]);
+
+  if (!hasContent) return null;
 
   return (
     <section className={`codex-log-panel ${collapsed ? "collapsed" : ""} ${fullscreen ? "fullscreen" : ""}`} aria-label={copy.codexLogTitle}>
@@ -6050,7 +6095,12 @@ function CodexLogPanel({
                 <span>{copy.codexLogUpdated}: {log.modifiedAt ? formatTime(log.modifiedAt) : "-"}</span>
                 {log.truncated && <span>{copy.codexLogTruncated}</span>}
               </div>
-              <pre>{log.error || log.text || (log.exists ? copy.codexLogNoOutput : copy.codexLogWaiting)}</pre>
+              <pre
+                ref={(node) => setCodexLogPreRef(log.jobId, node)}
+                onScroll={(event) => handleCodexLogScroll(log.jobId, event)}
+              >
+                {log.error || log.text || (log.exists ? copy.codexLogNoOutput : copy.codexLogWaiting)}
+              </pre>
             </article>
           ))}
         </div>

@@ -31,6 +31,7 @@ const expandedPromptExampleChecks = [
   { title: "Earth Spirit", promptText: "earth spirit" }
 ];
 const expectedPromptExampleCount = 78;
+const expectedCodexLogHistoryLimit = 3;
 
 if (!browserCommand) {
   console.error("UI smoke requires Chrome or Edge. Set IMAGE_COCKPIT_BROWSER_COMMAND to a browser executable.");
@@ -531,7 +532,16 @@ async function assertCodexQueue() {
   await waitForEval(() => `document.querySelectorAll(".codex-job-row").length === 0`, "Codex queue drains after results return", 18000);
   const drainedSnapshot = await pageSnapshot();
   assert(drainedSnapshot.codexLogPanelVisible, "Codex log panel should keep latest logs after jobs complete");
-  assert(drainedSnapshot.codexLogCards <= 2, `Codex log panel should retain at most 2 completed log cards, got ${drainedSnapshot.codexLogCards}`);
+  await waitForEval(
+    () => `document.querySelectorAll(".codex-log-card").length === ${expectedCodexLogHistoryLimit}`,
+    "Codex log panel retains the latest 3 completed log cards",
+    6000
+  );
+  const drainedLogCardCount = await evaluate(`document.querySelectorAll(".codex-log-card").length`);
+  assert(
+    drainedLogCardCount === expectedCodexLogHistoryLimit,
+    `Codex log panel should retain exactly ${expectedCodexLogHistoryLimit} completed log cards after four jobs, got ${drainedLogCardCount}`
+  );
   await assertNoBrowserErrors("Codex queue");
   await selectWorkflowTab("Pixel Art Generation");
 }
@@ -543,35 +553,54 @@ async function assertCodexLogFullscreen() {
     "mock Codex log output",
     8000
   );
+  await waitForEval(
+    () => `Array.from(document.querySelectorAll(".codex-log-card pre")).some((pre) => pre.innerText.includes("mock runner tail marker"))`,
+    "mock Codex log tail marker",
+    8000
+  );
+  await delay(100);
   const normalMetrics = await evaluate(`(() => {
     const panel = document.querySelector(".codex-log-panel");
-    const pre = document.querySelector(".codex-log-card pre");
+    const pre = Array.from(document.querySelectorAll(".codex-log-card pre"))
+      .find((candidate) => candidate.innerText.includes("mock runner tail marker")) || document.querySelector(".codex-log-card pre");
     return {
       panelHeight: Math.round(panel?.getBoundingClientRect().height || 0),
       preHeight: Math.round(pre?.getBoundingClientRect().height || 0),
-      cardCount: document.querySelectorAll(".codex-log-panel .codex-log-card").length
+      cardCount: document.querySelectorAll(".codex-log-panel .codex-log-card").length,
+      preOverflowing: Boolean(pre && pre.scrollHeight > pre.clientHeight),
+      distanceFromBottom: pre ? Math.round(pre.scrollHeight - pre.scrollTop - pre.clientHeight) : 999,
+      hasTailMarker: Boolean(pre?.innerText.includes("mock runner tail marker"))
     };
   })()`);
   assert(normalMetrics.panelHeight > 0, "Codex log panel should be visible before fullscreen");
   assert(normalMetrics.preHeight > 0, "Codex log pre should be visible before fullscreen");
-  assert(normalMetrics.cardCount <= 2, `Compact Codex log panel should show at most 2 cards, got ${normalMetrics.cardCount}`);
+  assert(normalMetrics.cardCount <= expectedCodexLogHistoryLimit, `Compact Codex log panel should show at most ${expectedCodexLogHistoryLimit} cards, got ${normalMetrics.cardCount}`);
+  assert(normalMetrics.preOverflowing, "Compact Codex log pre should overflow so latest-line auto-scroll is meaningful");
+  assert(normalMetrics.hasTailMarker, "Compact Codex log should include the mock tail marker");
+  assert(normalMetrics.distanceFromBottom <= 4, `Compact Codex log should auto-scroll to the latest line, distance ${normalMetrics.distanceFromBottom}`);
 
   await clickButtonByAriaLabel("Full screen logs");
   await waitForEval(() => `document.querySelector(".codex-log-panel")?.classList.contains("fullscreen")`, "Codex log fullscreen mode");
+  await delay(100);
   const fullscreenMetrics = await evaluate(`(() => {
     const panel = document.querySelector(".codex-log-panel.fullscreen");
-    const pre = document.querySelector(".codex-log-panel.fullscreen .codex-log-card pre");
+    const pre = Array.from(document.querySelectorAll(".codex-log-panel.fullscreen .codex-log-card pre"))
+      .find((candidate) => candidate.innerText.includes("mock runner tail marker")) || document.querySelector(".codex-log-panel.fullscreen .codex-log-card pre");
     return {
       panelHeight: Math.round(panel?.getBoundingClientRect().height || 0),
       preHeight: Math.round(pre?.getBoundingClientRect().height || 0),
       exitButton: Boolean(document.querySelector('button[aria-label="Exit full screen"]')),
-      cardCount: document.querySelectorAll(".codex-log-panel.fullscreen .codex-log-card").length
+      cardCount: document.querySelectorAll(".codex-log-panel.fullscreen .codex-log-card").length,
+      distanceFromBottom: pre ? Math.round(pre.scrollHeight - pre.scrollTop - pre.clientHeight) : 999,
+      hasTailMarker: Boolean(pre?.innerText.includes("mock runner tail marker"))
     };
   })()`);
   assert(fullscreenMetrics.exitButton, "Fullscreen Codex log should expose an exit button");
-  assert(fullscreenMetrics.cardCount <= 2, `Fullscreen Codex log panel should show at most 2 cards, got ${fullscreenMetrics.cardCount}`);
+  assert(fullscreenMetrics.cardCount <= expectedCodexLogHistoryLimit, `Fullscreen Codex log panel should show at most ${expectedCodexLogHistoryLimit} cards, got ${fullscreenMetrics.cardCount}`);
   assert(fullscreenMetrics.panelHeight > normalMetrics.panelHeight + 120, "Fullscreen Codex log panel should be taller than the compact panel");
   assert(fullscreenMetrics.preHeight > normalMetrics.preHeight + 120, "Fullscreen Codex log text area should be taller than normal");
+  assert(fullscreenMetrics.hasTailMarker, "Fullscreen Codex log should include the mock tail marker");
+  assert(fullscreenMetrics.distanceFromBottom <= 4, `Fullscreen Codex log should open at the latest line, distance ${fullscreenMetrics.distanceFromBottom}`);
   await maybeCapture("codex-log-fullscreen");
 
   await evaluate(`window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }))`);
@@ -581,22 +610,28 @@ async function assertCodexLogFullscreen() {
   await delay(250);
   await clickButtonByAriaLabel("Full screen logs");
   await waitForEval(() => `document.querySelector(".codex-log-panel")?.classList.contains("fullscreen")`, "mobile Codex log fullscreen mode");
+  await delay(100);
   const mobileFit = await evaluate(`(() => {
     const panel = document.querySelector(".codex-log-panel.fullscreen");
     const header = document.querySelector(".codex-log-panel.fullscreen .codex-log-header");
-    const pre = document.querySelector(".codex-log-panel.fullscreen .codex-log-card pre");
+    const pre = Array.from(document.querySelectorAll(".codex-log-panel.fullscreen .codex-log-card pre"))
+      .find((candidate) => candidate.innerText.includes("mock runner tail marker")) || document.querySelector(".codex-log-panel.fullscreen .codex-log-card pre");
     const panelRect = panel?.getBoundingClientRect();
     return {
       panelFits: Boolean(panelRect && panelRect.left >= -1 && panelRect.right <= window.innerWidth + 1),
       headerFits: Boolean(header && header.scrollWidth <= header.clientWidth + 1),
       preFits: Boolean(pre && pre.scrollWidth <= pre.clientWidth + 1),
-      cardCount: document.querySelectorAll(".codex-log-panel.fullscreen .codex-log-card").length
+      cardCount: document.querySelectorAll(".codex-log-panel.fullscreen .codex-log-card").length,
+      distanceFromBottom: pre ? Math.round(pre.scrollHeight - pre.scrollTop - pre.clientHeight) : 999,
+      hasTailMarker: Boolean(pre?.innerText.includes("mock runner tail marker"))
     };
   })()`);
   assert(mobileFit.panelFits, "Mobile fullscreen Codex log panel should fit within the viewport");
   assert(mobileFit.headerFits, "Mobile fullscreen Codex log header should not overflow horizontally");
   assert(mobileFit.preFits, "Mobile fullscreen Codex log text should not overflow horizontally");
-  assert(mobileFit.cardCount <= 2, `Mobile fullscreen Codex log panel should show at most 2 cards, got ${mobileFit.cardCount}`);
+  assert(mobileFit.cardCount <= expectedCodexLogHistoryLimit, `Mobile fullscreen Codex log panel should show at most ${expectedCodexLogHistoryLimit} cards, got ${mobileFit.cardCount}`);
+  assert(mobileFit.hasTailMarker, "Mobile fullscreen Codex log should include the mock tail marker");
+  assert(mobileFit.distanceFromBottom <= 4, `Mobile fullscreen Codex log should stay on the latest line, distance ${mobileFit.distanceFromBottom}`);
   await evaluate(`window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }))`);
   await waitForEval(() => `!document.querySelector(".codex-log-panel")?.classList.contains("fullscreen")`, "mobile Codex log fullscreen closes with Escape");
   await cdp.send("Emulation.clearDeviceMetricsOverride");
@@ -1628,6 +1663,10 @@ if (!jobId || !jobPath || !outboxDir) {
 
 const job = JSON.parse(await readFile(jobPath, "utf8"));
 console.log(\`mock runner accepted \${jobId} \${job.workflowMode || "unknown"}\`);
+for (let index = 1; index <= 28; index += 1) {
+  console.log(\`mock runner progress \${jobId} \${String(index).padStart(2, "0")}/28\`);
+}
+console.log(\`mock runner tail marker \${jobId}\`);
 const delayMs = Number(process.env.IMAGE_COCKPIT_MOCK_RUNNER_DELAY_MS || 0);
 if (delayMs > 0) {
   await new Promise((resolve) => setTimeout(resolve, delayMs));

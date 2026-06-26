@@ -16,7 +16,8 @@
 - 3本実行中のみprimary actionが `Queue Codex Job` に切り替わることを確認した。
 - 4本目は `Queued` / `Waiting for an open slot` として表示されることを確認した。
 - queue drain後に `.codex-job-row` が0件へ戻ることを確認した。
-- 完了後のCodex log card保持上限は従来どおり最大2件であることを確認した。
+- 完了後のCodex log card保持上限は当時の仕様として最大2件であることを確認した。
+- 2026-06-27追記: `docs/qa/codex-log-card-limit-3.md` で、同時実行上限3件に合わせてCodex log card保持上限も最大3件へ更新した。
 
 ## 実行結果
 
