@@ -1,0 +1,82 @@
+{
+  "schema": "image-cockpit.walk-run-focus.run-log.v1",
+  "generatedAt": "2026-06-27T04:45:00+09:00",
+  "branch": "codex/walk-run-focused-animation-tournament",
+  "source": {
+    "uiJobId": "codex-job-2026-06-26T19-18-24-935Z",
+    "submittedFromBrowser": true,
+    "status": "failed",
+    "diagnosticKind": "policy_or_safety",
+    "note": "Built-in image generation produced a real PNG, but the runner exited before returning it through outbox. The generated PNG was rescued and chroma-keyed for this QA pass.",
+    "rescuedGeneratedImage": "local-codex-generated-images/019f055e-7829-79f2-ad2a-ef2750e27db7/ig_02a04cc42f3f50dc016a3ed09d44f48191888c52f958a77746.png",
+    "qaSource": "source-boy-adventurer-transparent.png"
+  },
+  "trials": [
+    {
+      "preset": "walk-cycle",
+      "trial": "walk-b-v1-trial-001",
+      "jobId": "codex-job-2026-06-26T19-25-24-878Z",
+      "submittedVia": "local handoff API",
+      "status": "completed",
+      "exitCode": 0,
+      "finishedAt": "2026-06-26T19:37:18.174Z",
+      "mechanicalQa": "candidates/walk-cycle/walk-b-v1-trial-001/mechanical-qa.json",
+      "sheet": "candidates/walk-cycle/walk-b-v1-trial-001/sheet.png",
+      "notes": [
+        "5 direction PNGs plus manifest returned to outbox.",
+        "Mechanical QA: pass."
+      ]
+    },
+    {
+      "preset": "run-cycle",
+      "trial": "run-b-v1-trial-001",
+      "jobId": "codex-job-2026-06-26T19-25-24-955Z",
+      "submittedVia": "local handoff API",
+      "status": "completed",
+      "exitCode": 0,
+      "finishedAt": "2026-06-26T19:42:41.607Z",
+      "mechanicalQa": "candidates/run-cycle/run-b-v1-trial-001/mechanical-qa.json",
+      "sheet": "candidates/run-cycle/run-b-v1-trial-001/sheet.png",
+      "notes": [
+        "Initial side/front-three-quarter candidates were partly walk-like.",
+        "Runner generated additional front-three-quarter and side candidates.",
+        "Stream reconnect occurred, then the runner fell back to HTTPS and completed.",
+        "Mechanical QA: pass."
+      ]
+    },
+    {
+      "preset": "walk-cycle",
+      "trial": "walk-b-v1-trial-002",
+      "jobId": "codex-job-2026-06-26T19-25-24-990Z",
+      "submittedVia": "local handoff API",
+      "status": "completed",
+      "exitCode": 0,
+      "finishedAt": "2026-06-26T19:36:51.311Z",
+      "mechanicalQa": "candidates/walk-cycle/walk-b-v1-trial-002/mechanical-qa.json",
+      "sheet": "candidates/walk-cycle/walk-b-v1-trial-002/sheet.png",
+      "notes": [
+        "5 direction PNGs plus manifest returned to outbox.",
+        "Mechanical QA: pass."
+      ]
+    }
+  ],
+  "browserQa": {
+    "surface": "Codex in-app browser",
+    "url": "http://127.0.0.1:5193/docs/qa/recursive-animation-prompt-tournament/walk-run-focus/ab-gallery.html",
+    "sections": 3,
+    "sheetImages": 6,
+    "gifImages": 6,
+    "brokenImages": 0,
+    "consoleErrors": 0,
+    "scaleControls": ["scale-1", "scale-4"],
+    "redirectCheck": {
+      "requested": "http://127.0.0.1:5193/docs/qa/recursive-animation-prompt-tournament/walk-run-focus/candidates/walk-cycle/walk-b-v1-trial-001/ab-gallery.html",
+      "finalUrl": "http://127.0.0.1:5193/docs/qa/recursive-animation-prompt-tournament/walk-run-focus/ab-gallery.html#walk-b-v1-trial-001",
+      "brokenImages": 0,
+      "consoleErrors": 0,
+      "status": "pass"
+    },
+    "screenshot": "browser-gallery-4x.png",
+    "status": "pass"
+  }
+}

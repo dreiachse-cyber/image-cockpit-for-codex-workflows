@@ -1,0 +1,68 @@
+{
+  "schema": "image-cockpit.walk-run-focus.scorecards.v1",
+  "generatedAt": "2026-06-27T04:45:00+09:00",
+  "scale": "0-5, higher is better",
+  "champions": {
+    "walk-cycle": {
+      "champion": "A current official",
+      "mechanical": 5,
+      "browserVisual": 4,
+      "gaitReadability": 4,
+      "directionIdentity": 4,
+      "loopContinuity": 4,
+      "stabilityTier": "official pilot",
+      "decision": "keep"
+    },
+    "run-cycle": {
+      "champion": "A current official",
+      "mechanical": 5,
+      "browserVisual": 4,
+      "gaitReadability": 4,
+      "directionIdentity": 4,
+      "loopContinuity": 4,
+      "stabilityTier": "official pilot",
+      "decision": "keep"
+    }
+  },
+  "challengers": [
+    {
+      "preset": "walk-cycle",
+      "trial": "walk-b-v1-trial-001",
+      "jobId": "codex-job-2026-06-26T19-25-24-878Z",
+      "mechanical": 5,
+      "browserVisual": 4,
+      "gaitReadability": 4,
+      "directionIdentity": 4,
+      "loopContinuity": 3,
+      "stabilityTier": "Probe",
+      "pass": true,
+      "decision": "do not adopt; keep A"
+    },
+    {
+      "preset": "walk-cycle",
+      "trial": "walk-b-v1-trial-002",
+      "jobId": "codex-job-2026-06-26T19-25-24-990Z",
+      "mechanical": 5,
+      "browserVisual": 4,
+      "gaitReadability": 3,
+      "directionIdentity": 4,
+      "loopContinuity": 3,
+      "stabilityTier": "Probe",
+      "pass": true,
+      "decision": "do not adopt; keep A"
+    },
+    {
+      "preset": "run-cycle",
+      "trial": "run-b-v1-trial-001",
+      "jobId": "codex-job-2026-06-26T19-25-24-955Z",
+      "mechanical": 5,
+      "browserVisual": 4,
+      "gaitReadability": 4,
+      "directionIdentity": 4,
+      "loopContinuity": 3,
+      "stabilityTier": "Probe",
+      "pass": true,
+      "decision": "do not adopt; keep A"
+    }
+  ]
+}

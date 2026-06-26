@@ -1,0 +1,1038 @@
+{
+  "schema": "image-cockpit.walk-run-focus.mechanical-qa.v1",
+  "generatedAt": "2026-06-26T19:44:25.269516+00:00",
+  "preset": "walk-cycle",
+  "trial": "walk-b-v1-trial-002",
+  "jobId": "codex-job-2026-06-26T19-25-24-990Z",
+  "playback": "normal",
+  "source": "source-boy-adventurer-transparent.png",
+  "rawOutboxDir": "D:\\codex\\image-cockpit-for-codex-workflows\\slot2\\codex-handoff\\walk-run-focus\\outbox",
+  "imageSize": [
+    2048,
+    1280
+  ],
+  "cell": [
+    256,
+    256
+  ],
+  "grid": {
+    "columns": 8,
+    "rows": 5,
+    "gutter": 0
+  },
+  "directions": [
+    {
+      "direction": "front",
+      "slug": "front",
+      "file": "raw/codex-job-2026-06-26T19-25-24-990Z-front.png",
+      "size": [
+        1024,
+        512
+      ]
+    },
+    {
+      "direction": "front three-quarter",
+      "slug": "front-three-quarter",
+      "file": "raw/codex-job-2026-06-26T19-25-24-990Z-front-three-quarter.png",
+      "size": [
+        1024,
+        512
+      ]
+    },
+    {
+      "direction": "side",
+      "slug": "side",
+      "file": "raw/codex-job-2026-06-26T19-25-24-990Z-side.png",
+      "size": [
+        1024,
+        512
+      ]
+    },
+    {
+      "direction": "back three-quarter",
+      "slug": "back-three-quarter",
+      "file": "raw/codex-job-2026-06-26T19-25-24-990Z-back-three-quarter.png",
+      "size": [
+        1024,
+        512
+      ]
+    },
+    {
+      "direction": "back",
+      "slug": "back",
+      "file": "raw/codex-job-2026-06-26T19-25-24-990Z-back.png",
+      "size": [
+        1024,
+        512
+      ]
+    }
+  ],
+  "framesChecked": 40,
+  "transparentFrames": 40,
+  "alphaZeroRatio": 0.824045,
+  "alphaOpaqueRatio": 0.175955,
+  "mechanicalErrors": [],
+  "mechanicalWarnings": [],
+  "cellReports": [
+    {
+      "direction": "front",
+      "slug": "front",
+      "rowInDirection": 0,
+      "columnInDirection": 0,
+      "frame": 1,
+      "empty": false,
+      "padding": [
+        84,
+        26,
+        84,
+        24
+      ],
+      "size": [
+        88,
+        206
+      ],
+      "bbox": [
+        84,
+        26,
+        172,
+        232
+      ]
+    },
+    {
+      "direction": "front",
+      "slug": "front",
+      "rowInDirection": 0,
+      "columnInDirection": 1,
+      "frame": 2,
+      "empty": false,
+      "padding": [
+        84,
+        26,
+        85,
+        24
+      ],
+      "size": [
+        87,
+        206
+      ],
+      "bbox": [
+        84,
+        26,
+        171,
+        232
+      ]
+    },
+    {
+      "direction": "front",
+      "slug": "front",
+      "rowInDirection": 0,
+      "columnInDirection": 2,
+      "frame": 3,
+      "empty": false,
+      "padding": [
+        85,
+        25,
+        86,
+        24
+      ],
+      "size": [
+        85,
+        207
+      ],
+      "bbox": [
+        85,
+        25,
+        170,
+        232
+      ]
+    },
+    {
+      "direction": "front",
+      "slug": "front",
+      "rowInDirection": 0,
+      "columnInDirection": 3,
+      "frame": 4,
+      "empty": false,
+      "padding": [
+        84,
+        27,
+        84,
+        24
+      ],
+      "size": [
+        88,
+        205
+      ],
+      "bbox": [
+        84,
+        27,
+        172,
+        232
+      ]
+    },
+    {
+      "direction": "front",
+      "slug": "front",
+      "rowInDirection": 1,
+      "columnInDirection": 0,
+      "frame": 5,
+      "empty": false,
+      "padding": [
+        83,
+        24,
+        84,
+        24
+      ],
+      "size": [
+        89,
+        208
+      ],
+      "bbox": [
+        83,
+        24,
+        172,
+        232
+      ]
+    },
+    {
+      "direction": "front",
+      "slug": "front",
+      "rowInDirection": 1,
+      "columnInDirection": 1,
+      "frame": 6,
+      "empty": false,
+      "padding": [
+        84,
+        24,
+        85,
+        24
+      ],
+      "size": [
+        87,
+        208
+      ],
+      "bbox": [
+        84,
+        24,
+        171,
+        232
+      ]
+    },
+    {
+      "direction": "front",
+      "slug": "front",
+      "rowInDirection": 1,
+      "columnInDirection": 2,
+      "frame": 7,
+      "empty": false,
+      "padding": [
+        85,
+        24,
+        85,
+        24
+      ],
+      "size": [
+        86,
+        208
+      ],
+      "bbox": [
+        85,
+        24,
+        171,
+        232
+      ]
+    },
+    {
+      "direction": "front",
+      "slug": "front",
+      "rowInDirection": 1,
+      "columnInDirection": 3,
+      "frame": 8,
+      "empty": false,
+      "padding": [
+        84,
+        24,
+        84,
+        24
+      ],
+      "size": [
+        88,
+        208
+      ],
+      "bbox": [
+        84,
+        24,
+        172,
+        232
+      ]
+    },
+    {
+      "direction": "front three-quarter",
+      "slug": "front-three-quarter",
+      "rowInDirection": 0,
+      "columnInDirection": 0,
+      "frame": 1,
+      "empty": false,
+      "padding": [
+        71,
+        24,
+        72,
+        24
+      ],
+      "size": [
+        113,
+        208
+      ],
+      "bbox": [
+        71,
+        24,
+        184,
+        232
+      ]
+    },
+    {
+      "direction": "front three-quarter",
+      "slug": "front-three-quarter",
+      "rowInDirection": 0,
+      "columnInDirection": 1,
+      "frame": 2,
+      "empty": false,
+      "padding": [
+        80,
+        24,
+        80,
+        24
+      ],
+      "size": [
+        96,
+        208
+      ],
+      "bbox": [
+        80,
+        24,
+        176,
+        232
+      ]
+    },
+    {
+      "direction": "front three-quarter",
+      "slug": "front-three-quarter",
+      "rowInDirection": 0,
+      "columnInDirection": 2,
+      "frame": 3,
+      "empty": false,
+      "padding": [
+        78,
+        24,
+        79,
+        24
+      ],
+      "size": [
+        99,
+        208
+      ],
+      "bbox": [
+        78,
+        24,
+        177,
+        232
+      ]
+    },
+    {
+      "direction": "front three-quarter",
+      "slug": "front-three-quarter",
+      "rowInDirection": 0,
+      "columnInDirection": 3,
+      "frame": 4,
+      "empty": false,
+      "padding": [
+        75,
+        24,
+        76,
+        24
+      ],
+      "size": [
+        105,
+        208
+      ],
+      "bbox": [
+        75,
+        24,
+        180,
+        232
+      ]
+    },
+    {
+      "direction": "front three-quarter",
+      "slug": "front-three-quarter",
+      "rowInDirection": 1,
+      "columnInDirection": 0,
+      "frame": 5,
+      "empty": false,
+      "padding": [
+        76,
+        24,
+        77,
+        24
+      ],
+      "size": [
+        103,
+        208
+      ],
+      "bbox": [
+        76,
+        24,
+        179,
+        232
+      ]
+    },
+    {
+      "direction": "front three-quarter",
+      "slug": "front-three-quarter",
+      "rowInDirection": 1,
+      "columnInDirection": 1,
+      "frame": 6,
+      "empty": false,
+      "padding": [
+        82,
+        24,
+        82,
+        24
+      ],
+      "size": [
+        92,
+        208
+      ],
+      "bbox": [
+        82,
+        24,
+        174,
+        232
+      ]
+    },
+    {
+      "direction": "front three-quarter",
+      "slug": "front-three-quarter",
+      "rowInDirection": 1,
+      "columnInDirection": 2,
+      "frame": 7,
+      "empty": false,
+      "padding": [
+        79,
+        24,
+        80,
+        24
+      ],
+      "size": [
+        97,
+        208
+      ],
+      "bbox": [
+        79,
+        24,
+        176,
+        232
+      ]
+    },
+    {
+      "direction": "front three-quarter",
+      "slug": "front-three-quarter",
+      "rowInDirection": 1,
+      "columnInDirection": 3,
+      "frame": 8,
+      "empty": false,
+      "padding": [
+        76,
+        24,
+        76,
+        24
+      ],
+      "size": [
+        104,
+        208
+      ],
+      "bbox": [
+        76,
+        24,
+        180,
+        232
+      ]
+    },
+    {
+      "direction": "side",
+      "slug": "side",
+      "rowInDirection": 0,
+      "columnInDirection": 0,
+      "frame": 1,
+      "empty": false,
+      "padding": [
+        69,
+        24,
+        70,
+        24
+      ],
+      "size": [
+        117,
+        208
+      ],
+      "bbox": [
+        69,
+        24,
+        186,
+        232
+      ]
+    },
+    {
+      "direction": "side",
+      "slug": "side",
+      "rowInDirection": 0,
+      "columnInDirection": 1,
+      "frame": 2,
+      "empty": false,
+      "padding": [
+        81,
+        24,
+        81,
+        24
+      ],
+      "size": [
+        94,
+        208
+      ],
+      "bbox": [
+        81,
+        24,
+        175,
+        232
+      ]
+    },
+    {
+      "direction": "side",
+      "slug": "side",
+      "rowInDirection": 0,
+      "columnInDirection": 2,
+      "frame": 3,
+      "empty": false,
+      "padding": [
+        78,
+        24,
+        79,
+        24
+      ],
+      "size": [
+        99,
+        208
+      ],
+      "bbox": [
+        78,
+        24,
+        177,
+        232
+      ]
+    },
+    {
+      "direction": "side",
+      "slug": "side",
+      "rowInDirection": 0,
+      "columnInDirection": 3,
+      "frame": 4,
+      "empty": false,
+      "padding": [
+        83,
+        24,
+        84,
+        24
+      ],
+      "size": [
+        89,
+        208
+      ],
+      "bbox": [
+        83,
+        24,
+        172,
+        232
+      ]
+    },
+    {
+      "direction": "side",
+      "slug": "side",
+      "rowInDirection": 1,
+      "columnInDirection": 0,
+      "frame": 5,
+      "empty": false,
+      "padding": [
+        71,
+        24,
+        71,
+        24
+      ],
+      "size": [
+        114,
+        208
+      ],
+      "bbox": [
+        71,
+        24,
+        185,
+        232
+      ]
+    },
+    {
+      "direction": "side",
+      "slug": "side",
+      "rowInDirection": 1,
+      "columnInDirection": 1,
+      "frame": 6,
+      "empty": false,
+      "padding": [
+        83,
+        24,
+        83,
+        24
+      ],
+      "size": [
+        90,
+        208
+      ],
+      "bbox": [
+        83,
+        24,
+        173,
+        232
+      ]
+    },
+    {
+      "direction": "side",
+      "slug": "side",
+      "rowInDirection": 1,
+      "columnInDirection": 2,
+      "frame": 7,
+      "empty": false,
+      "padding": [
+        82,
+        24,
+        82,
+        24
+      ],
+      "size": [
+        92,
+        208
+      ],
+      "bbox": [
+        82,
+        24,
+        174,
+        232
+      ]
+    },
+    {
+      "direction": "side",
+      "slug": "side",
+      "rowInDirection": 1,
+      "columnInDirection": 3,
+      "frame": 8,
+      "empty": false,
+      "padding": [
+        75,
+        24,
+        75,
+        24
+      ],
+      "size": [
+        106,
+        208
+      ],
+      "bbox": [
+        75,
+        24,
+        181,
+        232
+      ]
+    },
+    {
+      "direction": "back three-quarter",
+      "slug": "back-three-quarter",
+      "rowInDirection": 0,
+      "columnInDirection": 0,
+      "frame": 1,
+      "empty": false,
+      "padding": [
+        74,
+        24,
+        74,
+        24
+      ],
+      "size": [
+        108,
+        208
+      ],
+      "bbox": [
+        74,
+        24,
+        182,
+        232
+      ]
+    },
+    {
+      "direction": "back three-quarter",
+      "slug": "back-three-quarter",
+      "rowInDirection": 0,
+      "columnInDirection": 1,
+      "frame": 2,
+      "empty": false,
+      "padding": [
+        77,
+        24,
+        77,
+        24
+      ],
+      "size": [
+        102,
+        208
+      ],
+      "bbox": [
+        77,
+        24,
+        179,
+        232
+      ]
+    },
+    {
+      "direction": "back three-quarter",
+      "slug": "back-three-quarter",
+      "rowInDirection": 0,
+      "columnInDirection": 2,
+      "frame": 3,
+      "empty": false,
+      "padding": [
+        79,
+        24,
+        80,
+        24
+      ],
+      "size": [
+        97,
+        208
+      ],
+      "bbox": [
+        79,
+        24,
+        176,
+        232
+      ]
+    },
+    {
+      "direction": "back three-quarter",
+      "slug": "back-three-quarter",
+      "rowInDirection": 0,
+      "columnInDirection": 3,
+      "frame": 4,
+      "empty": false,
+      "padding": [
+        75,
+        24,
+        75,
+        24
+      ],
+      "size": [
+        106,
+        208
+      ],
+      "bbox": [
+        75,
+        24,
+        181,
+        232
+      ]
+    },
+    {
+      "direction": "back three-quarter",
+      "slug": "back-three-quarter",
+      "rowInDirection": 1,
+      "columnInDirection": 0,
+      "frame": 5,
+      "empty": false,
+      "padding": [
+        76,
+        24,
+        76,
+        24
+      ],
+      "size": [
+        104,
+        208
+      ],
+      "bbox": [
+        76,
+        24,
+        180,
+        232
+      ]
+    },
+    {
+      "direction": "back three-quarter",
+      "slug": "back-three-quarter",
+      "rowInDirection": 1,
+      "columnInDirection": 1,
+      "frame": 6,
+      "empty": false,
+      "padding": [
+        79,
+        24,
+        80,
+        24
+      ],
+      "size": [
+        97,
+        208
+      ],
+      "bbox": [
+        79,
+        24,
+        176,
+        232
+      ]
+    },
+    {
+      "direction": "back three-quarter",
+      "slug": "back-three-quarter",
+      "rowInDirection": 1,
+      "columnInDirection": 2,
+      "frame": 7,
+      "empty": false,
+      "padding": [
+        79,
+        24,
+        80,
+        24
+      ],
+      "size": [
+        97,
+        208
+      ],
+      "bbox": [
+        79,
+        24,
+        176,
+        232
+      ]
+    },
+    {
+      "direction": "back three-quarter",
+      "slug": "back-three-quarter",
+      "rowInDirection": 1,
+      "columnInDirection": 3,
+      "frame": 8,
+      "empty": false,
+      "padding": [
+        77,
+        24,
+        78,
+        24
+      ],
+      "size": [
+        101,
+        208
+      ],
+      "bbox": [
+        77,
+        24,
+        178,
+        232
+      ]
+    },
+    {
+      "direction": "back",
+      "slug": "back",
+      "rowInDirection": 0,
+      "columnInDirection": 0,
+      "frame": 1,
+      "empty": false,
+      "padding": [
+        84,
+        24,
+        84,
+        24
+      ],
+      "size": [
+        88,
+        208
+      ],
+      "bbox": [
+        84,
+        24,
+        172,
+        232
+      ]
+    },
+    {
+      "direction": "back",
+      "slug": "back",
+      "rowInDirection": 0,
+      "columnInDirection": 1,
+      "frame": 2,
+      "empty": false,
+      "padding": [
+        83,
+        24,
+        84,
+        24
+      ],
+      "size": [
+        89,
+        208
+      ],
+      "bbox": [
+        83,
+        24,
+        172,
+        232
+      ]
+    },
+    {
+      "direction": "back",
+      "slug": "back",
+      "rowInDirection": 0,
+      "columnInDirection": 2,
+      "frame": 3,
+      "empty": false,
+      "padding": [
+        84,
+        24,
+        84,
+        24
+      ],
+      "size": [
+        88,
+        208
+      ],
+      "bbox": [
+        84,
+        24,
+        172,
+        232
+      ]
+    },
+    {
+      "direction": "back",
+      "slug": "back",
+      "rowInDirection": 0,
+      "columnInDirection": 3,
+      "frame": 4,
+      "empty": false,
+      "padding": [
+        84,
+        24,
+        84,
+        24
+      ],
+      "size": [
+        88,
+        208
+      ],
+      "bbox": [
+        84,
+        24,
+        172,
+        232
+      ]
+    },
+    {
+      "direction": "back",
+      "slug": "back",
+      "rowInDirection": 1,
+      "columnInDirection": 0,
+      "frame": 5,
+      "empty": false,
+      "padding": [
+        84,
+        24,
+        85,
+        24
+      ],
+      "size": [
+        87,
+        208
+      ],
+      "bbox": [
+        84,
+        24,
+        171,
+        232
+      ]
+    },
+    {
+      "direction": "back",
+      "slug": "back",
+      "rowInDirection": 1,
+      "columnInDirection": 1,
+      "frame": 6,
+      "empty": false,
+      "padding": [
+        84,
+        24,
+        84,
+        24
+      ],
+      "size": [
+        88,
+        208
+      ],
+      "bbox": [
+        84,
+        24,
+        172,
+        232
+      ]
+    },
+    {
+      "direction": "back",
+      "slug": "back",
+      "rowInDirection": 1,
+      "columnInDirection": 2,
+      "frame": 7,
+      "empty": false,
+      "padding": [
+        84,
+        24,
+        84,
+        24
+      ],
+      "size": [
+        88,
+        208
+      ],
+      "bbox": [
+        84,
+        24,
+        172,
+        232
+      ]
+    },
+    {
+      "direction": "back",
+      "slug": "back",
+      "rowInDirection": 1,
+      "columnInDirection": 3,
+      "frame": 8,
+      "empty": false,
+      "padding": [
+        84,
+        24,
+        84,
+        24
+      ],
+      "size": [
+        88,
+        208
+      ],
+      "bbox": [
+        84,
+        24,
+        172,
+        232
+      ]
+    }
+  ]
+}

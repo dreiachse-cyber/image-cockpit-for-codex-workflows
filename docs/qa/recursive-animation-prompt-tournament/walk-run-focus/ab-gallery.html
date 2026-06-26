@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en" class="scale-2">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Walk Run Focus A/B Gallery</title><style>
+:root { color-scheme: light; font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+body { margin: 0; background: #f6f8f5; color: #14211b; }
+header { position: sticky; top: 0; z-index: 2; display: flex; gap: 16px; align-items: center; justify-content: space-between; padding: 12px 18px; background: rgba(246,248,245,.94); border-bottom: 1px solid #cfd9cf; backdrop-filter: blur(8px); }
+h1 { margin: 0; font-size: 18px; }
+.controls { display: flex; gap: 8px; flex-wrap: wrap; }
+button { border: 1px solid #9bb29f; background: white; border-radius: 6px; padding: 6px 10px; cursor: pointer; }
+button.active { background: #1f6f4a; color: white; border-color: #1f6f4a; }
+main { padding: 18px; display: grid; gap: 24px; }
+section { background: white; border: 1px solid #d5ded4; border-radius: 8px; padding: 16px; box-shadow: 0 1px 2px rgba(0,0,0,.04); }
+h2 { margin: 0 0 4px; font-size: 17px; }
+p { margin: 4px 0 12px; color: #536258; }
+.compare { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; align-items: start; }
+.panel { border: 1px solid #dbe3da; border-radius: 6px; overflow: auto; background: #fff; }
+.panel h3 { position: sticky; top: 0; margin: 0; padding: 8px 10px; background: #eef4ef; font-size: 13px; z-index: 1; }
+.sheet { image-rendering: pixelated; transform-origin: top left; width: calc(2048px * var(--scale)); max-width: none; display: block; }
+.gif-row { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 12px; }
+.gif-card { border: 1px solid #dbe3da; border-radius: 6px; padding: 8px; background: #fbfdfb; }
+.gif-card strong { display: block; font-size: 12px; margin-bottom: 6px; }
+.gif-card img { image-rendering: pixelated; width: calc(256px * var(--scale)); max-width: none; background: white; }
+.meta { display: flex; gap: 10px; flex-wrap: wrap; font-size: 12px; color: #445247; margin-bottom: 10px; }
+.scale-1 { --scale: .25; }
+.scale-2 { --scale: .5; }
+.scale-4 { --scale: 1; }
+@media (max-width: 900px) { .compare { grid-template-columns: 1fr; } }
+</style></head>
+<body>
+<header><h1>Walk / Run Focus A/B Gallery</h1><div class="controls"><button data-scale="scale-1">1x review</button><button class="active" data-scale="scale-2">2x review</button><button data-scale="scale-4">4x review</button></div></header>
+<main>
+<section id="walk-b-v1-trial-001">
+  <h2>Walk B v1 trial 001</h2>
+  <div class="meta"><span>walk-cycle</span><span>codex-job-2026-06-26T19-25-24-878Z</span><span>mechanical QA: pass</span></div>
+  <div class="compare">
+    <div class="panel"><h3>Champion A current</h3><img class="sheet" src="../../official-walk-cycle/walk-cycle-grid-qa.png" alt="Official walk-cycle grid QA"></div>
+    <div class="panel"><h3>Challenger B</h3><img class="sheet" src="candidates/walk-cycle/walk-b-v1-trial-001/grid-qa.png" alt="walk-b-v1-trial-001 grid QA"></div>
+  </div>
+  <div class="gif-row">
+    <div class="gif-card"><strong>A side GIF</strong><img src="../../official-walk-cycle/walk-cycle-side.gif" alt="Official side GIF"></div>
+    <div class="gif-card"><strong>B side GIF</strong><img src="candidates/walk-cycle/walk-b-v1-trial-001/preview.gif" alt="Candidate side GIF"></div>
+  </div>
+</section>
+
+<section id="run-b-v1-trial-001">
+  <h2>Run B v1 trial 001</h2>
+  <div class="meta"><span>run-cycle</span><span>codex-job-2026-06-26T19-25-24-955Z</span><span>mechanical QA: pass</span></div>
+  <div class="compare">
+    <div class="panel"><h3>Champion A current</h3><img class="sheet" src="../../official-run-cycle/run-cycle-grid-qa.png" alt="Official run-cycle grid QA"></div>
+    <div class="panel"><h3>Challenger B</h3><img class="sheet" src="candidates/run-cycle/run-b-v1-trial-001/grid-qa.png" alt="run-b-v1-trial-001 grid QA"></div>
+  </div>
+  <div class="gif-row">
+    <div class="gif-card"><strong>A side GIF</strong><img src="../../official-run-cycle/run-cycle-side.gif" alt="Official side GIF"></div>
+    <div class="gif-card"><strong>B side GIF</strong><img src="candidates/run-cycle/run-b-v1-trial-001/preview.gif" alt="Candidate side GIF"></div>
+  </div>
+</section>
+
+<section id="walk-b-v1-trial-002">
+  <h2>Walk B v1 trial 002</h2>
+  <div class="meta"><span>walk-cycle</span><span>codex-job-2026-06-26T19-25-24-990Z</span><span>mechanical QA: pass</span></div>
+  <div class="compare">
+    <div class="panel"><h3>Champion A current</h3><img class="sheet" src="../../official-walk-cycle/walk-cycle-grid-qa.png" alt="Official walk-cycle grid QA"></div>
+    <div class="panel"><h3>Challenger B</h3><img class="sheet" src="candidates/walk-cycle/walk-b-v1-trial-002/grid-qa.png" alt="walk-b-v1-trial-002 grid QA"></div>
+  </div>
+  <div class="gif-row">
+    <div class="gif-card"><strong>A side GIF</strong><img src="../../official-walk-cycle/walk-cycle-side.gif" alt="Official side GIF"></div>
+    <div class="gif-card"><strong>B side GIF</strong><img src="candidates/walk-cycle/walk-b-v1-trial-002/preview.gif" alt="Candidate side GIF"></div>
+  </div>
+</section>
+</main>
+<script>
+for (const button of document.querySelectorAll('[data-scale]')) {
+  button.addEventListener('click', () => {
+    document.documentElement.className = button.dataset.scale;
+    for (const item of document.querySelectorAll('[data-scale]')) item.classList.toggle('active', item === button);
+  });
+}
+</script>
+</body></html>
