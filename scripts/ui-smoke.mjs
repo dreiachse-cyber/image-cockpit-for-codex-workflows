@@ -509,20 +509,24 @@ async function assertCodexQueue() {
   await evaluate(`document.querySelector("textarea").value = "queue smoke pixel hero"; document.querySelector("textarea").dispatchEvent(new Event("input", { bubbles: true }))`);
 
   await clickButtonByText("Generate Pixel Art");
-  await waitForEval(() => `document.body.innerText.includes("Codex Jobs") && document.body.innerText.includes("Active 1/2")`, "first Codex job running");
+  await waitForEval(() => `document.body.innerText.includes("Codex Jobs") && document.body.innerText.includes("Active 1/3")`, "first Codex job running");
   await assertCodexLogFullscreen();
   await waitForButtonEnabled("Generate Pixel Art");
 
   await clickButtonByText("Generate Pixel Art");
-  await waitForEval(() => `document.body.innerText.includes("Active 2/2")`, "two Codex jobs running");
+  await waitForEval(() => `document.body.innerText.includes("Active 2/3")`, "two Codex jobs running");
+  await waitForButtonEnabled("Generate Pixel Art");
+
+  await clickButtonByText("Generate Pixel Art");
+  await waitForEval(() => `document.body.innerText.includes("Active 3/3")`, "three Codex jobs running");
   await waitForButtonEnabled("Queue Codex Job");
 
   await clickButtonByText("Queue Codex Job");
-  await waitForEval(() => `document.body.innerText.includes("Queued") && document.body.innerText.includes("Waiting for an open slot")`, "third Codex job queued");
+  await waitForEval(() => `document.body.innerText.includes("Queued") && document.body.innerText.includes("Waiting for an open slot")`, "fourth Codex job queued");
   const snapshot = await pageSnapshot();
-  assert(snapshot.buttons.includes("Queue Codex Job"), "Codex queue should switch the primary action to Queue Codex Job at two active jobs");
-  assert(snapshot.text.includes("Codex job queued"), "Codex queue should report that the third job was queued");
-  assert(snapshot.codexJobRows === 3, `Codex queue should show 3 job rows, got ${snapshot.codexJobRows}`);
+  assert(snapshot.buttons.includes("Queue Codex Job"), "Codex queue should switch the primary action to Queue Codex Job at three active jobs");
+  assert(snapshot.text.includes("Codex job queued"), "Codex queue should report that the fourth job was queued");
+  assert(snapshot.codexJobRows === 4, `Codex queue should show 4 job rows, got ${snapshot.codexJobRows}`);
   assert(snapshot.codexJobShelfInHistory, "Codex job shelf should appear above the Results cards in the right column");
   assert(!snapshot.codexJobShelfInSource, "Codex job shelf should not remain in the left source column");
   assert(snapshot.codexJobShelfBeforeHistoryList, "Codex job shelf should sit before the result card list");
