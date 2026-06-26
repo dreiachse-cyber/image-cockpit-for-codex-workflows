@@ -1,0 +1,407 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Official Animation Preset Gallery</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f6f8f7;
+      --panel: #ffffff;
+      --ink: #16211c;
+      --muted: #5c6b63;
+      --line: #cfd9d4;
+      --soft: #eef5f1;
+      --accent: #15803d;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      line-height: 1.5;
+    }
+
+    header {
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      border-bottom: 1px solid var(--line);
+      background: rgba(246, 248, 247, 0.94);
+      backdrop-filter: blur(10px);
+      padding: 16px 24px;
+    }
+
+    h1 {
+      margin: 0 0 4px;
+      font-size: 24px;
+      letter-spacing: 0;
+    }
+
+    header p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    nav {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 12px;
+    }
+
+    nav a,
+    .links a {
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: #fbfdfc;
+      color: var(--accent);
+      padding: 6px 9px;
+      font-size: 13px;
+      text-decoration: none;
+    }
+
+    nav a:hover,
+    .links a:hover {
+      text-decoration: underline;
+    }
+
+    main {
+      max-width: 1500px;
+      margin: 0 auto;
+      padding: 24px;
+    }
+
+    .preset {
+      margin-bottom: 28px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--panel);
+      overflow: hidden;
+    }
+
+    .preset-head {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px 16px;
+      align-items: baseline;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--line);
+      padding: 14px 16px;
+    }
+
+    h2 {
+      margin: 0;
+      font-size: 20px;
+      letter-spacing: 0;
+    }
+
+    .badge {
+      border: 1px solid #9bd4b1;
+      border-radius: 999px;
+      background: #edf9f0;
+      color: #166534;
+      padding: 3px 8px;
+      font-size: 12px;
+      font-weight: 650;
+    }
+
+    .preview-grid {
+      display: grid;
+      grid-template-columns: minmax(380px, 1.25fr) minmax(320px, 0.75fr);
+      gap: 16px;
+      padding: 16px;
+    }
+
+    .image-block {
+      min-width: 0;
+    }
+
+    .image-block h3 {
+      margin: 0 0 8px;
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 650;
+      letter-spacing: 0;
+      text-transform: uppercase;
+    }
+
+    .image-block img,
+    .gif-card img {
+      display: block;
+      max-width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background:
+        linear-gradient(45deg, #e9efec 25%, transparent 25%),
+        linear-gradient(-45deg, #e9efec 25%, transparent 25%),
+        linear-gradient(45deg, transparent 75%, #e9efec 75%),
+        linear-gradient(-45deg, transparent 75%, #e9efec 75%);
+      background-color: #fff;
+      background-position: 0 0, 0 8px, 8px -8px, -8px 0;
+      background-size: 16px 16px;
+      image-rendering: pixelated;
+    }
+
+    .image-block img {
+      height: auto;
+    }
+
+    .placeholder {
+      display: grid;
+      min-height: 220px;
+      place-items: center;
+      border: 1px dashed var(--line);
+      border-radius: 6px;
+      background: var(--soft);
+      color: var(--muted);
+      padding: 18px;
+      text-align: center;
+    }
+
+    .gif-strip {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(112px, 1fr));
+      gap: 10px;
+      border-top: 1px solid var(--line);
+      padding: 16px;
+    }
+
+    .gif-card {
+      min-width: 0;
+    }
+
+    .gif-card strong {
+      display: block;
+      margin-bottom: 6px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .gif-card img {
+      width: 100%;
+      max-height: 210px;
+      object-fit: contain;
+    }
+
+    .links {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      border-top: 1px solid var(--line);
+      padding: 12px 16px 16px;
+    }
+
+    @media (max-width: 980px) {
+      .preview-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .gif-strip {
+        grid-template-columns: repeat(2, minmax(120px, 1fr));
+      }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Official Animation Preset Gallery</h1>
+    <p>All current official animation sample sheets, including the previous batch and the latest Next 5 pilot samples.</p>
+    <nav id="toc" aria-label="Preset navigation"></nav>
+  </header>
+  <main id="gallery"></main>
+
+  <script>
+    const directions = [
+      ["front", "Front"],
+      ["front-three-quarter", "Front 3/4"],
+      ["side", "Side"],
+      ["back-three-quarter", "Back 3/4"],
+      ["back", "Back"]
+    ];
+
+    const presets = [
+      {
+        id: "idle-breathing",
+        title: "Idle Breathing",
+        group: "Base",
+        sheet: "idle-breathing-sheet.png",
+        qaDir: "official-idle-breathing",
+        contact: false,
+        mechanical: false
+      },
+      {
+        id: "walk-cycle",
+        title: "Walk Cycle",
+        group: "Base",
+        sheet: "walk-cycle-sheet.png"
+      },
+      {
+        id: "run-cycle",
+        title: "Run Cycle",
+        group: "Base",
+        sheet: "run-cycle-sheet.png"
+      },
+      {
+        id: "basic-attack",
+        title: "Basic Attack",
+        group: "Previous Batch",
+        sheet: "basic-attack-sheet.png",
+        qaDir: "official-basic-attack"
+      },
+      {
+        id: "hurt-reaction",
+        title: "Hurt Reaction",
+        group: "Previous Batch",
+        sheet: "hurt-reaction-sheet.png",
+        qaDir: "official-hurt-reaction"
+      },
+      {
+        id: "death-downed",
+        title: "Death / Downed",
+        group: "Previous Batch",
+        sheet: "death-downed-sheet.png",
+        qaDir: "official-death-downed"
+      },
+      {
+        id: "spell-cast",
+        title: "Spell Cast",
+        group: "Previous Batch",
+        sheet: "spell-cast-sheet.png",
+        qaDir: "official-spell-cast"
+      },
+      {
+        id: "jump-hop",
+        title: "Jump / Hop",
+        group: "Previous Batch",
+        sheet: "jump-hop-sheet.png",
+        qaDir: "official-jump-hop"
+      },
+      {
+        id: "guard-block",
+        title: "Guard / Block",
+        group: "Previous Batch",
+        sheet: "guard-block-sheet.png",
+        qaDir: "official-guard-block"
+      },
+      {
+        id: "victory-cheer",
+        title: "Victory Cheer",
+        group: "Previous Batch",
+        sheet: "victory-cheer-sheet.png",
+        qaDir: "official-victory-cheer"
+      },
+      {
+        id: "interact-pickup",
+        title: "Interact / Pickup",
+        group: "Previous Batch",
+        sheet: "interact-pickup-sheet.png",
+        qaDir: "official-interact-pickup"
+      },
+      {
+        id: "ranged-attack",
+        title: "Ranged Attack",
+        group: "Next 5",
+        sheet: "ranged-attack-sheet.png",
+        qaDir: "official-ranged-attack"
+      },
+      {
+        id: "skill-release",
+        title: "Skill Release",
+        group: "Next 5",
+        sheet: "skill-release-sheet.png",
+        qaDir: "official-skill-release"
+      },
+      {
+        id: "knockback",
+        title: "Knockback",
+        group: "Next 5",
+        sheet: "knockback-sheet.png",
+        qaDir: "official-knockback"
+      },
+      {
+        id: "item-use",
+        title: "Item Use",
+        group: "Next 5",
+        sheet: "item-use-sheet.png",
+        qaDir: "official-item-use"
+      },
+      {
+        id: "talk",
+        title: "Talk / NPC Reaction",
+        group: "Next 5",
+        sheet: "talk-sheet.png",
+        qaDir: "official-talk"
+      }
+    ];
+
+    const toc = document.querySelector("#toc");
+    const gallery = document.querySelector("#gallery");
+
+    presets.forEach((preset) => {
+      const tocLink = document.createElement("a");
+      tocLink.href = `#${preset.id}`;
+      tocLink.textContent = preset.title;
+      toc.appendChild(tocLink);
+
+      const section = document.createElement("section");
+      section.className = "preset";
+      section.id = preset.id;
+
+      const head = document.createElement("div");
+      head.className = "preset-head";
+      head.innerHTML = `<h2>${preset.title}</h2><span class="badge">${preset.group}</span>`;
+      section.appendChild(head);
+
+      const previewGrid = document.createElement("div");
+      previewGrid.className = "preview-grid";
+      previewGrid.innerHTML = `
+        <div class="image-block">
+          <h3>Final Sheet</h3>
+          <img src="../../public/samples/${preset.sheet}" alt="${preset.title} final sprite sheet">
+        </div>
+        <div class="image-block">
+          <h3>Grid QA</h3>
+          ${preset.qaDir
+            ? `<img src="${preset.qaDir}/${preset.id}-grid-qa.png" alt="${preset.title} grid QA">`
+            : `<div class="placeholder">No per-direction QA directory is present for this base sample in this branch.</div>`}
+        </div>`;
+      section.appendChild(previewGrid);
+
+      if (preset.qaDir) {
+        const gifStrip = document.createElement("div");
+        gifStrip.className = "gif-strip";
+        gifStrip.innerHTML = directions.map(([key, label]) => `
+          <div class="gif-card">
+            <strong>${label}</strong>
+            <img src="${preset.qaDir}/${preset.id}-${key}.gif" alt="${preset.title} ${label} GIF">
+          </div>
+        `).join("");
+        section.appendChild(gifStrip);
+
+        const links = document.createElement("div");
+        links.className = "links";
+        const linkItems = [];
+        if (preset.contact !== false) {
+          linkItems.push(`<a href="${preset.qaDir}/${preset.id}-transparent-contact.png">Transparent contact</a>`);
+        }
+        if (preset.mechanical !== false) {
+          linkItems.push(`<a href="${preset.qaDir}/${preset.id}-mechanical-qa.json">Mechanical QA JSON</a>`);
+        }
+        links.innerHTML = linkItems.join("");
+        if (linkItems.length === 0) links.hidden = true;
+        section.appendChild(links);
+      }
+
+      gallery.appendChild(section);
+    });
+  </script>
+</body>
+</html>
