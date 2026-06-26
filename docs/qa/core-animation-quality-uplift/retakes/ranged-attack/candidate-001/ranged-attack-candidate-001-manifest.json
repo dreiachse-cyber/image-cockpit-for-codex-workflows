@@ -1,0 +1,87 @@
+{
+  "generatedAt": "2026-06-27T02:14:00+09:00",
+  "presetId": "ranged-attack",
+  "title": "Ranged Attack",
+  "candidateId": "candidate-001",
+  "sourceJobId": "codex-job-2026-06-26T04-20-29-885Z",
+  "sourceReference": "docs/qa/core-animation-quality-uplift/retakes/ranged-attack/candidate-001/source/source-reference.png",
+  "rawSheet": "docs/qa/core-animation-quality-uplift/retakes/ranged-attack/candidate-001/source/imagegen-raw-sheet.png",
+  "rawGeneratedDimensions": [
+    1586,
+    992
+  ],
+  "normalizedDimensions": [
+    2048,
+    1280
+  ],
+  "currentSheet": "public/samples/ranged-attack-sheet.png",
+  "candidateSheet": "docs/qa/core-animation-quality-uplift/retakes/ranged-attack/candidate-001/ranged-attack-candidate-001-sheet.png",
+  "candidateChromaSheet": "docs/qa/core-animation-quality-uplift/retakes/ranged-attack/candidate-001/ranged-attack-candidate-001-sheet-chroma.png",
+  "directions": [
+    {
+      "direction": "front",
+      "transparentPath": "docs/qa/core-animation-quality-uplift/retakes/ranged-attack/candidate-001/directions/ranged-attack-candidate-001-front.png",
+      "chromaPath": "docs/qa/core-animation-quality-uplift/retakes/ranged-attack/candidate-001/directions-chroma/ranged-attack-candidate-001-front-chroma.png"
+    },
+    {
+      "direction": "front-three-quarter",
+      "transparentPath": "docs/qa/core-animation-quality-uplift/retakes/ranged-attack/candidate-001/directions/ranged-attack-candidate-001-front-three-quarter.png",
+      "chromaPath": "docs/qa/core-animation-quality-uplift/retakes/ranged-attack/candidate-001/directions-chroma/ranged-attack-candidate-001-front-three-quarter-chroma.png"
+    },
+    {
+      "direction": "side",
+      "transparentPath": "docs/qa/core-animation-quality-uplift/retakes/ranged-attack/candidate-001/directions/ranged-attack-candidate-001-side.png",
+      "chromaPath": "docs/qa/core-animation-quality-uplift/retakes/ranged-attack/candidate-001/directions-chroma/ranged-attack-candidate-001-side-chroma.png"
+    },
+    {
+      "direction": "back-three-quarter",
+      "transparentPath": "docs/qa/core-animation-quality-uplift/retakes/ranged-attack/candidate-001/directions/ranged-attack-candidate-001-back-three-quarter.png",
+      "chromaPath": "docs/qa/core-animation-quality-uplift/retakes/ranged-attack/candidate-001/directions-chroma/ranged-attack-candidate-001-back-three-quarter-chroma.png"
+    },
+    {
+      "direction": "back",
+      "transparentPath": "docs/qa/core-animation-quality-uplift/retakes/ranged-attack/candidate-001/directions/ranged-attack-candidate-001-back.png",
+      "chromaPath": "docs/qa/core-animation-quality-uplift/retakes/ranged-attack/candidate-001/directions-chroma/ranged-attack-candidate-001-back-chroma.png"
+    }
+  ],
+  "gifs": [
+    {
+      "direction": "front",
+      "path": "docs/qa/core-animation-quality-uplift/retakes/ranged-attack/candidate-001/gifs/ranged-attack-candidate-001-front.gif"
+    },
+    {
+      "direction": "front-three-quarter",
+      "path": "docs/qa/core-animation-quality-uplift/retakes/ranged-attack/candidate-001/gifs/ranged-attack-candidate-001-front-three-quarter.gif"
+    },
+    {
+      "direction": "side",
+      "path": "docs/qa/core-animation-quality-uplift/retakes/ranged-attack/candidate-001/gifs/ranged-attack-candidate-001-side.gif"
+    },
+    {
+      "direction": "back-three-quarter",
+      "path": "docs/qa/core-animation-quality-uplift/retakes/ranged-attack/candidate-001/gifs/ranged-attack-candidate-001-back-three-quarter.gif"
+    },
+    {
+      "direction": "back",
+      "path": "docs/qa/core-animation-quality-uplift/retakes/ranged-attack/candidate-001/gifs/ranged-attack-candidate-001-back.gif"
+    }
+  ],
+  "gridQa": "docs/qa/core-animation-quality-uplift/retakes/ranged-attack/candidate-001/ranged-attack-candidate-001-grid-qa.png",
+  "transparentContact": "docs/qa/core-animation-quality-uplift/retakes/ranged-attack/candidate-001/ranged-attack-candidate-001-transparent-contact.png",
+  "mechanicalQa": "docs/qa/core-animation-quality-uplift/retakes/ranged-attack/candidate-001/ranged-attack-candidate-001-mechanical-qa.json",
+  "officialReplacement": false,
+  "abDecision": {
+    "outcome": "reject-candidate-keep-current",
+    "officialReplacement": false,
+    "summary": "Candidate B is mechanically usable after cleanup, but it does not beat the current official ranged sheet on character fidelity or attack readability. Keep current.",
+    "wins": [
+      "Candidate B has tidy spacing and a readable projectile moment.",
+      "The five direction rows remain coherent after normalization."
+    ],
+    "risks": [
+      "The candidate simplifies the traveler silhouette and loses some of the official sheet's source-character fidelity.",
+      "The firing motion has less pose contrast than the current official sheet.",
+      "The generated raw canvas and background both needed normalization, with no clear quality win to justify replacement."
+    ]
+  }
+}

@@ -1,6 +1,7 @@
-# Core Animation Quality Uplift - Phase A Audit
+# Core Animation Quality Uplift - Phase A Audit / Phase B AB
 
 Generated: 2026-06-27T01:23:00+09:00
+Phase B AB generated: 2026-06-27T02:14:00+09:00
 
 This folder is the first quality uplift loop for the 16 official core animation presets. It does not replace official sample PNG/GIF files, prompt contracts in `src/App.tsx`, or the Animation selection modal.
 
@@ -12,6 +13,8 @@ This folder is the first quality uplift loop for the 16 official core animation 
 - Blocker issues: 0
 - Major issues: 0
 - Prompt stability gate: pending for every preset. Current samples are real generations, but this phase did not run the required 5-attempt stability loop.
+- Phase B generated AB candidates for `jump-hop`, `basic-attack`, and `ranged-attack`.
+- Phase B official replacements adopted: 0 / 3. Current official samples remain in place.
 
 ## Generated Files
 
@@ -24,6 +27,17 @@ This folder is the first quality uplift loop for the 16 official core animation 
 - `before-after-gallery.html`
 - `visual-review.md`
 - `prompts/<preset-id>.md`
+- `retakes/phase-b-ab-summary.md`
+- `retakes/phase-b-ab-gallery.html`
+- `retakes/<preset-id>/candidate-001/*`
+
+## Phase B AB Result
+
+| preset | candidate | AB decision | official replacement | reason |
+| --- | --- | --- | --- | --- |
+| `jump-hop` | `candidate-001` | keep current / candidate needs rework | false | candidate has useful visual ideas, but normalized B has more cell-edge/padding failures than current A |
+| `basic-attack` | `candidate-001` | keep current / candidate needs rework | false | candidate improves some body consistency, but normalized B has more cell-edge/padding failures than current A |
+| `ranged-attack` | `candidate-001` | reject candidate / keep current | false | candidate does not beat current A on character fidelity or attack readability |
 
 ## Retake Priority
 

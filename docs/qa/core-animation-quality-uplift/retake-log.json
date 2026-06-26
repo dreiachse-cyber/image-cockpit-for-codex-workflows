@@ -1,16 +1,16 @@
 {
-  "generatedAt": "2026-06-27T01:23:00+09:00",
-  "phase": "A",
-  "status": "audit-only",
+  "generatedAt": "2026-06-27T02:14:00+09:00",
+  "phase": "B",
+  "status": "candidate-ab-reviewed",
   "officialReplacement": false,
-  "note": "No new retake generation was run by this script. Future generated candidates must record job id, outbox path, manifest, QA, comparison, and adoption decision here.",
+  "note": "Phase B generated top-priority candidates, ran AB review artifacts, and kept official replacements disabled pending owner confirmation.",
   "items": [
     {
       "presetId": "jump-hop",
       "title": "Jump / Hop",
       "priorityScore": 32,
-      "decision": "needs-retake",
-      "runStatus": "not-run-phase-a",
+      "decision": "keep-current-after-ab",
+      "runStatus": "phase-b-candidate-generated-ab-reviewed",
       "reason": "high-value/high-risk core action should get early multi-run stability retake; current sample also has padding polish below the preferred 24px contract",
       "officialReplacement": false,
       "replacementGate": "ご主人確認前に公式sample / prompt contract / Animation選択モーダル採用版を置換しない",
@@ -23,14 +23,34 @@
         "grid QA image",
         "transparency / contact audit",
         "before / after comparison"
-      ]
+      ],
+      "phaseB": {
+        "generatedAt": "2026-06-27T02:14:00+09:00",
+        "candidateId": "candidate-001",
+        "generatedWith": "built-in image_gen",
+        "rawInput": {
+          "path": "docs/qa/core-animation-quality-uplift/retakes/jump-hop/candidate-001/source/imagegen-raw-sheet.png",
+          "width": 1586,
+          "height": 992
+        },
+        "candidateSheet": "docs/qa/core-animation-quality-uplift/retakes/jump-hop/candidate-001/jump-hop-candidate-001-sheet.png",
+        "candidateChromaSheet": "docs/qa/core-animation-quality-uplift/retakes/jump-hop/candidate-001/jump-hop-candidate-001-sheet-chroma.png",
+        "manifest": "docs/qa/core-animation-quality-uplift/retakes/jump-hop/candidate-001/jump-hop-candidate-001-manifest.json",
+        "mechanicalQa": "docs/qa/core-animation-quality-uplift/retakes/jump-hop/candidate-001/jump-hop-candidate-001-mechanical-qa.json",
+        "gridQa": "docs/qa/core-animation-quality-uplift/retakes/jump-hop/candidate-001/jump-hop-candidate-001-grid-qa.png",
+        "transparentContact": "docs/qa/core-animation-quality-uplift/retakes/jump-hop/candidate-001/jump-hop-candidate-001-transparent-contact.png",
+        "review": "docs/qa/core-animation-quality-uplift/retakes/jump-hop/candidate-001/jump-hop-candidate-001-ab-review.md",
+        "outcome": "hold-current-candidate-needs-rework",
+        "officialReplacement": false,
+        "summary": "Candidate B has nice visual consistency, but AB fails the sheet-safety bar: the raw canvas was the wrong size and the normalized sheet has multiple frames touching cell edges. Keep current A and rework before any replacement review."
+      }
     },
     {
       "presetId": "basic-attack",
       "title": "Basic Attack",
       "priorityScore": 26,
-      "decision": "needs-retake",
-      "runStatus": "not-run-phase-a",
+      "decision": "keep-current-after-ab",
+      "runStatus": "phase-b-candidate-generated-ab-reviewed",
       "reason": "high-value/high-risk core action should get early multi-run stability retake; current sample also has padding polish below the preferred 24px contract",
       "officialReplacement": false,
       "replacementGate": "ご主人確認前に公式sample / prompt contract / Animation選択モーダル採用版を置換しない",
@@ -43,14 +63,34 @@
         "grid QA image",
         "transparency / contact audit",
         "before / after comparison"
-      ]
+      ],
+      "phaseB": {
+        "generatedAt": "2026-06-27T02:14:00+09:00",
+        "candidateId": "candidate-001",
+        "generatedWith": "built-in image_gen",
+        "rawInput": {
+          "path": "docs/qa/core-animation-quality-uplift/retakes/basic-attack/candidate-001/source/imagegen-raw-sheet.png",
+          "width": 1586,
+          "height": 992
+        },
+        "candidateSheet": "docs/qa/core-animation-quality-uplift/retakes/basic-attack/candidate-001/basic-attack-candidate-001-sheet.png",
+        "candidateChromaSheet": "docs/qa/core-animation-quality-uplift/retakes/basic-attack/candidate-001/basic-attack-candidate-001-sheet-chroma.png",
+        "manifest": "docs/qa/core-animation-quality-uplift/retakes/basic-attack/candidate-001/basic-attack-candidate-001-manifest.json",
+        "mechanicalQa": "docs/qa/core-animation-quality-uplift/retakes/basic-attack/candidate-001/basic-attack-candidate-001-mechanical-qa.json",
+        "gridQa": "docs/qa/core-animation-quality-uplift/retakes/basic-attack/candidate-001/basic-attack-candidate-001-grid-qa.png",
+        "transparentContact": "docs/qa/core-animation-quality-uplift/retakes/basic-attack/candidate-001/basic-attack-candidate-001-transparent-contact.png",
+        "review": "docs/qa/core-animation-quality-uplift/retakes/basic-attack/candidate-001/basic-attack-candidate-001-ab-review.md",
+        "outcome": "hold-current-candidate-needs-rework",
+        "officialReplacement": false,
+        "summary": "Candidate B improves body/sword consistency, but AB does not clear the mechanical bar because several frames touch cell edges after normalization. Keep current A for now and rework B with stricter padding."
+      }
     },
     {
       "presetId": "ranged-attack",
       "title": "Ranged Attack",
       "priorityScore": 21,
-      "decision": "needs-retake",
-      "runStatus": "not-run-phase-a",
+      "decision": "keep-current-after-ab",
+      "runStatus": "phase-b-candidate-generated-ab-reviewed",
       "reason": "high-value/high-risk core action should get early multi-run stability retake; current sample also has padding polish below the preferred 24px contract",
       "officialReplacement": false,
       "replacementGate": "ご主人確認前に公式sample / prompt contract / Animation選択モーダル採用版を置換しない",
@@ -63,7 +103,27 @@
         "grid QA image",
         "transparency / contact audit",
         "before / after comparison"
-      ]
+      ],
+      "phaseB": {
+        "generatedAt": "2026-06-27T02:14:00+09:00",
+        "candidateId": "candidate-001",
+        "generatedWith": "built-in image_gen",
+        "rawInput": {
+          "path": "docs/qa/core-animation-quality-uplift/retakes/ranged-attack/candidate-001/source/imagegen-raw-sheet.png",
+          "width": 1586,
+          "height": 992
+        },
+        "candidateSheet": "docs/qa/core-animation-quality-uplift/retakes/ranged-attack/candidate-001/ranged-attack-candidate-001-sheet.png",
+        "candidateChromaSheet": "docs/qa/core-animation-quality-uplift/retakes/ranged-attack/candidate-001/ranged-attack-candidate-001-sheet-chroma.png",
+        "manifest": "docs/qa/core-animation-quality-uplift/retakes/ranged-attack/candidate-001/ranged-attack-candidate-001-manifest.json",
+        "mechanicalQa": "docs/qa/core-animation-quality-uplift/retakes/ranged-attack/candidate-001/ranged-attack-candidate-001-mechanical-qa.json",
+        "gridQa": "docs/qa/core-animation-quality-uplift/retakes/ranged-attack/candidate-001/ranged-attack-candidate-001-grid-qa.png",
+        "transparentContact": "docs/qa/core-animation-quality-uplift/retakes/ranged-attack/candidate-001/ranged-attack-candidate-001-transparent-contact.png",
+        "review": "docs/qa/core-animation-quality-uplift/retakes/ranged-attack/candidate-001/ranged-attack-candidate-001-ab-review.md",
+        "outcome": "reject-candidate-keep-current",
+        "officialReplacement": false,
+        "summary": "Candidate B is mechanically usable after cleanup, but it does not beat the current official ranged sheet on character fidelity or attack readability. Keep current."
+      }
     },
     {
       "presetId": "idle-breathing",
@@ -325,5 +385,32 @@
         "before / after comparison"
       ]
     }
-  ]
+  ],
+  "phaseB": {
+    "generatedAt": "2026-06-27T02:14:00+09:00",
+    "officialReplacement": false,
+    "summary": [
+      {
+        "presetId": "jump-hop",
+        "candidateId": "candidate-001",
+        "outcome": "hold-current-candidate-needs-rework",
+        "review": "docs/qa/core-animation-quality-uplift/retakes/jump-hop/candidate-001/jump-hop-candidate-001-ab-review.md",
+        "candidateSheet": "docs/qa/core-animation-quality-uplift/retakes/jump-hop/candidate-001/jump-hop-candidate-001-sheet.png"
+      },
+      {
+        "presetId": "basic-attack",
+        "candidateId": "candidate-001",
+        "outcome": "hold-current-candidate-needs-rework",
+        "review": "docs/qa/core-animation-quality-uplift/retakes/basic-attack/candidate-001/basic-attack-candidate-001-ab-review.md",
+        "candidateSheet": "docs/qa/core-animation-quality-uplift/retakes/basic-attack/candidate-001/basic-attack-candidate-001-sheet.png"
+      },
+      {
+        "presetId": "ranged-attack",
+        "candidateId": "candidate-001",
+        "outcome": "reject-candidate-keep-current",
+        "review": "docs/qa/core-animation-quality-uplift/retakes/ranged-attack/candidate-001/ranged-attack-candidate-001-ab-review.md",
+        "candidateSheet": "docs/qa/core-animation-quality-uplift/retakes/ranged-attack/candidate-001/ranged-attack-candidate-001-sheet.png"
+      }
+    ]
+  }
 }

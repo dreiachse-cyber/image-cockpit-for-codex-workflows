@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Core Animation Retake AB Gallery</title>
+  <style>
+    :root { color-scheme: dark; --bg: #101216; --panel: #181d24; --text: #f1f5f9; --muted: #aab3c2; --line: #2b3442; --accent: #8fd0ff; }
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: var(--bg); color: var(--text); }
+    main { width: min(1440px, calc(100vw - 32px)); margin: 0 auto; padding: 28px 0 44px; }
+    header { margin-bottom: 20px; }
+    h1, h2, h3, p { margin: 0; }
+    h1 { font-size: 24px; }
+    h2 { font-size: 20px; }
+    h3 { margin-top: 18px; color: var(--accent); font-size: 15px; }
+    p { color: var(--muted); line-height: 1.55; margin-top: 8px; }
+    .card { border: 1px solid var(--line); background: var(--panel); border-radius: 8px; padding: 18px; margin-top: 18px; }
+    .heading { display: flex; justify-content: space-between; gap: 16px; align-items: flex-start; }
+    strong { color: var(--accent); font-size: 13px; text-transform: uppercase; letter-spacing: .04em; }
+    .compare { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin-top: 14px; }
+    .small img { image-rendering: auto; }
+    .gifs { display: grid; grid-template-columns: repeat(auto-fit, minmax(156px, 1fr)); gap: 12px; margin-top: 12px; }
+    figure { margin: 0; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; background: #080a0d; }
+    img { display: block; width: 100%; height: auto; image-rendering: pixelated; }
+    figcaption { padding: 8px 10px; color: var(--muted); font-size: 12px; border-top: 1px solid var(--line); }
+    @media (max-width: 760px) { .compare { grid-template-columns: 1fr; } .heading { display: block; } strong { display: block; margin-top: 10px; } }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <h1>Core Animation Retake AB Gallery</h1>
+      <p>Generated at 2026-06-27T02:14:00+09:00. No official sample replacement was made.</p>
+    </header>
+    <section class="card">
+      <div class="heading">
+        <div>
+          <h2>Jump / Hop</h2>
+          <p>hold-current-candidate-needs-rework</p>
+        </div>
+        <strong>official replacement: false</strong>
+      </div>
+      <p>Candidate B has nice visual consistency, but AB fails the sheet-safety bar: the raw canvas was the wrong size and the normalized sheet has multiple frames touching cell edges. Keep current A and rework before any replacement review.</p>
+      <div class="compare">
+        <figure><img src="../../../../public/samples/jump-hop-sheet.png" alt="Jump / Hop current"><figcaption>A current</figcaption></figure>
+        <figure><img src="jump-hop/candidate-001/jump-hop-candidate-001-sheet.png" alt="Jump / Hop candidate"><figcaption>B candidate</figcaption></figure>
+      </div>
+      <h3>Motion GIFs</h3>
+      <div class="gifs"><figure><img src="jump-hop/candidate-001/gifs/jump-hop-candidate-001-front.gif" alt="Jump / Hop front"><figcaption>front</figcaption></figure><figure><img src="jump-hop/candidate-001/gifs/jump-hop-candidate-001-front-three-quarter.gif" alt="Jump / Hop front-three-quarter"><figcaption>front-three-quarter</figcaption></figure><figure><img src="jump-hop/candidate-001/gifs/jump-hop-candidate-001-side.gif" alt="Jump / Hop side"><figcaption>side</figcaption></figure><figure><img src="jump-hop/candidate-001/gifs/jump-hop-candidate-001-back-three-quarter.gif" alt="Jump / Hop back-three-quarter"><figcaption>back-three-quarter</figcaption></figure><figure><img src="jump-hop/candidate-001/gifs/jump-hop-candidate-001-back.gif" alt="Jump / Hop back"><figcaption>back</figcaption></figure></div>
+      <h3>QA overlays</h3>
+      <div class="compare small">
+        <figure><img src="jump-hop/candidate-001/jump-hop-candidate-001-grid-qa.png" alt="Jump / Hop grid QA"><figcaption>grid QA</figcaption></figure>
+        <figure><img src="jump-hop/candidate-001/jump-hop-candidate-001-transparent-contact.png" alt="Jump / Hop contact QA"><figcaption>transparent/contact QA</figcaption></figure>
+      </div>
+    </section>
+<section class="card">
+      <div class="heading">
+        <div>
+          <h2>Basic Attack</h2>
+          <p>hold-current-candidate-needs-rework</p>
+        </div>
+        <strong>official replacement: false</strong>
+      </div>
+      <p>Candidate B improves body/sword consistency, but AB does not clear the mechanical bar because several frames touch cell edges after normalization. Keep current A for now and rework B with stricter padding.</p>
+      <div class="compare">
+        <figure><img src="../../../../public/samples/basic-attack-sheet.png" alt="Basic Attack current"><figcaption>A current</figcaption></figure>
+        <figure><img src="basic-attack/candidate-001/basic-attack-candidate-001-sheet.png" alt="Basic Attack candidate"><figcaption>B candidate</figcaption></figure>
+      </div>
+      <h3>Motion GIFs</h3>
+      <div class="gifs"><figure><img src="basic-attack/candidate-001/gifs/basic-attack-candidate-001-front.gif" alt="Basic Attack front"><figcaption>front</figcaption></figure><figure><img src="basic-attack/candidate-001/gifs/basic-attack-candidate-001-front-three-quarter.gif" alt="Basic Attack front-three-quarter"><figcaption>front-three-quarter</figcaption></figure><figure><img src="basic-attack/candidate-001/gifs/basic-attack-candidate-001-side.gif" alt="Basic Attack side"><figcaption>side</figcaption></figure><figure><img src="basic-attack/candidate-001/gifs/basic-attack-candidate-001-back-three-quarter.gif" alt="Basic Attack back-three-quarter"><figcaption>back-three-quarter</figcaption></figure><figure><img src="basic-attack/candidate-001/gifs/basic-attack-candidate-001-back.gif" alt="Basic Attack back"><figcaption>back</figcaption></figure></div>
+      <h3>QA overlays</h3>
+      <div class="compare small">
+        <figure><img src="basic-attack/candidate-001/basic-attack-candidate-001-grid-qa.png" alt="Basic Attack grid QA"><figcaption>grid QA</figcaption></figure>
+        <figure><img src="basic-attack/candidate-001/basic-attack-candidate-001-transparent-contact.png" alt="Basic Attack contact QA"><figcaption>transparent/contact QA</figcaption></figure>
+      </div>
+    </section>
+<section class="card">
+      <div class="heading">
+        <div>
+          <h2>Ranged Attack</h2>
+          <p>reject-candidate-keep-current</p>
+        </div>
+        <strong>official replacement: false</strong>
+      </div>
+      <p>Candidate B is mechanically usable after cleanup, but it does not beat the current official ranged sheet on character fidelity or attack readability. Keep current.</p>
+      <div class="compare">
+        <figure><img src="../../../../public/samples/ranged-attack-sheet.png" alt="Ranged Attack current"><figcaption>A current</figcaption></figure>
+        <figure><img src="ranged-attack/candidate-001/ranged-attack-candidate-001-sheet.png" alt="Ranged Attack candidate"><figcaption>B candidate</figcaption></figure>
+      </div>
+      <h3>Motion GIFs</h3>
+      <div class="gifs"><figure><img src="ranged-attack/candidate-001/gifs/ranged-attack-candidate-001-front.gif" alt="Ranged Attack front"><figcaption>front</figcaption></figure><figure><img src="ranged-attack/candidate-001/gifs/ranged-attack-candidate-001-front-three-quarter.gif" alt="Ranged Attack front-three-quarter"><figcaption>front-three-quarter</figcaption></figure><figure><img src="ranged-attack/candidate-001/gifs/ranged-attack-candidate-001-side.gif" alt="Ranged Attack side"><figcaption>side</figcaption></figure><figure><img src="ranged-attack/candidate-001/gifs/ranged-attack-candidate-001-back-three-quarter.gif" alt="Ranged Attack back-three-quarter"><figcaption>back-three-quarter</figcaption></figure><figure><img src="ranged-attack/candidate-001/gifs/ranged-attack-candidate-001-back.gif" alt="Ranged Attack back"><figcaption>back</figcaption></figure></div>
+      <h3>QA overlays</h3>
+      <div class="compare small">
+        <figure><img src="ranged-attack/candidate-001/ranged-attack-candidate-001-grid-qa.png" alt="Ranged Attack grid QA"><figcaption>grid QA</figcaption></figure>
+        <figure><img src="ranged-attack/candidate-001/ranged-attack-candidate-001-transparent-contact.png" alt="Ranged Attack contact QA"><figcaption>transparent/contact QA</figcaption></figure>
+      </div>
+    </section>
+  </main>
+</body>
+</html>

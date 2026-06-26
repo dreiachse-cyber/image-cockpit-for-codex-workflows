@@ -1,0 +1,408 @@
+{
+  "generatedAt": "2026-06-27T02:14:00+09:00",
+  "phase": "B",
+  "officialReplacement": false,
+  "note": "Generated retake candidates were AB-reviewed against current official samples. No public sample, prompt contract, or UI adoption path was replaced.",
+  "results": [
+    {
+      "presetId": "jump-hop",
+      "title": "Jump / Hop",
+      "candidateId": "candidate-001",
+      "generatedAt": "2026-06-27T02:14:00+09:00",
+      "sourceJobId": "codex-job-2026-06-25T21-33-50-977Z",
+      "rawInput": {
+        "path": "docs/qa/core-animation-quality-uplift/retakes/jump-hop/candidate-001/source/imagegen-raw-sheet.png",
+        "width": 1586,
+        "height": 992
+      },
+      "sourceReference": "docs/qa/core-animation-quality-uplift/retakes/jump-hop/candidate-001/source/source-reference.png",
+      "currentSheet": "public/samples/jump-hop-sheet.png",
+      "candidateSheet": "docs/qa/core-animation-quality-uplift/retakes/jump-hop/candidate-001/jump-hop-candidate-001-sheet.png",
+      "candidateChromaSheet": "docs/qa/core-animation-quality-uplift/retakes/jump-hop/candidate-001/jump-hop-candidate-001-sheet-chroma.png",
+      "gridQa": "docs/qa/core-animation-quality-uplift/retakes/jump-hop/candidate-001/jump-hop-candidate-001-grid-qa.png",
+      "transparentContact": "docs/qa/core-animation-quality-uplift/retakes/jump-hop/candidate-001/jump-hop-candidate-001-transparent-contact.png",
+      "mechanicalQa": "docs/qa/core-animation-quality-uplift/retakes/jump-hop/candidate-001/jump-hop-candidate-001-mechanical-qa.json",
+      "manifest": "docs/qa/core-animation-quality-uplift/retakes/jump-hop/candidate-001/jump-hop-candidate-001-manifest.json",
+      "prompt": "docs/qa/core-animation-quality-uplift/retakes/jump-hop/candidate-001/jump-hop-candidate-001-prompt.md",
+      "review": "docs/qa/core-animation-quality-uplift/retakes/jump-hop/candidate-001/jump-hop-candidate-001-ab-review.md",
+      "directions": [
+        {
+          "direction": "front",
+          "transparentPath": "docs/qa/core-animation-quality-uplift/retakes/jump-hop/candidate-001/directions/jump-hop-candidate-001-front.png",
+          "chromaPath": "docs/qa/core-animation-quality-uplift/retakes/jump-hop/candidate-001/directions-chroma/jump-hop-candidate-001-front-chroma.png"
+        },
+        {
+          "direction": "front-three-quarter",
+          "transparentPath": "docs/qa/core-animation-quality-uplift/retakes/jump-hop/candidate-001/directions/jump-hop-candidate-001-front-three-quarter.png",
+          "chromaPath": "docs/qa/core-animation-quality-uplift/retakes/jump-hop/candidate-001/directions-chroma/jump-hop-candidate-001-front-three-quarter-chroma.png"
+        },
+        {
+          "direction": "side",
+          "transparentPath": "docs/qa/core-animation-quality-uplift/retakes/jump-hop/candidate-001/directions/jump-hop-candidate-001-side.png",
+          "chromaPath": "docs/qa/core-animation-quality-uplift/retakes/jump-hop/candidate-001/directions-chroma/jump-hop-candidate-001-side-chroma.png"
+        },
+        {
+          "direction": "back-three-quarter",
+          "transparentPath": "docs/qa/core-animation-quality-uplift/retakes/jump-hop/candidate-001/directions/jump-hop-candidate-001-back-three-quarter.png",
+          "chromaPath": "docs/qa/core-animation-quality-uplift/retakes/jump-hop/candidate-001/directions-chroma/jump-hop-candidate-001-back-three-quarter-chroma.png"
+        },
+        {
+          "direction": "back",
+          "transparentPath": "docs/qa/core-animation-quality-uplift/retakes/jump-hop/candidate-001/directions/jump-hop-candidate-001-back.png",
+          "chromaPath": "docs/qa/core-animation-quality-uplift/retakes/jump-hop/candidate-001/directions-chroma/jump-hop-candidate-001-back-chroma.png"
+        }
+      ],
+      "gifs": [
+        {
+          "direction": "front",
+          "path": "docs/qa/core-animation-quality-uplift/retakes/jump-hop/candidate-001/gifs/jump-hop-candidate-001-front.gif"
+        },
+        {
+          "direction": "front-three-quarter",
+          "path": "docs/qa/core-animation-quality-uplift/retakes/jump-hop/candidate-001/gifs/jump-hop-candidate-001-front-three-quarter.gif"
+        },
+        {
+          "direction": "side",
+          "path": "docs/qa/core-animation-quality-uplift/retakes/jump-hop/candidate-001/gifs/jump-hop-candidate-001-side.gif"
+        },
+        {
+          "direction": "back-three-quarter",
+          "path": "docs/qa/core-animation-quality-uplift/retakes/jump-hop/candidate-001/gifs/jump-hop-candidate-001-back-three-quarter.gif"
+        },
+        {
+          "direction": "back",
+          "path": "docs/qa/core-animation-quality-uplift/retakes/jump-hop/candidate-001/gifs/jump-hop-candidate-001-back.gif"
+        }
+      ],
+      "cleanup": {
+        "magentaBackgroundPixels": 2047514,
+        "magentaBackgroundRatio": 0.781065,
+        "normalizedFrom": [
+          1586,
+          992
+        ],
+        "normalizedTo": [
+          2048,
+          1280
+        ]
+      },
+      "currentMechanical": {
+        "size": "2048x1280",
+        "sizeMatchesContract": true,
+        "alphaZeroRatio": 0.813871,
+        "minFramePadding": 9,
+        "maxCenterDrift": 77,
+        "maxBottomDrift": 73,
+        "maxHeightRatio": 1.362,
+        "maxWidthRatio": 1.276,
+        "maxDetachedComponents": 0,
+        "framesBelow16pxPadding": 6,
+        "framesBelow24pxPadding": 18
+      },
+      "candidateMechanical": {
+        "size": "2048x1280",
+        "sizeMatchesContract": true,
+        "alphaZeroRatio": 0.781065,
+        "minFramePadding": 0,
+        "maxCenterDrift": 156,
+        "maxBottomDrift": 21,
+        "maxHeightRatio": 1.636,
+        "maxWidthRatio": 3.2,
+        "maxDetachedComponents": 3,
+        "framesBelow16pxPadding": 39,
+        "framesBelow24pxPadding": 40
+      },
+      "comparison": {
+        "minFramePaddingDelta": -9,
+        "framesBelow16pxPaddingDelta": 33,
+        "maxCenterDriftDelta": 79,
+        "maxBottomDriftDelta": -52,
+        "maxHeightRatioDelta": 0.274,
+        "maxWidthRatioDelta": 1.924
+      },
+      "abDecision": {
+        "outcome": "hold-current-candidate-needs-rework",
+        "officialReplacement": false,
+        "summary": "Candidate B has nice visual consistency, but AB fails the sheet-safety bar: the raw canvas was the wrong size and the normalized sheet has multiple frames touching cell edges. Keep current A and rework before any replacement review.",
+        "wins": [
+          "The midair poses are visually clean and keep the source character identity.",
+          "Less extreme frame-to-frame size change than the current official sheet.",
+          "All five directions remain readable and keep the source character identity."
+        ],
+        "risks": [
+          "The generated raw canvas was 1586x992, not the requested 2048x1280.",
+          "The raw background was magenta with mild gradient noise, so cleanup was required.",
+          "After normalization, many frames have below-16px padding and some touch the cell edge.",
+          "The current official sheet still has a stronger squash/landing accent in some views."
+        ]
+      },
+      "officialReplacement": false
+    },
+    {
+      "presetId": "basic-attack",
+      "title": "Basic Attack",
+      "candidateId": "candidate-001",
+      "generatedAt": "2026-06-27T02:14:00+09:00",
+      "sourceJobId": "codex-job-2026-06-25T21-02-07-575Z",
+      "rawInput": {
+        "path": "docs/qa/core-animation-quality-uplift/retakes/basic-attack/candidate-001/source/imagegen-raw-sheet.png",
+        "width": 1586,
+        "height": 992
+      },
+      "sourceReference": "docs/qa/core-animation-quality-uplift/retakes/basic-attack/candidate-001/source/source-reference.png",
+      "currentSheet": "public/samples/basic-attack-sheet.png",
+      "candidateSheet": "docs/qa/core-animation-quality-uplift/retakes/basic-attack/candidate-001/basic-attack-candidate-001-sheet.png",
+      "candidateChromaSheet": "docs/qa/core-animation-quality-uplift/retakes/basic-attack/candidate-001/basic-attack-candidate-001-sheet-chroma.png",
+      "gridQa": "docs/qa/core-animation-quality-uplift/retakes/basic-attack/candidate-001/basic-attack-candidate-001-grid-qa.png",
+      "transparentContact": "docs/qa/core-animation-quality-uplift/retakes/basic-attack/candidate-001/basic-attack-candidate-001-transparent-contact.png",
+      "mechanicalQa": "docs/qa/core-animation-quality-uplift/retakes/basic-attack/candidate-001/basic-attack-candidate-001-mechanical-qa.json",
+      "manifest": "docs/qa/core-animation-quality-uplift/retakes/basic-attack/candidate-001/basic-attack-candidate-001-manifest.json",
+      "prompt": "docs/qa/core-animation-quality-uplift/retakes/basic-attack/candidate-001/basic-attack-candidate-001-prompt.md",
+      "review": "docs/qa/core-animation-quality-uplift/retakes/basic-attack/candidate-001/basic-attack-candidate-001-ab-review.md",
+      "directions": [
+        {
+          "direction": "front",
+          "transparentPath": "docs/qa/core-animation-quality-uplift/retakes/basic-attack/candidate-001/directions/basic-attack-candidate-001-front.png",
+          "chromaPath": "docs/qa/core-animation-quality-uplift/retakes/basic-attack/candidate-001/directions-chroma/basic-attack-candidate-001-front-chroma.png"
+        },
+        {
+          "direction": "front-three-quarter",
+          "transparentPath": "docs/qa/core-animation-quality-uplift/retakes/basic-attack/candidate-001/directions/basic-attack-candidate-001-front-three-quarter.png",
+          "chromaPath": "docs/qa/core-animation-quality-uplift/retakes/basic-attack/candidate-001/directions-chroma/basic-attack-candidate-001-front-three-quarter-chroma.png"
+        },
+        {
+          "direction": "side",
+          "transparentPath": "docs/qa/core-animation-quality-uplift/retakes/basic-attack/candidate-001/directions/basic-attack-candidate-001-side.png",
+          "chromaPath": "docs/qa/core-animation-quality-uplift/retakes/basic-attack/candidate-001/directions-chroma/basic-attack-candidate-001-side-chroma.png"
+        },
+        {
+          "direction": "back-three-quarter",
+          "transparentPath": "docs/qa/core-animation-quality-uplift/retakes/basic-attack/candidate-001/directions/basic-attack-candidate-001-back-three-quarter.png",
+          "chromaPath": "docs/qa/core-animation-quality-uplift/retakes/basic-attack/candidate-001/directions-chroma/basic-attack-candidate-001-back-three-quarter-chroma.png"
+        },
+        {
+          "direction": "back",
+          "transparentPath": "docs/qa/core-animation-quality-uplift/retakes/basic-attack/candidate-001/directions/basic-attack-candidate-001-back.png",
+          "chromaPath": "docs/qa/core-animation-quality-uplift/retakes/basic-attack/candidate-001/directions-chroma/basic-attack-candidate-001-back-chroma.png"
+        }
+      ],
+      "gifs": [
+        {
+          "direction": "front",
+          "path": "docs/qa/core-animation-quality-uplift/retakes/basic-attack/candidate-001/gifs/basic-attack-candidate-001-front.gif"
+        },
+        {
+          "direction": "front-three-quarter",
+          "path": "docs/qa/core-animation-quality-uplift/retakes/basic-attack/candidate-001/gifs/basic-attack-candidate-001-front-three-quarter.gif"
+        },
+        {
+          "direction": "side",
+          "path": "docs/qa/core-animation-quality-uplift/retakes/basic-attack/candidate-001/gifs/basic-attack-candidate-001-side.gif"
+        },
+        {
+          "direction": "back-three-quarter",
+          "path": "docs/qa/core-animation-quality-uplift/retakes/basic-attack/candidate-001/gifs/basic-attack-candidate-001-back-three-quarter.gif"
+        },
+        {
+          "direction": "back",
+          "path": "docs/qa/core-animation-quality-uplift/retakes/basic-attack/candidate-001/gifs/basic-attack-candidate-001-back.gif"
+        }
+      ],
+      "cleanup": {
+        "magentaBackgroundPixels": 2054110,
+        "magentaBackgroundRatio": 0.783581,
+        "normalizedFrom": [
+          1586,
+          992
+        ],
+        "normalizedTo": [
+          2048,
+          1280
+        ]
+      },
+      "currentMechanical": {
+        "size": "2048x1280",
+        "sizeMatchesContract": true,
+        "alphaZeroRatio": 0.806724,
+        "minFramePadding": 5,
+        "maxCenterDrift": 56,
+        "maxBottomDrift": 19,
+        "maxHeightRatio": 1.127,
+        "maxWidthRatio": 1.895,
+        "maxDetachedComponents": 0,
+        "framesBelow16pxPadding": 12,
+        "framesBelow24pxPadding": 18
+      },
+      "candidateMechanical": {
+        "size": "2048x1280",
+        "sizeMatchesContract": true,
+        "alphaZeroRatio": 0.783581,
+        "minFramePadding": 0,
+        "maxCenterDrift": 83,
+        "maxBottomDrift": 3,
+        "maxHeightRatio": 1.062,
+        "maxWidthRatio": 2.306,
+        "maxDetachedComponents": 3,
+        "framesBelow16pxPadding": 29,
+        "framesBelow24pxPadding": 34
+      },
+      "comparison": {
+        "minFramePaddingDelta": -5,
+        "framesBelow16pxPaddingDelta": 17,
+        "maxCenterDriftDelta": 27,
+        "maxBottomDriftDelta": -16,
+        "maxHeightRatioDelta": -0.065,
+        "maxWidthRatioDelta": 0.411
+      },
+      "abDecision": {
+        "outcome": "hold-current-candidate-needs-rework",
+        "officialReplacement": false,
+        "summary": "Candidate B improves body/sword consistency, but AB does not clear the mechanical bar because several frames touch cell edges after normalization. Keep current A for now and rework B with stricter padding.",
+        "wins": [
+          "Body scale and head size stay steadier across attack frames.",
+          "Sword remains more consistently attached to the hand.",
+          "Slash effects are less oversized than the current official sheet."
+        ],
+        "risks": [
+          "The generated raw canvas was 1586x992, not the requested 2048x1280.",
+          "The raw background needed magenta flood-fill cleanup.",
+          "After normalization, more frames fall below the 16px safety padding target than the current official sheet.",
+          "The current official sheet has a punchier hit effect, so gameplay readability should be judged in motion."
+        ]
+      },
+      "officialReplacement": false
+    },
+    {
+      "presetId": "ranged-attack",
+      "title": "Ranged Attack",
+      "candidateId": "candidate-001",
+      "generatedAt": "2026-06-27T02:14:00+09:00",
+      "sourceJobId": "codex-job-2026-06-26T04-20-29-885Z",
+      "rawInput": {
+        "path": "docs/qa/core-animation-quality-uplift/retakes/ranged-attack/candidate-001/source/imagegen-raw-sheet.png",
+        "width": 1586,
+        "height": 992
+      },
+      "sourceReference": "docs/qa/core-animation-quality-uplift/retakes/ranged-attack/candidate-001/source/source-reference.png",
+      "currentSheet": "public/samples/ranged-attack-sheet.png",
+      "candidateSheet": "docs/qa/core-animation-quality-uplift/retakes/ranged-attack/candidate-001/ranged-attack-candidate-001-sheet.png",
+      "candidateChromaSheet": "docs/qa/core-animation-quality-uplift/retakes/ranged-attack/candidate-001/ranged-attack-candidate-001-sheet-chroma.png",
+      "gridQa": "docs/qa/core-animation-quality-uplift/retakes/ranged-attack/candidate-001/ranged-attack-candidate-001-grid-qa.png",
+      "transparentContact": "docs/qa/core-animation-quality-uplift/retakes/ranged-attack/candidate-001/ranged-attack-candidate-001-transparent-contact.png",
+      "mechanicalQa": "docs/qa/core-animation-quality-uplift/retakes/ranged-attack/candidate-001/ranged-attack-candidate-001-mechanical-qa.json",
+      "manifest": "docs/qa/core-animation-quality-uplift/retakes/ranged-attack/candidate-001/ranged-attack-candidate-001-manifest.json",
+      "prompt": "docs/qa/core-animation-quality-uplift/retakes/ranged-attack/candidate-001/ranged-attack-candidate-001-prompt.md",
+      "review": "docs/qa/core-animation-quality-uplift/retakes/ranged-attack/candidate-001/ranged-attack-candidate-001-ab-review.md",
+      "directions": [
+        {
+          "direction": "front",
+          "transparentPath": "docs/qa/core-animation-quality-uplift/retakes/ranged-attack/candidate-001/directions/ranged-attack-candidate-001-front.png",
+          "chromaPath": "docs/qa/core-animation-quality-uplift/retakes/ranged-attack/candidate-001/directions-chroma/ranged-attack-candidate-001-front-chroma.png"
+        },
+        {
+          "direction": "front-three-quarter",
+          "transparentPath": "docs/qa/core-animation-quality-uplift/retakes/ranged-attack/candidate-001/directions/ranged-attack-candidate-001-front-three-quarter.png",
+          "chromaPath": "docs/qa/core-animation-quality-uplift/retakes/ranged-attack/candidate-001/directions-chroma/ranged-attack-candidate-001-front-three-quarter-chroma.png"
+        },
+        {
+          "direction": "side",
+          "transparentPath": "docs/qa/core-animation-quality-uplift/retakes/ranged-attack/candidate-001/directions/ranged-attack-candidate-001-side.png",
+          "chromaPath": "docs/qa/core-animation-quality-uplift/retakes/ranged-attack/candidate-001/directions-chroma/ranged-attack-candidate-001-side-chroma.png"
+        },
+        {
+          "direction": "back-three-quarter",
+          "transparentPath": "docs/qa/core-animation-quality-uplift/retakes/ranged-attack/candidate-001/directions/ranged-attack-candidate-001-back-three-quarter.png",
+          "chromaPath": "docs/qa/core-animation-quality-uplift/retakes/ranged-attack/candidate-001/directions-chroma/ranged-attack-candidate-001-back-three-quarter-chroma.png"
+        },
+        {
+          "direction": "back",
+          "transparentPath": "docs/qa/core-animation-quality-uplift/retakes/ranged-attack/candidate-001/directions/ranged-attack-candidate-001-back.png",
+          "chromaPath": "docs/qa/core-animation-quality-uplift/retakes/ranged-attack/candidate-001/directions-chroma/ranged-attack-candidate-001-back-chroma.png"
+        }
+      ],
+      "gifs": [
+        {
+          "direction": "front",
+          "path": "docs/qa/core-animation-quality-uplift/retakes/ranged-attack/candidate-001/gifs/ranged-attack-candidate-001-front.gif"
+        },
+        {
+          "direction": "front-three-quarter",
+          "path": "docs/qa/core-animation-quality-uplift/retakes/ranged-attack/candidate-001/gifs/ranged-attack-candidate-001-front-three-quarter.gif"
+        },
+        {
+          "direction": "side",
+          "path": "docs/qa/core-animation-quality-uplift/retakes/ranged-attack/candidate-001/gifs/ranged-attack-candidate-001-side.gif"
+        },
+        {
+          "direction": "back-three-quarter",
+          "path": "docs/qa/core-animation-quality-uplift/retakes/ranged-attack/candidate-001/gifs/ranged-attack-candidate-001-back-three-quarter.gif"
+        },
+        {
+          "direction": "back",
+          "path": "docs/qa/core-animation-quality-uplift/retakes/ranged-attack/candidate-001/gifs/ranged-attack-candidate-001-back.gif"
+        }
+      ],
+      "cleanup": {
+        "magentaBackgroundPixels": 2009862,
+        "magentaBackgroundRatio": 0.766702,
+        "normalizedFrom": [
+          1586,
+          992
+        ],
+        "normalizedTo": [
+          2048,
+          1280
+        ]
+      },
+      "currentMechanical": {
+        "size": "2048x1280",
+        "sizeMatchesContract": true,
+        "alphaZeroRatio": 0.800759,
+        "minFramePadding": 12,
+        "maxCenterDrift": 70,
+        "maxBottomDrift": 21,
+        "maxHeightRatio": 1.083,
+        "maxWidthRatio": 2.125,
+        "maxDetachedComponents": 1,
+        "framesBelow16pxPadding": 3,
+        "framesBelow24pxPadding": 15
+      },
+      "candidateMechanical": {
+        "size": "2048x1280",
+        "sizeMatchesContract": true,
+        "alphaZeroRatio": 0.766702,
+        "minFramePadding": 0,
+        "maxCenterDrift": 51,
+        "maxBottomDrift": 3,
+        "maxHeightRatio": 1.307,
+        "maxWidthRatio": 2.521,
+        "maxDetachedComponents": 1,
+        "framesBelow16pxPadding": 33,
+        "framesBelow24pxPadding": 40
+      },
+      "comparison": {
+        "minFramePaddingDelta": -12,
+        "framesBelow16pxPaddingDelta": 30,
+        "maxCenterDriftDelta": -19,
+        "maxBottomDriftDelta": -18,
+        "maxHeightRatioDelta": 0.224,
+        "maxWidthRatioDelta": 0.396
+      },
+      "abDecision": {
+        "outcome": "reject-candidate-keep-current",
+        "officialReplacement": false,
+        "summary": "Candidate B is mechanically usable after cleanup, but it does not beat the current official ranged sheet on character fidelity or attack readability. Keep current.",
+        "wins": [
+          "Candidate B has tidy spacing and a readable projectile moment.",
+          "The five direction rows remain coherent after normalization."
+        ],
+        "risks": [
+          "The candidate simplifies the traveler silhouette and loses some of the official sheet's source-character fidelity.",
+          "The firing motion has less pose contrast than the current official sheet.",
+          "The generated raw canvas and background both needed normalization, with no clear quality win to justify replacement."
+        ]
+      },
+      "officialReplacement": false
+    }
+  ]
+}

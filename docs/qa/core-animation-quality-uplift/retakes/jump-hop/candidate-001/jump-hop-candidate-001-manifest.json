@@ -1,0 +1,89 @@
+{
+  "generatedAt": "2026-06-27T02:14:00+09:00",
+  "presetId": "jump-hop",
+  "title": "Jump / Hop",
+  "candidateId": "candidate-001",
+  "sourceJobId": "codex-job-2026-06-25T21-33-50-977Z",
+  "sourceReference": "docs/qa/core-animation-quality-uplift/retakes/jump-hop/candidate-001/source/source-reference.png",
+  "rawSheet": "docs/qa/core-animation-quality-uplift/retakes/jump-hop/candidate-001/source/imagegen-raw-sheet.png",
+  "rawGeneratedDimensions": [
+    1586,
+    992
+  ],
+  "normalizedDimensions": [
+    2048,
+    1280
+  ],
+  "currentSheet": "public/samples/jump-hop-sheet.png",
+  "candidateSheet": "docs/qa/core-animation-quality-uplift/retakes/jump-hop/candidate-001/jump-hop-candidate-001-sheet.png",
+  "candidateChromaSheet": "docs/qa/core-animation-quality-uplift/retakes/jump-hop/candidate-001/jump-hop-candidate-001-sheet-chroma.png",
+  "directions": [
+    {
+      "direction": "front",
+      "transparentPath": "docs/qa/core-animation-quality-uplift/retakes/jump-hop/candidate-001/directions/jump-hop-candidate-001-front.png",
+      "chromaPath": "docs/qa/core-animation-quality-uplift/retakes/jump-hop/candidate-001/directions-chroma/jump-hop-candidate-001-front-chroma.png"
+    },
+    {
+      "direction": "front-three-quarter",
+      "transparentPath": "docs/qa/core-animation-quality-uplift/retakes/jump-hop/candidate-001/directions/jump-hop-candidate-001-front-three-quarter.png",
+      "chromaPath": "docs/qa/core-animation-quality-uplift/retakes/jump-hop/candidate-001/directions-chroma/jump-hop-candidate-001-front-three-quarter-chroma.png"
+    },
+    {
+      "direction": "side",
+      "transparentPath": "docs/qa/core-animation-quality-uplift/retakes/jump-hop/candidate-001/directions/jump-hop-candidate-001-side.png",
+      "chromaPath": "docs/qa/core-animation-quality-uplift/retakes/jump-hop/candidate-001/directions-chroma/jump-hop-candidate-001-side-chroma.png"
+    },
+    {
+      "direction": "back-three-quarter",
+      "transparentPath": "docs/qa/core-animation-quality-uplift/retakes/jump-hop/candidate-001/directions/jump-hop-candidate-001-back-three-quarter.png",
+      "chromaPath": "docs/qa/core-animation-quality-uplift/retakes/jump-hop/candidate-001/directions-chroma/jump-hop-candidate-001-back-three-quarter-chroma.png"
+    },
+    {
+      "direction": "back",
+      "transparentPath": "docs/qa/core-animation-quality-uplift/retakes/jump-hop/candidate-001/directions/jump-hop-candidate-001-back.png",
+      "chromaPath": "docs/qa/core-animation-quality-uplift/retakes/jump-hop/candidate-001/directions-chroma/jump-hop-candidate-001-back-chroma.png"
+    }
+  ],
+  "gifs": [
+    {
+      "direction": "front",
+      "path": "docs/qa/core-animation-quality-uplift/retakes/jump-hop/candidate-001/gifs/jump-hop-candidate-001-front.gif"
+    },
+    {
+      "direction": "front-three-quarter",
+      "path": "docs/qa/core-animation-quality-uplift/retakes/jump-hop/candidate-001/gifs/jump-hop-candidate-001-front-three-quarter.gif"
+    },
+    {
+      "direction": "side",
+      "path": "docs/qa/core-animation-quality-uplift/retakes/jump-hop/candidate-001/gifs/jump-hop-candidate-001-side.gif"
+    },
+    {
+      "direction": "back-three-quarter",
+      "path": "docs/qa/core-animation-quality-uplift/retakes/jump-hop/candidate-001/gifs/jump-hop-candidate-001-back-three-quarter.gif"
+    },
+    {
+      "direction": "back",
+      "path": "docs/qa/core-animation-quality-uplift/retakes/jump-hop/candidate-001/gifs/jump-hop-candidate-001-back.gif"
+    }
+  ],
+  "gridQa": "docs/qa/core-animation-quality-uplift/retakes/jump-hop/candidate-001/jump-hop-candidate-001-grid-qa.png",
+  "transparentContact": "docs/qa/core-animation-quality-uplift/retakes/jump-hop/candidate-001/jump-hop-candidate-001-transparent-contact.png",
+  "mechanicalQa": "docs/qa/core-animation-quality-uplift/retakes/jump-hop/candidate-001/jump-hop-candidate-001-mechanical-qa.json",
+  "officialReplacement": false,
+  "abDecision": {
+    "outcome": "hold-current-candidate-needs-rework",
+    "officialReplacement": false,
+    "summary": "Candidate B has nice visual consistency, but AB fails the sheet-safety bar: the raw canvas was the wrong size and the normalized sheet has multiple frames touching cell edges. Keep current A and rework before any replacement review.",
+    "wins": [
+      "The midair poses are visually clean and keep the source character identity.",
+      "Less extreme frame-to-frame size change than the current official sheet.",
+      "All five directions remain readable and keep the source character identity."
+    ],
+    "risks": [
+      "The generated raw canvas was 1586x992, not the requested 2048x1280.",
+      "The raw background was magenta with mild gradient noise, so cleanup was required.",
+      "After normalization, many frames have below-16px padding and some touch the cell edge.",
+      "The current official sheet still has a stronger squash/landing accent in some views."
+    ]
+  }
+}

@@ -1,0 +1,89 @@
+{
+  "generatedAt": "2026-06-27T02:14:00+09:00",
+  "presetId": "basic-attack",
+  "title": "Basic Attack",
+  "candidateId": "candidate-001",
+  "sourceJobId": "codex-job-2026-06-25T21-02-07-575Z",
+  "sourceReference": "docs/qa/core-animation-quality-uplift/retakes/basic-attack/candidate-001/source/source-reference.png",
+  "rawSheet": "docs/qa/core-animation-quality-uplift/retakes/basic-attack/candidate-001/source/imagegen-raw-sheet.png",
+  "rawGeneratedDimensions": [
+    1586,
+    992
+  ],
+  "normalizedDimensions": [
+    2048,
+    1280
+  ],
+  "currentSheet": "public/samples/basic-attack-sheet.png",
+  "candidateSheet": "docs/qa/core-animation-quality-uplift/retakes/basic-attack/candidate-001/basic-attack-candidate-001-sheet.png",
+  "candidateChromaSheet": "docs/qa/core-animation-quality-uplift/retakes/basic-attack/candidate-001/basic-attack-candidate-001-sheet-chroma.png",
+  "directions": [
+    {
+      "direction": "front",
+      "transparentPath": "docs/qa/core-animation-quality-uplift/retakes/basic-attack/candidate-001/directions/basic-attack-candidate-001-front.png",
+      "chromaPath": "docs/qa/core-animation-quality-uplift/retakes/basic-attack/candidate-001/directions-chroma/basic-attack-candidate-001-front-chroma.png"
+    },
+    {
+      "direction": "front-three-quarter",
+      "transparentPath": "docs/qa/core-animation-quality-uplift/retakes/basic-attack/candidate-001/directions/basic-attack-candidate-001-front-three-quarter.png",
+      "chromaPath": "docs/qa/core-animation-quality-uplift/retakes/basic-attack/candidate-001/directions-chroma/basic-attack-candidate-001-front-three-quarter-chroma.png"
+    },
+    {
+      "direction": "side",
+      "transparentPath": "docs/qa/core-animation-quality-uplift/retakes/basic-attack/candidate-001/directions/basic-attack-candidate-001-side.png",
+      "chromaPath": "docs/qa/core-animation-quality-uplift/retakes/basic-attack/candidate-001/directions-chroma/basic-attack-candidate-001-side-chroma.png"
+    },
+    {
+      "direction": "back-three-quarter",
+      "transparentPath": "docs/qa/core-animation-quality-uplift/retakes/basic-attack/candidate-001/directions/basic-attack-candidate-001-back-three-quarter.png",
+      "chromaPath": "docs/qa/core-animation-quality-uplift/retakes/basic-attack/candidate-001/directions-chroma/basic-attack-candidate-001-back-three-quarter-chroma.png"
+    },
+    {
+      "direction": "back",
+      "transparentPath": "docs/qa/core-animation-quality-uplift/retakes/basic-attack/candidate-001/directions/basic-attack-candidate-001-back.png",
+      "chromaPath": "docs/qa/core-animation-quality-uplift/retakes/basic-attack/candidate-001/directions-chroma/basic-attack-candidate-001-back-chroma.png"
+    }
+  ],
+  "gifs": [
+    {
+      "direction": "front",
+      "path": "docs/qa/core-animation-quality-uplift/retakes/basic-attack/candidate-001/gifs/basic-attack-candidate-001-front.gif"
+    },
+    {
+      "direction": "front-three-quarter",
+      "path": "docs/qa/core-animation-quality-uplift/retakes/basic-attack/candidate-001/gifs/basic-attack-candidate-001-front-three-quarter.gif"
+    },
+    {
+      "direction": "side",
+      "path": "docs/qa/core-animation-quality-uplift/retakes/basic-attack/candidate-001/gifs/basic-attack-candidate-001-side.gif"
+    },
+    {
+      "direction": "back-three-quarter",
+      "path": "docs/qa/core-animation-quality-uplift/retakes/basic-attack/candidate-001/gifs/basic-attack-candidate-001-back-three-quarter.gif"
+    },
+    {
+      "direction": "back",
+      "path": "docs/qa/core-animation-quality-uplift/retakes/basic-attack/candidate-001/gifs/basic-attack-candidate-001-back.gif"
+    }
+  ],
+  "gridQa": "docs/qa/core-animation-quality-uplift/retakes/basic-attack/candidate-001/basic-attack-candidate-001-grid-qa.png",
+  "transparentContact": "docs/qa/core-animation-quality-uplift/retakes/basic-attack/candidate-001/basic-attack-candidate-001-transparent-contact.png",
+  "mechanicalQa": "docs/qa/core-animation-quality-uplift/retakes/basic-attack/candidate-001/basic-attack-candidate-001-mechanical-qa.json",
+  "officialReplacement": false,
+  "abDecision": {
+    "outcome": "hold-current-candidate-needs-rework",
+    "officialReplacement": false,
+    "summary": "Candidate B improves body/sword consistency, but AB does not clear the mechanical bar because several frames touch cell edges after normalization. Keep current A for now and rework B with stricter padding.",
+    "wins": [
+      "Body scale and head size stay steadier across attack frames.",
+      "Sword remains more consistently attached to the hand.",
+      "Slash effects are less oversized than the current official sheet."
+    ],
+    "risks": [
+      "The generated raw canvas was 1586x992, not the requested 2048x1280.",
+      "The raw background needed magenta flood-fill cleanup.",
+      "After normalization, more frames fall below the 16px safety padding target than the current official sheet.",
+      "The current official sheet has a punchier hit effect, so gameplay readability should be judged in motion."
+    ]
+  }
+}
