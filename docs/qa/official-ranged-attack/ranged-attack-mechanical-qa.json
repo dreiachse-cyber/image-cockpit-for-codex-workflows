@@ -1,0 +1,1059 @@
+{
+  "presetId": "ranged-attack",
+  "sourceJobId": "codex-job-2026-06-26T04-20-29-885Z",
+  "sheetPath": "public/samples/ranged-attack-sheet.png",
+  "sheetSize": [
+    2048,
+    1280
+  ],
+  "cell": [
+    256,
+    256
+  ],
+  "grid": [
+    8,
+    5
+  ],
+  "directions": [
+    "front",
+    "front-three-quarter",
+    "side",
+    "back-three-quarter",
+    "back"
+  ],
+  "fps": 12,
+  "loop": false,
+  "mechanicalResult": "pass",
+  "warnings": [],
+  "failures": [],
+  "framesChecked": 40,
+  "transparentFrames": 40,
+  "minimumTransparentPixelRatio": 0.761597,
+  "frames": [
+    {
+      "direction": "front",
+      "frames": [
+        {
+          "index": 1,
+          "ok": true,
+          "sourceBox": [
+            79,
+            35,
+            183,
+            223
+          ],
+          "normalizedBox": [
+            79,
+            35,
+            183,
+            223
+          ],
+          "minPadding": 32,
+          "padding": {
+            "left": 79,
+            "top": 35,
+            "right": 72,
+            "bottom": 32
+          },
+          "pixels": 14048,
+          "transparentPixelRatio": 0.785645
+        },
+        {
+          "index": 2,
+          "ok": true,
+          "sourceBox": [
+            78,
+            41,
+            200,
+            224
+          ],
+          "normalizedBox": [
+            78,
+            41,
+            200,
+            224
+          ],
+          "minPadding": 31,
+          "padding": {
+            "left": 78,
+            "top": 41,
+            "right": 55,
+            "bottom": 31
+          },
+          "pixels": 13767,
+          "transparentPixelRatio": 0.789932
+        },
+        {
+          "index": 3,
+          "ok": true,
+          "sourceBox": [
+            53,
+            43,
+            180,
+            226
+          ],
+          "normalizedBox": [
+            53,
+            43,
+            180,
+            226
+          ],
+          "minPadding": 29,
+          "padding": {
+            "left": 53,
+            "top": 43,
+            "right": 75,
+            "bottom": 29
+          },
+          "pixels": 14265,
+          "transparentPixelRatio": 0.782333
+        },
+        {
+          "index": 4,
+          "ok": true,
+          "sourceBox": [
+            12,
+            44,
+            187,
+            227
+          ],
+          "normalizedBox": [
+            12,
+            44,
+            187,
+            227
+          ],
+          "minPadding": 12,
+          "padding": {
+            "left": 12,
+            "top": 44,
+            "right": 68,
+            "bottom": 28
+          },
+          "pixels": 15624,
+          "transparentPixelRatio": 0.761597
+        },
+        {
+          "index": 5,
+          "ok": true,
+          "sourceBox": [
+            64,
+            30,
+            208,
+            213
+          ],
+          "normalizedBox": [
+            64,
+            30,
+            208,
+            213
+          ],
+          "minPadding": 30,
+          "padding": {
+            "left": 64,
+            "top": 30,
+            "right": 47,
+            "bottom": 42
+          },
+          "pixels": 13958,
+          "transparentPixelRatio": 0.787018
+        },
+        {
+          "index": 6,
+          "ok": true,
+          "sourceBox": [
+            59,
+            30,
+            203,
+            213
+          ],
+          "normalizedBox": [
+            59,
+            30,
+            203,
+            213
+          ],
+          "minPadding": 30,
+          "padding": {
+            "left": 59,
+            "top": 30,
+            "right": 52,
+            "bottom": 42
+          },
+          "pixels": 14144,
+          "transparentPixelRatio": 0.78418
+        },
+        {
+          "index": 7,
+          "ok": true,
+          "sourceBox": [
+            56,
+            27,
+            169,
+            211
+          ],
+          "normalizedBox": [
+            56,
+            27,
+            169,
+            211
+          ],
+          "minPadding": 27,
+          "padding": {
+            "left": 56,
+            "top": 27,
+            "right": 86,
+            "bottom": 44
+          },
+          "pixels": 13324,
+          "transparentPixelRatio": 0.796692
+        },
+        {
+          "index": 8,
+          "ok": true,
+          "sourceBox": [
+            61,
+            25,
+            166,
+            213
+          ],
+          "normalizedBox": [
+            61,
+            25,
+            166,
+            213
+          ],
+          "minPadding": 25,
+          "padding": {
+            "left": 61,
+            "top": 25,
+            "right": 89,
+            "bottom": 42
+          },
+          "pixels": 13978,
+          "transparentPixelRatio": 0.786713
+        }
+      ]
+    },
+    {
+      "direction": "front-three-quarter",
+      "frames": [
+        {
+          "index": 1,
+          "ok": true,
+          "sourceBox": [
+            81,
+            38,
+            179,
+            222
+          ],
+          "normalizedBox": [
+            81,
+            38,
+            179,
+            222
+          ],
+          "minPadding": 33,
+          "padding": {
+            "left": 81,
+            "top": 38,
+            "right": 76,
+            "bottom": 33
+          },
+          "pixels": 12459,
+          "transparentPixelRatio": 0.809891
+        },
+        {
+          "index": 2,
+          "ok": true,
+          "sourceBox": [
+            71,
+            42,
+            190,
+            221
+          ],
+          "normalizedBox": [
+            71,
+            42,
+            190,
+            221
+          ],
+          "minPadding": 34,
+          "padding": {
+            "left": 71,
+            "top": 42,
+            "right": 65,
+            "bottom": 34
+          },
+          "pixels": 12829,
+          "transparentPixelRatio": 0.804245
+        },
+        {
+          "index": 3,
+          "ok": true,
+          "sourceBox": [
+            55,
+            44,
+            176,
+            221
+          ],
+          "normalizedBox": [
+            55,
+            44,
+            176,
+            221
+          ],
+          "minPadding": 34,
+          "padding": {
+            "left": 55,
+            "top": 44,
+            "right": 79,
+            "bottom": 34
+          },
+          "pixels": 12866,
+          "transparentPixelRatio": 0.80368
+        },
+        {
+          "index": 4,
+          "ok": true,
+          "sourceBox": [
+            25,
+            44,
+            164,
+            222
+          ],
+          "normalizedBox": [
+            25,
+            44,
+            164,
+            222
+          ],
+          "minPadding": 25,
+          "padding": {
+            "left": 25,
+            "top": 44,
+            "right": 91,
+            "bottom": 33
+          },
+          "pixels": 13299,
+          "transparentPixelRatio": 0.797073
+        },
+        {
+          "index": 5,
+          "ok": true,
+          "sourceBox": [
+            66,
+            22,
+            208,
+            201
+          ],
+          "normalizedBox": [
+            66,
+            22,
+            208,
+            201
+          ],
+          "minPadding": 22,
+          "padding": {
+            "left": 66,
+            "top": 22,
+            "right": 47,
+            "bottom": 54
+          },
+          "pixels": 13225,
+          "transparentPixelRatio": 0.798203
+        },
+        {
+          "index": 6,
+          "ok": true,
+          "sourceBox": [
+            64,
+            23,
+            194,
+            202
+          ],
+          "normalizedBox": [
+            64,
+            23,
+            194,
+            202
+          ],
+          "minPadding": 23,
+          "padding": {
+            "left": 64,
+            "top": 23,
+            "right": 61,
+            "bottom": 53
+          },
+          "pixels": 12840,
+          "transparentPixelRatio": 0.804077
+        },
+        {
+          "index": 7,
+          "ok": true,
+          "sourceBox": [
+            51,
+            22,
+            166,
+            205
+          ],
+          "normalizedBox": [
+            51,
+            22,
+            166,
+            205
+          ],
+          "minPadding": 22,
+          "padding": {
+            "left": 51,
+            "top": 22,
+            "right": 89,
+            "bottom": 50
+          },
+          "pixels": 12619,
+          "transparentPixelRatio": 0.807449
+        },
+        {
+          "index": 8,
+          "ok": true,
+          "sourceBox": [
+            55,
+            22,
+            153,
+            206
+          ],
+          "normalizedBox": [
+            55,
+            22,
+            153,
+            206
+          ],
+          "minPadding": 22,
+          "padding": {
+            "left": 55,
+            "top": 22,
+            "right": 102,
+            "bottom": 49
+          },
+          "pixels": 12386,
+          "transparentPixelRatio": 0.811005
+        }
+      ]
+    },
+    {
+      "direction": "side",
+      "frames": [
+        {
+          "index": 1,
+          "ok": true,
+          "sourceBox": [
+            74,
+            37,
+            153,
+            210
+          ],
+          "normalizedBox": [
+            74,
+            37,
+            153,
+            210
+          ],
+          "minPadding": 37,
+          "padding": {
+            "left": 74,
+            "top": 37,
+            "right": 102,
+            "bottom": 45
+          },
+          "pixels": 10037,
+          "transparentPixelRatio": 0.846848
+        },
+        {
+          "index": 2,
+          "ok": true,
+          "sourceBox": [
+            56,
+            39,
+            187,
+            210
+          ],
+          "normalizedBox": [
+            56,
+            39,
+            187,
+            210
+          ],
+          "minPadding": 39,
+          "padding": {
+            "left": 56,
+            "top": 39,
+            "right": 68,
+            "bottom": 45
+          },
+          "pixels": 11200,
+          "transparentPixelRatio": 0.829102
+        },
+        {
+          "index": 3,
+          "ok": true,
+          "sourceBox": [
+            57,
+            40,
+            185,
+            210
+          ],
+          "normalizedBox": [
+            57,
+            40,
+            185,
+            210
+          ],
+          "minPadding": 40,
+          "padding": {
+            "left": 57,
+            "top": 40,
+            "right": 70,
+            "bottom": 45
+          },
+          "pixels": 11355,
+          "transparentPixelRatio": 0.826736
+        },
+        {
+          "index": 4,
+          "ok": true,
+          "sourceBox": [
+            37,
+            42,
+            176,
+            212
+          ],
+          "normalizedBox": [
+            37,
+            42,
+            176,
+            212
+          ],
+          "minPadding": 37,
+          "padding": {
+            "left": 37,
+            "top": 42,
+            "right": 79,
+            "bottom": 43
+          },
+          "pixels": 11177,
+          "transparentPixelRatio": 0.829453
+        },
+        {
+          "index": 5,
+          "ok": true,
+          "sourceBox": [
+            68,
+            22,
+            237,
+            193
+          ],
+          "normalizedBox": [
+            68,
+            22,
+            237,
+            193
+          ],
+          "minPadding": 18,
+          "padding": {
+            "left": 68,
+            "top": 22,
+            "right": 18,
+            "bottom": 62
+          },
+          "pixels": 11155,
+          "transparentPixelRatio": 0.829788
+        },
+        {
+          "index": 6,
+          "ok": true,
+          "sourceBox": [
+            56,
+            22,
+            178,
+            193
+          ],
+          "normalizedBox": [
+            56,
+            22,
+            178,
+            193
+          ],
+          "minPadding": 22,
+          "padding": {
+            "left": 56,
+            "top": 22,
+            "right": 77,
+            "bottom": 62
+          },
+          "pixels": 10780,
+          "transparentPixelRatio": 0.83551
+        },
+        {
+          "index": 7,
+          "ok": true,
+          "sourceBox": [
+            66,
+            22,
+            164,
+            192
+          ],
+          "normalizedBox": [
+            66,
+            22,
+            164,
+            192
+          ],
+          "minPadding": 22,
+          "padding": {
+            "left": 66,
+            "top": 22,
+            "right": 91,
+            "bottom": 63
+          },
+          "pixels": 10079,
+          "transparentPixelRatio": 0.846207
+        },
+        {
+          "index": 8,
+          "ok": true,
+          "sourceBox": [
+            43,
+            22,
+            122,
+            194
+          ],
+          "normalizedBox": [
+            43,
+            22,
+            122,
+            194
+          ],
+          "minPadding": 22,
+          "padding": {
+            "left": 43,
+            "top": 22,
+            "right": 133,
+            "bottom": 61
+          },
+          "pixels": 9933,
+          "transparentPixelRatio": 0.848434
+        }
+      ]
+    },
+    {
+      "direction": "back-three-quarter",
+      "frames": [
+        {
+          "index": 1,
+          "ok": true,
+          "sourceBox": [
+            69,
+            35,
+            192,
+            229
+          ],
+          "normalizedBox": [
+            69,
+            35,
+            192,
+            229
+          ],
+          "minPadding": 26,
+          "padding": {
+            "left": 69,
+            "top": 35,
+            "right": 63,
+            "bottom": 26
+          },
+          "pixels": 14094,
+          "transparentPixelRatio": 0.784943
+        },
+        {
+          "index": 2,
+          "ok": true,
+          "sourceBox": [
+            60,
+            48,
+            200,
+            229
+          ],
+          "normalizedBox": [
+            60,
+            48,
+            200,
+            229
+          ],
+          "minPadding": 26,
+          "padding": {
+            "left": 60,
+            "top": 48,
+            "right": 55,
+            "bottom": 26
+          },
+          "pixels": 13792,
+          "transparentPixelRatio": 0.789551
+        },
+        {
+          "index": 3,
+          "ok": true,
+          "sourceBox": [
+            49,
+            49,
+            191,
+            229
+          ],
+          "normalizedBox": [
+            49,
+            49,
+            191,
+            229
+          ],
+          "minPadding": 26,
+          "padding": {
+            "left": 49,
+            "top": 49,
+            "right": 64,
+            "bottom": 26
+          },
+          "pixels": 13834,
+          "transparentPixelRatio": 0.78891
+        },
+        {
+          "index": 4,
+          "ok": true,
+          "sourceBox": [
+            37,
+            50,
+            194,
+            229
+          ],
+          "normalizedBox": [
+            37,
+            50,
+            194,
+            229
+          ],
+          "minPadding": 26,
+          "padding": {
+            "left": 37,
+            "top": 50,
+            "right": 61,
+            "bottom": 26
+          },
+          "pixels": 13733,
+          "transparentPixelRatio": 0.790451
+        },
+        {
+          "index": 5,
+          "ok": true,
+          "sourceBox": [
+            62,
+            24,
+            240,
+            208
+          ],
+          "normalizedBox": [
+            62,
+            24,
+            240,
+            208
+          ],
+          "minPadding": 15,
+          "padding": {
+            "left": 62,
+            "top": 24,
+            "right": 15,
+            "bottom": 47
+          },
+          "pixels": 14043,
+          "transparentPixelRatio": 0.785721
+        },
+        {
+          "index": 6,
+          "ok": true,
+          "sourceBox": [
+            61,
+            25,
+            195,
+            208
+          ],
+          "normalizedBox": [
+            61,
+            25,
+            195,
+            208
+          ],
+          "minPadding": 25,
+          "padding": {
+            "left": 61,
+            "top": 25,
+            "right": 60,
+            "bottom": 47
+          },
+          "pixels": 13920,
+          "transparentPixelRatio": 0.787598
+        },
+        {
+          "index": 7,
+          "ok": true,
+          "sourceBox": [
+            45,
+            25,
+            161,
+            212
+          ],
+          "normalizedBox": [
+            45,
+            25,
+            161,
+            212
+          ],
+          "minPadding": 25,
+          "padding": {
+            "left": 45,
+            "top": 25,
+            "right": 94,
+            "bottom": 43
+          },
+          "pixels": 13069,
+          "transparentPixelRatio": 0.800583
+        },
+        {
+          "index": 8,
+          "ok": true,
+          "sourceBox": [
+            34,
+            25,
+            153,
+            212
+          ],
+          "normalizedBox": [
+            34,
+            25,
+            153,
+            212
+          ],
+          "minPadding": 25,
+          "padding": {
+            "left": 34,
+            "top": 25,
+            "right": 102,
+            "bottom": 43
+          },
+          "pixels": 13169,
+          "transparentPixelRatio": 0.799057
+        }
+      ]
+    },
+    {
+      "direction": "back",
+      "frames": [
+        {
+          "index": 1,
+          "ok": true,
+          "sourceBox": [
+            75,
+            35,
+            174,
+            225
+          ],
+          "normalizedBox": [
+            75,
+            35,
+            174,
+            225
+          ],
+          "minPadding": 30,
+          "padding": {
+            "left": 75,
+            "top": 35,
+            "right": 81,
+            "bottom": 30
+          },
+          "pixels": 13479,
+          "transparentPixelRatio": 0.794327
+        },
+        {
+          "index": 2,
+          "ok": true,
+          "sourceBox": [
+            60,
+            35,
+            171,
+            225
+          ],
+          "normalizedBox": [
+            60,
+            35,
+            171,
+            225
+          ],
+          "minPadding": 30,
+          "padding": {
+            "left": 60,
+            "top": 35,
+            "right": 84,
+            "bottom": 30
+          },
+          "pixels": 14124,
+          "transparentPixelRatio": 0.784485
+        },
+        {
+          "index": 3,
+          "ok": true,
+          "sourceBox": [
+            50,
+            36,
+            156,
+            226
+          ],
+          "normalizedBox": [
+            50,
+            36,
+            156,
+            226
+          ],
+          "minPadding": 29,
+          "padding": {
+            "left": 50,
+            "top": 36,
+            "right": 99,
+            "bottom": 29
+          },
+          "pixels": 13640,
+          "transparentPixelRatio": 0.79187
+        },
+        {
+          "index": 4,
+          "ok": true,
+          "sourceBox": [
+            14,
+            38,
+            191,
+            226
+          ],
+          "normalizedBox": [
+            14,
+            38,
+            191,
+            226
+          ],
+          "minPadding": 14,
+          "padding": {
+            "left": 14,
+            "top": 38,
+            "right": 64,
+            "bottom": 29
+          },
+          "pixels": 14899,
+          "transparentPixelRatio": 0.772659
+        },
+        {
+          "index": 5,
+          "ok": true,
+          "sourceBox": [
+            71,
+            20,
+            212,
+            211
+          ],
+          "normalizedBox": [
+            71,
+            20,
+            212,
+            211
+          ],
+          "minPadding": 20,
+          "padding": {
+            "left": 71,
+            "top": 20,
+            "right": 43,
+            "bottom": 44
+          },
+          "pixels": 13990,
+          "transparentPixelRatio": 0.78653
+        },
+        {
+          "index": 6,
+          "ok": true,
+          "sourceBox": [
+            60,
+            21,
+            189,
+            211
+          ],
+          "normalizedBox": [
+            60,
+            21,
+            189,
+            211
+          ],
+          "minPadding": 21,
+          "padding": {
+            "left": 60,
+            "top": 21,
+            "right": 66,
+            "bottom": 44
+          },
+          "pixels": 13974,
+          "transparentPixelRatio": 0.786774
+        },
+        {
+          "index": 7,
+          "ok": true,
+          "sourceBox": [
+            53,
+            21,
+            174,
+            211
+          ],
+          "normalizedBox": [
+            53,
+            21,
+            174,
+            211
+          ],
+          "minPadding": 21,
+          "padding": {
+            "left": 53,
+            "top": 21,
+            "right": 81,
+            "bottom": 44
+          },
+          "pixels": 14062,
+          "transparentPixelRatio": 0.785431
+        },
+        {
+          "index": 8,
+          "ok": true,
+          "sourceBox": [
+            51,
+            21,
+            146,
+            211
+          ],
+          "normalizedBox": [
+            51,
+            21,
+            146,
+            211
+          ],
+          "minPadding": 21,
+          "padding": {
+            "left": 51,
+            "top": 21,
+            "right": 109,
+            "bottom": 44
+          },
+          "pixels": 13130,
+          "transparentPixelRatio": 0.799652
+        }
+      ]
+    }
+  ]
+}

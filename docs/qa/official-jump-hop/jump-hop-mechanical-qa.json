@@ -1,0 +1,17 @@
+{
+  "preset": "jump-hop",
+  "jobId": "codex-job-2026-06-25T21-33-50-977Z",
+  "sample": "public/samples/jump-hop-sheet.png",
+  "qaDir": "docs/qa/official-jump-hop",
+  "mechanicalErrors": [],
+  "mechanicalWarnings": [],
+  "framesChecked": 40,
+  "imageSize": [
+    2048,
+    1280
+  ],
+  "cell": [
+    256,
+    256
+  ]
+}

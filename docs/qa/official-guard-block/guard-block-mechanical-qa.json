@@ -1,0 +1,17 @@
+{
+  "preset": "guard-block",
+  "jobId": "codex-job-2026-06-25T21-54-18-523Z",
+  "sample": "public/samples/guard-block-sheet.png",
+  "qaDir": "docs/qa/official-guard-block",
+  "mechanicalErrors": [],
+  "mechanicalWarnings": [],
+  "framesChecked": 40,
+  "imageSize": [
+    2048,
+    1280
+  ],
+  "cell": [
+    256,
+    256
+  ]
+}

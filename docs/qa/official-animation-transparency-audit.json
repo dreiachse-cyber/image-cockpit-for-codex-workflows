@@ -1,0 +1,1016 @@
+{
+  "generatedAt": "2026-06-26T14:05:00+09:00",
+  "scope": "official animation preset sample PNGs and five direction GIF previews",
+  "presetCount": 16,
+  "failures": [],
+  "results": [
+    {
+      "preset": "idle-breathing",
+      "sample": {
+        "path": "public/samples/idle-breathing-sheet.png",
+        "imageSize": [
+          2048,
+          1280
+        ],
+        "alphaZeroRatio": 0.782576,
+        "alphaOpaqueRatio": 0.217424,
+        "hasTransparentPixels": true,
+        "cornerAlpha": [
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "qaDir": "docs/qa/official-idle-breathing",
+      "mechanicalQa": "docs/qa/official-idle-breathing/idle-breathing-mechanical-qa.json",
+      "gifs": [
+        {
+          "path": "docs/qa/official-idle-breathing/idle-breathing-front.gif",
+          "frameCount": 8,
+          "hasTransparencyIndex": true,
+          "hasTransparentPixels": true,
+          "minimumTransparentPixelRatio": 0.774124,
+          "opaqueBackgroundFrames": []
+        },
+        {
+          "path": "docs/qa/official-idle-breathing/idle-breathing-front-three-quarter.gif",
+          "frameCount": 8,
+          "hasTransparencyIndex": true,
+          "hasTransparentPixels": true,
+          "minimumTransparentPixelRatio": 0.764069,
+          "opaqueBackgroundFrames": []
+        },
+        {
+          "path": "docs/qa/official-idle-breathing/idle-breathing-side.gif",
+          "frameCount": 8,
+          "hasTransparencyIndex": true,
+          "hasTransparentPixels": true,
+          "minimumTransparentPixelRatio": 0.799652,
+          "opaqueBackgroundFrames": []
+        },
+        {
+          "path": "docs/qa/official-idle-breathing/idle-breathing-back-three-quarter.gif",
+          "frameCount": 8,
+          "hasTransparencyIndex": true,
+          "hasTransparentPixels": true,
+          "minimumTransparentPixelRatio": 0.790268,
+          "opaqueBackgroundFrames": []
+        },
+        {
+          "path": "docs/qa/official-idle-breathing/idle-breathing-back.gif",
+          "frameCount": 8,
+          "hasTransparencyIndex": true,
+          "hasTransparentPixels": true,
+          "minimumTransparentPixelRatio": 0.77739,
+          "opaqueBackgroundFrames": []
+        }
+      ]
+    },
+    {
+      "preset": "walk-cycle",
+      "sample": {
+        "path": "public/samples/walk-cycle-sheet.png",
+        "imageSize": [
+          2048,
+          1280
+        ],
+        "alphaZeroRatio": 0.826903,
+        "alphaOpaqueRatio": 0.173097,
+        "hasTransparentPixels": true,
+        "cornerAlpha": [
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "qaDir": "docs/qa/official-walk-cycle",
+      "mechanicalQa": "docs/qa/official-walk-cycle/walk-cycle-mechanical-qa.json",
+      "gifs": [
+        {
+          "path": "docs/qa/official-walk-cycle/walk-cycle-front.gif",
+          "frameCount": 8,
+          "hasTransparencyIndex": true,
+          "hasTransparentPixels": true,
+          "minimumTransparentPixelRatio": 0.816925,
+          "opaqueBackgroundFrames": []
+        },
+        {
+          "path": "docs/qa/official-walk-cycle/walk-cycle-front-three-quarter.gif",
+          "frameCount": 8,
+          "hasTransparencyIndex": true,
+          "hasTransparentPixels": true,
+          "minimumTransparentPixelRatio": 0.815704,
+          "opaqueBackgroundFrames": []
+        },
+        {
+          "path": "docs/qa/official-walk-cycle/walk-cycle-side.gif",
+          "frameCount": 8,
+          "hasTransparencyIndex": true,
+          "hasTransparentPixels": true,
+          "minimumTransparentPixelRatio": 0.82254,
+          "opaqueBackgroundFrames": []
+        },
+        {
+          "path": "docs/qa/official-walk-cycle/walk-cycle-back-three-quarter.gif",
+          "frameCount": 8,
+          "hasTransparencyIndex": true,
+          "hasTransparentPixels": true,
+          "minimumTransparentPixelRatio": 0.829468,
+          "opaqueBackgroundFrames": []
+        },
+        {
+          "path": "docs/qa/official-walk-cycle/walk-cycle-back.gif",
+          "frameCount": 8,
+          "hasTransparencyIndex": true,
+          "hasTransparentPixels": true,
+          "minimumTransparentPixelRatio": 0.832123,
+          "opaqueBackgroundFrames": []
+        }
+      ]
+    },
+    {
+      "preset": "run-cycle",
+      "sample": {
+        "path": "public/samples/run-cycle-sheet.png",
+        "imageSize": [
+          2048,
+          1280
+        ],
+        "alphaZeroRatio": 0.832322,
+        "alphaOpaqueRatio": 0.167678,
+        "hasTransparentPixels": true,
+        "cornerAlpha": [
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "qaDir": "docs/qa/official-run-cycle",
+      "mechanicalQa": "docs/qa/official-run-cycle/run-cycle-mechanical-qa.json",
+      "gifs": [
+        {
+          "path": "docs/qa/official-run-cycle/run-cycle-front.gif",
+          "frameCount": 15,
+          "hasTransparencyIndex": true,
+          "hasTransparentPixels": true,
+          "minimumTransparentPixelRatio": 0.814133,
+          "opaqueBackgroundFrames": []
+        },
+        {
+          "path": "docs/qa/official-run-cycle/run-cycle-front-three-quarter.gif",
+          "frameCount": 15,
+          "hasTransparencyIndex": true,
+          "hasTransparentPixels": true,
+          "minimumTransparentPixelRatio": 0.811844,
+          "opaqueBackgroundFrames": []
+        },
+        {
+          "path": "docs/qa/official-run-cycle/run-cycle-side.gif",
+          "frameCount": 15,
+          "hasTransparencyIndex": true,
+          "hasTransparentPixels": true,
+          "minimumTransparentPixelRatio": 0.821396,
+          "opaqueBackgroundFrames": []
+        },
+        {
+          "path": "docs/qa/official-run-cycle/run-cycle-back-three-quarter.gif",
+          "frameCount": 15,
+          "hasTransparencyIndex": true,
+          "hasTransparentPixels": true,
+          "minimumTransparentPixelRatio": 0.824066,
+          "opaqueBackgroundFrames": []
+        },
+        {
+          "path": "docs/qa/official-run-cycle/run-cycle-back.gif",
+          "frameCount": 15,
+          "hasTransparencyIndex": true,
+          "hasTransparentPixels": true,
+          "minimumTransparentPixelRatio": 0.831055,
+          "opaqueBackgroundFrames": []
+        }
+      ]
+    },
+    {
+      "preset": "basic-attack",
+      "sample": {
+        "path": "public/samples/basic-attack-sheet.png",
+        "imageSize": [
+          2048,
+          1280
+        ],
+        "alphaZeroRatio": 0.806724,
+        "alphaOpaqueRatio": 0.193276,
+        "hasTransparentPixels": true,
+        "cornerAlpha": [
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "qaDir": "docs/qa/official-basic-attack",
+      "mechanicalQa": "docs/qa/official-basic-attack/basic-attack-mechanical-qa.json",
+      "gifs": [
+        {
+          "path": "docs/qa/official-basic-attack/basic-attack-front.gif",
+          "frameCount": 8,
+          "hasTransparencyIndex": true,
+          "hasTransparentPixels": true,
+          "minimumTransparentPixelRatio": 0.764664,
+          "opaqueBackgroundFrames": []
+        },
+        {
+          "path": "docs/qa/official-basic-attack/basic-attack-front-three-quarter.gif",
+          "frameCount": 8,
+          "hasTransparencyIndex": true,
+          "hasTransparentPixels": true,
+          "minimumTransparentPixelRatio": 0.796494,
+          "opaqueBackgroundFrames": []
+        },
+        {
+          "path": "docs/qa/official-basic-attack/basic-attack-side.gif",
+          "frameCount": 8,
+          "hasTransparencyIndex": true,
+          "hasTransparentPixels": true,
+          "minimumTransparentPixelRatio": 0.797394,
+          "opaqueBackgroundFrames": []
+        },
+        {
+          "path": "docs/qa/official-basic-attack/basic-attack-back-three-quarter.gif",
+          "frameCount": 8,
+          "hasTransparencyIndex": true,
+          "hasTransparentPixels": true,
+          "minimumTransparentPixelRatio": 0.806885,
+          "opaqueBackgroundFrames": []
+        },
+        {
+          "path": "docs/qa/official-basic-attack/basic-attack-back.gif",
+          "frameCount": 8,
+          "hasTransparencyIndex": true,
+          "hasTransparentPixels": true,
+          "minimumTransparentPixelRatio": 0.800247,
+          "opaqueBackgroundFrames": []
+        }
+      ]
+    },
+    {
+      "preset": "hurt-reaction",
+      "sample": {
+        "path": "public/samples/hurt-reaction-sheet.png",
+        "imageSize": [
+          2048,
+          1280
+        ],
+        "alphaZeroRatio": 0.802968,
+        "alphaOpaqueRatio": 0.197032,
+        "hasTransparentPixels": true,
+        "cornerAlpha": [
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "qaDir": "docs/qa/official-hurt-reaction",
+      "mechanicalQa": "docs/qa/official-hurt-reaction/hurt-reaction-mechanical-qa.json",
+      "gifs": [
+        {
+          "path": "docs/qa/official-hurt-reaction/hurt-reaction-front.gif",
+          "frameCount": 8,
+          "hasTransparencyIndex": true,
+          "hasTransparentPixels": true,
+          "minimumTransparentPixelRatio": 0.787964,
+          "opaqueBackgroundFrames": []
+        },
+        {
+          "path": "docs/qa/official-hurt-reaction/hurt-reaction-front-three-quarter.gif",
+          "frameCount": 8,
+          "hasTransparencyIndex": true,
+          "hasTransparentPixels": true,
+          "minimumTransparentPixelRatio": 0.772995,
+          "opaqueBackgroundFrames": []
+        },
+        {
+          "path": "docs/qa/official-hurt-reaction/hurt-reaction-side.gif",
+          "frameCount": 8,
+          "hasTransparencyIndex": true,
+          "hasTransparentPixels": true,
+          "minimumTransparentPixelRatio": 0.832642,
+          "opaqueBackgroundFrames": []
+        },
+        {
+          "path": "docs/qa/official-hurt-reaction/hurt-reaction-back-three-quarter.gif",
+          "frameCount": 8,
+          "hasTransparencyIndex": true,
+          "hasTransparentPixels": true,
+          "minimumTransparentPixelRatio": 0.780792,
+          "opaqueBackgroundFrames": []
+        },
+        {
+          "path": "docs/qa/official-hurt-reaction/hurt-reaction-back.gif",
+          "frameCount": 8,
+          "hasTransparencyIndex": true,
+          "hasTransparentPixels": true,
+          "minimumTransparentPixelRatio": 0.76651,
+          "opaqueBackgroundFrames": []
+        }
+      ]
+    },
+    {
+      "preset": "death-downed",
+      "sample": {
+        "path": "public/samples/death-downed-sheet.png",
+        "imageSize": [
+          2048,
+          1280
+        ],
+        "alphaZeroRatio": 0.858578,
+        "alphaOpaqueRatio": 0.141422,
+        "hasTransparentPixels": true,
+        "cornerAlpha": [
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "qaDir": "docs/qa/official-death-downed",
+      "mechanicalQa": "docs/qa/official-death-downed/death-downed-mechanical-qa.json",
+      "gifs": [
+        {
+          "path": "docs/qa/official-death-downed/death-downed-front.gif",
+          "frameCount": 8,
+          "hasTransparencyIndex": true,
+          "hasTransparentPixels": true,
+          "minimumTransparentPixelRatio": 0.818649,
+          "opaqueBackgroundFrames": []
+        },
+        {
+          "path": "docs/qa/official-death-downed/death-downed-front-three-quarter.gif",
+          "frameCount": 8,
+          "hasTransparencyIndex": true,
+          "hasTransparentPixels": true,
+          "minimumTransparentPixelRatio": 0.827072,
+          "opaqueBackgroundFrames": []
+        },
+        {
+          "path": "docs/qa/official-death-downed/death-downed-side.gif",
+          "frameCount": 8,
+          "hasTransparencyIndex": true,
+          "hasTransparentPixels": true,
+          "minimumTransparentPixelRatio": 0.856125,
+          "opaqueBackgroundFrames": []
+        },
+        {
+          "path": "docs/qa/official-death-downed/death-downed-back-three-quarter.gif",
+          "frameCount": 8,
+          "hasTransparencyIndex": true,
+          "hasTransparentPixels": true,
+          "minimumTransparentPixelRatio": 0.839508,
+          "opaqueBackgroundFrames": []
+        },
+        {
+          "path": "docs/qa/official-death-downed/death-downed-back.gif",
+          "frameCount": 8,
+          "hasTransparencyIndex": true,
+          "hasTransparentPixels": true,
+          "minimumTransparentPixelRatio": 0.803772,
+          "opaqueBackgroundFrames": []
+        }
+      ]
+    },
+    {
+      "preset": "spell-cast",
+      "sample": {
+        "path": "public/samples/spell-cast-sheet.png",
+        "imageSize": [
+          2048,
+          1280
+        ],
+        "alphaZeroRatio": 0.812688,
+        "alphaOpaqueRatio": 0.187312,
+        "hasTransparentPixels": true,
+        "cornerAlpha": [
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "qaDir": "docs/qa/official-spell-cast",
+      "mechanicalQa": "docs/qa/official-spell-cast/spell-cast-mechanical-qa.json",
+      "gifs": [
+        {
+          "path": "docs/qa/official-spell-cast/spell-cast-front.gif",
+          "frameCount": 8,
+          "hasTransparencyIndex": true,
+          "hasTransparentPixels": true,
+          "minimumTransparentPixelRatio": 0.778229,
+          "opaqueBackgroundFrames": []
+        },
+        {
+          "path": "docs/qa/official-spell-cast/spell-cast-front-three-quarter.gif",
+          "frameCount": 8,
+          "hasTransparencyIndex": true,
+          "hasTransparentPixels": true,
+          "minimumTransparentPixelRatio": 0.793655,
+          "opaqueBackgroundFrames": []
+        },
+        {
+          "path": "docs/qa/official-spell-cast/spell-cast-side.gif",
+          "frameCount": 8,
+          "hasTransparencyIndex": true,
+          "hasTransparentPixels": true,
+          "minimumTransparentPixelRatio": 0.822067,
+          "opaqueBackgroundFrames": []
+        },
+        {
+          "path": "docs/qa/official-spell-cast/spell-cast-back-three-quarter.gif",
+          "frameCount": 8,
+          "hasTransparencyIndex": true,
+          "hasTransparentPixels": true,
+          "minimumTransparentPixelRatio": 0.800766,
+          "opaqueBackgroundFrames": []
+        },
+        {
+          "path": "docs/qa/official-spell-cast/spell-cast-back.gif",
+          "frameCount": 8,
+          "hasTransparencyIndex": true,
+          "hasTransparentPixels": true,
+          "minimumTransparentPixelRatio": 0.796173,
+          "opaqueBackgroundFrames": []
+        }
+      ]
+    },
+    {
+      "preset": "jump-hop",
+      "sample": {
+        "path": "public/samples/jump-hop-sheet.png",
+        "imageSize": [
+          2048,
+          1280
+        ],
+        "alphaZeroRatio": 0.813871,
+        "alphaOpaqueRatio": 0.186129,
+        "hasTransparentPixels": true,
+        "cornerAlpha": [
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "qaDir": "docs/qa/official-jump-hop",
+      "mechanicalQa": "docs/qa/official-jump-hop/jump-hop-mechanical-qa.json",
+      "gifs": [
+        {
+          "path": "docs/qa/official-jump-hop/jump-hop-front.gif",
+          "frameCount": 8,
+          "hasTransparencyIndex": true,
+          "hasTransparentPixels": true,
+          "minimumTransparentPixelRatio": 0.808197,
+          "opaqueBackgroundFrames": []
+        },
+        {
+          "path": "docs/qa/official-jump-hop/jump-hop-front-three-quarter.gif",
+          "frameCount": 8,
+          "hasTransparencyIndex": true,
+          "hasTransparentPixels": true,
+          "minimumTransparentPixelRatio": 0.750702,
+          "opaqueBackgroundFrames": []
+        },
+        {
+          "path": "docs/qa/official-jump-hop/jump-hop-side.gif",
+          "frameCount": 8,
+          "hasTransparencyIndex": true,
+          "hasTransparentPixels": true,
+          "minimumTransparentPixelRatio": 0.822556,
+          "opaqueBackgroundFrames": []
+        },
+        {
+          "path": "docs/qa/official-jump-hop/jump-hop-back-three-quarter.gif",
+          "frameCount": 8,
+          "hasTransparencyIndex": true,
+          "hasTransparentPixels": true,
+          "minimumTransparentPixelRatio": 0.819077,
+          "opaqueBackgroundFrames": []
+        },
+        {
+          "path": "docs/qa/official-jump-hop/jump-hop-back.gif",
+          "frameCount": 8,
+          "hasTransparencyIndex": true,
+          "hasTransparentPixels": true,
+          "minimumTransparentPixelRatio": 0.802948,
+          "opaqueBackgroundFrames": []
+        }
+      ]
+    },
+    {
+      "preset": "guard-block",
+      "sample": {
+        "path": "public/samples/guard-block-sheet.png",
+        "imageSize": [
+          2048,
+          1280
+        ],
+        "alphaZeroRatio": 0.735546,
+        "alphaOpaqueRatio": 0.264454,
+        "hasTransparentPixels": true,
+        "cornerAlpha": [
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "qaDir": "docs/qa/official-guard-block",
+      "mechanicalQa": "docs/qa/official-guard-block/guard-block-mechanical-qa.json",
+      "gifs": [
+        {
+          "path": "docs/qa/official-guard-block/guard-block-front.gif",
+          "frameCount": 8,
+          "hasTransparencyIndex": true,
+          "hasTransparentPixels": true,
+          "minimumTransparentPixelRatio": 0.7034,
+          "opaqueBackgroundFrames": []
+        },
+        {
+          "path": "docs/qa/official-guard-block/guard-block-front-three-quarter.gif",
+          "frameCount": 8,
+          "hasTransparencyIndex": true,
+          "hasTransparentPixels": true,
+          "minimumTransparentPixelRatio": 0.706238,
+          "opaqueBackgroundFrames": []
+        },
+        {
+          "path": "docs/qa/official-guard-block/guard-block-side.gif",
+          "frameCount": 8,
+          "hasTransparencyIndex": true,
+          "hasTransparentPixels": true,
+          "minimumTransparentPixelRatio": 0.74173,
+          "opaqueBackgroundFrames": []
+        },
+        {
+          "path": "docs/qa/official-guard-block/guard-block-back-three-quarter.gif",
+          "frameCount": 8,
+          "hasTransparencyIndex": true,
+          "hasTransparentPixels": true,
+          "minimumTransparentPixelRatio": 0.74585,
+          "opaqueBackgroundFrames": []
+        },
+        {
+          "path": "docs/qa/official-guard-block/guard-block-back.gif",
+          "frameCount": 8,
+          "hasTransparencyIndex": true,
+          "hasTransparentPixels": true,
+          "minimumTransparentPixelRatio": 0.713455,
+          "opaqueBackgroundFrames": []
+        }
+      ]
+    },
+    {
+      "preset": "victory-cheer",
+      "sample": {
+        "path": "public/samples/victory-cheer-sheet.png",
+        "imageSize": [
+          2048,
+          1280
+        ],
+        "alphaZeroRatio": 0.798514,
+        "alphaOpaqueRatio": 0.201486,
+        "hasTransparentPixels": true,
+        "cornerAlpha": [
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "qaDir": "docs/qa/official-victory-cheer",
+      "mechanicalQa": "docs/qa/official-victory-cheer/victory-cheer-mechanical-qa.json",
+      "gifs": [
+        {
+          "path": "docs/qa/official-victory-cheer/victory-cheer-front.gif",
+          "frameCount": 8,
+          "hasTransparencyIndex": true,
+          "hasTransparentPixels": true,
+          "minimumTransparentPixelRatio": 0.769485,
+          "opaqueBackgroundFrames": []
+        },
+        {
+          "path": "docs/qa/official-victory-cheer/victory-cheer-front-three-quarter.gif",
+          "frameCount": 8,
+          "hasTransparencyIndex": true,
+          "hasTransparentPixels": true,
+          "minimumTransparentPixelRatio": 0.773376,
+          "opaqueBackgroundFrames": []
+        },
+        {
+          "path": "docs/qa/official-victory-cheer/victory-cheer-side.gif",
+          "frameCount": 8,
+          "hasTransparencyIndex": true,
+          "hasTransparentPixels": true,
+          "minimumTransparentPixelRatio": 0.825638,
+          "opaqueBackgroundFrames": []
+        },
+        {
+          "path": "docs/qa/official-victory-cheer/victory-cheer-back-three-quarter.gif",
+          "frameCount": 8,
+          "hasTransparencyIndex": true,
+          "hasTransparentPixels": true,
+          "minimumTransparentPixelRatio": 0.785355,
+          "opaqueBackgroundFrames": []
+        },
+        {
+          "path": "docs/qa/official-victory-cheer/victory-cheer-back.gif",
+          "frameCount": 8,
+          "hasTransparencyIndex": true,
+          "hasTransparentPixels": true,
+          "minimumTransparentPixelRatio": 0.781891,
+          "opaqueBackgroundFrames": []
+        }
+      ]
+    },
+    {
+      "preset": "interact-pickup",
+      "sample": {
+        "path": "public/samples/interact-pickup-sheet.png",
+        "imageSize": [
+          2048,
+          1280
+        ],
+        "alphaZeroRatio": 0.810565,
+        "alphaOpaqueRatio": 0.189435,
+        "hasTransparentPixels": true,
+        "cornerAlpha": [
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "qaDir": "docs/qa/official-interact-pickup",
+      "mechanicalQa": "docs/qa/official-interact-pickup/interact-pickup-mechanical-qa.json",
+      "gifs": [
+        {
+          "path": "docs/qa/official-interact-pickup/interact-pickup-front.gif",
+          "frameCount": 8,
+          "hasTransparencyIndex": true,
+          "hasTransparentPixels": true,
+          "minimumTransparentPixelRatio": 0.784058,
+          "opaqueBackgroundFrames": []
+        },
+        {
+          "path": "docs/qa/official-interact-pickup/interact-pickup-front-three-quarter.gif",
+          "frameCount": 8,
+          "hasTransparencyIndex": true,
+          "hasTransparentPixels": true,
+          "minimumTransparentPixelRatio": 0.792374,
+          "opaqueBackgroundFrames": []
+        },
+        {
+          "path": "docs/qa/official-interact-pickup/interact-pickup-side.gif",
+          "frameCount": 8,
+          "hasTransparencyIndex": true,
+          "hasTransparentPixels": true,
+          "minimumTransparentPixelRatio": 0.803375,
+          "opaqueBackgroundFrames": []
+        },
+        {
+          "path": "docs/qa/official-interact-pickup/interact-pickup-back-three-quarter.gif",
+          "frameCount": 8,
+          "hasTransparencyIndex": true,
+          "hasTransparentPixels": true,
+          "minimumTransparentPixelRatio": 0.814941,
+          "opaqueBackgroundFrames": []
+        },
+        {
+          "path": "docs/qa/official-interact-pickup/interact-pickup-back.gif",
+          "frameCount": 8,
+          "hasTransparencyIndex": true,
+          "hasTransparentPixels": true,
+          "minimumTransparentPixelRatio": 0.802429,
+          "opaqueBackgroundFrames": []
+        }
+      ]
+    },
+    {
+      "preset": "ranged-attack",
+      "sample": {
+        "path": "public/samples/ranged-attack-sheet.png",
+        "imageSize": [
+          2048,
+          1280
+        ],
+        "alphaZeroRatio": 0.800759,
+        "alphaOpaqueRatio": 0.199241,
+        "hasTransparentPixels": true,
+        "cornerAlpha": [
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "qaDir": "docs/qa/official-ranged-attack",
+      "mechanicalQa": "docs/qa/official-ranged-attack/ranged-attack-mechanical-qa.json",
+      "gifs": [
+        {
+          "path": "docs/qa/official-ranged-attack/ranged-attack-front.gif",
+          "frameCount": 8,
+          "hasTransparencyIndex": true,
+          "hasTransparentPixels": true,
+          "minimumTransparentPixelRatio": 0.761597,
+          "opaqueBackgroundFrames": []
+        },
+        {
+          "path": "docs/qa/official-ranged-attack/ranged-attack-front-three-quarter.gif",
+          "frameCount": 8,
+          "hasTransparencyIndex": true,
+          "hasTransparentPixels": true,
+          "minimumTransparentPixelRatio": 0.797073,
+          "opaqueBackgroundFrames": []
+        },
+        {
+          "path": "docs/qa/official-ranged-attack/ranged-attack-side.gif",
+          "frameCount": 8,
+          "hasTransparencyIndex": true,
+          "hasTransparentPixels": true,
+          "minimumTransparentPixelRatio": 0.826736,
+          "opaqueBackgroundFrames": []
+        },
+        {
+          "path": "docs/qa/official-ranged-attack/ranged-attack-back-three-quarter.gif",
+          "frameCount": 8,
+          "hasTransparencyIndex": true,
+          "hasTransparentPixels": true,
+          "minimumTransparentPixelRatio": 0.784943,
+          "opaqueBackgroundFrames": []
+        },
+        {
+          "path": "docs/qa/official-ranged-attack/ranged-attack-back.gif",
+          "frameCount": 8,
+          "hasTransparencyIndex": true,
+          "hasTransparentPixels": true,
+          "minimumTransparentPixelRatio": 0.772659,
+          "opaqueBackgroundFrames": []
+        }
+      ]
+    },
+    {
+      "preset": "skill-release",
+      "sample": {
+        "path": "public/samples/skill-release-sheet.png",
+        "imageSize": [
+          2048,
+          1280
+        ],
+        "alphaZeroRatio": 0.768728,
+        "alphaOpaqueRatio": 0.231272,
+        "hasTransparentPixels": true,
+        "cornerAlpha": [
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "qaDir": "docs/qa/official-skill-release",
+      "mechanicalQa": "docs/qa/official-skill-release/skill-release-mechanical-qa.json",
+      "gifs": [
+        {
+          "path": "docs/qa/official-skill-release/skill-release-front.gif",
+          "frameCount": 8,
+          "hasTransparencyIndex": true,
+          "hasTransparentPixels": true,
+          "minimumTransparentPixelRatio": 0.724289,
+          "opaqueBackgroundFrames": []
+        },
+        {
+          "path": "docs/qa/official-skill-release/skill-release-front-three-quarter.gif",
+          "frameCount": 8,
+          "hasTransparencyIndex": true,
+          "hasTransparentPixels": true,
+          "minimumTransparentPixelRatio": 0.735794,
+          "opaqueBackgroundFrames": []
+        },
+        {
+          "path": "docs/qa/official-skill-release/skill-release-side.gif",
+          "frameCount": 8,
+          "hasTransparencyIndex": true,
+          "hasTransparentPixels": true,
+          "minimumTransparentPixelRatio": 0.778122,
+          "opaqueBackgroundFrames": []
+        },
+        {
+          "path": "docs/qa/official-skill-release/skill-release-back-three-quarter.gif",
+          "frameCount": 8,
+          "hasTransparencyIndex": true,
+          "hasTransparentPixels": true,
+          "minimumTransparentPixelRatio": 0.761368,
+          "opaqueBackgroundFrames": []
+        },
+        {
+          "path": "docs/qa/official-skill-release/skill-release-back.gif",
+          "frameCount": 8,
+          "hasTransparencyIndex": true,
+          "hasTransparentPixels": true,
+          "minimumTransparentPixelRatio": 0.759888,
+          "opaqueBackgroundFrames": []
+        }
+      ]
+    },
+    {
+      "preset": "knockback",
+      "sample": {
+        "path": "public/samples/knockback-sheet.png",
+        "imageSize": [
+          2048,
+          1280
+        ],
+        "alphaZeroRatio": 0.823305,
+        "alphaOpaqueRatio": 0.176695,
+        "hasTransparentPixels": true,
+        "cornerAlpha": [
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "qaDir": "docs/qa/official-knockback",
+      "mechanicalQa": "docs/qa/official-knockback/knockback-mechanical-qa.json",
+      "gifs": [
+        {
+          "path": "docs/qa/official-knockback/knockback-front.gif",
+          "frameCount": 8,
+          "hasTransparencyIndex": true,
+          "hasTransparentPixels": true,
+          "minimumTransparentPixelRatio": 0.772476,
+          "opaqueBackgroundFrames": []
+        },
+        {
+          "path": "docs/qa/official-knockback/knockback-front-three-quarter.gif",
+          "frameCount": 8,
+          "hasTransparencyIndex": true,
+          "hasTransparentPixels": true,
+          "minimumTransparentPixelRatio": 0.724701,
+          "opaqueBackgroundFrames": []
+        },
+        {
+          "path": "docs/qa/official-knockback/knockback-side.gif",
+          "frameCount": 8,
+          "hasTransparencyIndex": true,
+          "hasTransparentPixels": true,
+          "minimumTransparentPixelRatio": 0.788193,
+          "opaqueBackgroundFrames": []
+        },
+        {
+          "path": "docs/qa/official-knockback/knockback-back-three-quarter.gif",
+          "frameCount": 8,
+          "hasTransparencyIndex": true,
+          "hasTransparentPixels": true,
+          "minimumTransparentPixelRatio": 0.831451,
+          "opaqueBackgroundFrames": []
+        },
+        {
+          "path": "docs/qa/official-knockback/knockback-back.gif",
+          "frameCount": 8,
+          "hasTransparencyIndex": true,
+          "hasTransparentPixels": true,
+          "minimumTransparentPixelRatio": 0.740082,
+          "opaqueBackgroundFrames": []
+        }
+      ]
+    },
+    {
+      "preset": "item-use",
+      "sample": {
+        "path": "public/samples/item-use-sheet.png",
+        "imageSize": [
+          2048,
+          1280
+        ],
+        "alphaZeroRatio": 0.786388,
+        "alphaOpaqueRatio": 0.213612,
+        "hasTransparentPixels": true,
+        "cornerAlpha": [
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "qaDir": "docs/qa/official-item-use",
+      "mechanicalQa": "docs/qa/official-item-use/item-use-mechanical-qa.json",
+      "gifs": [
+        {
+          "path": "docs/qa/official-item-use/item-use-front.gif",
+          "frameCount": 8,
+          "hasTransparencyIndex": true,
+          "hasTransparentPixels": true,
+          "minimumTransparentPixelRatio": 0.765747,
+          "opaqueBackgroundFrames": []
+        },
+        {
+          "path": "docs/qa/official-item-use/item-use-front-three-quarter.gif",
+          "frameCount": 8,
+          "hasTransparencyIndex": true,
+          "hasTransparentPixels": true,
+          "minimumTransparentPixelRatio": 0.737991,
+          "opaqueBackgroundFrames": []
+        },
+        {
+          "path": "docs/qa/official-item-use/item-use-side.gif",
+          "frameCount": 8,
+          "hasTransparencyIndex": true,
+          "hasTransparentPixels": true,
+          "minimumTransparentPixelRatio": 0.841675,
+          "opaqueBackgroundFrames": []
+        },
+        {
+          "path": "docs/qa/official-item-use/item-use-back-three-quarter.gif",
+          "frameCount": 8,
+          "hasTransparencyIndex": true,
+          "hasTransparentPixels": true,
+          "minimumTransparentPixelRatio": 0.796234,
+          "opaqueBackgroundFrames": []
+        },
+        {
+          "path": "docs/qa/official-item-use/item-use-back.gif",
+          "frameCount": 8,
+          "hasTransparencyIndex": true,
+          "hasTransparentPixels": true,
+          "minimumTransparentPixelRatio": 0.749771,
+          "opaqueBackgroundFrames": []
+        }
+      ]
+    },
+    {
+      "preset": "talk",
+      "sample": {
+        "path": "public/samples/talk-sheet.png",
+        "imageSize": [
+          2048,
+          1280
+        ],
+        "alphaZeroRatio": 0.835406,
+        "alphaOpaqueRatio": 0.164594,
+        "hasTransparentPixels": true,
+        "cornerAlpha": [
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "qaDir": "docs/qa/official-talk",
+      "mechanicalQa": "docs/qa/official-talk/talk-mechanical-qa.json",
+      "gifs": [
+        {
+          "path": "docs/qa/official-talk/talk-front.gif",
+          "frameCount": 8,
+          "hasTransparencyIndex": true,
+          "hasTransparentPixels": true,
+          "minimumTransparentPixelRatio": 0.815018,
+          "opaqueBackgroundFrames": []
+        },
+        {
+          "path": "docs/qa/official-talk/talk-front-three-quarter.gif",
+          "frameCount": 8,
+          "hasTransparencyIndex": true,
+          "hasTransparentPixels": true,
+          "minimumTransparentPixelRatio": 0.825867,
+          "opaqueBackgroundFrames": []
+        },
+        {
+          "path": "docs/qa/official-talk/talk-side.gif",
+          "frameCount": 8,
+          "hasTransparencyIndex": true,
+          "hasTransparentPixels": true,
+          "minimumTransparentPixelRatio": 0.857132,
+          "opaqueBackgroundFrames": []
+        },
+        {
+          "path": "docs/qa/official-talk/talk-back-three-quarter.gif",
+          "frameCount": 8,
+          "hasTransparencyIndex": true,
+          "hasTransparentPixels": true,
+          "minimumTransparentPixelRatio": 0.828369,
+          "opaqueBackgroundFrames": []
+        },
+        {
+          "path": "docs/qa/official-talk/talk-back.gif",
+          "frameCount": 8,
+          "hasTransparencyIndex": true,
+          "hasTransparentPixels": true,
+          "minimumTransparentPixelRatio": 0.823517,
+          "opaqueBackgroundFrames": []
+        }
+      ]
+    }
+  ]
+}

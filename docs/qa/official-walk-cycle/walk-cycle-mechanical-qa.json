@@ -1,0 +1,18 @@
+{
+  "preset": "walk-cycle",
+  "sample": "public/samples/walk-cycle-sheet.png",
+  "qaDir": "docs/qa/official-walk-cycle",
+  "mechanicalErrors": [],
+  "mechanicalWarnings": [],
+  "framesChecked": 40,
+  "transparentFrames": 40,
+  "minimumTransparentPixelRatio": 0.815704,
+  "imageSize": [
+    2048,
+    1280
+  ],
+  "cell": [
+    256,
+    256
+  ]
+}

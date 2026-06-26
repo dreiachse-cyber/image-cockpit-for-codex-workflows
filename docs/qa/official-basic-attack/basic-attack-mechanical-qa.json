@@ -1,0 +1,20 @@
+{
+  "preset": "basic-attack",
+  "jobId": "codex-job-2026-06-25T21-02-07-575Z",
+  "sample": "public/samples/basic-attack-sheet.png",
+  "qaDir": "docs/qa/official-basic-attack",
+  "mechanicalErrors": [],
+  "mechanicalWarnings": [
+    "row 3 frame 5: tight padding [46, 34, 5, 56]",
+    "row 3 frame 6: tight padding [37, 40, 5, 56]"
+  ],
+  "framesChecked": 40,
+  "imageSize": [
+    2048,
+    1280
+  ],
+  "cell": [
+    256,
+    256
+  ]
+}

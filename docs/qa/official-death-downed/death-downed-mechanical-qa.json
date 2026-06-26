@@ -1,0 +1,17 @@
+{
+  "preset": "death-downed",
+  "jobId": "codex-job-2026-06-25T21-33-50-902Z",
+  "sample": "public/samples/death-downed-sheet.png",
+  "qaDir": "docs/qa/official-death-downed",
+  "mechanicalErrors": [],
+  "mechanicalWarnings": [],
+  "framesChecked": 40,
+  "imageSize": [
+    2048,
+    1280
+  ],
+  "cell": [
+    256,
+    256
+  ]
+}
