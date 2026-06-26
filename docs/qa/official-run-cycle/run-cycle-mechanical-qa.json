@@ -1,0 +1,18 @@
+{
+  "preset": "run-cycle",
+  "sample": "public/samples/run-cycle-sheet.png",
+  "qaDir": "docs/qa/official-run-cycle",
+  "mechanicalErrors": [],
+  "mechanicalWarnings": [],
+  "framesChecked": 40,
+  "transparentFrames": 40,
+  "minimumTransparentPixelRatio": 0.811844,
+  "imageSize": [
+    2048,
+    1280
+  ],
+  "cell": [
+    256,
+    256
+  ]
+}

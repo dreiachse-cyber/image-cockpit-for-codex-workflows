@@ -1,6 +1,6 @@
 {
   "presetId": "ranged-attack",
-  "sourceJobId": "codex-job-2026-06-25T22-50-31-178Z",
+  "sourceJobId": "codex-job-2026-06-26T04-20-29-885Z",
   "sheetPath": "public/samples/ranged-attack-sheet.png",
   "sheetSize": [
     2048,
@@ -26,6 +26,9 @@
   "mechanicalResult": "pass",
   "warnings": [],
   "failures": [],
+  "framesChecked": 40,
+  "transparentFrames": 40,
+  "minimumTransparentPixelRatio": 0.761597,
   "frames": [
     {
       "direction": "front",
@@ -34,201 +37,201 @@
           "index": 1,
           "ok": true,
           "sourceBox": [
-            63,
-            16,
-            179,
+            79,
+            35,
+            183,
             223
           ],
           "normalizedBox": [
-            70,
-            24,
-            185,
-            229
+            79,
+            35,
+            183,
+            223
           ],
-          "minPadding": 24,
+          "minPadding": 32,
           "padding": {
-            "left": 70,
-            "top": 24,
-            "right": 70,
-            "bottom": 26
+            "left": 79,
+            "top": 35,
+            "right": 72,
+            "bottom": 32
           },
-          "scale": 0.99,
-          "pixels": 15356
+          "pixels": 14048,
+          "transparentPixelRatio": 0.785645
         },
         {
           "index": 2,
           "ok": true,
           "sourceBox": [
-            71,
-            20,
-            183,
+            78,
+            41,
+            200,
             224
           ],
           "normalizedBox": [
-            71,
-            24,
-            184,
-            229
+            78,
+            41,
+            200,
+            224
           ],
-          "minPadding": 24,
+          "minPadding": 31,
           "padding": {
-            "left": 71,
-            "top": 24,
-            "right": 71,
-            "bottom": 26
+            "left": 78,
+            "top": 41,
+            "right": 55,
+            "bottom": 31
           },
-          "scale": 1.005,
-          "pixels": 15110
+          "pixels": 13767,
+          "transparentPixelRatio": 0.789932
         },
         {
           "index": 3,
           "ok": true,
           "sourceBox": [
             53,
-            16,
-            174,
-            225
+            43,
+            180,
+            226
           ],
           "normalizedBox": [
-            68,
-            24,
-            187,
-            229
+            53,
+            43,
+            180,
+            226
           ],
-          "minPadding": 24,
+          "minPadding": 29,
           "padding": {
-            "left": 68,
-            "top": 24,
-            "right": 68,
-            "bottom": 26
+            "left": 53,
+            "top": 43,
+            "right": 75,
+            "bottom": 29
           },
-          "scale": 0.981,
-          "pixels": 16302
+          "pixels": 14265,
+          "transparentPixelRatio": 0.782333
         },
         {
           "index": 4,
           "ok": true,
           "sourceBox": [
-            59,
-            21,
-            203,
-            224
+            12,
+            44,
+            187,
+            227
           ],
           "normalizedBox": [
-            55,
-            24,
-            200,
-            229
+            12,
+            44,
+            187,
+            227
           ],
-          "minPadding": 24,
+          "minPadding": 12,
           "padding": {
-            "left": 55,
-            "top": 24,
-            "right": 55,
-            "bottom": 26
+            "left": 12,
+            "top": 44,
+            "right": 68,
+            "bottom": 28
           },
-          "scale": 1.01,
-          "pixels": 15225
+          "pixels": 15624,
+          "transparentPixelRatio": 0.761597
         },
         {
           "index": 5,
           "ok": true,
           "sourceBox": [
-            66,
-            19,
-            242,
-            223
+            64,
+            30,
+            208,
+            213
           ],
           "normalizedBox": [
-            39,
-            24,
-            216,
-            229
+            64,
+            30,
+            208,
+            213
           ],
-          "minPadding": 24,
+          "minPadding": 30,
           "padding": {
-            "left": 39,
-            "top": 24,
-            "right": 39,
-            "bottom": 26
+            "left": 64,
+            "top": 30,
+            "right": 47,
+            "bottom": 42
           },
-          "scale": 1.005,
-          "pixels": 15423
+          "pixels": 13958,
+          "transparentPixelRatio": 0.787018
         },
         {
           "index": 6,
           "ok": true,
           "sourceBox": [
-            25,
-            24,
-            197,
-            223
+            59,
+            30,
+            203,
+            213
           ],
           "normalizedBox": [
-            39,
-            24,
-            216,
-            229
+            59,
+            30,
+            203,
+            213
           ],
-          "minPadding": 24,
+          "minPadding": 30,
           "padding": {
-            "left": 39,
-            "top": 24,
-            "right": 39,
-            "bottom": 26
+            "left": 59,
+            "top": 30,
+            "right": 52,
+            "bottom": 42
           },
-          "scale": 1.03,
-          "pixels": 17416
+          "pixels": 14144,
+          "transparentPixelRatio": 0.78418
         },
         {
           "index": 7,
           "ok": true,
           "sourceBox": [
-            48,
-            21,
-            172,
-            227
+            56,
+            27,
+            169,
+            211
           ],
           "normalizedBox": [
-            66,
-            24,
-            189,
-            229
+            56,
+            27,
+            169,
+            211
           ],
-          "minPadding": 24,
+          "minPadding": 27,
           "padding": {
-            "left": 66,
-            "top": 24,
-            "right": 66,
-            "bottom": 26
+            "left": 56,
+            "top": 27,
+            "right": 86,
+            "bottom": 44
           },
-          "scale": 0.995,
-          "pixels": 15759
+          "pixels": 13324,
+          "transparentPixelRatio": 0.796692
         },
         {
           "index": 8,
           "ok": true,
           "sourceBox": [
             61,
-            22,
-            178,
-            227
+            25,
+            166,
+            213
           ],
           "normalizedBox": [
-            69,
-            24,
-            186,
-            229
+            61,
+            25,
+            166,
+            213
           ],
-          "minPadding": 24,
+          "minPadding": 25,
           "padding": {
-            "left": 69,
-            "top": 24,
-            "right": 69,
-            "bottom": 26
+            "left": 61,
+            "top": 25,
+            "right": 89,
+            "bottom": 42
           },
-          "scale": 1.0,
-          "pixels": 15270
+          "pixels": 13978,
+          "transparentPixelRatio": 0.786713
         }
       ]
     },
@@ -239,201 +242,201 @@
           "index": 1,
           "ok": true,
           "sourceBox": [
-            65,
-            29,
-            187,
-            226
+            81,
+            38,
+            179,
+            222
           ],
           "normalizedBox": [
-            68,
-            36,
-            188,
-            229
+            81,
+            38,
+            179,
+            222
           ],
-          "minPadding": 26,
+          "minPadding": 33,
           "padding": {
-            "left": 68,
-            "top": 36,
-            "right": 67,
-            "bottom": 26
+            "left": 81,
+            "top": 38,
+            "right": 76,
+            "bottom": 33
           },
-          "scale": 0.98,
-          "pixels": 14470
+          "pixels": 12459,
+          "transparentPixelRatio": 0.809891
         },
         {
           "index": 2,
           "ok": true,
           "sourceBox": [
-            53,
-            35,
-            189,
-            226
+            71,
+            42,
+            190,
+            221
           ],
           "normalizedBox": [
-            59,
-            36,
-            196,
-            229
+            71,
+            42,
+            190,
+            221
           ],
-          "minPadding": 26,
+          "minPadding": 34,
           "padding": {
-            "left": 59,
-            "top": 36,
-            "right": 59,
-            "bottom": 26
+            "left": 71,
+            "top": 42,
+            "right": 65,
+            "bottom": 34
           },
-          "scale": 1.01,
-          "pixels": 13788
+          "pixels": 12829,
+          "transparentPixelRatio": 0.804245
         },
         {
           "index": 3,
           "ok": true,
           "sourceBox": [
-            51,
-            38,
-            186,
-            227
+            55,
+            44,
+            176,
+            221
           ],
           "normalizedBox": [
-            58,
-            36,
-            196,
-            229
+            55,
+            44,
+            176,
+            221
           ],
-          "minPadding": 26,
+          "minPadding": 34,
           "padding": {
-            "left": 58,
-            "top": 36,
-            "right": 59,
-            "bottom": 26
+            "left": 55,
+            "top": 44,
+            "right": 79,
+            "bottom": 34
           },
-          "scale": 1.021,
-          "pixels": 13589
+          "pixels": 12866,
+          "transparentPixelRatio": 0.80368
         },
         {
           "index": 4,
           "ok": true,
           "sourceBox": [
-            9,
-            40,
-            245,
-            218
+            25,
+            44,
+            164,
+            222
           ],
           "normalizedBox": [
-            18,
-            64,
-            237,
-            229
+            25,
+            44,
+            164,
+            222
           ],
-          "minPadding": 18,
+          "minPadding": 25,
           "padding": {
-            "left": 18,
-            "top": 64,
-            "right": 18,
-            "bottom": 26
+            "left": 25,
+            "top": 44,
+            "right": 91,
+            "bottom": 33
           },
-          "scale": 0.929,
-          "pixels": 16113
+          "pixels": 13299,
+          "transparentPixelRatio": 0.797073
         },
         {
           "index": 5,
           "ok": true,
           "sourceBox": [
-            21,
-            11,
-            246,
-            220
+            66,
+            22,
+            208,
+            201
           ],
           "normalizedBox": [
-            24,
-            36,
-            232,
-            229
+            66,
+            22,
+            208,
+            201
           ],
-          "minPadding": 23,
+          "minPadding": 22,
           "padding": {
-            "left": 24,
-            "top": 36,
-            "right": 23,
-            "bottom": 26
+            "left": 66,
+            "top": 22,
+            "right": 47,
+            "bottom": 54
           },
-          "scale": 0.924,
-          "pixels": 20690
+          "pixels": 13225,
+          "transparentPixelRatio": 0.798203
         },
         {
           "index": 6,
           "ok": true,
           "sourceBox": [
-            19,
-            43,
-            222,
-            213
+            64,
+            23,
+            194,
+            202
           ],
           "normalizedBox": [
-            18,
-            45,
-            237,
-            229
+            64,
+            23,
+            194,
+            202
           ],
-          "minPadding": 18,
+          "minPadding": 23,
           "padding": {
-            "left": 18,
-            "top": 45,
-            "right": 18,
-            "bottom": 26
+            "left": 64,
+            "top": 23,
+            "right": 61,
+            "bottom": 53
           },
-          "scale": 1.079,
-          "pixels": 15090
+          "pixels": 12840,
+          "transparentPixelRatio": 0.804077
         },
         {
           "index": 7,
           "ok": true,
           "sourceBox": [
-            46,
-            31,
-            189,
-            226
+            51,
+            22,
+            166,
+            205
           ],
           "normalizedBox": [
-            56,
-            36,
-            198,
-            229
+            51,
+            22,
+            166,
+            205
           ],
-          "minPadding": 26,
+          "minPadding": 22,
           "padding": {
-            "left": 56,
-            "top": 36,
-            "right": 57,
-            "bottom": 26
+            "left": 51,
+            "top": 22,
+            "right": 89,
+            "bottom": 50
           },
-          "scale": 0.99,
-          "pixels": 14233
+          "pixels": 12619,
+          "transparentPixelRatio": 0.807449
         },
         {
           "index": 8,
           "ok": true,
           "sourceBox": [
-            56,
-            30,
-            178,
-            226
+            55,
+            22,
+            153,
+            206
           ],
           "normalizedBox": [
-            68,
-            36,
-            188,
-            229
+            55,
+            22,
+            153,
+            206
           ],
-          "minPadding": 26,
+          "minPadding": 22,
           "padding": {
-            "left": 68,
-            "top": 36,
-            "right": 67,
-            "bottom": 26
+            "left": 55,
+            "top": 22,
+            "right": 102,
+            "bottom": 49
           },
-          "scale": 0.985,
-          "pixels": 14486
+          "pixels": 12386,
+          "transparentPixelRatio": 0.811005
         }
       ]
     },
@@ -444,201 +447,201 @@
           "index": 1,
           "ok": true,
           "sourceBox": [
-            49,
-            21,
+            74,
+            37,
             153,
-            227
+            210
           ],
           "normalizedBox": [
-            78,
-            32,
-            177,
-            229
+            74,
+            37,
+            153,
+            210
           ],
-          "minPadding": 26,
+          "minPadding": 37,
           "padding": {
-            "left": 78,
-            "top": 32,
-            "right": 78,
-            "bottom": 26
+            "left": 74,
+            "top": 37,
+            "right": 102,
+            "bottom": 45
           },
-          "scale": 0.957,
-          "pixels": 12856
+          "pixels": 10037,
+          "transparentPixelRatio": 0.846848
         },
         {
           "index": 2,
           "ok": true,
           "sourceBox": [
-            43,
-            25,
-            220,
-            223
+            56,
+            39,
+            187,
+            210
           ],
           "normalizedBox": [
-            40,
-            32,
-            216,
-            229
+            56,
+            39,
+            187,
+            210
           ],
-          "minPadding": 26,
+          "minPadding": 39,
           "padding": {
-            "left": 40,
-            "top": 32,
-            "right": 39,
-            "bottom": 26
+            "left": 56,
+            "top": 39,
+            "right": 68,
+            "bottom": 45
           },
-          "scale": 0.995,
-          "pixels": 13841
+          "pixels": 11200,
+          "transparentPixelRatio": 0.829102
         },
         {
           "index": 3,
           "ok": true,
           "sourceBox": [
-            39,
-            28,
-            161,
-            223
+            57,
+            40,
+            185,
+            210
           ],
           "normalizedBox": [
-            66,
-            32,
-            189,
-            229
+            57,
+            40,
+            185,
+            210
           ],
-          "minPadding": 26,
+          "minPadding": 40,
           "padding": {
-            "left": 66,
-            "top": 32,
-            "right": 66,
-            "bottom": 26
+            "left": 57,
+            "top": 40,
+            "right": 70,
+            "bottom": 45
           },
-          "scale": 1.01,
-          "pixels": 13697
+          "pixels": 11355,
+          "transparentPixelRatio": 0.826736
         },
         {
           "index": 4,
           "ok": true,
           "sourceBox": [
-            30,
-            28,
-            228,
-            223
+            37,
+            42,
+            176,
+            212
           ],
           "normalizedBox": [
-            28,
-            32,
-            228,
-            229
+            37,
+            42,
+            176,
+            212
           ],
-          "minPadding": 26,
+          "minPadding": 37,
           "padding": {
-            "left": 28,
-            "top": 32,
-            "right": 27,
-            "bottom": 26
+            "left": 37,
+            "top": 42,
+            "right": 79,
+            "bottom": 43
           },
-          "scale": 1.01,
-          "pixels": 14018
+          "pixels": 11177,
+          "transparentPixelRatio": 0.829453
         },
         {
           "index": 5,
           "ok": true,
           "sourceBox": [
-            46,
-            20,
-            247,
-            217
+            68,
+            22,
+            237,
+            193
           ],
           "normalizedBox": [
-            27,
-            32,
-            228,
-            229
+            68,
+            22,
+            237,
+            193
           ],
-          "minPadding": 26,
+          "minPadding": 18,
           "padding": {
-            "left": 27,
-            "top": 32,
-            "right": 27,
-            "bottom": 26
+            "left": 68,
+            "top": 22,
+            "right": 18,
+            "bottom": 62
           },
-          "scale": 1.0,
-          "pixels": 13251
+          "pixels": 11155,
+          "transparentPixelRatio": 0.829788
         },
         {
           "index": 6,
           "ok": true,
           "sourceBox": [
-            42,
-            20,
-            204,
-            217
+            56,
+            22,
+            178,
+            193
           ],
           "normalizedBox": [
-            46,
-            32,
-            208,
-            229
+            56,
+            22,
+            178,
+            193
           ],
-          "minPadding": 26,
+          "minPadding": 22,
           "padding": {
-            "left": 46,
-            "top": 32,
-            "right": 47,
-            "bottom": 26
+            "left": 56,
+            "top": 22,
+            "right": 77,
+            "bottom": 62
           },
-          "scale": 1.0,
-          "pixels": 13862
+          "pixels": 10780,
+          "transparentPixelRatio": 0.83551
         },
         {
           "index": 7,
           "ok": true,
           "sourceBox": [
-            44,
-            21,
-            155,
-            220
+            66,
+            22,
+            164,
+            192
           ],
           "normalizedBox": [
-            72,
-            32,
-            182,
-            229
+            66,
+            22,
+            164,
+            192
           ],
-          "minPadding": 26,
+          "minPadding": 22,
           "padding": {
-            "left": 72,
-            "top": 32,
-            "right": 73,
-            "bottom": 26
+            "left": 66,
+            "top": 22,
+            "right": 91,
+            "bottom": 63
           },
-          "scale": 0.99,
-          "pixels": 12629
+          "pixels": 10079,
+          "transparentPixelRatio": 0.846207
         },
         {
           "index": 8,
           "ok": true,
           "sourceBox": [
-            47,
-            18,
-            150,
-            223
+            43,
+            22,
+            122,
+            194
           ],
           "normalizedBox": [
-            78,
-            32,
-            177,
-            229
+            43,
+            22,
+            122,
+            194
           ],
-          "minPadding": 26,
+          "minPadding": 22,
           "padding": {
-            "left": 78,
-            "top": 32,
-            "right": 78,
-            "bottom": 26
+            "left": 43,
+            "top": 22,
+            "right": 133,
+            "bottom": 61
           },
-          "scale": 0.961,
-          "pixels": 12755
+          "pixels": 9933,
+          "transparentPixelRatio": 0.848434
         }
       ]
     },
@@ -649,201 +652,201 @@
           "index": 1,
           "ok": true,
           "sourceBox": [
-            44,
-            16,
-            185,
-            228
-          ],
-          "normalizedBox": [
-            60,
-            24,
-            195,
+            69,
+            35,
+            192,
             229
           ],
-          "minPadding": 24,
+          "normalizedBox": [
+            69,
+            35,
+            192,
+            229
+          ],
+          "minPadding": 26,
           "padding": {
-            "left": 60,
-            "top": 24,
-            "right": 60,
+            "left": 69,
+            "top": 35,
+            "right": 63,
             "bottom": 26
           },
-          "scale": 0.967,
-          "pixels": 15118
+          "pixels": 14094,
+          "transparentPixelRatio": 0.784943
         },
         {
           "index": 2,
           "ok": true,
           "sourceBox": [
-            29,
-            21,
-            195,
-            228
-          ],
-          "normalizedBox": [
-            46,
-            24,
-            210,
+            60,
+            48,
+            200,
             229
           ],
-          "minPadding": 24,
+          "normalizedBox": [
+            60,
+            48,
+            200,
+            229
+          ],
+          "minPadding": 26,
           "padding": {
-            "left": 46,
-            "top": 24,
-            "right": 45,
+            "left": 60,
+            "top": 48,
+            "right": 55,
             "bottom": 26
           },
-          "scale": 0.99,
-          "pixels": 15494
+          "pixels": 13792,
+          "transparentPixelRatio": 0.789551
         },
         {
           "index": 3,
           "ok": true,
           "sourceBox": [
-            21,
-            23,
-            165,
-            228
-          ],
-          "normalizedBox": [
-            56,
-            24,
-            200,
+            49,
+            49,
+            191,
             229
           ],
-          "minPadding": 24,
+          "normalizedBox": [
+            49,
+            49,
+            191,
+            229
+          ],
+          "minPadding": 26,
           "padding": {
-            "left": 56,
-            "top": 24,
-            "right": 55,
+            "left": 49,
+            "top": 49,
+            "right": 64,
             "bottom": 26
           },
-          "scale": 1.0,
-          "pixels": 14521
+          "pixels": 13834,
+          "transparentPixelRatio": 0.78891
         },
         {
           "index": 4,
           "ok": true,
           "sourceBox": [
-            18,
-            23,
-            215,
-            228
-          ],
-          "normalizedBox": [
-            29,
-            24,
-            226,
+            37,
+            50,
+            194,
             229
           ],
-          "minPadding": 24,
+          "normalizedBox": [
+            37,
+            50,
+            194,
+            229
+          ],
+          "minPadding": 26,
           "padding": {
-            "left": 29,
-            "top": 24,
-            "right": 29,
+            "left": 37,
+            "top": 50,
+            "right": 61,
             "bottom": 26
           },
-          "scale": 1.0,
-          "pixels": 15203
+          "pixels": 13733,
+          "transparentPixelRatio": 0.790451
         },
         {
           "index": 5,
           "ok": true,
           "sourceBox": [
+            62,
             24,
-            21,
-            236,
-            225
+            240,
+            208
           ],
           "normalizedBox": [
-            21,
+            62,
             24,
-            234,
-            229
+            240,
+            208
           ],
-          "minPadding": 21,
+          "minPadding": 15,
           "padding": {
-            "left": 21,
+            "left": 62,
             "top": 24,
-            "right": 21,
-            "bottom": 26
+            "right": 15,
+            "bottom": 47
           },
-          "scale": 1.005,
-          "pixels": 15132
+          "pixels": 14043,
+          "transparentPixelRatio": 0.785721
         },
         {
           "index": 6,
           "ok": true,
           "sourceBox": [
+            61,
             25,
-            22,
-            185,
-            224
+            195,
+            208
           ],
           "normalizedBox": [
-            46,
-            24,
-            208,
-            229
+            61,
+            25,
+            195,
+            208
           ],
-          "minPadding": 24,
+          "minPadding": 25,
           "padding": {
-            "left": 46,
-            "top": 24,
-            "right": 47,
-            "bottom": 26
+            "left": 61,
+            "top": 25,
+            "right": 60,
+            "bottom": 47
           },
-          "scale": 1.015,
-          "pixels": 14105
+          "pixels": 13920,
+          "transparentPixelRatio": 0.787598
         },
         {
           "index": 7,
           "ok": true,
           "sourceBox": [
-            27,
-            20,
-            188,
-            224
+            45,
+            25,
+            161,
+            212
           ],
           "normalizedBox": [
-            46,
-            24,
-            208,
-            229
+            45,
+            25,
+            161,
+            212
           ],
-          "minPadding": 24,
+          "minPadding": 25,
           "padding": {
-            "left": 46,
-            "top": 24,
-            "right": 47,
-            "bottom": 26
+            "left": 45,
+            "top": 25,
+            "right": 94,
+            "bottom": 43
           },
-          "scale": 1.005,
-          "pixels": 14671
+          "pixels": 13069,
+          "transparentPixelRatio": 0.800583
         },
         {
           "index": 8,
           "ok": true,
           "sourceBox": [
-            44,
-            16,
-            185,
-            227
+            34,
+            25,
+            153,
+            212
           ],
           "normalizedBox": [
-            59,
-            24,
-            196,
-            229
+            34,
+            25,
+            153,
+            212
           ],
-          "minPadding": 24,
+          "minPadding": 25,
           "padding": {
-            "left": 59,
-            "top": 24,
-            "right": 59,
-            "bottom": 26
+            "left": 34,
+            "top": 25,
+            "right": 102,
+            "bottom": 43
           },
-          "scale": 0.972,
-          "pixels": 15088
+          "pixels": 13169,
+          "transparentPixelRatio": 0.799057
         }
       ]
     },
@@ -854,201 +857,201 @@
           "index": 1,
           "ok": true,
           "sourceBox": [
-            69,
-            23,
-            196,
-            239
+            75,
+            35,
+            174,
+            225
           ],
           "normalizedBox": [
-            66,
-            20,
-            189,
-            229
+            75,
+            35,
+            174,
+            225
           ],
-          "minPadding": 20,
+          "minPadding": 30,
           "padding": {
-            "left": 66,
-            "top": 20,
-            "right": 66,
-            "bottom": 26
+            "left": 75,
+            "top": 35,
+            "right": 81,
+            "bottom": 30
           },
-          "scale": 0.968,
-          "pixels": 16024
+          "pixels": 13479,
+          "transparentPixelRatio": 0.794327
         },
         {
           "index": 2,
           "ok": true,
           "sourceBox": [
-            56,
-            25,
-            219,
-            240
+            60,
+            35,
+            171,
+            225
           ],
           "normalizedBox": [
-            48,
-            20,
-            206,
-            229
+            60,
+            35,
+            171,
+            225
           ],
-          "minPadding": 20,
+          "minPadding": 30,
           "padding": {
-            "left": 48,
-            "top": 20,
-            "right": 49,
-            "bottom": 26
+            "left": 60,
+            "top": 35,
+            "right": 84,
+            "bottom": 30
           },
-          "scale": 0.972,
-          "pixels": 16025
+          "pixels": 14124,
+          "transparentPixelRatio": 0.784485
         },
         {
           "index": 3,
           "ok": true,
           "sourceBox": [
-            40,
-            20,
-            178,
-            239
+            50,
+            36,
+            156,
+            226
           ],
           "normalizedBox": [
-            62,
-            20,
-            194,
-            229
+            50,
+            36,
+            156,
+            226
           ],
-          "minPadding": 20,
+          "minPadding": 29,
           "padding": {
-            "left": 62,
-            "top": 20,
-            "right": 61,
-            "bottom": 26
+            "left": 50,
+            "top": 36,
+            "right": 99,
+            "bottom": 29
           },
-          "scale": 0.955,
-          "pixels": 16266
+          "pixels": 13640,
+          "transparentPixelRatio": 0.79187
         },
         {
           "index": 4,
           "ok": true,
           "sourceBox": [
-            33,
-            23,
-            196,
-            239
+            14,
+            38,
+            191,
+            226
           ],
           "normalizedBox": [
-            48,
-            20,
-            206,
-            229
+            14,
+            38,
+            191,
+            226
           ],
-          "minPadding": 20,
+          "minPadding": 14,
           "padding": {
-            "left": 48,
-            "top": 20,
-            "right": 49,
-            "bottom": 26
+            "left": 14,
+            "top": 38,
+            "right": 64,
+            "bottom": 29
           },
-          "scale": 0.968,
-          "pixels": 16144
+          "pixels": 14899,
+          "transparentPixelRatio": 0.772659
         },
         {
           "index": 5,
           "ok": true,
           "sourceBox": [
-            49,
-            16,
-            247,
-            231
+            71,
+            20,
+            212,
+            211
           ],
           "normalizedBox": [
-            32,
+            71,
             20,
-            224,
-            229
+            212,
+            211
           ],
           "minPadding": 20,
           "padding": {
-            "left": 32,
+            "left": 71,
             "top": 20,
-            "right": 31,
-            "bottom": 26
+            "right": 43,
+            "bottom": 44
           },
-          "scale": 0.972,
-          "pixels": 15618
+          "pixels": 13990,
+          "transparentPixelRatio": 0.78653
         },
         {
           "index": 6,
           "ok": true,
           "sourceBox": [
-            42,
-            15,
-            186,
-            231
+            60,
+            21,
+            189,
+            211
           ],
           "normalizedBox": [
-            58,
-            20,
-            197,
-            229
+            60,
+            21,
+            189,
+            211
           ],
-          "minPadding": 20,
+          "minPadding": 21,
           "padding": {
-            "left": 58,
-            "top": 20,
-            "right": 58,
-            "bottom": 26
+            "left": 60,
+            "top": 21,
+            "right": 66,
+            "bottom": 44
           },
-          "scale": 0.968,
-          "pixels": 15092
+          "pixels": 13974,
+          "transparentPixelRatio": 0.786774
         },
         {
           "index": 7,
           "ok": true,
           "sourceBox": [
-            44,
-            16,
-            181,
-            230
+            53,
+            21,
+            174,
+            211
           ],
           "normalizedBox": [
-            60,
-            20,
-            194,
-            229
+            53,
+            21,
+            174,
+            211
           ],
-          "minPadding": 20,
+          "minPadding": 21,
           "padding": {
-            "left": 60,
-            "top": 20,
-            "right": 61,
-            "bottom": 26
+            "left": 53,
+            "top": 21,
+            "right": 81,
+            "bottom": 44
           },
-          "scale": 0.977,
-          "pixels": 16073
+          "pixels": 14062,
+          "transparentPixelRatio": 0.785431
         },
         {
           "index": 8,
           "ok": true,
           "sourceBox": [
-            45,
-            16,
-            171,
-            230
+            51,
+            21,
+            146,
+            211
           ],
           "normalizedBox": [
-            66,
-            20,
-            189,
-            229
+            51,
+            21,
+            146,
+            211
           ],
-          "minPadding": 20,
+          "minPadding": 21,
           "padding": {
-            "left": 66,
-            "top": 20,
-            "right": 66,
-            "bottom": 26
+            "left": 51,
+            "top": 21,
+            "right": 109,
+            "bottom": 44
           },
-          "scale": 0.977,
-          "pixels": 15631
+          "pixels": 13130,
+          "transparentPixelRatio": 0.799652
         }
       ]
     }

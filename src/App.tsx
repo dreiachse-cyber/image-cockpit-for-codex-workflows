@@ -2002,7 +2002,7 @@ const animationPresetCatalog: AnimationPresetExample[] = [
       ja: "手元や杖先の小さなエフェクトで、詠唱から発動まで読める動きです。"
     },
     prompt: "spell cast animation with ready stance, raise hand or staff, magic charge, brighter charge, compact release, follow-through, settle, return ready, small contained effect",
-    notes: "Official preset: generate eight source frames as one non-looping spell cast. Effects must stay near the hand or staff tip and must not cover the body, feet, or cell boundaries."
+    notes: "Official preset: generate eight source frames as one non-looping spell cast. Keep the exact same caster identity, outfit, staff, body proportions, and compact magic effect language across all directions."
   },
   {
     id: "jump-hop",
@@ -2067,7 +2067,7 @@ const animationPresetCatalog: AnimationPresetExample[] = [
       ja: "構え、狙い、発射、小さな弾や火花、戻りが読める遠距離攻撃です。"
     },
     prompt: "ranged attack animation with ready pose, aim, draw or charge, release, tiny projectile or spark close to the hand or weapon tip, follow-through, recover, ready pose, compact forward shot",
-    notes: "Official preset: generate eight source frames as one non-looping ranged attack. Keep arrows, bolts, thrown items, muzzle sparks, or staff shots small, close to the character, and fully inside the cell."
+    notes: "Official preset: generate eight source frames as one non-looping ranged attack. Keep body proportions identical across all directions and keep one tiny, consistent shot effect close to the hand or weapon tip."
   },
   {
     id: "skill-release",
@@ -2220,9 +2220,12 @@ const animationPresetMotionPromptLines: Record<string, string[]> = {
   ],
   "spell-cast": [
     "The action must read as spell casting or skill activation in every row.",
+    "The same caster identity is mandatory across all five directions: same age, same head-to-body ratio, same body height, same outfit colors, same robe layers, same staff or focus, and same facial/hair/beard silhouette where visible.",
+    "The front direction must not become a different costume, different age, different beard or hair shape, different staff, taller body, or more realistic body than the diagonal, side, and back directions.",
     "Use the 8 generated source frames as one non-looping cast action, not a continuous idle loop.",
     "Frame plan: frame 1 ready stance; frame 2 raise hand, staff, or focus; frame 3 compact charge begins; frame 4 brighter charge; frame 5 release; frame 6 follow-through; frame 7 settle; frame 8 ready pose.",
     "Effects must stay near the hand, staff tip, book, or small focus point and must remain compact enough to preserve the character silhouette.",
+    "Use the same compact magic effect language in all five directions: same color family, same approximate size, and same attachment point relative to the hand, staff, book, or focus.",
     "Do not add large circles, giant beams, huge explosions, screen-filling particles, readable magic letters, UI symbols, or text.",
     "Keep feet and body baseline stable; casting is not a jump or walking animation.",
     "Back row must show rear-facing casting with no face details."
@@ -2265,9 +2268,13 @@ const animationPresetMotionPromptLines: Record<string, string[]> = {
   ],
   "ranged-attack": [
     "The action must read as a generic ranged attack in every row, suitable for bows, thrown items, staff bolts, or light projectile weapons.",
+    "The same character identity and chibi proportions are mandatory across all five directions: same head-to-body ratio, same body height, same limb thickness, same outfit colors, same prop design, and same pixel density.",
+    "If the source character has no obvious ranged weapon, add only one compact ranged prop such as a small hand crossbow, sling, wand, or hand-thrown spark, and keep that prop design identical in every direction.",
     "Use the 8 generated source frames as one non-looping ranged action, not a loop or ping-pong half-cycle.",
     "Frame plan: frame 1 ready stance; frame 2 aim with torso and arm/weapon aligned forward; frame 3 draw, pull back, or charge a compact shot; frame 4 release; frame 5 tiny projectile, arrow, bolt, spark, or thrown item visible close to the character; frame 6 follow-through; frame 7 recover; frame 8 ready pose.",
     "The projectile or shot effect must be small, close to the hand, bow, staff, or weapon tip, and fully inside the same 256px cell; do not draw a long arrow trail, beam, muzzle flash, or projectile crossing cell edges.",
+    "Projectile/effect consistency is mandatory: use the same type, same color family, and same approximate size in all five directions. Use only one tiny spark/projectile no larger than about 20x20 px and positioned near the hand or weapon tip.",
+    "Do not invent a large gun, cannon, rifle, oversized bow, giant staff, large explosion, smoke cloud, blast cone, or screen-space attack effect.",
     "Side and front three-quarter rows must clearly show the shot direction; the body should not become a melee slash or spell-cast wind-up.",
     "Keep the full body, weapon, hands, projectile, and feet visible with padding; if a bow or staff is large, shorten or angle it inside the cell rather than shrinking the character.",
     "Back row must show a true rear-facing ranged stance with no face details, as if aiming away from the camera."
@@ -6251,6 +6258,7 @@ function buildAnimationCodexPrompt({
     "The character center and foot baseline must stay aligned across all eight frames in the same direction image; do not drift left, right, up, or down between frames.",
     "Do not crop the head, feet, hair, held item, weapon, projectile, or effects. Do not let body parts, items, projectiles, or effects cross cell borders. Do not place heads or body fragments under the feet.",
     "Use consistent character scale, baseline, foot contact point, silhouette size, palette, outfit, and pixel density across all direction images.",
+    "Hard consistency requirement across all five direction images: keep the same chibi body proportions, same head-to-body ratio, same head size, same body height from feet to top of head within about 5%, same limb thickness, same outfit colors, same clothing layers, and same prop design. Do not redesign any direction or make one direction taller, older, younger, more realistic, or differently dressed than the others.",
     `Prefer a transparent background in every cell. If true transparency is not available during generation, use a flat ${chromaKey.label} background (${chromaKey.hex}) in every cell; do not use black, white, gradients, scenery, shadows, UI, text, logos, watermarks, letters, or numbers.`,
     "If you add a temporary guide grid, use a temporary 1-pixel pure cyan #00FFFF guide grid only on the exact 4x2 cell boundaries for each direction image; no labels, numbers, text, UI, or decorative borders.",
     "Quality gate before returning: inspect all 40 cells and regenerate if any cell is cropped, has missing feet, has a cut-off head, contains multiple heads, has a head below the feet, has a different character, or uses a non-flat background.",

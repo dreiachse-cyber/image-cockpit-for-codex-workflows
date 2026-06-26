@@ -30,7 +30,7 @@ For each preset below:
 
 | Preset | Job ID | Source image | Sheet | Mechanical QA | Visual QA |
 | --- | --- | --- | --- | --- | --- |
-| `ranged-attack` | `codex-job-2026-06-25T22-50-31-178Z` | `basic-androgynous-traveler.png` | `public/samples/ranged-attack-sheet.png` | pass | pass |
+| `ranged-attack` | `codex-job-2026-06-26T04-20-29-885Z` | `basic-androgynous-traveler.png` | `public/samples/ranged-attack-sheet.png` | pass, warnings 1 | pass after retake |
 | `skill-release` | `codex-job-2026-06-25T23-05-13-732Z` | `forest-mage-idle.png` | `public/samples/skill-release-sheet.png` | pass | pass |
 | `knockback` | `codex-job-2026-06-25T23-05-13-783Z` | `basic-young-male-hero.png` | `public/samples/knockback-sheet.png` | pass | pass |
 | `item-use` | `codex-job-2026-06-25T23-15-35-242Z` | `basic-elder-female-herbalist.png` | `public/samples/item-use-sheet.png` | pass | pass |
@@ -51,6 +51,12 @@ For each preset below:
 
 Each preset directory also contains five direction GIFs for visual review.
 
+## Transparency Audit
+
+User review suspected opaque frames in multiple GIF previews. The source PNG sheets were transparent, but the QA GIF export path could reintroduce an opaque matte. All 16 official preset PNG sheets and all five-direction GIF preview sets were re-audited in `docs/qa/official-animation-transparency-audit.json`; current failures are 0.
+
+`walk-cycle` and `run-cycle` now have dedicated QA folders and five GIF previews, so their transparency is checked alongside the other official presets.
+
 ## Prompt Contract Revisions
 
 Common contract changes:
@@ -62,7 +68,7 @@ Common contract changes:
 
 Preset-specific revisions:
 
-- `ranged-attack`: projectile/effect must stay tiny and close to hand, bow, staff, weapon tip, or throw point.
+- `ranged-attack`: retake contract now locks the same chibi body proportions, head-to-body ratio, outfit colors, prop design, and pixel density across all five directions. If the source character has no ranged weapon, only one compact prop is allowed, and the projectile/effect must stay tiny, consistent, and close to the hand or weapon tip.
 - `skill-release`: explicitly separated from ranged weapon attack; no arrows, bullets, guns, bows, or thrown weapons unless part of the source identity.
 - `knockback`: kept as a non-gory recoil, slide, stumble, and recovery action, distinct from hurt and downed.
 - `item-use`: item stays hand-focused and compact; no ground pickup, readable text, UI icons, or large effects.
@@ -70,7 +76,7 @@ Preset-specific revisions:
 
 ## Visual Findings
 
-- `ranged-attack`: readable aim/release/recover motion. The raw front direction was slightly edge-heavy, but final cell normalization kept the accepted sheet inside the grid.
+- `ranged-attack`: retaken after user review because the first accepted sample had direction-to-direction proportion drift and inconsistent muzzle/projectile intensity. The replacement keeps the character scale and prop language consistent across directions; one small effect particle group remains visible but stays inside the cell.
 - `skill-release`: first generated skill attempt drifted toward ranged attack, so it was regenerated from the forest mage source with stricter no-ranged-weapon wording. Accepted result reads as compact magic/skill release.
 - `knockback`: strong non-gory recoil and recovery. Side and diagonal rows show the backward force clearly.
 - `item-use`: reads as a small bottle/herb item-use action without text or UI-like marks.

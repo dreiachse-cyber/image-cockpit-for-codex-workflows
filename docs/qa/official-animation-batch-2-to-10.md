@@ -29,7 +29,7 @@
 | `basic-attack` | `attack` | `codex-job-2026-06-25T21-02-07-575Z` | `public/samples/basic-attack-sheet.png` | errors 0 / warnings 2 | 採用。基本攻撃として読める。小さな攻撃表現の右側余白がやや近いフレームあり。 |
 | `hurt-reaction` | `hurt` | `codex-job-2026-06-25T21-19-09-228Z` | `public/samples/hurt-reaction-sheet.png` | errors 0 / warnings 0 | 採用。のけぞり、踏ん張り、復帰が読める。 |
 | `death-downed` | `death` | `codex-job-2026-06-25T21-33-50-902Z` | `public/samples/death-downed-sheet.png` | errors 0 / warnings 0 | 採用。非グロのダウンとして読め、背面も真後ろに近い。 |
-| `spell-cast` | `cast` | `codex-job-2026-06-25T21-19-09-276Z` | `public/samples/spell-cast-sheet.png` | errors 0 / warnings 6 | 採用。詠唱/発動として読める。杖や小エフェクトの余白がやや近いフレームあり。 |
+| `spell-cast` | `cast` | `codex-job-2026-06-26T04-21-32-475Z` | `public/samples/spell-cast-sheet.png` | errors 0 / warnings 0 | リテイク採用。1方向だけ頭身・服装が変わる問題を解消し、白髪・服・杖・体型が5方向で揃った。 |
 | `jump-hop` | `jump` | `codex-job-2026-06-25T21-33-50-977Z` | `public/samples/jump-hop-sheet.png` | errors 0 / warnings 0 | 採用。小さなその場ジャンプとして読める。 |
 | `guard-block` | `guard` | `codex-job-2026-06-25T21-54-18-523Z` | `public/samples/guard-block-sheet.png` | errors 0 / warnings 0 | 採用。盾なしでもガード姿勢として読める。 |
 | `victory-cheer` | `cheer` | `codex-job-2026-06-25T21-54-18-553Z` | `public/samples/victory-cheer-sheet.png` | errors 0 / warnings 0 | 採用。手振り/勝利ポーズ/軽い跳ねとして読める。 |
@@ -54,6 +54,16 @@
 - `*-transparent-contact.png`
 - 5方向GIF
 - `*-mechanical-qa.json`
+
+## Transparency Audit
+
+ユーザーレビューで複数presetのGIF previewに非透過フレーム疑いが出たため、全16公式presetのPNG sheetと5方向GIF previewを再監査した。監査結果は `docs/qa/official-animation-transparency-audit.json` に保存し、現時点のfailuresは0。
+
+元のPNG sheetは透過だったが、QA GIF書き出し時にopaque matteが混じる可能性があったため、5方向GIFを透明index付きで再生成した。
+
+## Retake Notes
+
+`spell-cast` は初回採用版で1方向だけ頭身・服装が違って見えたため、prompt contractへ同一術者identity、同一robe/staff、同一head-to-body ratio、同一compact magic effect languageを追加し、再生成版を採用した。
 
 ## Discarded Job
 
