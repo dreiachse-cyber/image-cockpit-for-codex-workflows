@@ -10,6 +10,7 @@ import {
   isOutboxResultForJob,
   isLikelyFrameGarbageComponent,
   resolveInitialLanguage,
+  selectDirectionSplitAnimationResults,
   shouldReportCompletedCodexImportFailure,
   shouldWaitForCodexRunner,
   summarizeCodexImportFailureReason,
@@ -129,6 +130,51 @@ describe("Codex outbox job result matching", () => {
     expect(isDirectionSplitAnimationManifestName(`${jobId}.meta.json`, jobId)).toBe(false);
     expect(isDirectionSplitAnimationManifestName(`${jobId.replace("42", "43")}-manifest.json`, jobId)).toBe(false);
   });
+
+  it("treats partial direction files without a manifest as waiting, not ready", () => {
+    const jobId = "codex-job-2026-06-25T13-01-42-060Z";
+    const selection = selectDirectionSplitAnimationResults(
+      [
+        makeOutboxResult(`${jobId}-front.png`),
+        makeOutboxResult(`${jobId}-side.png`)
+      ],
+      jobId
+    );
+
+    expect(selection.detected).toBe(true);
+    expect(selection.hasDirectionFiles).toBe(true);
+    expect(selection.waitingForFinalManifest).toBe(true);
+    expect(selection.ready).toBe(false);
+    expect(selection.missingDirections).toContain("front three-quarter");
+  });
+
+  it("requires the direction split manifest plus all five direction images before import is ready", () => {
+    const jobId = "codex-job-2026-06-25T13-01-42-060Z";
+    const results = [
+      makeOutboxResult(`${jobId}-manifest.json`, "application/json"),
+      makeOutboxResult(`${jobId}-front.png`),
+      makeOutboxResult(`${jobId}-front-three-quarter.png`),
+      makeOutboxResult(`${jobId}-side.png`),
+      makeOutboxResult(`${jobId}-back-three-quarter.png`),
+      makeOutboxResult(`${jobId}-back.png`)
+    ];
+
+    const selection = selectDirectionSplitAnimationResults(results, jobId, {
+      schema: "image-cockpit.direction-split-animation.v1",
+      files: {
+        front: `${jobId}-front.png`,
+        "front-three-quarter": `${jobId}-front-three-quarter.png`,
+        side: `${jobId}-side.png`,
+        "back-three-quarter": `${jobId}-back-three-quarter.png`,
+        back: `${jobId}-back.png`
+      }
+    });
+
+    expect(selection.detected).toBe(true);
+    expect(selection.waitingForFinalManifest).toBe(false);
+    expect(selection.ready).toBe(true);
+    expect(selection.directionResults).toHaveLength(5);
+  });
 });
 
 describe("animation frame cleanup", () => {
@@ -165,6 +211,16 @@ function makeStatus(state: CodexRunnerStatus["state"]): CodexRunnerStatus {
     jobId: "codex-job-test",
     state,
     message: `${state} runner`
+  };
+}
+
+function makeOutboxResult(name: string, mimeType = "image/png") {
+  return {
+    name,
+    path: `D:\\codex\\outbox\\${name}`,
+    size: 123,
+    modifiedAt: "2026-06-27T00:00:00.000Z",
+    mimeType
   };
 }
 

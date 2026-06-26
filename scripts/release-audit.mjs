@@ -73,6 +73,7 @@ const requiredFiles = [
   "docs/qa/imagegen-handoff-smoke.md",
   "docs/qa/codex-generation-job-concurrency-3.md",
   "docs/qa/codex-log-card-limit-3.md",
+  "docs/qa/generation-job-reliability-hardening.md",
   "docs/qa/official-animation-gallery.html",
   "docs/qa/official-animation-batch-2-to-10.md",
   "docs/qa/official-animation-next-5-gallery.html",
@@ -751,6 +752,15 @@ function checkWorkflowIds() {
   if (!smokeText.includes("/api/codex/results")) {
     failures.push("Smoke test should cover Local Inbox outbox result listing/import.");
   }
+  [
+    "QA JSON outbox file should be ignored",
+    "work-in-progress outbox image should be ignored",
+    "staging outbox image should be ignored"
+  ].forEach((marker) => {
+    if (!smokeText.includes(marker)) {
+      failures.push(`Smoke test should cover hardened outbox result filtering: ${marker}`);
+    }
+  });
 
   [
     "Real Codex runner smoke passed.",
@@ -797,7 +807,11 @@ function checkWorkflowIds() {
     "exactly one full-body character",
     "duplicated heads",
     "If the first result contains unwanted text or numbers, retry once",
-    "write a short Markdown or JSON sidecar"
+    "manifest as the final commit marker",
+    "outbox/.staging/<job-id>/",
+    "Do not run git status",
+    "Do not place *-qa.json or work files in the outbox root",
+    "write them as a small Markdown sidecar"
   ].forEach((marker) => {
     if (!serverText?.includes(marker)) {
       failures.push(`Server should preserve imagegen handoff instructions: ${marker}`);
@@ -811,6 +825,9 @@ function checkWorkflowIds() {
     "buildDirectionalHatchPetPreviewActions",
     "DIRECTION_SPLIT_ANIMATION_SCHEMA",
     "selectDirectionSplitAnimationResults",
+    "waitingForFinalManifest",
+    "clearCodexFailureNotice",
+    "retryCodexFailureImport",
     "composeDirectionSplitAnimationSheet",
     "validateDirectionSplitAnimationCells",
     "selectDirectionalHatchPetResults",
@@ -963,6 +980,9 @@ function checkPendingJobCoverage() {
   const qaText = readText("docs/qa/completed-codex-job-import-storage-quota.md");
   [
     "assertCompletedDirectionSplitImportFailure",
+    "assertPartialDirectionSplitRecovery",
+    "mock-partial-direction-split-recovery.flag",
+    "Partial direction files without a manifest should not add a failure card",
     "mock-direction-split-import-failure.flag",
     "Completed direction split import failure should release the active job slot"
   ].forEach((marker) => {

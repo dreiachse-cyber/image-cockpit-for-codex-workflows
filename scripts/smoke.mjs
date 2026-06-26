@@ -44,11 +44,17 @@ async function runManualHandoffSmoke() {
       framesPerDirection: 8
     }, null, 2), "utf8");
     await writeFile(join(handoffDir, "outbox", "manual-notes.txt"), "not an image", "utf8");
+    await writeFile(join(handoffDir, "outbox", "manual-qa.json"), JSON.stringify({ status: "pass" }), "utf8");
+    await writeFile(join(handoffDir, "outbox", "manual-work-output.png"), tinyPngBytes);
+    await writeFile(join(handoffDir, "outbox", ".staging-manual.png"), tinyPngBytes);
 
     const outboxList = await getJson(port, "/api/codex/results");
     assert(outboxList.results.some((result) => result.name === "manual-return.png"), "outbox image should be listed");
     assert(outboxList.results.some((result) => result.name === directionManifestName), "direction split manifest should be listed");
     assert(!outboxList.results.some((result) => result.name === "manual-notes.txt"), "non-image outbox file should be ignored");
+    assert(!outboxList.results.some((result) => result.name === "manual-qa.json"), "QA JSON outbox file should be ignored");
+    assert(!outboxList.results.some((result) => result.name === "manual-work-output.png"), "work-in-progress outbox image should be ignored");
+    assert(!outboxList.results.some((result) => result.name === ".staging-manual.png"), "staging outbox image should be ignored");
     const importedOutbox = await getJson(port, "/api/codex/results/manual-return.png");
     assert(importedOutbox.mimeType === "image/png", "outbox import should preserve image MIME type");
     assert(importedOutbox.dataUrl === tinyPng, "outbox import should return a data URL");

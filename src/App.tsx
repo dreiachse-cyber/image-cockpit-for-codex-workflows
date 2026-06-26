@@ -268,6 +268,9 @@ interface DirectionSplitAnimationManifest {
 
 interface DirectionSplitSelection {
   detected: boolean;
+  ready: boolean;
+  waitingForFinalManifest: boolean;
+  hasDirectionFiles: boolean;
   manifestResult?: CodexOutboxResult;
   directionResults: CodexOutboxResult[];
   missingDirections: string[];
@@ -379,6 +382,7 @@ interface CodexFailureNotice {
   label: string;
   createdAt: string;
   workflowMode?: WorkflowMode;
+  retryJob?: CodexJobQueueItem;
   diagnostic: CodexJobDiagnostic;
 }
 
@@ -589,6 +593,7 @@ const baseUiCopy = {
     codexFailureUnknownMessage: "The image could not be generated, and no specific reason was returned.",
     codexFailureUnknownSuggestion: "Retry with a simpler prompt or use manual handoff.",
     codexFailureRetryHint: "Retry suggestion",
+    codexFailureRetryImport: "Retry import",
     codexLogTitle: "Codex Log",
     codexLogLive: "stdout / stderr tail",
     codexLogEmpty: "No Codex log yet",
@@ -816,6 +821,7 @@ const baseUiCopy = {
     codexFailureUnknownMessage: "画像を生成できませんでしたが、具体的な理由は返されませんでした。",
     codexFailureUnknownSuggestion: "promptを簡単にして再試行するか、手動handoffを使ってください。",
     codexFailureRetryHint: "再試行ヒント",
+    codexFailureRetryImport: "再取り込み",
     codexLogTitle: "Codexログ",
     codexLogLive: "stdout / stderr の末尾",
     codexLogEmpty: "まだCodexログはありません",
@@ -2827,7 +2833,7 @@ function isStaticImageResult(result: CodexOutboxResult) {
   return result.mimeType.startsWith("image/") && result.mimeType !== "image/gif";
 }
 
-function selectDirectionSplitAnimationResults(
+export function selectDirectionSplitAnimationResults(
   results: CodexOutboxResult[],
   jobId: string,
   manifest: DirectionSplitAnimationManifest | null = null
@@ -2847,8 +2853,14 @@ function selectDirectionSplitAnimationResults(
   const missingDirections = byDirection
     .map((result, index) => (result ? "" : ANIMATION_DIRECTIONS[index]))
     .filter(Boolean);
+  const hasManifest = Boolean(manifestResult || manifest);
+  const hasDirectionFiles = byDirection.some(Boolean);
+  const ready = hasManifest && missingDirections.length === 0;
   return {
-    detected: Boolean(manifestResult || manifest || byDirection.some(Boolean)),
+    detected: Boolean(hasManifest || hasDirectionFiles),
+    ready,
+    waitingForFinalManifest: hasDirectionFiles && !hasManifest,
+    hasDirectionFiles,
     manifestResult,
     directionResults: byDirection.filter((result): result is CodexOutboxResult => Boolean(result)),
     missingDirections
@@ -2990,6 +3002,7 @@ function App() {
   const historyListRef = useRef<HTMLDivElement | null>(null);
   const historyLoadMoreRef = useRef<HTMLDivElement | null>(null);
   const startingQueuedJobIdsRef = useRef<Set<string>>(new Set());
+  const retryingFailureJobIdsRef = useRef<Set<string>>(new Set());
   const lastPointerEventAtRef = useRef(0);
   const copy = uiCopy[language];
 
@@ -3385,6 +3398,12 @@ function App() {
           if (cancelled) return "cancelled";
 
           if (runnerStatus && !shouldWaitForCodexRunner(runnerStatus)) {
+            if (importError && isStandardDirectionSplitJob(job)) {
+              const diagnostic = recordCodexImportFailure(job, importError);
+              removeCodexJob(job.id, runnerStatus.state);
+              setStatus(`${diagnostic.title}: ${job.id}`);
+              return "terminal";
+            }
             if (shouldReportCompletedCodexImportFailure(runnerStatus, imported)) {
               const diagnostic = recordCodexImportFailure(
                 job,
@@ -3416,6 +3435,40 @@ function App() {
       window.clearInterval(intervalId);
     };
   }, [codexJobs, language]);
+
+  useEffect(() => {
+    const retryableNotices = codexFailureNotices.filter(
+      (notice) => notice.diagnostic.kind === "import_failed" && notice.retryJob
+    );
+    if (retryableNotices.length === 0) return;
+    let cancelled = false;
+
+    const retryRecoveredOutboxImports = async () => {
+      for (const notice of retryableNotices) {
+        if (cancelled || !notice.retryJob || retryingFailureJobIdsRef.current.has(notice.jobId)) continue;
+        retryingFailureJobIdsRef.current.add(notice.jobId);
+        try {
+          await importLatestOutboxResult({
+            background: true,
+            newerThan: notice.retryJob.createdAt,
+            quietEmpty: true,
+            job: notice.retryJob,
+            throwOnError: false,
+            failOnIncompleteDirectionSplit: false
+          });
+        } finally {
+          retryingFailureJobIdsRef.current.delete(notice.jobId);
+        }
+      }
+    };
+
+    void retryRecoveredOutboxImports();
+    const intervalId = window.setInterval(() => void retryRecoveredOutboxImports(), 5000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(intervalId);
+    };
+  }, [codexFailureNotices, language]);
 
   useEffect(() => {
     const runningCount = codexJobs.filter((job) => job.state === "running").length;
@@ -3842,6 +3895,18 @@ function App() {
     );
   }
 
+  function createCodexFailureRetryJob(job: CodexJobQueueItem): CodexJobQueueItem {
+    return {
+      ...job,
+      state: "running",
+      queuedAt: undefined
+    };
+  }
+
+  function clearCodexFailureNotice(jobId: string) {
+    setCodexFailureNotices((current) => current.filter((notice) => notice.jobId !== jobId));
+  }
+
   function recordCodexImportFailure(job: CodexJobQueueItem, error: unknown) {
     const reason = summarizeCodexImportFailureReason(error);
     const title = isStandardDirectionSplitJob(job)
@@ -3859,6 +3924,7 @@ function App() {
       label: job.label,
       createdAt: new Date().toISOString(),
       workflowMode: job.workflowMode,
+      retryJob: createCodexFailureRetryJob(job),
       diagnostic
     };
     setCodexFailureNotices((current) =>
@@ -3867,6 +3933,29 @@ function App() {
         : [notice, ...current].slice(0, 12)
     );
     return diagnostic;
+  }
+
+  async function retryCodexFailureImport(notice: CodexFailureNotice) {
+    if (!notice.retryJob || retryingFailureJobIdsRef.current.has(notice.jobId)) return;
+    retryingFailureJobIdsRef.current.add(notice.jobId);
+    try {
+      const imported = await importLatestOutboxResult({
+        background: false,
+        newerThan: notice.retryJob.createdAt,
+        quietEmpty: false,
+        job: notice.retryJob,
+        throwOnError: true,
+        failOnIncompleteDirectionSplit: false
+      });
+      if (!imported) {
+        setStatus(`${copy.statusCodexJobPending}: ${notice.jobId}`);
+      }
+    } catch (error) {
+      recordCodexImportFailure(notice.retryJob, error);
+      setStatus(error instanceof Error ? error.message : copy.statusInboxError);
+    } finally {
+      retryingFailureJobIdsRef.current.delete(notice.jobId);
+    }
   }
 
   async function generateLocally() {
@@ -4184,7 +4273,11 @@ function App() {
         const manifest = manifestResult ? parseDirectionSplitAnimationManifest(await fetchOutboxResult(manifestResult.name)) : null;
         const directionSplitSelection = selectDirectionSplitAnimationResults(jobResults, pendingJob.id, manifest);
         if (directionSplitSelection.detected) {
-          if (directionSplitSelection.directionResults.length < DIRECTION_SPLIT_ANIMATION_RESULT_COUNT) {
+          if (directionSplitSelection.waitingForFinalManifest) {
+            setStatus(`${copy.statusCodexJobPending}: ${pendingJob.id} (waiting for final manifest)`);
+            return false;
+          }
+          if (!directionSplitSelection.ready) {
             const missing = directionSplitSelection.missingDirections.join(", ") || "direction images";
             if (options.failOnIncompleteDirectionSplit) {
               throw new Error(`Direction split import failed for ${pendingJob.id}: missing ${missing}. Outbox files are still available.`);
@@ -4196,6 +4289,7 @@ function App() {
           }
           const importedResults = await Promise.all(directionSplitSelection.directionResults.map((result) => fetchOutboxResult(result.name)));
           await importDirectionSplitAnimationResults(importedResults, manifest, pendingJob);
+          clearCodexFailureNotice(pendingJob.id);
           removeCodexJob(pendingJob.id, "completed");
           return true;
         }
@@ -4208,6 +4302,7 @@ function App() {
         }
         const importedResults = await Promise.all(directionalResults.map((result) => fetchOutboxResult(result.name)));
         await importDirectionalHatchPetResults(importedResults, pendingJob);
+        clearCodexFailureNotice(pendingJob.id);
         removeCodexJob(pendingJob.id, "completed");
         return true;
       }
@@ -4221,6 +4316,7 @@ function App() {
       const imported = await fetchOutboxResult(latest.name);
       if (pendingJob?.workflowMode === "sprite-generate") {
         await importAnimationSheetResult(imported, pendingJob);
+        clearCodexFailureNotice(pendingJob.id);
         removeCodexJob(pendingJob.id, "completed");
         return true;
       }
@@ -4251,7 +4347,10 @@ function App() {
       setHistory((current) => [item, ...current]);
       setSelectedId(item.id);
       setSelectedFrameId("");
-      if (pendingJob) removeCodexJob(pendingJob.id, "completed");
+      if (pendingJob) {
+        clearCodexFailureNotice(pendingJob.id);
+        removeCodexJob(pendingJob.id, "completed");
+      }
       setStatus(`${copy.statusInboxImported}: ${imported.name}`);
       return true;
     } catch (error) {
@@ -5480,7 +5579,12 @@ function App() {
             onScroll={handleHistoryScroll}
           >
             {codexFailureNotices.map((notice) => (
-              <CodexFailureCard key={notice.id} notice={notice} language={language} />
+              <CodexFailureCard
+                key={notice.id}
+                notice={notice}
+                language={language}
+                onRetryImport={notice.retryJob ? retryCodexFailureImport : undefined}
+              />
             ))}
             {visibleHistory.map((item) => (
               <button
@@ -6111,13 +6215,16 @@ function CodexLogPanel({
 
 function CodexFailureCard({
   notice,
-  language
+  language,
+  onRetryImport
 }: {
   notice: CodexFailureNotice;
   language: Language;
+  onRetryImport?: (notice: CodexFailureNotice) => void;
 }) {
   const copy = uiCopy[language];
   const failure = codexFailureDisplay(notice.diagnostic.kind, copy, notice.diagnostic);
+  const canRetryImport = notice.diagnostic.kind === "import_failed" && Boolean(onRetryImport);
   return (
     <article className={`codex-failure-card ${notice.diagnostic.kind}`}>
       <div className="codex-failure-icon">
@@ -6129,6 +6236,11 @@ function CodexFailureCard({
         <small>{notice.label}</small>
         <em>{failure.message}</em>
         <small>{copy.codexFailureRetryHint}: {failure.suggestion}</small>
+        {canRetryImport && (
+          <button className="secondary-button mini" onClick={() => onRetryImport?.(notice)}>
+            {copy.codexFailureRetryImport}
+          </button>
+        )}
       </span>
     </article>
   );

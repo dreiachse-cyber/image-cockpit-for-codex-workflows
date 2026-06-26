@@ -44,6 +44,7 @@ const chromeProfileDir = join(tempRoot, "chrome-profile");
 const mockRunnerPath = join(tempRoot, "mock-codex-runner.mjs");
 const mockAnimationPackPath = join(tempRoot, "mock-run-cycle.image-cockpit-animation.zip");
 const mockImportFailureMarkerPath = join(tempRoot, "mock-direction-split-import-failure.flag");
+const mockPartialDirectionSplitMarkerPath = join(tempRoot, "mock-partial-direction-split-recovery.flag");
 const apiPort = await getOpenPort();
 const vitePort = await getOpenPort();
 const debugPort = await getOpenPort();
@@ -134,6 +135,7 @@ try {
   await assertAnimationPresetExamples();
   await assertAnimationLibraryHidden();
   await assertCodexFailureNotice();
+  await assertPartialDirectionSplitRecovery();
   await assertCompletedDirectionSplitImportFailure();
   await assertCodexQueue();
   await assertImageEditing();
@@ -672,6 +674,39 @@ async function assertCodexFailureNotice() {
   assert(snapshot.codexFailureCards === 1, "Codex failure notice should remain visible after later success");
   await assertNoBrowserErrors("Codex failure notice");
   await maybeCapture("codex-failure-notice");
+  await selectWorkflowTab("Pixel Art Generation");
+}
+
+async function assertPartialDirectionSplitRecovery() {
+  await selectWorkflowTab("Pixel Art Generation");
+  await setPromptValue("partial direction split recovery setup");
+  await writeFile(mockPartialDirectionSplitMarkerPath, "1", "utf8");
+  await selectWorkflowTab("Animation Generation");
+  await waitForEval(() => `document.body.innerText.includes("Animation Generation")`, "Animation Generation for partial direction recovery");
+  const before = await pageSnapshot();
+
+  await clickButtonByText("Generate Animation");
+  await delay(3200);
+  let snapshot = await pageSnapshot();
+  assert(
+    snapshot.codexFailureCards === before.codexFailureCards,
+    `Partial direction files without a manifest should not add a failure card, got ${snapshot.codexFailureCards}`
+  );
+  assert(snapshot.text.includes("Waiting for Codex"), "Partial direction files should keep the job pending while waiting for the final manifest");
+  await waitForEval(
+    () => `document.querySelectorAll(".history-item").length > ${before.historyItems}`,
+    "partial direction split imports after final manifest",
+    25000
+  );
+  snapshot = await pageSnapshot();
+  assert(snapshot.codexJobRows === 0, "Partial direction split recovery should release the active job slot after import");
+  assert(
+    snapshot.codexFailureCards === before.codexFailureCards,
+    "Partial direction split recovery should not leave a failure card"
+  );
+  assert(snapshot.text.includes("direction-split manifest ok"), "Recovered direction split import should confirm manifest use");
+  await assertNoBrowserErrors("partial direction split recovery");
+  await maybeCapture("partial-direction-split-recovery");
   await selectWorkflowTab("Pixel Art Generation");
 }
 
@@ -1708,6 +1743,33 @@ const chroma = job.spriteContext?.chromaKey === "magenta" ? [255, 0, 255, 255] :
 if (job.spriteContext?.variant === "standard") {
   const directionSlugs = ["front", "front-three-quarter", "side", "back-three-quarter", "back"];
   const directionNames = ["front", "front three-quarter", "side", "back three-quarter", "back"];
+  if (existsSync(${JSON.stringify(mockPartialDirectionSplitMarkerPath)})) {
+    await rm(${JSON.stringify(mockPartialDirectionSplitMarkerPath)}, { force: true });
+    for (const [index, slug] of directionSlugs.entries()) {
+      if (index > 1) continue;
+      const png = makeSpriteSheetPng(cellWidth * 4, cellHeight * 2, 4, 2, cellWidth, cellHeight, chroma, index);
+      await writeFile(join(outboxDir, \`\${jobId}-\${slug}.png\`), png);
+    }
+    console.log(\`mock partial direction split waiting for manifest \${jobId}\`);
+    await new Promise((resolve) => setTimeout(resolve, 5200));
+    for (const [index, slug] of directionSlugs.entries()) {
+      const png = makeSpriteSheetPng(cellWidth * 4, cellHeight * 2, 4, 2, cellWidth, cellHeight, chroma, index);
+      await writeFile(join(outboxDir, \`\${jobId}-\${slug}.png\`), png);
+    }
+    await writeFile(join(outboxDir, \`\${jobId}-qa.json\`), JSON.stringify({ status: "pass", ignoredByUi: true }, null, 2), "utf8");
+    await writeFile(join(outboxDir, \`\${jobId}-manifest.json\`), JSON.stringify({
+      schema: "image-cockpit.direction-split-animation.v1",
+      jobId,
+      action: job.spriteContext?.action || "idle",
+      directions: directionNames,
+      framesPerDirection: 8,
+      grid: { columns: 4, rows: 2, gutter: 0 },
+      cell: { width: cellWidth, height: cellHeight },
+      files: Object.fromEntries(directionSlugs.map((slug, index) => [directionNames[index], \`\${jobId}-\${slug}.png\`]))
+    }, null, 2), "utf8");
+    console.log(\`mock partial direction split recovered \${jobId}\`);
+    process.exit(0);
+  }
   if (existsSync(${JSON.stringify(mockImportFailureMarkerPath)})) {
     await rm(${JSON.stringify(mockImportFailureMarkerPath)}, { force: true });
     for (const [index, slug] of directionSlugs.entries()) {

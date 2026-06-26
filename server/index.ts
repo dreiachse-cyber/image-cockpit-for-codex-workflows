@@ -35,6 +35,7 @@ const runnerLogTailDefaultBytes = 24 * 1024;
 const runnerLogTailMaxBytes = 96 * 1024;
 const resultRoutePrefix = "/api/codex/results/";
 const runnerPreflightTimeoutMs = 4000;
+const directionSplitSlugs = ["front", "front-three-quarter", "side", "back-three-quarter", "back"];
 
 const runnerStatuses = new Map<string, CodexRunnerStatus>();
 
@@ -421,6 +422,7 @@ function workflowNotes(mode: CodexWorkflowMode) {
       "Every cell must contain exactly one full-body character with head, hair, hands, equipment, and both feet visible, centered with at least 10% inner padding.",
       "Reject and retry the sprite sheet if any cell has a cropped head, missing feet, multiple heads, a head below the feet, inconsistent scale, body fragments, or a different character.",
       "Use the requested chroma-key background color as a flat simple background in every cell so Image Cockpit can remove it after import.",
+      "For standard direction-split output, write final direction images first and the manifest last. Keep work-in-progress files and *-qa.json outside the outbox root.",
       "Avoid readable text, logos, watermarks, labels, UI words, numbers, scenery, and complex backgrounds.",
       blockerSidecarNote
     ];
@@ -438,7 +440,7 @@ function workflowNotes(mode: CodexWorkflowMode) {
     "Create a real raster image. Do not create a procedural placeholder, SVG, diagram, or text-only result.",
     "Avoid readable text, logos, watermarks, labels, UI words, and numbers unless the user explicitly asks for them.",
     "If the first result contains unwanted text or numbers, retry once with stricter no-text/no-number constraints.",
-    "Write the final image with the job id prefix, and write a short Markdown or JSON sidecar that states whether image_gen was used.",
+    "Write the final image with the job id prefix. If you include notes, prefer a short Markdown sidecar and do not place *-qa.json or work files in the outbox root.",
     blockerSidecarNote,
     "This is a text-to-image style generation job. Do not treat the current UI sample image as a source image unless selectedImage.assetPath is populated.",
     "Use prompt, negativePrompt, generationHints, and jobNotes as the generation brief."
@@ -780,6 +782,7 @@ function buildCodexRunnerPrompt(job: { id: string; path: string }) {
     "For workflowMode=sprite-generate, inspect selectedImage.assetPath, then use imagegen / built-in image_gen when available to create the requested sprite sheet assets from the source character image. Never create a procedural placeholder or SVG.",
     "For workflowMode=sprite-generate, follow spriteContext.grid, spriteContext.cell, spriteContext.directions, spriteContext.variant, and spriteContext.chromaKey exactly. Keep one full-body character centered inside each strict cell with padding, no cropping, no duplicated heads, and no body parts crossing cells.",
     "For workflowMode=sprite-generate with spriteContext.variant=standard, return exactly five separate direction PNG/WebP images plus a direction-split manifest JSON using schema image-cockpit.direction-split-animation.v1. The files must use the job id filename prefix and these suffixes: front, front-three-quarter, side, back-three-quarter, back, and manifest.json. Each direction image must be 4 columns x 2 rows, 256x256 cells unless spriteContext.cell says otherwise. Do not return only one combined 5x8 sheet.",
+    "For standard direction-split output, treat the manifest as the final commit marker: write any work-in-progress or QA files outside the outbox or under outbox/.staging/<job-id>/, write the five final direction images first, then write <job-id>-manifest.json last.",
     "For workflowMode=sprite-generate, inspect all cells before writing the final file and retry if any head is cut off, feet are missing, a head appears below feet, scale changes wildly, or the background is not flat chroma key.",
     "For workflowMode=sprite-generate with spriteContext.variant=hatch-pet, use the installed hatch-pet skill/scripts when available. Build a Codex pet atlas with 8 columns x 9 rows, 192x208 cells, 1536x1872 total, transparent unused cells, contact-sheet QA, and final spritesheet PNG/WebP returned with the job id filename prefix. Include pet.json as a sidecar if produced.",
     "For workflowMode=sprite-generate with spriteContext.variant=directional-hatch-pet, use the installed hatch-pet skill/scripts when available and return exactly five separate Codex pet atlas images: direction-01-front, direction-02-front-three-quarter, direction-03-side, direction-04-back-three-quarter, and direction-05-back. Each atlas must be 8 columns x 9 rows, 192x208 cells, 1536x1872 total, transparent unused cells, and use the job id filename prefix plus the direction suffix. Do not return only one giant combined sheet.",
@@ -790,9 +793,10 @@ function buildCodexRunnerPrompt(job: { id: string; path: string }) {
     "Important constraints:",
     "- The Image Cockpit app itself must not call OpenAI APIs directly.",
     "- Do not modify project source files, package files, docs, git metadata, or configuration.",
+    "- Do not run git status, git diff, git clean, Remove-Item cleanup, or other repository/cleanup commands for this handoff job.",
     "- Do not write API keys, access tokens, model weights, or license-unclear assets.",
     "- If image generation or editing is unavailable in this Codex environment, write no placeholder image.",
-    "- Prefer PNG or WebP for still images. If you produce notes, write them as a small JSON or Markdown sidecar in the outbox.",
+    "- Prefer PNG or WebP for still images. If you produce notes, write them as a small Markdown sidecar in the outbox. Do not place *-qa.json or work files in the outbox root.",
     "- If image generation/editing is blocked by safety, policy, or unavailable imagegen capability, do not create a placeholder image.",
     "- Write a small JSON blocker sidecar only, using this schema:",
     '{ "status": "blocked", "reasonKind": "policy_or_safety" | "imagegen_unavailable" | "unknown", "userMessage": "A short user-safe reason.", "suggestion": "A short retry suggestion." }',
@@ -968,6 +972,8 @@ async function findJobSidecar(jobId: string) {
     const candidates = entries
       .filter((entry) => entry.isFile())
       .filter((entry) => isJobOutboxFileName(jobId, entry.name))
+      .filter((entry) => !shouldIgnoreOutboxResultName(entry.name))
+      .filter((entry) => !isDirectionSplitManifestFileName(entry.name))
       .filter((entry) => [".json", ".md", ".txt"].includes(extname(entry.name).toLowerCase()))
       .sort((left, right) => left.name.localeCompare(right.name));
     for (const entry of candidates) {
@@ -999,12 +1005,13 @@ function readSidecarReasonKind(name: string, text: string) {
 async function hasOutboxImageForJob(jobId: string) {
   try {
     const entries = await readdir(outboxDir, { withFileTypes: true });
-    return entries.some(
-      (entry) =>
-        entry.isFile() &&
-        isJobOutboxFileName(jobId, entry.name) &&
-        Boolean(mimeTypeForImage(entry.name))
-    );
+    const names = entries
+      .filter((entry) => entry.isFile())
+      .map((entry) => entry.name)
+      .filter((name) => isJobOutboxFileName(jobId, name))
+      .filter((name) => !shouldIgnoreOutboxResultName(name));
+    if (hasCompleteDirectionSplitOutboxFileSet(names, jobId)) return true;
+    return names.some((name) => Boolean(mimeTypeForImage(name)) && !isDirectionSplitDirectionFileName(name, jobId));
   } catch {
     return false;
   }
@@ -1012,6 +1019,24 @@ async function hasOutboxImageForJob(jobId: string) {
 
 function isJobOutboxFileName(jobId: string, name: string) {
   return name.startsWith(`${jobId}-`) || name.startsWith(`${jobId}.`);
+}
+
+function hasCompleteDirectionSplitOutboxFileSet(names: string[], jobId: string) {
+  if (!names.some((name) => isDirectionSplitManifestFileName(name) && name === `${jobId}-manifest.json`)) return false;
+  return directionSplitSlugs.every((slug) => names.some((name) => isDirectionSplitDirectionFileName(name, jobId, slug)));
+}
+
+function isDirectionSplitDirectionFileName(name: string, jobId: string, expectedSlug?: string) {
+  if (!mimeTypeForImage(name)) return false;
+  const normalized = name
+    .toLowerCase()
+    .replace(/\.[^.]+$/, "")
+    .replace(jobId.toLowerCase(), "")
+    .replace(/[_\s]+/g, "-")
+    .replace(/^-+/, "");
+  return expectedSlug
+    ? normalized === expectedSlug
+    : directionSplitSlugs.some((slug) => normalized === slug);
 }
 
 async function readShortFile(path?: string) {
@@ -1114,6 +1139,7 @@ async function listOutboxResults() {
   const results = await Promise.all(
     entries
       .filter((entry) => entry.isFile())
+      .filter((entry) => !shouldIgnoreOutboxResultName(entry.name))
       .map(async (entry) => {
         const mimeType = mimeTypeForOutboxResult(entry.name);
         if (!mimeType) return null;
@@ -1160,11 +1186,23 @@ function mimeTypeForImage(name: string) {
 }
 
 function mimeTypeForOutboxResult(name: string) {
+  if (shouldIgnoreOutboxResultName(name)) return null;
   return mimeTypeForImage(name) ?? (isDirectionSplitManifestFileName(name) ? "application/json" : null);
 }
 
 function isDirectionSplitManifestFileName(name: string) {
   return /-manifest\.json$/i.test(name);
+}
+
+function shouldIgnoreOutboxResultName(name: string) {
+  const normalized = name.toLowerCase();
+  return (
+    normalized.startsWith(".") ||
+    normalized.includes(".staging") ||
+    normalized.includes("-work-") ||
+    normalized.endsWith("-qa.json") ||
+    normalized.endsWith(".qa.json")
+  );
 }
 
 function extensionForMimeType(mimeType: string) {
