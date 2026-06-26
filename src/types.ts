@@ -171,6 +171,29 @@ export interface CodexRunnerPreflightResponse {
   runner: CodexRunnerPreflight;
 }
 
+export type CodexArtifactQuality = "gold" | "silver" | "bronze" | "blocked" | "waiting";
+
+export interface CodexArtifactStatus {
+  jobId: string;
+  artifactKind: "direction-split";
+  detected: boolean;
+  ready: boolean;
+  verified: boolean;
+  quality: CodexArtifactQuality;
+  reason: string;
+  missingDirections: string[];
+  warnings: string[];
+  files: string[];
+  manifestName?: string;
+  stable: boolean;
+  candidateCount: number;
+  chromaKey?: {
+    expected?: string;
+    manifest?: string;
+    warning?: string;
+  };
+}
+
 export interface CodexJobStatusResponse {
   status: CodexRunnerStatus;
 }
@@ -192,6 +215,7 @@ export interface CodexOutboxResult {
   size: number;
   modifiedAt: string;
   mimeType: string;
+  artifact?: CodexArtifactStatus;
 }
 
 export interface CodexOutboxImportResponse extends CodexOutboxResult {

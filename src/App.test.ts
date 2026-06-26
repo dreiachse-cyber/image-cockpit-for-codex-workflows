@@ -16,7 +16,7 @@ import {
   summarizeCodexImportFailureReason,
   SUPPORTED_LANGUAGE_IDS
 } from "./App";
-import type { CodexRunnerStatus } from "./types";
+import type { CodexArtifactStatus, CodexRunnerStatus } from "./types";
 
 describe("Codex runner wait state", () => {
   it("keeps waiting only when the runner is actively running or status is not loaded yet", () => {
@@ -175,6 +175,59 @@ describe("Codex outbox job result matching", () => {
     expect(selection.ready).toBe(true);
     expect(selection.directionResults).toHaveLength(5);
   });
+
+  it("waits for server verified artifacts even when manifest and direction images are visible", () => {
+    const jobId = "codex-job-2026-06-25T13-01-42-060Z";
+    const artifact = makeDirectionSplitArtifact(jobId, {
+      ready: false,
+      verified: false,
+      quality: "waiting",
+      reason: "waiting for stable verified artifacts"
+    });
+    const results = [
+      makeOutboxResult(`${jobId}-manifest.json`, "application/json", artifact),
+      makeOutboxResult(`${jobId}-front.png`, "image/png", artifact),
+      makeOutboxResult(`${jobId}-front-three-quarter.png`, "image/png", artifact),
+      makeOutboxResult(`${jobId}-side.png`, "image/png", artifact),
+      makeOutboxResult(`${jobId}-back-three-quarter.png`, "image/png", artifact),
+      makeOutboxResult(`${jobId}-back.png`, "image/png", artifact)
+    ];
+
+    const selection = selectDirectionSplitAnimationResults(results, jobId, {
+      schema: "image-cockpit.direction-split-animation.v1",
+      files: Object.fromEntries(["front", "front-three-quarter", "side", "back-three-quarter", "back"].map((slug) => [slug, `${jobId}-${slug}.png`]))
+    });
+
+    expect(selection.detected).toBe(true);
+    expect(selection.waitingForVerifiedArtifacts).toBe(true);
+    expect(selection.ready).toBe(false);
+  });
+
+  it("allows import once the server marks the direction split artifact verified", () => {
+    const jobId = "codex-job-2026-06-25T13-01-42-060Z";
+    const artifact = makeDirectionSplitArtifact(jobId, {
+      ready: true,
+      verified: true,
+      quality: "gold",
+      reason: "server verified"
+    });
+    const results = [
+      makeOutboxResult(`${jobId}-manifest.json`, "application/json", artifact),
+      makeOutboxResult(`${jobId}-front.png`, "image/png", artifact),
+      makeOutboxResult(`${jobId}-front-three-quarter.png`, "image/png", artifact),
+      makeOutboxResult(`${jobId}-side.png`, "image/png", artifact),
+      makeOutboxResult(`${jobId}-back-three-quarter.png`, "image/png", artifact),
+      makeOutboxResult(`${jobId}-back.png`, "image/png", artifact)
+    ];
+
+    const selection = selectDirectionSplitAnimationResults(results, jobId, {
+      schema: "image-cockpit.direction-split-animation.v1",
+      files: Object.fromEntries(["front", "front-three-quarter", "side", "back-three-quarter", "back"].map((slug) => [slug, `${jobId}-${slug}.png`]))
+    });
+
+    expect(selection.waitingForVerifiedArtifacts).toBe(false);
+    expect(selection.ready).toBe(true);
+  });
 });
 
 describe("animation frame cleanup", () => {
@@ -214,13 +267,41 @@ function makeStatus(state: CodexRunnerStatus["state"]): CodexRunnerStatus {
   };
 }
 
-function makeOutboxResult(name: string, mimeType = "image/png") {
+function makeOutboxResult(name: string, mimeType = "image/png", artifact?: CodexArtifactStatus) {
   return {
     name,
     path: `D:\\codex\\outbox\\${name}`,
     size: 123,
     modifiedAt: "2026-06-27T00:00:00.000Z",
-    mimeType
+    mimeType,
+    artifact
+  };
+}
+
+function makeDirectionSplitArtifact(
+  jobId: string,
+  overrides: Partial<CodexArtifactStatus> = {}
+): CodexArtifactStatus {
+  return {
+    ...makeDirectionSplitArtifactBase(jobId),
+    ...overrides
+  };
+}
+
+function makeDirectionSplitArtifactBase(jobId: string): CodexArtifactStatus {
+  return {
+    jobId,
+    artifactKind: "direction-split" as const,
+    detected: true,
+    ready: false,
+    verified: false,
+    quality: "waiting" as const,
+    reason: "waiting",
+    missingDirections: [],
+    warnings: [],
+    files: [],
+    stable: false,
+    candidateCount: 5
   };
 }
 

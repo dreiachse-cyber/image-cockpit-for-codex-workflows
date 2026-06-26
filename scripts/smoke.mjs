@@ -20,7 +20,8 @@ async function runManualHandoffSmoke() {
     port,
     handoffDir,
     env: {
-      IMAGE_COCKPIT_CODEX_AUTORUN: "0"
+      IMAGE_COCKPIT_CODEX_AUTORUN: "0",
+      IMAGE_COCKPIT_ARTIFACT_STABLE_MS: "0"
     }
   });
 
@@ -60,6 +61,36 @@ async function runManualHandoffSmoke() {
     assert(importedOutbox.dataUrl === tinyPng, "outbox import should return a data URL");
     const importedManifest = await getJson(port, `/api/codex/results/${directionManifestName}`);
     assert(importedManifest.mimeType === "application/json", "direction split manifest import should preserve JSON MIME type");
+
+    const artifactJobId = "codex-job-smoke-artifact-staging-Z";
+    const directionSlugs = ["front", "front-three-quarter", "back-three-quarter", "back"];
+    await writeFile(join(handoffDir, "outbox", `${artifactJobId}-manifest.json`), JSON.stringify({
+      schema: "image-cockpit.direction-split-animation.v1",
+      jobId: artifactJobId,
+      files: {
+        front: `${artifactJobId}-front.png`,
+        "front-three-quarter": `${artifactJobId}-front-three-quarter.png`,
+        side: `${artifactJobId}-side.png`,
+        "back-three-quarter": `${artifactJobId}-back-three-quarter.png`,
+        back: `${artifactJobId}-back.png`
+      },
+      chromaKey: { name: "green" }
+    }, null, 2), "utf8");
+    for (const slug of directionSlugs) {
+      await writeFile(join(handoffDir, "outbox", `${artifactJobId}-${slug}.png`), tinyPngBytes);
+    }
+    const incompleteArtifactList = await getJson(port, "/api/codex/results");
+    const incompleteArtifact = incompleteArtifactList.results.find((result) => result.name === `${artifactJobId}-manifest.json`)?.artifact;
+    assert(incompleteArtifact?.ready === false, "manifest-first direction split should wait while side.png is missing");
+    assert(incompleteArtifact?.reason.includes("side"), "manifest-first direction split should report missing side");
+    await writeFile(join(handoffDir, "outbox", `${artifactJobId}-side.png`), tinyPngBytes);
+    const verifiedArtifactList = await getJson(port, "/api/codex/results");
+    const verifiedArtifact = verifiedArtifactList.results.find((result) => result.name === `${artifactJobId}-manifest.json`)?.artifact;
+    assert(verifiedArtifact?.ready === true, "complete direction split should become server verified");
+    assert(verifiedArtifact?.verified === true, "complete direction split should expose verified=true");
+    const verifiedManifest = await getJson(port, `/api/codex/results/${artifactJobId}-manifest.json`);
+    const verifiedManifestText = Buffer.from(verifiedManifest.dataUrl.split(",")[1], "base64").toString("utf8");
+    assert(verifiedManifestText.includes('"serverVerified": true'), "server should rewrite the final direction split manifest");
 
     const localImages = await postJson(port, "/api/generate", {
       workflowMode: "image-generate",
@@ -293,7 +324,8 @@ async function runMockAutorunSmoke() {
         "--sandbox",
         "workspace-write",
         "-"
-      ])
+      ]),
+      IMAGE_COCKPIT_ARTIFACT_STABLE_MS: "0"
     }
   });
 

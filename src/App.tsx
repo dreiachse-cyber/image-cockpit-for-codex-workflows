@@ -66,6 +66,7 @@ import type {
   AnimationLibraryItem,
   AnimationLibraryKind,
   AnimationPackManifest,
+  CodexArtifactStatus,
   CodexFailureKind,
   CodexJobDiagnostic,
   CodexJobLogResponse,
@@ -270,7 +271,10 @@ interface DirectionSplitSelection {
   detected: boolean;
   ready: boolean;
   waitingForFinalManifest: boolean;
+  waitingForVerifiedArtifacts: boolean;
   hasDirectionFiles: boolean;
+  bronzeCandidate: boolean;
+  artifactStatus?: CodexArtifactStatus;
   manifestResult?: CodexOutboxResult;
   directionResults: CodexOutboxResult[];
   missingDirections: string[];
@@ -2838,6 +2842,7 @@ export function selectDirectionSplitAnimationResults(
   jobId: string,
   manifest: DirectionSplitAnimationManifest | null = null
 ): DirectionSplitSelection {
+  const artifactStatus = results.find((result) => result.artifact?.jobId === jobId && result.artifact.artifactKind === "direction-split")?.artifact;
   const manifestResult = results.find((result) => isDirectionSplitAnimationManifestName(result.name, jobId));
   const staticImageResults = results.filter(isStaticImageResult);
   const manifestFiles = manifest ? directionSplitManifestFiles(manifest) : new Map<string, string>();
@@ -2855,12 +2860,18 @@ export function selectDirectionSplitAnimationResults(
     .filter(Boolean);
   const hasManifest = Boolean(manifestResult || manifest);
   const hasDirectionFiles = byDirection.some(Boolean);
-  const ready = hasManifest && missingDirections.length === 0;
+  const serverVerified = !artifactStatus || (artifactStatus.ready && artifactStatus.verified);
+  const bronzeCandidate = artifactStatus?.quality === "bronze";
+  const waitingForVerifiedArtifacts = Boolean(artifactStatus?.detected && !artifactStatus.ready && !bronzeCandidate);
+  const ready = hasManifest && missingDirections.length === 0 && serverVerified;
   return {
-    detected: Boolean(hasManifest || hasDirectionFiles),
+    detected: Boolean(artifactStatus?.detected || hasManifest || hasDirectionFiles),
     ready,
     waitingForFinalManifest: hasDirectionFiles && !hasManifest,
+    waitingForVerifiedArtifacts,
     hasDirectionFiles,
+    bronzeCandidate,
+    artifactStatus,
     manifestResult,
     directionResults: byDirection.filter((result): result is CodexOutboxResult => Boolean(result)),
     missingDirections
@@ -3909,14 +3920,22 @@ function App() {
 
   function recordCodexImportFailure(job: CodexJobQueueItem, error: unknown) {
     const reason = summarizeCodexImportFailureReason(error);
-    const title = isStandardDirectionSplitJob(job)
+    const isReviewCandidate = isStandardDirectionSplitJob(job) && /bronze candidate|needs review|raw direction candidate/i.test(reason);
+    const title = isReviewCandidate
+      ? (language === "ja" ? "確認が必要な候補" : "Needs review candidate")
+      : isStandardDirectionSplitJob(job)
       ? copy.codexFailureDirectionSplitImportFailedTitle
       : copy.codexFailureImportFailedTitle;
+    const suggestion = isReviewCandidate
+      ? (language === "ja"
+          ? "raw候補を確認、ダウンロード、再取り込み、または再生成してください。"
+          : "Review or download the raw candidate, retry import, or regenerate the job.")
+      : copy.codexFailureImportFailedSuggestion;
     const diagnostic: CodexJobDiagnostic = {
       kind: "import_failed",
       title,
       userMessage: `${copy.codexFailureImportFailedMessage} ${copy.codexFailureImportFailedReason}: ${reason}`,
-      suggestion: copy.codexFailureImportFailedSuggestion
+      suggestion
     };
     const notice: CodexFailureNotice = {
       id: `${job.id}-import-failed`,
@@ -4202,6 +4221,37 @@ function App() {
     setStatus(`${copy.statusAnimationGenerated}: ${item.name}. ${formatFramesAddedStatus(newFrames.length, actionName, language)}${manifestSuffix}${warningSuffix}`);
   }
 
+  async function importDirectionSplitBronzeCandidate(
+    importedResults: CodexOutboxImportResponse[],
+    pendingJob: CodexJobQueueItem,
+    error: unknown
+  ) {
+    const firstCandidate = importedResults.find((result) => result.mimeType.startsWith("image/"));
+    if (!firstCandidate) throw error instanceof Error ? error : new Error("Direction split candidate could not be reviewed.");
+    const image = await loadImage(firstCandidate.dataUrl);
+    const itemName = `${pendingJob.id}-bronze-candidate-${firstCandidate.name}`;
+    const item: HistoryItem = {
+      id: createId("hist"),
+      name: itemName,
+      dataUrl: firstCandidate.dataUrl,
+      provider: "local-inbox",
+      prompt,
+      seed,
+      size: `${image.width}x${image.height}`,
+      createdAt: new Date().toISOString(),
+      adopted: false,
+      source: "inbox",
+      derivedFromId: pendingJob.sourceImageId,
+      derivedFromName: pendingJob.sourceImageName
+    };
+    setHistory((current) => [item, ...current]);
+    setSelectedId(item.id);
+    setAnimationGenerationMode("standard");
+    setStatus(
+      `${language === "ja" ? "Bronze候補" : "Bronze candidate"}: ${item.name}. ${summarizeCodexImportFailureReason(error)}`
+    );
+  }
+
   async function fetchOutboxResult(name: string) {
     const importResponse = await fetch(`/api/codex/results/${encodeURIComponent(name)}`);
     if (!importResponse.ok) throw new Error(await importResponse.text());
@@ -4277,6 +4327,26 @@ function App() {
             setStatus(`${copy.statusCodexJobPending}: ${pendingJob.id} (waiting for final manifest)`);
             return false;
           }
+          if (directionSplitSelection.waitingForVerifiedArtifacts) {
+            const reason = directionSplitSelection.artifactStatus?.reason ?? "waiting for stable verified artifacts";
+            if (
+              options.failOnIncompleteDirectionSplit &&
+              directionSplitSelection.artifactStatus?.candidateCount &&
+              /^missing\b/i.test(reason)
+            ) {
+              throw new Error(`Bronze candidate for ${pendingJob.id}: ${reason}. Raw direction files are still available.`);
+            }
+            setStatus(`${copy.statusCodexJobPending}: ${pendingJob.id} (${reason})`);
+            return false;
+          }
+          if (directionSplitSelection.bronzeCandidate) {
+            const reason = directionSplitSelection.artifactStatus?.reason ?? "raw direction candidate needs review";
+            if (options.failOnIncompleteDirectionSplit) {
+              throw new Error(`Bronze candidate for ${pendingJob.id}: ${reason}. Raw direction files are still available.`);
+            }
+            if (!options.quietEmpty) setStatus(`${copy.statusCodexJobPending}: ${pendingJob.id} (${reason})`);
+            return false;
+          }
           if (!directionSplitSelection.ready) {
             const missing = directionSplitSelection.missingDirections.join(", ") || "direction images";
             if (options.failOnIncompleteDirectionSplit) {
@@ -4288,8 +4358,13 @@ function App() {
             return false;
           }
           const importedResults = await Promise.all(directionSplitSelection.directionResults.map((result) => fetchOutboxResult(result.name)));
-          await importDirectionSplitAnimationResults(importedResults, manifest, pendingJob);
-          clearCodexFailureNotice(pendingJob.id);
+          try {
+            await importDirectionSplitAnimationResults(importedResults, manifest, pendingJob);
+            clearCodexFailureNotice(pendingJob.id);
+          } catch (error) {
+            await importDirectionSplitBronzeCandidate(importedResults, pendingJob, error);
+            recordCodexImportFailure(pendingJob, new Error(`Bronze candidate for ${pendingJob.id}: ${summarizeCodexImportFailureReason(error)}. Raw direction files are still available.`));
+          }
           removeCodexJob(pendingJob.id, "completed");
           return true;
         }
