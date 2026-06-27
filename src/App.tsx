@@ -5343,7 +5343,7 @@ function App() {
           <Grid3X3 size={18} aria-hidden="true" />
           <strong>Image Cockpit for Codex Workflows</strong>
           <span>{activeWorkflowCopy.label}</span>
-          <small>v0.1.0</small>
+          <small>v0.1.1</small>
         </div>
         <div className="project-strip">
           <LanguageSelect language={language} label={copy.language} onChange={setLanguage} />
@@ -6286,7 +6286,7 @@ function LocalStateRecoveryScreen({
           <Grid3X3 size={18} aria-hidden="true" />
           <strong>Image Cockpit for Codex Workflows</strong>
           <span>Storage recovery</span>
-          <small>v0.1.0</small>
+          <small>v0.1.1</small>
         </div>
       </header>
 

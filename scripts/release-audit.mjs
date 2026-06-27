@@ -5,6 +5,7 @@ import { extname, join } from "node:path";
 const root = process.cwd();
 const failures = [];
 const privacyTextExtensions = new Set(["", ".css", ".html", ".js", ".json", ".md", ".mjs", ".ts", ".tsx", ".txt", ".yaml", ".yml"]);
+const expectedPackageVersion = "0.1.1";
 
 function slugPromptExampleTitle(value) {
   return value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
@@ -35,6 +36,7 @@ const requiredFiles = [
   "scripts/capture-readme-screenshots.mjs",
   "docs/qa/completed-codex-job-import-storage-quota.md",
   "docs/qa/local-state-oom-safe-mode-retention.md",
+  "docs/qa/v0.1.1-release-prep.md",
   "public/reset-local-state.html",
   "public/samples/idle-breathing-sheet.png",
   "public/samples/walk-cycle-sheet.png",
@@ -61,6 +63,7 @@ const requiredFiles = [
   "docs/release/v0.1.0-checklist.md",
   "docs/release/v0.1.0-runbook.md",
   "docs/release/v0.1.0-release-notes.md",
+  "docs/release/v0.1.1-release-notes.md",
   "docs/release/v0.1.0-owner-review.md",
   "docs/release/v0.1.0-final-audit.md",
   "docs/release/v0.1.0-acceptance-evidence.md",
@@ -179,6 +182,8 @@ const requiredVerifyCommands = [
 const requiredReviewLocalCommands = ["npm run verify", "npm run ui:smoke", "npm run codex:smoke"];
 const requiredReadmeLinks = [
   "CHANGELOG.md",
+  "docs/release/v0.1.1-release-notes.md",
+  "docs/qa/v0.1.1-release-prep.md",
   "docs/release/v0.1.0-release-notes.md",
   "docs/release/v0.1.0-owner-review.md",
   "docs/release/v0.1.0-final-audit.md",
@@ -236,6 +241,25 @@ function checkPackageJson() {
 
   if (packageJson.license !== "MIT") {
     failures.push("package.json license should be MIT.");
+  }
+
+  if (packageJson.version !== expectedPackageVersion) {
+    failures.push(`package.json version should be ${expectedPackageVersion} for the v0.1.1 release prep.`);
+  }
+
+  const appText = readText("src/App.tsx");
+  if (!appText.includes(`<small>v${expectedPackageVersion}</small>`)) {
+    failures.push(`App version badge should display v${expectedPackageVersion}.`);
+  }
+
+  const packageLock = readJson("package-lock.json");
+  if (packageLock) {
+    if (packageLock.version !== expectedPackageVersion) {
+      failures.push(`package-lock.json version should be ${expectedPackageVersion} for the v0.1.1 release prep.`);
+    }
+    if (packageLock.packages?.[""]?.version !== expectedPackageVersion) {
+      failures.push(`package-lock root package version should be ${expectedPackageVersion} for the v0.1.1 release prep.`);
+    }
   }
 
   requiredPackageScripts.forEach((scriptName) => {
@@ -1346,12 +1370,14 @@ function checkReleaseDocs() {
   const checklist = readText("docs/release/v0.1.0-checklist.md");
   const runbook = readText("docs/release/v0.1.0-runbook.md");
   const releaseNotes = readText("docs/release/v0.1.0-release-notes.md");
+  const releaseNotes011 = readText("docs/release/v0.1.1-release-notes.md");
+  const releasePrepQa = readText("docs/qa/v0.1.1-release-prep.md");
   const ownerReview = readText("docs/release/v0.1.0-owner-review.md");
   const finalAudit = readText("docs/release/v0.1.0-final-audit.md");
   const acceptanceEvidence = readText("docs/release/v0.1.0-acceptance-evidence.md");
   const ownerDecision = readText("docs/release/v0.1.0-owner-decision.md");
   const manualHandoff = readText("docs/usage/manual-handoff.md");
-  if (!readme || !checklist || !runbook || !releaseNotes || !ownerReview || !finalAudit || !acceptanceEvidence || !ownerDecision || !manualHandoff) return;
+  if (!readme || !checklist || !runbook || !releaseNotes || !releaseNotes011 || !releasePrepQa || !ownerReview || !finalAudit || !acceptanceEvidence || !ownerDecision || !manualHandoff) return;
 
   requiredReadmeLinks.forEach((link) => {
     if (!readme.includes(link)) {
@@ -1375,6 +1401,53 @@ function checkReleaseDocs() {
   ].forEach((line) => {
     if (!runbook.includes(line)) {
       failures.push(`Release runbook is missing safety line: ${line}`);
+    }
+  });
+
+  [
+    "v0.1.1",
+    "package.json",
+    "package-lock.json",
+    "/?safe=1",
+    "/reset-local-state.html",
+    "IndexedDB-backed persistence",
+    "Codex generation concurrency to 3 active jobs",
+    "Codex log cards",
+    "completed Codex job imports",
+    "direction-split animation artifact staging",
+    "Image Editing source-image fitting",
+    "official preset coverage to 16 sample sheets",
+    "The app still does not call OpenAI APIs directly",
+    "No model weights, API keys, tokens",
+    "027/028",
+    "not included in this v0.1.1 draft",
+    "npm run verify",
+    "npm run ui:smoke"
+  ].forEach((line) => {
+    if (!releaseNotes011.includes(line)) {
+      failures.push(`v0.1.1 release notes are missing expected content: ${line}`);
+    }
+  });
+
+  [
+    "v0.1.1 Release Prep QA",
+    "Target commit",
+    "027/028",
+    "not included",
+    "npm run doctor",
+    "npm run typecheck",
+    "npm test",
+    "npm run build",
+    "npm run smoke",
+    "npm run release:audit",
+    "npm run ui:smoke",
+    "git diff --check",
+    "/?safe=1",
+    "/reset-local-state.html",
+    "Tag push / GitHub Release"
+  ].forEach((line) => {
+    if (!releasePrepQa.includes(line)) {
+      failures.push(`v0.1.1 release prep QA is missing expected content: ${line}`);
     }
   });
 

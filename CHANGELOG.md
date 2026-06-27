@@ -2,22 +2,56 @@
 
 ## Unreleased
 
+No unreleased changes yet.
+
+## v0.1.1 - 2026-06-27
+
+Stability, recovery, and animation workflow update after the v0.1.0 public baseline.
+
 ### Added
 
-- Pixel art generation now routes to local Codex handoff so `codex exec` can use imagegen / built-in `image_gen` for real prompt-only images.
-- Built-in local procedural PNG generator kept as a fallback/dev verification path.
-- Pixel-art-to-animation generation workflow that requires an uploaded or selected pixel-art source, then creates an animation sheet and immediate timeline frames.
-- Three-tab workspace focused on pixel art generation, image editing, and animation generation.
-- Prompt Examples modal opened from directly below the Pixel Art Prompt field, with copy buttons and one-click loading into Pixel Art Generation.
-- Pixel Art Generation / Image Editing / Animation Generation tabs and a preset-driven Animation Generation flow with source selection, motion selection, generation, and animated GIF / animated WebP / sprite sheet downloads.
-- Public-launch documentation, X launch copy, and a pull request policy that keeps forks welcome while upstream PR intake is disabled or limited.
-- `POST /api/generate` local generation endpoint and smoke coverage that checks generated PNG dimensions.
-- Optional real imagegen smoke through `npm run imagegen:smoke`.
-- Public privacy guard in release audit, plus environment-neutral Codex CLI evidence paths in public docs.
+- Prompt Examples modal with preview images, copy buttons, and one-click loading into Pixel Art Generation.
+- Basic, profession-oriented, and monster prompt examples with generated preview assets.
+- Pixel-art-to-animation workflow with selected source images, motion presets, 5-direction previews, GIF/WebP/sprite-sheet downloads, and direction-split artifact handling.
+- Official animation preset coverage expanded to 16 sample sheets with QA galleries, transparency audits, mechanical QA artifacts, and direction GIFs.
+- Local animation library pack import/export foundations.
+- Public launch materials, refreshed README screenshots, current demo GIF, and X/Twitter launch copy.
+- `POST /api/generate` local generation endpoint and optional real imagegen smoke through `npm run imagegen:smoke`.
+- Public privacy guard in release audit and environment-neutral Codex CLI evidence paths in public docs.
 
-### Notes
+### Changed
 
-- The built-in generator is local and deterministic so fallback image routes and animation generation can run end-to-end without external services. Pixel art image quality depends on the local Codex imagegen path.
+- The app opens directly into the working cockpit instead of a guided-start screen.
+- Workflow controls, preview toolbar behavior, selected result previewing, and download behavior were simplified across Pixel Art Generation, Image Editing, and Animation Generation.
+- Codex job status moved above the results list for easier scanning.
+- Codex generation concurrency increased to 3 active jobs.
+- Codex log cards now match the 3-job concurrency limit, with latest-line following and fullscreen log viewing.
+- Animation final artifacts are kept out of editable image-source flows.
+- Large history and frame state moved toward IndexedDB-backed persistence with lightweight localStorage summaries.
+
+### Fixed
+
+- Completed Codex job import failures now release the active job slot instead of leaving jobs stuck as running.
+- Job completion and auto-import matching now use exact job IDs to avoid importing unrelated results.
+- Stale Codex runner jobs are handled more gracefully.
+- Direction-split imports now wait for usable manifests and verified artifacts instead of treating partial files as complete.
+- Temporary, staging, contact-sheet, debug, work, and QA artifacts are filtered out from normal Local Inbox imports.
+- Image Editing now keeps full-body source images visible, records source-image annotation coordinates, and reinforces no-crop / no-zoom handoff prompts.
+- Static result previews, animation persistence, exports, chroma-key handling, and walk/run sample alignment were tightened.
+
+### Recovery
+
+- Added safe local recovery mode at `http://127.0.0.1:<port>/?safe=1`.
+- Added static browser-state reset page at `http://127.0.0.1:<port>/reset-local-state.html`.
+- Added storage preflight and a recovery screen for oversized Image Cockpit browser state.
+- Reset and safe-mode routes clear or bypass only Image Cockpit browser-side state; they do not delete repository files or `codex-handoff/outbox` artifacts.
+
+### Known limitations
+
+- Image generation and image editing still depend on the local Codex/imagegen environment available to the user.
+- Direct OpenAI API, ComfyUI, AUTOMATIC1111, Replicate, and other provider adapters are still not part of the shipped baseline.
+- Advanced game-engine exporters, full background removal, and deeper sprite QC remain future work.
+- Dev-supervisor repair controls and stronger duplicate bronze-candidate import prevention from 027/028 are not included in this v0.1.1 draft unless those branches are merged before the final tag approval.
 
 ## 0.1.0 - 2026-06-23
 

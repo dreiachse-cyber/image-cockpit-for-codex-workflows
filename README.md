@@ -122,6 +122,22 @@ npm run doctor
 
 `npm run doctor` verifies required files, handoff folder writability, and Codex command availability. It reports the requested `command`, the actual `launchCommand`, and resolved command paths. If Codex cannot be launched but local handoff is usable, it reports a warning instead of failing.
 
+## Local Recovery
+
+If the app becomes slow, fails to load, or Chrome reports Out of Memory after many generated results, open safe mode first:
+
+```text
+http://127.0.0.1:<port>/?safe=1
+```
+
+To clear only Image Cockpit browser-side saved state for the current local origin, open:
+
+```text
+http://127.0.0.1:<port>/reset-local-state.html
+```
+
+The reset page does not delete repository files, generated PNG files, or `codex-handoff/outbox` artifacts.
+
 ## Verification
 
 One-command local review:
@@ -192,6 +208,8 @@ Use `docs/review/mvp-review-report.md` for the v0.1.0 review history, QA evidenc
 ## Release Materials
 
 - Changelog: `CHANGELOG.md`
+- v0.1.1 release notes: `docs/release/v0.1.1-release-notes.md`
+- v0.1.1 release prep QA: `docs/qa/v0.1.1-release-prep.md`
 - Release notes: `docs/release/v0.1.0-release-notes.md`
 - Owner review guide: `docs/release/v0.1.0-owner-review.md`
 - Final audit: `docs/release/v0.1.0-final-audit.md`
