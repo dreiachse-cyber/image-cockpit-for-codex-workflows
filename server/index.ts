@@ -11,6 +11,7 @@ const port = Number(process.env.IMAGE_COCKPIT_API_PORT ?? 8787);
 const handoffRoot = resolve(process.env.IMAGE_COCKPIT_HANDOFF_DIR ?? "codex-handoff");
 const inboxDir = join(handoffRoot, "inbox");
 const outboxDir = join(handoffRoot, "outbox");
+const tournamentWorkRootDir = join(outboxDir, ".tournaments");
 const assetsDir = join(handoffRoot, "assets");
 const statusDir = join(handoffRoot, "status");
 const logsDir = join(handoffRoot, "logs");
@@ -41,6 +42,8 @@ const directionSplitManifestSchema = "image-cockpit.direction-split-animation.v1
 const artifactStableMs = parsePositiveNumber("IMAGE_COCKPIT_ARTIFACT_STABLE_MS", 1500);
 
 const runnerStatuses = new Map<string, CodexRunnerStatus>();
+const runnerProcesses = new Map<string, ReturnType<typeof spawn>>();
+const cancellingRunnerJobIds = new Set<string>();
 
 type CodexJobRequest = {
   workflowMode?: string;
@@ -63,6 +66,9 @@ type CodexJobRequest = {
   chromaKey?: string;
   spriteVariant?: string;
   directions?: unknown;
+  tournamentId?: string;
+  tournamentCandidateIndex?: number;
+  tournamentCandidateCount?: number;
 };
 
 type CodexWorkflowMode = "image-generate" | "image-edit" | "sprite-generate" | "sprite-edit";
@@ -96,6 +102,7 @@ type CodexRunnerStatus = {
   signal?: NodeJS.Signals | null;
   logPath?: string;
   statusPath?: string;
+  outboxDir?: string;
   diagnostic?: CodexJobDiagnostic;
 };
 
@@ -300,6 +307,17 @@ const server = createServer(async (request, response) => {
       return;
     }
 
+    const jobCancelMatch = pathname.match(/^\/api\/codex\/jobs\/([^/]+)\/cancel$/);
+    if (request.method === "POST" && jobCancelMatch) {
+      const jobId = decodeURIComponent(jobCancelMatch[1]);
+      if (!isSafeJobId(jobId)) {
+        sendJson(response, 400, { error: "Unsupported or unsafe job id" });
+        return;
+      }
+      sendJson(response, 200, await cancelCodexRunner(jobId));
+      return;
+    }
+
     const jobLogMatch = pathname.match(/^\/api\/codex\/jobs\/([^/]+)\/log$/);
     if (request.method === "GET" && jobLogMatch) {
       const jobId = decodeURIComponent(jobLogMatch[1]);
@@ -335,6 +353,27 @@ const server = createServer(async (request, response) => {
       return;
     }
 
+    const jobResultsMatch = pathname.match(/^\/api\/codex\/jobs\/([^/]+)\/results$/);
+    if (request.method === "GET" && jobResultsMatch) {
+      const jobId = decodeURIComponent(jobResultsMatch[1]);
+      if (!isSafeJobId(jobId)) {
+        sendJson(response, 400, { error: "Unsupported or unsafe job id" });
+        return;
+      }
+      const jobOutboxDir = await resolveJobOutboxDir(jobId);
+      if (!jobOutboxDir) {
+        sendJson(response, 404, { error: "Job outbox was not found" });
+        return;
+      }
+      const requestedLimit = Number(requestUrl.searchParams.get("limit") ?? 20);
+      const limit = Number.isFinite(requestedLimit) ? Math.min(Math.max(Math.floor(requestedLimit), 1), 200) : 20;
+      sendJson(response, 200, {
+        outboxPath: jobOutboxDir,
+        results: (await listOutboxResults(jobOutboxDir)).slice(0, limit)
+      });
+      return;
+    }
+
     if (request.method === "GET" && pathname.startsWith(resultRoutePrefix)) {
       const name = decodeURIComponent(pathname.slice(resultRoutePrefix.length));
       const filePath = resolveOutboxFile(name);
@@ -355,6 +394,47 @@ const server = createServer(async (request, response) => {
       return;
     }
 
+    const jobResultFileMatch = pathname.match(/^\/api\/codex\/jobs\/([^/]+)\/results\/(.+)$/);
+    if (request.method === "GET" && jobResultFileMatch) {
+      const jobId = decodeURIComponent(jobResultFileMatch[1]);
+      const name = decodeURIComponent(jobResultFileMatch[2]);
+      if (!isSafeJobId(jobId)) {
+        sendJson(response, 400, { error: "Unsupported or unsafe job id" });
+        return;
+      }
+      const jobOutboxDir = await resolveJobOutboxDir(jobId);
+      const filePath = jobOutboxDir ? resolveOutboxFileInDir(jobOutboxDir, name) : null;
+      const mimeType = mimeTypeForOutboxResult(name);
+      if (!filePath || !mimeType) {
+        sendJson(response, 400, { error: "Unsupported or unsafe outbox file" });
+        return;
+      }
+      const [bytes, fileStat] = await Promise.all([readFile(filePath), stat(filePath)]);
+      sendJson(response, 200, {
+        name,
+        path: filePath,
+        size: fileStat.size,
+        modifiedAt: fileStat.mtime.toISOString(),
+        mimeType,
+        dataUrl: `data:${mimeType};base64,${bytes.toString("base64")}`
+      });
+      return;
+    }
+
+    const tournamentWinnerMatch = pathname.match(/^\/api\/codex\/tournaments\/([^/]+)\/winner$/);
+    if (request.method === "POST" && tournamentWinnerMatch) {
+      const tournamentId = decodeURIComponent(tournamentWinnerMatch[1]);
+      const body = (await readJson(request)) as { jobId?: unknown };
+      const jobId = typeof body.jobId === "string" ? body.jobId : "";
+      if (!isSafeTournamentId(tournamentId) || !isSafeJobId(jobId)) {
+        sendJson(response, 400, { error: "Unsupported or unsafe tournament winner request" });
+        return;
+      }
+      const result = await publishTournamentWinner(tournamentId, jobId);
+      sendJson(response, 200, result);
+      return;
+    }
+
     if (request.method === "POST" && pathname === "/api/codex/jobs") {
       const body = (await readJson(request)) as CodexJobRequest;
       if (!body.prompt?.trim()) {
@@ -363,11 +443,14 @@ const server = createServer(async (request, response) => {
       }
 
       const createdAt = new Date().toISOString();
-      const id = `codex-job-${createdAt.replace(/[:.]/g, "-")}`;
+      const id = createCodexJobId(createdAt);
       const workflowMode = normalizeWorkflowMode(body.workflowMode);
       const includeSelectedImage = workflowUsesSelectedImage(workflowMode);
       const includeSpriteContext = workflowUsesSpriteContext(workflowMode);
       const includeAnnotations = workflowMode === "image-edit";
+      const tournamentId = resolveTournamentIdForJobRequest(workflowMode, body);
+      const jobOutboxDir = tournamentId ? tournamentJobOutboxDir(tournamentId, id) : outboxDir;
+      if (tournamentId) await mkdir(jobOutboxDir, { recursive: true });
       const selectedImageAsset = includeSelectedImage ? await writeSelectedImageAsset(id, body) : null;
       const annotations = includeAnnotations && Array.isArray(body.annotations) ? body.annotations : [];
       const job = {
@@ -408,8 +491,16 @@ const server = createServer(async (request, response) => {
           variant: includeSpriteContext ? body.spriteVariant ?? "standard" : "",
           directions: includeSpriteContext && Array.isArray(body.directions) ? body.directions : []
         },
+        tournament: tournamentId
+          ? {
+              id: tournamentId,
+              candidateIndex: normalizeCandidateIndex(body.tournamentCandidateIndex),
+              candidateCount: normalizeCandidateCount(body.tournamentCandidateCount),
+              hiddenOutbox: true
+            }
+          : undefined,
         returnTo: {
-          outboxDir,
+          outboxDir: jobOutboxDir,
           expected: ["png", "webp", "gif", "json"]
         },
         notes: [
@@ -420,8 +511,8 @@ const server = createServer(async (request, response) => {
       };
       const path = join(inboxDir, `${id}.json`);
       await writeFile(path, JSON.stringify(job, null, 2), "utf8");
-      const runner = await startCodexRunner({ id, createdAt, path });
-      sendJson(response, 200, { id, path, inboxPath: inboxDir, createdAt, runner });
+      const runner = await startCodexRunner({ id, createdAt, path, outboxDir: jobOutboxDir });
+      sendJson(response, 200, { id, path, inboxPath: inboxDir, outboxPath: jobOutboxDir, createdAt, runner });
       return;
     }
 
@@ -440,6 +531,7 @@ async function ensureHandoffDirs() {
   await mkdir(inboxDir, { recursive: true });
   await mkdir(outboxDir, { recursive: true });
   await mkdir(join(outboxDir, ".staging"), { recursive: true });
+  await mkdir(tournamentWorkRootDir, { recursive: true });
   await mkdir(assetsDir, { recursive: true });
   await mkdir(statusDir, { recursive: true });
   await mkdir(logsDir, { recursive: true });
@@ -545,7 +637,7 @@ function workflowNotes(mode: CodexWorkflowMode) {
       "Every cell must contain exactly one full-body character with head, hair, hands, equipment, and both feet visible, centered with at least 10% inner padding.",
       "Reject and retry the sprite sheet if any cell has a cropped head, missing feet, multiple heads, a head below the feet, inconsistent scale, body fragments, or a different character.",
       "Use the requested chroma-key background color as a flat simple background in every cell so Image Cockpit can remove it after import.",
-      "For standard direction-split output, write all generated direction images and any source manifest under outbox/.staging/<job-id>/ first; do not write root outbox direction files or the root manifest until the whole five-direction set is normalized and self-checked. Image Cockpit will verify, publish, and write the final manifest. If you must write to the outbox root, write only fully normalized final direction images with the job id prefix and keep *-qa.json, work files, temporary files, contact sheets, comparison sheets, and debug images outside the root.",
+      "For standard direction-split output, keep every intermediate, source, QA, and candidate file under outbox/.staging/<job-id>/ or another non-root work folder while work is still in progress. Do not write, copy, or manifest any root outbox <job-id>-*.png or <job-id>-manifest.json until all five directions are normalized, self-checked, and no further regeneration is planned. The final step must publish only the five final direction PNG/WebP files plus the final manifest into the root outbox, with the manifest written last. Keep *-qa.json, work files, temporary files, contact sheets, comparison sheets, and debug images outside the root.",
       "Avoid readable text, logos, watermarks, labels, UI words, numbers, scenery, and complex backgrounds.",
       blockerSidecarNote
     ];
@@ -570,7 +662,7 @@ function workflowNotes(mode: CodexWorkflowMode) {
   ];
 }
 
-async function startCodexRunner(job: { id: string; createdAt: string; path: string }) {
+async function startCodexRunner(job: { id: string; createdAt: string; path: string; outboxDir: string }) {
   const statusPath = join(statusDir, `${job.id}.json`);
   const logPath = join(logsDir, `${job.id}.log`);
 
@@ -595,7 +687,8 @@ async function startCodexRunner(job: { id: string; createdAt: string; path: stri
     requestedCommand: codexCommand,
     startedAt,
     statusPath,
-    logPath
+    logPath,
+    outboxDir: job.outboxDir
   };
   runnerStatuses.set(job.id, status);
   await writeRunnerStatus(status);
@@ -604,7 +697,7 @@ async function startCodexRunner(job: { id: string; createdAt: string; path: stri
   const prompt = buildCodexRunnerPrompt(job);
   logStream.write(`[${startedAt}] Starting ${codexLaunchCommand} exec for ${job.id}\n`);
   logStream.write(`Job path: ${job.path}\n`);
-  logStream.write(`Outbox: ${outboxDir}\n\n`);
+  logStream.write(`Outbox: ${job.outboxDir}\n\n`);
 
   let settled = false;
   try {
@@ -617,12 +710,13 @@ async function startCodexRunner(job: { id: string; createdAt: string; path: stri
           ...process.env,
           IMAGE_COCKPIT_JOB_ID: job.id,
           IMAGE_COCKPIT_JOB_PATH: job.path,
-          IMAGE_COCKPIT_OUTBOX_DIR: outboxDir
+          IMAGE_COCKPIT_OUTBOX_DIR: job.outboxDir
         },
         windowsHide: true
       }
     );
 
+    runnerProcesses.set(job.id, child);
     child.stdout.pipe(logStream, { end: false });
     child.stderr.pipe(logStream, { end: false });
     child.stdin.on("error", () => {
@@ -633,6 +727,8 @@ async function startCodexRunner(job: { id: string; createdAt: string; path: stri
     child.on("error", (error: NodeJS.ErrnoException) => {
       if (settled) return;
       settled = true;
+      runnerProcesses.delete(job.id);
+      cancellingRunnerJobIds.delete(job.id);
       const finishedAt = new Date().toISOString();
       const errorStatus: CodexRunnerStatus = {
         ...status,
@@ -648,11 +744,13 @@ async function startCodexRunner(job: { id: string; createdAt: string; path: stri
     child.on("close", (exitCode, signal) => {
       if (settled) return;
       settled = true;
+      runnerProcesses.delete(job.id);
+      const wasCancelled = cancellingRunnerJobIds.delete(job.id);
       const finishedAt = new Date().toISOString();
       const completedStatus: CodexRunnerStatus = {
         ...status,
-        state: exitCode === 0 ? "completed" : "failed",
-        message: exitCode === 0 ? "Codex exec completed" : `Codex exec exited with code ${exitCode}`,
+        state: wasCancelled ? "failed" : exitCode === 0 ? "completed" : "failed",
+        message: wasCancelled ? "Codex runner cancelled after an animation tournament winner was chosen." : exitCode === 0 ? "Codex exec completed" : `Codex exec exited with code ${exitCode}`,
         finishedAt,
         exitCode,
         signal
@@ -890,7 +988,7 @@ function isWindowsAppsLaunchLikely() {
   return explicitLaunchCommandIsWindowsApps || bareCommandWouldResolveThroughWindowsApps;
 }
 
-function buildCodexRunnerPrompt(job: { id: string; path: string }) {
+function buildCodexRunnerPrompt(job: { id: string; path: string; outboxDir: string }) {
   return [
     "You are processing an Image Cockpit for Codex Workflows handoff job.",
     "",
@@ -905,12 +1003,12 @@ function buildCodexRunnerPrompt(job: { id: string; path: string }) {
     "For workflowMode=sprite-generate, inspect selectedImage.assetPath, then use imagegen / built-in image_gen when available to create the requested sprite sheet assets from the source character image. Never create a procedural, SVG, canvas, diagram, geometric, or placeholder image.",
     "For workflowMode=sprite-generate, follow spriteContext.grid, spriteContext.cell, spriteContext.directions, spriteContext.variant, and spriteContext.chromaKey exactly. Keep one full-body character centered inside each strict cell with padding, no cropping, no duplicated heads, and no body parts crossing cells.",
     "For workflowMode=sprite-generate with spriteContext.variant=standard, return exactly five separate direction PNG/WebP images using the suffixes front, front-three-quarter, side, back-three-quarter, and back. Each direction image must be 4 columns x 2 rows, 256x256 cells unless spriteContext.cell says otherwise. Do not return only one combined 5x8 sheet.",
-    "For standard direction-split output, write generated direction images and any source manifest under outbox/.staging/<job-id>/ first. Do not write root outbox direction files or the root manifest until the complete five-direction set is normalized, self-checked, and ready for final use. Image Cockpit will decode, verify, publish final direction files to the outbox root, and write the final <job-id>-manifest.json last. If you must write directly to the outbox root, use fully normalized final job-id filenames only; Image Cockpit will still verify and may rewrite the manifest. Keep QA contact sheets, comparison sheets, and .tmp files outside the outbox root.",
+    "For standard direction-split output, keep generated direction images, source manifests, contact sheets, comparison sheets, QA files, and all candidates under outbox/.staging/<job-id>/ or another non-root work folder while work is still in progress. Do not write, copy, or manifest root outbox <job-id>-*.png or <job-id>-manifest.json until the complete five-direction set is normalized, self-checked, and no further regeneration is planned. The final runner step must publish only the five final direction PNG/WebP files into the root outbox and write the final <job-id>-manifest.json last. Image Cockpit will verify artifacts after the runner has finished and may rewrite the manifest after completion.",
     "For workflowMode=sprite-generate, inspect all cells before writing the final file and retry if any head is cut off, feet are missing, a head appears below feet, scale changes wildly, or the background is not flat chroma key.",
     "For workflowMode=sprite-generate with spriteContext.variant=hatch-pet, use the installed hatch-pet skill/scripts when available. Build a Codex pet atlas with 8 columns x 9 rows, 192x208 cells, 1536x1872 total, transparent unused cells, contact-sheet QA, and final spritesheet PNG/WebP returned with the job id filename prefix. Include pet.json as a sidecar if produced.",
     "For workflowMode=sprite-generate with spriteContext.variant=directional-hatch-pet, use the installed hatch-pet skill/scripts when available and return exactly five separate Codex pet atlas images: direction-01-front, direction-02-front-three-quarter, direction-03-side, direction-04-back-three-quarter, and direction-05-back. Each atlas must be 8 columns x 9 rows, 192x208 cells, 1536x1872 total, transparent unused cells, and use the job id filename prefix plus the direction suffix. Do not return only one giant combined sheet.",
     "Use jobNotes, annotationContext, and spriteContext only when those fields are populated for the workflow.",
-    `Write final image result files only into this outbox directory: ${outboxDir}`,
+    `Write final image result files only into this outbox directory: ${job.outboxDir}`,
     `Use this filename prefix for returned assets: ${job.id}`,
     "",
     "Important constraints:",
@@ -930,10 +1028,45 @@ function buildCodexRunnerPrompt(job: { id: string; path: string }) {
 }
 
 async function writeRunnerStatus(status: CodexRunnerStatus) {
+  runnerStatuses.set(status.jobId, status);
   const enrichedStatus = await enrichRunnerStatus(status);
   runnerStatuses.set(enrichedStatus.jobId, enrichedStatus);
   const statusPath = enrichedStatus.statusPath ?? join(statusDir, `${enrichedStatus.jobId}.json`);
   await writeFile(statusPath, JSON.stringify(enrichedStatus, null, 2), "utf8");
+}
+
+async function cancelCodexRunner(jobId: string) {
+  const currentStatus = await getRunnerStatus(jobId);
+  const child = runnerProcesses.get(jobId);
+  if (!child) {
+    return {
+      ok: false,
+      jobId,
+      status: currentStatus,
+      message: currentStatus.state === "running" ? "Runner process is not tracked by this server instance." : "Runner is not running."
+    };
+  }
+
+  const finishedAt = new Date().toISOString();
+  cancellingRunnerJobIds.add(jobId);
+  const cancelledStatus: CodexRunnerStatus = {
+    ...currentStatus,
+    state: "failed",
+    message: "Codex runner cancelled after an animation tournament winner was chosen.",
+    finishedAt,
+    exitCode: null,
+    signal: "SIGTERM"
+  };
+  await writeRunnerStatus(cancelledStatus);
+  child.kill("SIGTERM");
+  setTimeout(() => {
+    if (runnerProcesses.get(jobId) === child) child.kill("SIGKILL");
+  }, 5000);
+  return {
+    ok: true,
+    jobId,
+    status: cancelledStatus
+  };
 }
 
 async function getRunnerStatus(jobId: string): Promise<CodexRunnerStatus> {
@@ -956,17 +1089,18 @@ async function getRunnerStatus(jobId: string): Promise<CodexRunnerStatus> {
 async function normalizeRunningStatus(status: CodexRunnerStatus): Promise<CodexRunnerStatus> {
   if (status.state !== "running") return status;
 
-  if (await hasOutboxImageForJob(status.jobId)) {
+  const stale = await isRunnerStatusStale(status);
+  if (!stale) return status;
+
+  if (await hasOutboxImageForJob(status.jobId, status.outboxDir ?? outboxDir)) {
     return {
       ...status,
       state: "completed",
-      message: "Codex returned an image while runner status was still running.",
+      message: "Codex returned an image before runner status could be finalized.",
       finishedAt: new Date().toISOString(),
       exitCode: null
     };
   }
-
-  if (!(await isRunnerStatusStale(status))) return status;
 
   return {
     ...status,
@@ -996,6 +1130,19 @@ async function isRunnerStatusStale(status: CodexRunnerStatus) {
   }
 }
 
+async function isRunnerStatusActivelyRunning(jobId: string) {
+  let status = runnerStatuses.get(jobId);
+  if (!status) {
+    try {
+      status = JSON.parse(await readFile(join(statusDir, `${jobId}.json`), "utf8")) as CodexRunnerStatus;
+    } catch {
+      return false;
+    }
+  }
+  if (status.state !== "running") return false;
+  return !(await isRunnerStatusStale(status));
+}
+
 async function enrichRunnerStatus(status: CodexRunnerStatus): Promise<CodexRunnerStatus> {
   if (!shouldBuildDiagnostic(status)) return status;
   const diagnostic = await getJobDiagnostic(status);
@@ -1010,10 +1157,11 @@ function shouldBuildDiagnostic(status: CodexRunnerStatus) {
 }
 
 async function getJobDiagnostic(status: CodexRunnerStatus): Promise<CodexJobDiagnostic | null> {
+  const resultDir = status.outboxDir ?? outboxDir;
   const [sidecar, logText, hasReturnedImage] = await Promise.all([
-    findJobSidecar(status.jobId),
+    findJobSidecar(status.jobId, resultDir),
     readShortFile(status.logPath),
-    hasOutboxImageForJob(status.jobId)
+    hasOutboxImageForJob(status.jobId, resultDir)
   ]);
   if (status.state === "completed" && hasReturnedImage) return null;
 
@@ -1089,9 +1237,9 @@ function diagnosticForKind(kind: CodexFailureKind): Omit<CodexJobDiagnostic, "si
   };
 }
 
-async function findJobSidecar(jobId: string) {
+async function findJobSidecar(jobId: string, resultDir = outboxDir) {
   try {
-    const entries = await readdir(outboxDir, { withFileTypes: true });
+    const entries = await readdir(resultDir, { withFileTypes: true });
     const candidates = entries
       .filter((entry) => entry.isFile())
       .filter((entry) => isJobOutboxFileName(jobId, entry.name))
@@ -1100,7 +1248,7 @@ async function findJobSidecar(jobId: string) {
       .filter((entry) => [".json", ".md", ".txt"].includes(extname(entry.name).toLowerCase()))
       .sort((left, right) => left.name.localeCompare(right.name));
     for (const entry of candidates) {
-      const path = join(outboxDir, entry.name);
+      const path = join(resultDir, entry.name);
       const text = await readShortFile(path);
       if (!text) continue;
       return {
@@ -1125,20 +1273,21 @@ function readSidecarReasonKind(name: string, text: string) {
   }
 }
 
-async function hasOutboxImageForJob(jobId: string) {
+async function hasOutboxImageForJob(jobId: string, resultDir = outboxDir) {
   try {
-    const directionSplitArtifact = await inspectDirectionSplitArtifact(jobId);
+    const directionSplitArtifact = await inspectDirectionSplitArtifact(jobId, resultDir);
     if (directionSplitArtifact.detected) {
       const classification = directionSplitArtifact.qualityGate?.classification;
       return (
         directionSplitArtifact.ready ||
+        directionSplitArtifact.files.length > 0 ||
         directionSplitArtifact.quality === "bronze" ||
         classification === "quality-failed" ||
         classification === "quarantined-candidate"
       );
     }
 
-    const entries = await readdir(outboxDir, { withFileTypes: true });
+    const entries = await readdir(resultDir, { withFileTypes: true });
     const names = entries
       .filter((entry) => entry.isFile())
       .map((entry) => entry.name)
@@ -1188,10 +1337,10 @@ function directionSplitJobIdFromFileName(name: string) {
   return isSafeJobId(jobId) ? jobId : null;
 }
 
-async function inspectAllDirectionSplitArtifacts() {
+async function inspectAllDirectionSplitArtifacts(resultDir = outboxDir) {
   const jobIds = new Set<string>();
   try {
-    const entries = await readdir(outboxDir, { withFileTypes: true });
+    const entries = await readdir(resultDir, { withFileTypes: true });
     entries
       .filter((entry) => entry.isFile())
       .map((entry) => directionSplitJobIdFromFileName(entry.name))
@@ -1202,7 +1351,7 @@ async function inspectAllDirectionSplitArtifacts() {
   }
 
   try {
-    const stagingEntries = await readdir(join(outboxDir, ".staging"), { withFileTypes: true });
+    const stagingEntries = await readdir(join(resultDir, ".staging"), { withFileTypes: true });
     stagingEntries
       .filter((entry) => entry.isDirectory())
       .map((entry) => entry.name)
@@ -1212,11 +1361,11 @@ async function inspectAllDirectionSplitArtifacts() {
     // No staging candidates yet.
   }
 
-  const statuses = await Promise.all(Array.from(jobIds).map((jobId) => inspectDirectionSplitArtifact(jobId)));
+  const statuses = await Promise.all(Array.from(jobIds).map((jobId) => inspectDirectionSplitArtifact(jobId, resultDir)));
   return new Map(statuses.filter((status) => status.detected).map((status) => [status.jobId, status]));
 }
 
-async function inspectDirectionSplitArtifact(jobId: string): Promise<CodexArtifactStatus> {
+async function inspectDirectionSplitArtifact(jobId: string, resultDir = outboxDir): Promise<CodexArtifactStatus> {
   const missingDirections: string[] = [];
   const warnings: string[] = [];
   const files: string[] = [];
@@ -1224,7 +1373,7 @@ async function inspectDirectionSplitArtifact(jobId: string): Promise<CodexArtifa
   let sourceManifest: DirectionSplitSourceManifest = null;
 
   for (const slug of directionSplitSlugs) {
-    const candidate = await findDirectionSplitCandidateFile(jobId, slug);
+    const candidate = await findDirectionSplitCandidateFile(jobId, slug, resultDir);
     if (candidate) {
       bySlug.set(slug, candidate);
       files.push(candidate.finalName);
@@ -1233,7 +1382,7 @@ async function inspectDirectionSplitArtifact(jobId: string): Promise<CodexArtifa
     }
   }
 
-  sourceManifest = await findDirectionSplitSourceManifest(jobId);
+  sourceManifest = await findDirectionSplitSourceManifest(jobId, resultDir);
   const detected = bySlug.size > 0 || Boolean(sourceManifest);
   if (!detected) return emptyDirectionSplitArtifactStatus(jobId);
 
@@ -1383,7 +1532,32 @@ async function inspectDirectionSplitArtifact(jobId: string): Promise<CodexArtifa
       : undefined;
   if (manifestOrderWarning) warnings.push(manifestOrderWarning);
 
-  const manifestName = await publishVerifiedDirectionSplitArtifact(jobId, candidates, sourceManifest, expectedChromaKey, warnings);
+  if (await isRunnerStatusActivelyRunning(jobId)) {
+    const reason = "waiting for Codex runner to finish finalizing direction artifacts";
+    return {
+      jobId,
+      artifactKind: "direction-split",
+      detected: true,
+      ready: false,
+      verified: false,
+      quality: "waiting",
+      reason,
+      missingDirections,
+      warnings,
+      files,
+      manifestName: sourceManifest?.name,
+      stable: true,
+      candidateCount,
+      qualityGate: makeQualityGate("running", reason, "direction-split-runner-finalizing", false, false, true, warnings),
+      chromaKey: {
+        expected: expectedChromaKey,
+        manifest: manifestChromaKey,
+        warning: chromaWarning
+      }
+    };
+  }
+
+  const manifestName = await publishVerifiedDirectionSplitArtifact(jobId, candidates, sourceManifest, expectedChromaKey, warnings, resultDir);
   const reason = warnings.length > 0 ? "server verified with warnings" : "server verified";
   return {
     jobId,
@@ -1426,12 +1600,12 @@ function emptyDirectionSplitArtifactStatus(jobId: string): CodexArtifactStatus {
   };
 }
 
-async function findDirectionSplitCandidateFile(jobId: string, slug: string): Promise<DirectionSplitCandidateFile | null> {
+async function findDirectionSplitCandidateFile(jobId: string, slug: string, resultDir = outboxDir): Promise<DirectionSplitCandidateFile | null> {
   const candidateNames = directionSplitCandidateNames(jobId, slug);
-  const stagingDir = join(outboxDir, ".staging", jobId);
+  const stagingDir = join(resultDir, ".staging", jobId);
   const candidates: DirectionSplitCandidateFile[] = [];
   for (const candidateName of candidateNames.outbox) {
-    const candidate = await statDirectionSplitCandidate(join(outboxDir, candidateName), slug, candidateName, candidateName, false);
+    const candidate = await statDirectionSplitCandidate(join(resultDir, candidateName), slug, candidateName, candidateName, false);
     if (candidate) candidates.push(candidate);
   }
   for (const candidateName of candidateNames.staging) {
@@ -1482,11 +1656,11 @@ async function statDirectionSplitCandidate(path: string, slug: string, name: str
   }
 }
 
-async function findDirectionSplitSourceManifest(jobId: string): Promise<DirectionSplitSourceManifest> {
+async function findDirectionSplitSourceManifest(jobId: string, resultDir = outboxDir): Promise<DirectionSplitSourceManifest> {
   const candidates = [
-    { path: join(outboxDir, `${jobId}-manifest.json`), name: `${jobId}-manifest.json`, fromStaging: false },
-    { path: join(outboxDir, ".staging", jobId, `${jobId}-manifest.json`), name: `${jobId}-manifest.json`, fromStaging: true },
-    { path: join(outboxDir, ".staging", jobId, "manifest.json"), name: "manifest.json", fromStaging: true }
+    { path: join(resultDir, `${jobId}-manifest.json`), name: `${jobId}-manifest.json`, fromStaging: false },
+    { path: join(resultDir, ".staging", jobId, `${jobId}-manifest.json`), name: `${jobId}-manifest.json`, fromStaging: true },
+    { path: join(resultDir, ".staging", jobId, "manifest.json"), name: "manifest.json", fromStaging: true }
   ];
   const loaded: Array<NonNullable<DirectionSplitSourceManifest>> = [];
   for (const candidate of candidates) {
@@ -1517,20 +1691,23 @@ async function publishVerifiedDirectionSplitArtifact(
   candidates: DirectionSplitCandidateFile[],
   sourceManifest: DirectionSplitSourceManifest,
   expectedChromaKey: string | undefined,
-  warnings: string[]
+  warnings: string[],
+  targetDir = outboxDir
 ) {
+  await mkdir(targetDir, { recursive: true });
   for (const candidate of candidates) {
-    const targetPath = join(outboxDir, candidate.finalName);
-    if (candidate.fromStaging) await copyFile(candidate.path, targetPath);
+    const targetPath = join(targetDir, candidate.finalName);
+    if (resolve(candidate.path) !== resolve(targetPath)) await copyFile(candidate.path, targetPath);
   }
 
   const manifestName = `${jobId}-manifest.json`;
-  const manifestPath = join(outboxDir, manifestName);
+  const manifestPath = join(targetDir, manifestName);
   const sourceManifestVerified = sourceManifest?.parsed?.serverVerified === true;
   const manifestIsCurrent =
     sourceManifest &&
     !sourceManifest.fromStaging &&
     sourceManifest.name === manifestName &&
+    resolve(sourceManifest.path) === resolve(manifestPath) &&
     sourceManifestVerified &&
     sourceManifest.mtimeMs >= Math.max(...candidates.map((candidate) => candidate.mtimeMs));
   if (!manifestIsCurrent) {
@@ -1884,9 +2061,9 @@ function qualityGateDefaultReason(classification: CodexResultQualityClassificati
   return "Usable final result.";
 }
 
-async function listOutboxResults() {
-  const artifactStatuses = await inspectAllDirectionSplitArtifacts();
-  const entries = await readdir(outboxDir, { withFileTypes: true });
+async function listOutboxResults(resultDir = outboxDir) {
+  const artifactStatuses = await inspectAllDirectionSplitArtifacts(resultDir);
+  const entries = await readdir(resultDir, { withFileTypes: true });
   const results = await Promise.all(
     entries
       .filter((entry) => entry.isFile())
@@ -1894,7 +2071,7 @@ async function listOutboxResults() {
       .map(async (entry) => {
         const mimeType = mimeTypeForOutboxResult(entry.name);
         if (!mimeType) return null;
-        const filePath = join(outboxDir, entry.name);
+        const filePath = join(resultDir, entry.name);
         const fileStat = await stat(filePath);
         const artifact = artifactStatuses.get(directionSplitJobIdFromFileName(entry.name) ?? "");
         return {
@@ -1939,15 +2116,110 @@ function qualityGateForOutboxResultName(name: string, artifact?: CodexArtifactSt
   return makeQualityGate("usable-final", "Usable final result.", "usable-final", true, true, false);
 }
 
+function resolveTournamentIdForJobRequest(workflowMode: CodexWorkflowMode, body: CodexJobRequest) {
+  const spriteVariant = body.spriteVariant ?? "standard";
+  return workflowMode === "sprite-generate" && spriteVariant === "standard" && isSafeTournamentId(body.tournamentId)
+    ? body.tournamentId
+    : "";
+}
+
+function normalizeCandidateIndex(value: unknown) {
+  return typeof value === "number" && Number.isFinite(value) && value >= 0 ? Math.floor(value) : 0;
+}
+
+function normalizeCandidateCount(value: unknown) {
+  return typeof value === "number" && Number.isFinite(value) && value > 0 ? Math.floor(value) : 1;
+}
+
+function tournamentJobOutboxDir(tournamentId: string, jobId: string) {
+  return join(tournamentWorkRootDir, tournamentId, jobId);
+}
+
+async function resolveJobOutboxDir(jobId: string) {
+  const liveStatus = runnerStatuses.get(jobId);
+  const liveOutbox = resolveSafeOutboxSubdir(liveStatus?.outboxDir);
+  if (liveOutbox) return liveOutbox;
+
+  try {
+    const parsed = JSON.parse(await readFile(join(inboxDir, `${jobId}.json`), "utf8")) as {
+      returnTo?: { outboxDir?: unknown };
+    };
+    return resolveSafeOutboxSubdir(parsed.returnTo?.outboxDir) ?? outboxDir;
+  } catch {
+    return null;
+  }
+}
+
+function resolveSafeOutboxSubdir(value: unknown) {
+  if (typeof value !== "string" || !value.trim()) return null;
+  const rootDir = resolve(outboxDir);
+  const resolved = resolve(value);
+  const root = rootDir.endsWith(sep) ? rootDir : `${rootDir}${sep}`;
+  return resolved === rootDir || resolved.startsWith(root) ? resolved : null;
+}
+
+async function publishTournamentWinner(tournamentId: string, jobId: string) {
+  const jobOutboxDir = await resolveJobOutboxDir(jobId);
+  const expectedOutboxDir = tournamentJobOutboxDir(tournamentId, jobId);
+  if (!jobOutboxDir || resolve(jobOutboxDir) !== resolve(expectedOutboxDir)) {
+    throw new Error("Tournament winner job does not belong to the requested hidden work outbox.");
+  }
+
+  const artifact = await inspectDirectionSplitArtifact(jobId, jobOutboxDir);
+  if (!artifact.ready || !artifact.verified) {
+    throw new Error(`Tournament winner is not ready for root publish: ${artifact.reason}`);
+  }
+  const candidates = (await Promise.all(directionSplitSlugs.map((slug) => findDirectionSplitCandidateFile(jobId, slug, jobOutboxDir))))
+    .filter((candidate): candidate is DirectionSplitCandidateFile => Boolean(candidate));
+  if (candidates.length !== directionSplitSlugs.length) {
+    throw new Error("Tournament winner is missing one or more direction files.");
+  }
+  const sourceManifest = await findDirectionSplitSourceManifest(jobId, jobOutboxDir);
+  const expectedChromaKey = await readJobExpectedChromaKey(jobId);
+  const manifestName = await publishVerifiedDirectionSplitArtifact(
+    jobId,
+    candidates,
+    sourceManifest,
+    expectedChromaKey,
+    artifact.warnings,
+    outboxDir
+  );
+  const publishedResults = (await listOutboxResults()).filter((result) => isJobOutboxFileName(jobId, result.name));
+  return {
+    ok: true,
+    tournamentId,
+    jobId,
+    outboxPath: outboxDir,
+    manifestName,
+    files: artifact.files,
+    results: publishedResults
+  };
+}
+
 function resolveOutboxFile(name: string) {
+  return resolveOutboxFileInDir(outboxDir, name);
+}
+
+function resolveOutboxFileInDir(resultDir: string, name: string) {
   if (!name || name.includes("/") || name.includes("\\") || name.includes("..")) return null;
-  const filePath = resolve(outboxDir, name);
-  const root = outboxDir.endsWith(sep) ? outboxDir : `${outboxDir}${sep}`;
+  const rootDir = resolve(resultDir);
+  const filePath = resolve(rootDir, name);
+  const root = rootDir.endsWith(sep) ? rootDir : `${rootDir}${sep}`;
   return filePath.startsWith(root) ? filePath : null;
 }
 
 function isSafeJobId(jobId: string) {
   return /^codex-job-[A-Za-z0-9_-]+$/.test(jobId);
+}
+
+function isSafeTournamentId(value: unknown): value is string {
+  return typeof value === "string" && /^[A-Za-z0-9_-]{1,96}$/.test(value);
+}
+
+function createCodexJobId(createdAt: string) {
+  const timestamp = createdAt.replace(/[:.]/g, "-");
+  const suffix = Math.random().toString(36).slice(2, 8);
+  return `codex-job-${timestamp}-${suffix}`;
 }
 
 function isRunnerUnavailableError(error: unknown) {

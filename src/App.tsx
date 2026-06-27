@@ -114,7 +114,9 @@ const ANIMATION_DIRECTION_COUNT = 5;
 const ANIMATION_CELL_SIZE = 256;
 const MIN_ANIMATION_CELL_SIZE = ANIMATION_CELL_SIZE;
 const MAX_ACTIVE_CODEX_JOBS = 3;
-const MAX_ACTIVE_STANDARD_ANIMATION_CODEX_JOBS = 1;
+const STANDARD_ANIMATION_TOURNAMENT_CANDIDATES = 3;
+const STANDARD_ANIMATION_TOURNAMENT_MIN_AB_CANDIDATES = 2;
+const MAX_ACTIVE_STANDARD_ANIMATION_CODEX_JOBS = STANDARD_ANIMATION_TOURNAMENT_CANDIDATES;
 const CODEX_LOG_POLL_INTERVAL_MS = 2000;
 const CODEX_LOG_TAIL_BYTES = 32768;
 const CODEX_LOG_HISTORY_LIMIT = MAX_ACTIVE_CODEX_JOBS;
@@ -340,6 +342,7 @@ interface PendingCodexJob {
   id: string;
   path: string;
   createdAt: string;
+  outboxPath?: string;
   label?: string;
   workflowMode?: WorkflowMode;
   actionName?: string;
@@ -349,6 +352,9 @@ interface PendingCodexJob {
   spriteVariant?: AnimationGenerationMode;
   sourceImageId?: string;
   sourceImageName?: string;
+  tournamentId?: string;
+  tournamentCandidateIndex?: number;
+  tournamentCandidateCount?: number;
 }
 
 interface CodexJobDraft {
@@ -381,6 +387,9 @@ interface CodexJobDraft {
   resultSpriteVariant?: AnimationGenerationMode;
   resultSourceImageId?: string;
   resultSourceImageName?: string;
+  tournamentId?: string;
+  tournamentCandidateIndex?: number;
+  tournamentCandidateCount?: number;
 }
 
 interface CodexJobQueueItem {
@@ -389,6 +398,7 @@ interface CodexJobQueueItem {
   label: string;
   createdAt: string;
   path?: string;
+  outboxPath?: string;
   request?: CodexJobDraft;
   queuedAt?: string;
   workflowMode?: WorkflowMode;
@@ -399,6 +409,9 @@ interface CodexJobQueueItem {
   spriteVariant?: AnimationGenerationMode;
   sourceImageId?: string;
   sourceImageName?: string;
+  tournamentId?: string;
+  tournamentCandidateIndex?: number;
+  tournamentCandidateCount?: number;
 }
 
 interface ImportLatestOptions {
@@ -415,6 +428,19 @@ interface ImageEditComparison {
   before: HistoryItem;
   after?: HistoryItem;
   jobId?: string;
+}
+
+interface DirectionSplitTournamentCandidateEvaluation {
+  job: CodexJobQueueItem;
+  status: CodexRunnerStatus;
+  ready: boolean;
+  score: number;
+  warningCount: number;
+  manifest: DirectionSplitAnimationManifest | null;
+  manifestResult?: CodexOutboxResult;
+  directionResults: CodexOutboxResult[];
+  importedResults: CodexOutboxImportResponse[];
+  error?: string;
 }
 
 interface CodexFailureNotice {
@@ -3234,6 +3260,14 @@ function isStandardDirectionSplitDraft(draft: Pick<CodexJobDraft, "resultWorkflo
   return draft.resultWorkflowMode === "sprite-generate" && (draft.resultSpriteVariant ?? "standard") === "standard";
 }
 
+function isAnimationTournamentJob(job: Pick<CodexJobQueueItem, "workflowMode" | "spriteVariant" | "tournamentId">) {
+  return Boolean(job.tournamentId) && isStandardDirectionSplitJob(job);
+}
+
+function tournamentCandidateLabel(index: number, count: number) {
+  return `candidate ${index + 1}/${count}`;
+}
+
 function activeCodexJobCount(jobs: CodexJobQueueItem[], startingQueuedJobIds: Set<string>) {
   return jobs.filter((job) => job.state === "running" || startingQueuedJobIds.has(job.id)).length;
 }
@@ -4153,56 +4187,30 @@ function App() {
     let cancelled = false;
 
     const pollForReturnedImages = async () => {
-      const outcomes = await Promise.all(
-        runningJobs.map(async (job) => {
-          let importError: unknown;
-          const imported = await importLatestOutboxResult({
-            background: true,
-            newerThan: job.createdAt,
-            quietEmpty: true,
-            job,
-            throwOnError: true,
-            failOnIncompleteDirectionSplit: true
-          }).catch((error) => {
-            importError = error;
-            return false;
-          });
-          if (cancelled || imported) return imported ? "imported" : "cancelled";
+      const tournamentGroups = new Map<string, CodexJobQueueItem[]>();
+      const individualJobs: CodexJobQueueItem[] = [];
+      for (const job of codexJobs) {
+        if (isAnimationTournamentJob(job) && job.tournamentId) {
+          const group = tournamentGroups.get(job.tournamentId) ?? [];
+          group.push(job);
+          tournamentGroups.set(job.tournamentId, group);
+        } else if (job.state === "running") {
+          individualJobs.push(job);
+        }
+      }
 
-          let runnerStatus: CodexRunnerStatus | null | undefined;
-          try {
-            runnerStatus = await loadCodexRunnerStatus(job.id);
-          } catch (error) {
-            if (importError) console.warn(`Could not verify completed Codex import for ${job.id}`, error);
-            return "pending";
-          }
-          if (cancelled) return "cancelled";
-
-          if (runnerStatus && !shouldWaitForCodexRunner(runnerStatus)) {
-            if (importError && isStandardDirectionSplitJob(job)) {
-              const diagnostic = recordCodexImportFailure(job, importError);
-              removeCodexJob(job.id, runnerStatus.state);
-              setStatus(`${diagnostic.title}: ${job.id}`);
-              return "terminal";
-            }
-            if (shouldReportCompletedCodexImportFailure(runnerStatus, imported)) {
-              const diagnostic = recordCodexImportFailure(
-                job,
-                importError ?? new Error("No matching outbox result could be imported after the runner completed.")
-              );
-              removeCodexJob(job.id, "completed");
-              setStatus(`${diagnostic.title}: ${job.id}`);
-              return "terminal";
-            }
-            recordCodexFailure(job, runnerStatus);
-            removeCodexJob(job.id, runnerStatus.state);
-            setStatus(`${runnerStatusMessage(runnerStatus, copy)}: ${job.id}`);
-            return "terminal";
-          }
-
+      const outcomes = await Promise.all([
+        ...individualJobs.map((job) => pollCodexJobForReturnedImage(job, () => cancelled).catch((error) => {
+          if (!cancelled) setStatus(error instanceof Error ? error.message : copy.statusInboxError);
           return "pending";
-        })
-      );
+        })),
+        ...Array.from(tournamentGroups.entries())
+          .filter(([, jobs]) => jobs.some((job) => job.state === "running"))
+          .map(([tournamentId, jobs]) => pollCodexAnimationTournament(tournamentId, jobs, () => cancelled).catch((error) => {
+            if (!cancelled) setStatus(error instanceof Error ? error.message : `Animation tournament failed: ${tournamentId}`);
+            return "pending";
+          }))
+      ]);
 
       if (!cancelled && outcomes.every((outcome) => outcome === "pending")) {
         setStatus(`${copy.statusCodexJobPending}: ${runningJobs.map((job) => job.id).join(", ")}`);
@@ -4216,6 +4224,138 @@ function App() {
       window.clearInterval(intervalId);
     };
   }, [codexJobs, language]);
+
+  async function pollCodexJobForReturnedImage(job: CodexJobQueueItem, isCancelled: () => boolean) {
+    let runnerStatus: CodexRunnerStatus | null | undefined;
+    try {
+      runnerStatus = await loadCodexRunnerStatus(job.id);
+    } catch {
+      return "pending";
+    }
+    if (isCancelled()) return "cancelled";
+    if (runnerStatus && shouldWaitForCodexRunner(runnerStatus)) return "pending";
+
+    let importError: unknown;
+    const imported = await importLatestOutboxResult({
+      background: true,
+      newerThan: job.createdAt,
+      quietEmpty: true,
+      job,
+      throwOnError: true,
+      failOnIncompleteDirectionSplit: true
+    }).catch((error) => {
+      importError = error;
+      return false;
+    });
+    if (isCancelled() || imported) return imported ? "imported" : "cancelled";
+
+    if (runnerStatus && !shouldWaitForCodexRunner(runnerStatus)) {
+      if (importError && isStandardDirectionSplitJob(job)) {
+        const diagnostic = recordCodexImportFailure(job, importError);
+        removeCodexJob(job.id, runnerStatus.state);
+        setStatus(`${diagnostic.title}: ${job.id}`);
+        return "terminal";
+      }
+      if (shouldReportCompletedCodexImportFailure(runnerStatus, imported)) {
+        const diagnostic = recordCodexImportFailure(
+          job,
+          importError ?? new Error("No matching outbox result could be imported after the runner completed.")
+        );
+        removeCodexJob(job.id, "completed");
+        setStatus(`${diagnostic.title}: ${job.id}`);
+        return "terminal";
+      }
+      recordCodexFailure(job, runnerStatus);
+      removeCodexJob(job.id, runnerStatus.state);
+      setStatus(`${runnerStatusMessage(runnerStatus, copy)}: ${job.id}`);
+      return "terminal";
+    }
+
+    return "pending";
+  }
+
+  async function pollCodexAnimationTournament(tournamentId: string, jobs: CodexJobQueueItem[], isCancelled: () => boolean) {
+    const expectedCount = jobs[0]?.tournamentCandidateCount ?? STANDARD_ANIMATION_TOURNAMENT_CANDIDATES;
+    const minimumReadyCount = Math.min(STANDARD_ANIMATION_TOURNAMENT_MIN_AB_CANDIDATES, expectedCount);
+    if (jobs.length < expectedCount || jobs.some((job) => job.state === "queued")) return "pending";
+
+    const statuses = await Promise.all(
+      jobs.map(async (job) => ({
+        job,
+        status: await loadCodexRunnerStatus(job.id)
+      }))
+    );
+    if (isCancelled()) return "cancelled";
+    const terminalStatuses = statuses.filter(
+      (entry): entry is { job: CodexJobQueueItem; status: CodexRunnerStatus } => Boolean(entry.status) && !shouldWaitForCodexRunner(entry.status ?? undefined)
+    );
+    if (terminalStatuses.length === 0) return "pending";
+
+    const evaluations = await Promise.all(
+      terminalStatuses.map(async ({ job, status }) => evaluateDirectionSplitTournamentCandidate(job, status))
+    );
+    if (isCancelled()) return "cancelled";
+
+    const readyEvaluations = evaluations.filter((evaluation) => evaluation.ready);
+    const allCandidatesTerminal = statuses.every(({ status }) => Boolean(status) && !shouldWaitForCodexRunner(status ?? undefined));
+    if (readyEvaluations.length < minimumReadyCount && !allCandidatesTerminal) return "pending";
+
+    const comparedEvaluations = (readyEvaluations.length >= minimumReadyCount ? readyEvaluations
+      .slice()
+      .sort((left, right) => Date.parse(left.status.finishedAt ?? left.job.createdAt) - Date.parse(right.status.finishedAt ?? right.job.createdAt))
+      .slice(0, minimumReadyCount) : readyEvaluations)
+      .sort((left, right) => right.score - left.score);
+    const winner = comparedEvaluations[0];
+    if (!winner) {
+      const primary = evaluations[0];
+      if (primary) {
+        const reasons = evaluations
+          .map((evaluation) => {
+            const candidateIndex = evaluation.job.tournamentCandidateIndex ?? 0;
+            const candidateCount = evaluation.job.tournamentCandidateCount ?? expectedCount;
+            return `${tournamentCandidateLabel(candidateIndex, candidateCount)}: ${evaluation.error ?? "no usable final result"}`;
+          })
+          .join("; ");
+        const hasQualityGateFailure = /quality gate|chroma key|direction split qa failed|transparency damage|quarantined/i.test(reasons);
+        recordCodexImportFailure(
+          primary.job,
+          new Error(
+            hasQualityGateFailure
+              ? `Animation quality gate failed: no history or final download item was added. All animation tournament candidates failed. ${reasons}.`
+              : `Needs review candidate: all animation tournament candidates failed. ${reasons}. Raw direction files are still available in hidden candidate work folders.`
+          )
+        );
+      }
+      statuses.forEach(({ job, status }) => removeCodexJob(job.id, status?.state ?? "failed"));
+      setStatus(`Animation tournament failed: ${tournamentId}`);
+      return "terminal";
+    }
+
+    await publishCodexTournamentWinner(tournamentId, winner.job.id);
+    if (isCancelled()) return "cancelled";
+    await importDirectionSplitAnimationResults(
+      winner.importedResults,
+      winner.manifest,
+      winner.job,
+      winner.manifestResult?.name
+    );
+    const cancellationResults = await Promise.all(
+      statuses
+        .filter(({ job }) => job.id !== winner.job.id)
+        .filter(({ status }) => shouldWaitForCodexRunner(status ?? undefined))
+        .map(({ job }) => cancelCodexJob(job.id).catch(() => null))
+    );
+    statuses.forEach(({ job, status }) => {
+      clearCodexFailureNotice(job.id);
+      const cancelled = cancellationResults.some((result) => result?.jobId === job.id && result.ok);
+      removeCodexJob(job.id, cancelled ? "failed" : status?.state ?? "completed");
+    });
+    const candidateIndex = winner.job.tournamentCandidateIndex ?? 0;
+    setStatus(
+      `${copy.statusAnimationGenerated}: tournament winner ${tournamentCandidateLabel(candidateIndex, expectedCount)} (${winner.job.id}), score ${Math.round(winner.score)}, warnings ${winner.warningCount}. Compared ${comparedEvaluations.length} usable candidate${comparedEvaluations.length === 1 ? "" : "s"} and cancelled ${cancellationResults.filter((result) => result?.ok).length} remaining runner${cancellationResults.filter((result) => result?.ok).length === 1 ? "" : "s"}. direction-split manifest ok.`
+    );
+    return "imported";
+  }
 
   useEffect(() => {
     const retryableNotices = codexFailureNotices.filter(
@@ -4403,6 +4543,11 @@ function App() {
       const draft = await buildCodexJobDraft();
       if (!draft) return;
 
+      if (isStandardDirectionSplitDraft(draft)) {
+        await submitOrQueueCodexAnimationTournament(draft);
+        return;
+      }
+
       if (!canStartCodexJobDraft(draft, codexJobs, startingQueuedJobIdsRef.current)) {
         enqueueCodexJobDraft(draft);
         return;
@@ -4562,6 +4707,36 @@ function App() {
     };
   }
 
+  function buildCodexAnimationTournamentDrafts(draft: CodexJobDraft) {
+    const tournamentId = createId("anim-tournament");
+    return Array.from({ length: STANDARD_ANIMATION_TOURNAMENT_CANDIDATES }, (_, index) => ({
+      ...draft,
+      label: `${draft.label} (${tournamentCandidateLabel(index, STANDARD_ANIMATION_TOURNAMENT_CANDIDATES)})`,
+      jobNotes: [
+        draft.jobNotes,
+        `Animation tournament ${tournamentId}, ${tournamentCandidateLabel(index, STANDARD_ANIMATION_TOURNAMENT_CANDIDATES)}.`,
+        "Generate this candidate independently from the same source and motion contract. Do not copy another candidate. Image Cockpit will compare the first two usable candidates and import only the better final result."
+      ].filter(Boolean).join("\n"),
+      tournamentId,
+      tournamentCandidateIndex: index,
+      tournamentCandidateCount: STANDARD_ANIMATION_TOURNAMENT_CANDIDATES
+    }));
+  }
+
+  async function submitOrQueueCodexAnimationTournament(draft: CodexJobDraft) {
+    const tournamentDrafts = buildCodexAnimationTournamentDrafts(draft);
+    const canStartTournamentNow =
+      activeCodexJobCount(codexJobs, startingQueuedJobIdsRef.current) === 0 &&
+      activeStandardDirectionSplitJobCount(codexJobs, startingQueuedJobIdsRef.current) === 0;
+    if (!canStartTournamentNow) {
+      tournamentDrafts.forEach(enqueueCodexJobDraft);
+      setStatus(`Animation tournament queued: ${tournamentDrafts.length} candidates.`);
+      return;
+    }
+    await Promise.all(tournamentDrafts.map((candidateDraft) => submitCodexJobDraft(candidateDraft)));
+    setStatus(`Animation tournament started: ${tournamentDrafts.length} candidates.`);
+  }
+
   function enqueueCodexJobDraft(draft: CodexJobDraft) {
     const queuedAt = new Date().toISOString();
     const labels = codexJobQueueLabels(language);
@@ -4581,7 +4756,10 @@ function App() {
         chromaKey: draft.resultChromaKey,
         spriteVariant: draft.resultSpriteVariant,
         sourceImageId: draft.resultSourceImageId,
-        sourceImageName: draft.resultSourceImageName
+        sourceImageName: draft.resultSourceImageName,
+        tournamentId: draft.tournamentId,
+        tournamentCandidateIndex: draft.tournamentCandidateIndex,
+        tournamentCandidateCount: draft.tournamentCandidateCount
       }
     ]);
     setStatus(`${labels.queuedStatus}: ${draft.label}`);
@@ -4613,7 +4791,10 @@ function App() {
           cell: draft.cell,
           chromaKey: draft.chromaKey,
           spriteVariant: draft.spriteVariant,
-          directions: draft.directions
+          directions: draft.directions,
+          tournamentId: draft.tournamentId,
+          tournamentCandidateIndex: draft.tournamentCandidateIndex,
+          tournamentCandidateCount: draft.tournamentCandidateCount
         })
       });
       if (!response.ok) throw new Error(await response.text());
@@ -4627,6 +4808,7 @@ function App() {
         const runningJob: CodexJobQueueItem = {
           id: data.id,
           path: data.path,
+          outboxPath: data.outboxPath,
           state: "running",
           label: draft.label,
           createdAt: data.createdAt,
@@ -4637,7 +4819,10 @@ function App() {
           chromaKey: draft.resultChromaKey,
           spriteVariant: draft.resultSpriteVariant,
           sourceImageId: draft.resultSourceImageId,
-          sourceImageName: draft.resultSourceImageName
+          sourceImageName: draft.resultSourceImageName,
+          tournamentId: draft.tournamentId,
+          tournamentCandidateIndex: draft.tournamentCandidateIndex,
+          tournamentCandidateCount: draft.tournamentCandidateCount
         };
         setCodexJobs((current) => {
           const withoutQueued = queuedJobId ? current.filter((job) => job.id !== queuedJobId) : current;
@@ -5404,6 +5589,107 @@ function App() {
     } catch (error) {
       recordCodexImportFailure(directionSplitRecoveryJobFromArtifact(artifact, manifest), error);
       throw error;
+    }
+  }
+
+  async function loadCodexJobOutboxResults(jobId: string, limit?: number) {
+    const response = await fetch(`/api/codex/jobs/${encodeURIComponent(jobId)}/results${limit ? `?limit=${limit}` : ""}`);
+    if (!response.ok) throw new Error(await response.text());
+    return (await response.json()) as { outboxPath: string; results: CodexOutboxResult[] };
+  }
+
+  async function fetchCodexJobOutboxResult(jobId: string, name: string) {
+    const response = await fetch(`/api/codex/jobs/${encodeURIComponent(jobId)}/results/${encodeURIComponent(name)}`);
+    if (!response.ok) throw new Error(await response.text());
+    return (await response.json()) as CodexOutboxImportResponse;
+  }
+
+  async function publishCodexTournamentWinner(tournamentId: string, jobId: string) {
+    const response = await fetch(`/api/codex/tournaments/${encodeURIComponent(tournamentId)}/winner`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ jobId })
+    });
+    if (!response.ok) throw new Error(await response.text());
+    return (await response.json()) as { ok: boolean; tournamentId: string; jobId: string; outboxPath: string; results: CodexOutboxResult[] };
+  }
+
+  async function cancelCodexJob(jobId: string) {
+    const response = await fetch(`/api/codex/jobs/${encodeURIComponent(jobId)}/cancel`, {
+      method: "POST"
+    });
+    if (!response.ok) throw new Error(await response.text());
+    return (await response.json()) as { ok: boolean; jobId: string; status?: CodexRunnerStatus; message?: string };
+  }
+
+  async function evaluateDirectionSplitTournamentCandidate(
+    job: CodexJobQueueItem,
+    status: CodexRunnerStatus | null
+  ): Promise<DirectionSplitTournamentCandidateEvaluation> {
+    const terminalStatus: CodexRunnerStatus = status ?? {
+      jobId: job.id,
+      state: "unknown",
+      message: "Runner status could not be loaded."
+    };
+    const emptyEvaluation: DirectionSplitTournamentCandidateEvaluation = {
+      job,
+      status: terminalStatus,
+      ready: false,
+      score: Number.NEGATIVE_INFINITY,
+      warningCount: Number.MAX_SAFE_INTEGER,
+      manifest: null,
+      directionResults: [],
+      importedResults: []
+    };
+    if (terminalStatus.state !== "completed") {
+      return {
+        ...emptyEvaluation,
+        error: runnerStatusMessage(terminalStatus, copy)
+      };
+    }
+
+    try {
+      const listData = await loadCodexJobOutboxResults(job.id);
+      const results = listData.results;
+      const jobResults = results.filter((result) => !shouldIgnoreOutboxResultName(result.name) && isOutboxResultForJob(result.name, job.id));
+      const manifestResult = jobResults.find((result) => isDirectionSplitAnimationManifestName(result.name, job.id));
+      const manifest = manifestResult ? parseDirectionSplitAnimationManifest(await fetchCodexJobOutboxResult(job.id, manifestResult.name)) : null;
+      const selection = selectDirectionSplitAnimationResults(jobResults, job.id, manifest);
+      if (!selection.ready || !selection.manifestResult || selection.directionResults.length !== DIRECTION_SPLIT_ANIMATION_RESULT_COUNT) {
+        const reason =
+          selection.artifactStatus?.reason ??
+          (selection.missingDirections.length > 0
+            ? `missing ${selection.missingDirections.join(", ")}`
+            : "candidate did not produce a verified direction-split final result");
+        return { ...emptyEvaluation, manifest, manifestResult: selection.manifestResult, directionResults: selection.directionResults, error: reason };
+      }
+
+      const importedResults = await Promise.all(selection.directionResults.map((result) => fetchCodexJobOutboxResult(job.id, result.name)));
+      const chromaKey = animationChromaKeys[job.chromaKey ?? manifestChromaKeyName(manifest, animationChromaKey)];
+      const composed = await composeDirectionSplitAnimationSheet(importedResults, chromaKey, job.cell ?? manifest?.cell ?? STANDARD_ANIMATION_CELL);
+      const artifactWarnings = selection.artifactStatus?.warnings?.length ?? 0;
+      const warningCount = composed.warnings.length + artifactWarnings;
+      const artifactQuality = selection.artifactStatus?.quality;
+      const qualityScore = artifactQuality === "gold" ? 3000 : artifactQuality === "silver" ? 2400 : 1800;
+      const verifiedScore = selection.artifactStatus?.verified ? 300 : 0;
+      const stableScore = selection.artifactStatus?.stable ? 100 : 0;
+      const score = qualityScore + verifiedScore + stableScore - warningCount * 25;
+      return {
+        job,
+        status: terminalStatus,
+        ready: true,
+        score,
+        warningCount,
+        manifest,
+        manifestResult: selection.manifestResult,
+        directionResults: selection.directionResults,
+        importedResults
+      };
+    } catch (error) {
+      return {
+        ...emptyEvaluation,
+        error: error instanceof Error ? error.message : "Candidate evaluation failed."
+      };
     }
   }
 
@@ -10781,6 +11067,7 @@ function savePendingCodexJobs(jobs: CodexJobQueueItem[]) {
       .map((job) => ({
         id: job.id,
         path: job.path ?? "",
+        outboxPath: job.outboxPath,
         createdAt: job.createdAt,
         label: job.label,
         workflowMode: job.workflowMode,
@@ -10790,7 +11077,10 @@ function savePendingCodexJobs(jobs: CodexJobQueueItem[]) {
         chromaKey: job.chromaKey,
         spriteVariant: job.spriteVariant,
         sourceImageId: job.sourceImageId,
-        sourceImageName: job.sourceImageName
+        sourceImageName: job.sourceImageName,
+        tournamentId: job.tournamentId,
+        tournamentCandidateIndex: job.tournamentCandidateIndex,
+        tournamentCandidateCount: job.tournamentCandidateCount
       }));
     if (runningJobs.length > 0) {
       window.localStorage.setItem(PENDING_CODEX_JOB_STORAGE_KEY, JSON.stringify(runningJobs));

@@ -990,6 +990,7 @@ async function assertCompletedDirectionSplitImportFailure() {
   );
   assert(snapshot.historyItems === before.historyItems, "Completed direction split import failure should not add a broken history item");
   assert(snapshot.text.includes("Raw direction files"), "Completed direction split import failure should tell the user raw files remain available");
+  await rm(mockImportFailureMarkerPath, { force: true });
   await assertNoBrowserErrors("completed direction split import failure");
   await maybeCapture("completed-direction-split-import-failure");
   await selectWorkflowTab("Pixel Art Generation");
@@ -1017,6 +1018,7 @@ async function assertQualityGateDirectionSplitFailure() {
   );
   assert(snapshot.historyItems === before.historyItems, "Quality gate failure should not add a quarantined history item");
   assert(snapshot.text.toLowerCase().includes("no history or final download item was added"), "Quality gate failure should explain that no final item was added");
+  await rm(mockQualityGateFailureMarkerPath, { force: true });
   await assertNoBrowserErrors("quality gate direction split failure");
   await maybeCapture("quality-gate-direction-split-failure");
   await selectWorkflowTab("Pixel Art Generation");
@@ -2157,15 +2159,20 @@ function makeDirectionSplitFixturePng(directionIndex = 0) {
       const row = Math.floor(y / cellHeight);
       const localX = x % cellWidth;
       const localY = y % cellHeight;
-      const centerX = Math.round(cellWidth / 2 + Math.sin(column / Math.max(1, columns - 1) * Math.PI * 2) * 24);
-      const centerY = Math.round(cellHeight * 0.58 + row * 3 + directionIndex);
-      const body = Math.abs(localX - centerX) < 50 && Math.abs(localY - centerY) < 72;
-      const head = (localX - centerX) ** 2 + (localY - (centerY - 78)) ** 2 < 38 ** 2;
-      const feet = Math.abs(localX - centerX) < 68 && Math.abs(localY - (centerY + 84)) < 10;
-      if (body || head || feet) {
-        raw[offset] = 38 + row * 24 + directionIndex * 18;
-        raw[offset + 1] = 44 + column * 8;
-        raw[offset + 2] = 88 + row * 16;
+      const centerX = Math.round(cellWidth / 2 + Math.sin(column / Math.max(1, columns - 1) * Math.PI * 2) * 28);
+      const centerY = Math.round(cellHeight * 0.58 + row * 3 + directionIndex * 0.5);
+      const poseSwing = Math.round(Math.sin(column / Math.max(1, columns - 1) * Math.PI * 2) * 24);
+      const body = Math.abs(localX - centerX) < 54 && Math.abs(localY - centerY) < 78;
+      const head = (localX - centerX) ** 2 + (localY - (centerY - 82)) ** 2 < 42 ** 2;
+      const feet = Math.abs(localX - centerX) < 72 && Math.abs(localY - (centerY + 88)) < 12;
+      const leftArm = Math.abs(localX - (centerX - 62 - poseSwing * 0.45)) < 13 && localY >= centerY - 52 && localY <= centerY + 44;
+      const rightArm = Math.abs(localX - (centerX + 62 + poseSwing * 0.45)) < 13 && localY >= centerY - 52 && localY <= centerY + 44;
+      const leftLeg = Math.abs(localX - (centerX - 30 + poseSwing * 0.35)) < 15 && localY >= centerY + 40 && localY <= centerY + 98;
+      const rightLeg = Math.abs(localX - (centerX + 30 - poseSwing * 0.35)) < 15 && localY >= centerY + 40 && localY <= centerY + 98;
+      if (body || head || feet || leftArm || rightArm || leftLeg || rightLeg) {
+        raw[offset] = 32 + row * 28 + directionIndex * 18 + column * 18;
+        raw[offset + 1] = 44 + column * 26;
+        raw[offset + 2] = 74 + row * 18 + column * 12;
         raw[offset + 3] = 255;
       }
     }
@@ -2360,7 +2367,6 @@ if (job.spriteContext?.variant === "standard") {
     process.exit(0);
   }
   if (existsSync(${JSON.stringify(mockQualityGateFailureMarkerPath)})) {
-    await rm(${JSON.stringify(mockQualityGateFailureMarkerPath)}, { force: true });
     for (const [index, slug] of directionSlugs.entries()) {
       const png = makeSpriteSheetPng(cellWidth * 4, cellHeight * 2, 4, 2, cellWidth, cellHeight, chroma, index);
       await writeFile(join(outboxDir, \`\${jobId}-\${slug}.png\`), png);
@@ -2387,7 +2393,6 @@ if (job.spriteContext?.variant === "standard") {
     process.exit(0);
   }
   if (existsSync(${JSON.stringify(mockImportFailureMarkerPath)})) {
-    await rm(${JSON.stringify(mockImportFailureMarkerPath)}, { force: true });
     for (const [index, slug] of directionSlugs.entries()) {
       if (slug === "side") continue;
       const png = makeSpriteSheetPng(cellWidth * 4, cellHeight * 2, 4, 2, cellWidth, cellHeight, chroma, index);
@@ -2449,13 +2454,18 @@ function makeSpriteSheetPng(width, height, columns, rows, cellWidth, cellHeight,
       const localY = y % cellHeight;
       const centerX = Math.round(cellWidth / 2 + Math.sin(column / Math.max(1, columns - 1) * Math.PI * 2) * 28);
       const centerY = Math.round(cellHeight * 0.58 + row * 3 + directionIndex * 0.5);
+      const poseSwing = Math.round(Math.sin(column / Math.max(1, columns - 1) * Math.PI * 2) * 24);
       const body = Math.abs(localX - centerX) < 54 && Math.abs(localY - centerY) < 78;
       const head = (localX - centerX) ** 2 + (localY - (centerY - 82)) ** 2 < 42 ** 2;
       const feet = Math.abs(localX - centerX) < 72 && Math.abs(localY - (centerY + 88)) < 12;
-      if (body || head || feet) {
-        raw[offset] = 32 + row * 28 + directionIndex * 18;
-        raw[offset + 1] = 44 + column * 10;
-        raw[offset + 2] = 74 + row * 18;
+      const leftArm = Math.abs(localX - (centerX - 62 - poseSwing * 0.45)) < 13 && localY >= centerY - 52 && localY <= centerY + 44;
+      const rightArm = Math.abs(localX - (centerX + 62 + poseSwing * 0.45)) < 13 && localY >= centerY - 52 && localY <= centerY + 44;
+      const leftLeg = Math.abs(localX - (centerX - 30 + poseSwing * 0.35)) < 15 && localY >= centerY + 40 && localY <= centerY + 98;
+      const rightLeg = Math.abs(localX - (centerX + 30 - poseSwing * 0.35)) < 15 && localY >= centerY + 40 && localY <= centerY + 98;
+      if (body || head || feet || leftArm || rightArm || leftLeg || rightLeg) {
+        raw[offset] = 32 + row * 28 + directionIndex * 18 + column * 18;
+        raw[offset + 1] = 44 + column * 26;
+        raw[offset + 2] = 74 + row * 18 + column * 12;
         raw[offset + 3] = 255;
       }
     }

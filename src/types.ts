@@ -136,6 +136,7 @@ export interface CodexJobResponse {
   id: string;
   path: string;
   inboxPath: string;
+  outboxPath?: string;
   createdAt: string;
   runner?: CodexRunnerStatus;
 }
@@ -170,6 +171,7 @@ export interface CodexRunnerStatus {
   signal?: string | null;
   logPath?: string;
   statusPath?: string;
+  outboxDir?: string;
   diagnostic?: CodexJobDiagnostic;
 }
 
