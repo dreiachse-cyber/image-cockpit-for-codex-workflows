@@ -421,6 +421,48 @@ interface CockpitHealthReport {
   repairAvailable: boolean;
 }
 
+type SettingsTab = "general" | "recovery" | "diagnostics" | "environment";
+type ImagegenSmokeState = "not_run" | "passed" | "failed" | "unknown";
+type PlaceholderSuspicion = "yes" | "no" | "unknown";
+
+interface EnvironmentReportInput {
+  appVersion: string;
+  appUrl: string;
+  route: string;
+  userAgent: string;
+  browserLanguage: string;
+  browserPlatform: string;
+  viewport: { width: number; height: number; devicePixelRatio: number };
+  timezoneOffsetMinutes: number;
+  localTime: string;
+  apiHealth?: ImageCockpitApiHealth;
+  runner?: CodexRunnerPreflight | null;
+  supervisor?: ImageCockpitDevSupervisorHealth;
+  providerId: ProviderId;
+  workflowMode: WorkflowMode;
+  safeMode: boolean;
+  skipStorage: boolean;
+  storagePressure?: string;
+  storageUsageBytes?: number;
+  storageQuotaBytes?: number;
+  activeJobCount: number;
+  queuedJobCount: number;
+  lastJobId?: string;
+  lastFailure?: Pick<CodexFailureNotice, "jobId" | "label" | "diagnostic">;
+  lastResult?: Pick<HistoryItem, "provider" | "source" | "name" | "size" | "outboxImportKey"> & {
+    mimeType?: string;
+    dimensions?: string;
+    placeholderSuspected: PlaceholderSuspicion;
+    localProcedural: boolean;
+  };
+  imagegenSmoke: ImagegenSmokeState;
+}
+
+interface EnvironmentReport {
+  json: Record<string, unknown>;
+  markdown: string;
+}
+
 interface CodexJobLogItem {
   jobId: string;
   label: string;
@@ -3124,6 +3166,178 @@ export function fingerprintOutboxResults(results: CodexOutboxResult[], jobId?: s
     .join("|");
 }
 
+export function redactEnvironmentReportText(value: string) {
+  return value
+    .replace(/data:image\/[a-z0-9.+-]+;base64,[A-Za-z0-9+/=]+/gi, "[REDACTED_DATA_URL]")
+    .replace(/\b(api[_-]?key|token|secret|password)\b\s*[:=]\s*["']?[^"'\s,}]+/gi, "$1=[REDACTED]")
+    .replace(/\b(?:sk-[A-Za-z0-9_-]{8,}|ghp_[A-Za-z0-9_]{8,}|github_pat_[A-Za-z0-9_]+)\b/g, "[REDACTED_SECRET]")
+    .replace(/[A-Za-z]:\\Users\\[^\\\r\n/]+/g, (match) => `${match.slice(0, 9)}<USER>`)
+    .replace(/\/Users\/[^/\r\n]+/g, "/Users/<USER>");
+}
+
+export function placeholderSuspicionForResult(item: Pick<HistoryItem, "provider" | "size" | "source"> | undefined): PlaceholderSuspicion {
+  if (!item) return "unknown";
+  if (item.provider === "local-generator") return "no";
+  const match = item.size.match(/^(\d+)x(\d+)$/);
+  if (!match) return "unknown";
+  const width = Number(match[1]);
+  const height = Number(match[2]);
+  if (!Number.isFinite(width) || !Number.isFinite(height)) return "unknown";
+  if (item.provider === "local-inbox" && item.source === "inbox" && (width < 256 || height < 256 || width * height < 120000)) {
+    return "yes";
+  }
+  return "unknown";
+}
+
+export function buildImageCockpitEnvironmentReport(input: EnvironmentReportInput): EnvironmentReport {
+  const timezoneHours = -input.timezoneOffsetMinutes / 60;
+  const timezone = `UTC${timezoneHours >= 0 ? "+" : ""}${timezoneHours.toFixed(Number.isInteger(timezoneHours) ? 0 : 1)}`;
+  const runnerState = input.runner?.state ?? input.apiHealth?.runner.state ?? "unknown";
+  const runnerErrorCode = input.runner?.errorCode ?? "<none>";
+  const runnerSetupHint = input.runner?.setupHint ?? "<none>";
+  const lastDiagnostic = input.lastFailure?.diagnostic;
+  const report = {
+    app: {
+      version: input.appVersion,
+      url: input.appUrl,
+      route: input.route,
+      localTime: input.localTime,
+      timezone
+    },
+    browser: {
+      userAgent: input.userAgent,
+      language: input.browserLanguage,
+      platform: input.browserPlatform,
+      viewport: `${input.viewport.width}x${input.viewport.height} @ ${input.viewport.devicePixelRatio}x`
+    },
+    api: {
+      health: input.apiHealth ? "ok" : "unavailable",
+      version: input.apiHealth?.version ?? "unknown",
+      port: input.apiHealth?.port ?? null,
+      inboxReadable: Boolean(input.apiHealth?.inboxReadable),
+      outboxReadable: Boolean(input.apiHealth?.outboxReadable),
+      statusReadable: Boolean(input.apiHealth?.statusReadable),
+      logsReadable: Boolean(input.apiHealth?.logsReadable)
+    },
+    supervisor: input.supervisor
+      ? {
+          port: input.supervisor.supervisor.port,
+          apiPort: input.supervisor.api.port,
+          vitePort: input.supervisor.vite.port,
+          mismatches: input.supervisor.mismatches
+        }
+      : { state: "unavailable" },
+    runner: {
+      autorun: input.runner?.autorun ?? input.apiHealth?.runner.autorun ?? false,
+      state: runnerState,
+      errorCode: runnerErrorCode,
+      setupHint: runnerSetupHint
+    },
+    workflow: {
+      providerId: input.providerId,
+      workflowMode: input.workflowMode,
+      activeJobCount: input.activeJobCount,
+      queuedJobCount: input.queuedJobCount,
+      lastJobId: input.lastJobId ?? "unknown"
+    },
+    storage: {
+      safeMode: input.safeMode,
+      skipStorage: input.skipStorage,
+      pressure: input.storagePressure ?? "unknown",
+      usageBytes: input.storageUsageBytes ?? null,
+      quotaBytes: input.storageQuotaBytes ?? null
+    },
+    imagegen: {
+      smoke: input.imagegenSmoke,
+      lastDiagnosticKind: lastDiagnostic?.kind ?? "none",
+      lastDiagnosticTitle: lastDiagnostic?.title ?? "none",
+      lastDiagnosticMessage: lastDiagnostic?.userMessage ?? "none",
+      lastResultProvider: input.lastResult?.provider ?? "none",
+      lastResultSource: input.lastResult?.source ?? "none",
+      lastResultMime: input.lastResult?.mimeType ?? "unknown",
+      lastResultSize: input.lastResult?.size ?? "unknown",
+      lastResultDimensions: input.lastResult?.dimensions ?? "unknown",
+      hasOutboxImportKey: Boolean(input.lastResult?.outboxImportKey),
+      localProcedural: Boolean(input.lastResult?.localProcedural),
+      placeholderSuspected: input.lastResult?.placeholderSuspected ?? "unknown"
+    },
+    safety: {
+      redacted: true,
+      omitted: ["api keys", "tokens", "image data URLs", "prompt text", "job notes", "full logs", "full outbox listings"]
+    }
+  };
+
+  const markdown = redactEnvironmentReportText(`## Image Cockpit Environment Report
+
+- App version: ${report.app.version}
+- App URL: ${report.app.url}
+- Route: ${report.app.route}
+- Browser: ${report.browser.userAgent}
+- Viewport: ${report.browser.viewport}
+- Language: ${report.browser.language}
+- Platform: ${report.browser.platform}
+- Timezone: ${report.app.timezone}
+
+### API
+
+- /api/health: ${report.api.health}
+- API port: ${report.api.port ?? "unknown"}
+- Handoff readable: inbox=${report.api.inboxReadable}, outbox=${report.api.outboxReadable}, status=${report.api.statusReadable}, logs=${report.api.logsReadable}
+
+### Codex Runner
+
+- Autorun: ${report.runner.autorun}
+- Runner state: ${report.runner.state}
+- Error code: ${report.runner.errorCode}
+- Setup hint: ${report.runner.setupHint}
+
+### Imagegen
+
+- imagegen smoke: ${report.imagegen.smoke}
+- Last image job diagnostic: ${report.imagegen.lastDiagnosticKind}
+- Last result provider: ${report.imagegen.lastResultProvider}
+- Last result source: ${report.imagegen.lastResultSource}
+- Local procedural result: ${report.imagegen.localProcedural ? "yes" : "no"}
+- Placeholder suspected: ${report.imagegen.placeholderSuspected}
+
+### Storage
+
+- Safe mode: ${report.storage.safeMode}
+- Skip storage: ${report.storage.skipStorage}
+- Storage pressure: ${report.storage.pressure}
+
+### Notes
+
+- ChatGPT image generation availability and local Codex runner imagegen availability are separate states.
+- I did not include prompts, images, API keys, tokens, full logs, or full outbox listings in this report.
+`);
+
+  return {
+    json: JSON.parse(redactEnvironmentReportText(JSON.stringify(report, null, 2))) as Record<string, unknown>,
+    markdown
+  };
+}
+
+export function settingsTabFromSearch(search = ""): SettingsTab {
+  const params = new URLSearchParams(search);
+  if (params.get("diagnostics") === "1") return "diagnostics";
+  if (params.get("settings") === "environment") return "environment";
+  if (params.get("settings") === "diagnostics") return "diagnostics";
+  if (params.get("settings") === "recovery" || params.get("safe") === "1" || params.get("skipStorage") === "1") return "recovery";
+  return "general";
+}
+
+export function shouldOpenSettingsFromSearch(search = "") {
+  const params = new URLSearchParams(search);
+  return (
+    params.get("settings") === "1" ||
+    Boolean(params.get("settings")) ||
+    params.get("diagnostics") === "1" ||
+    params.get("safe") === "1" ||
+    params.get("skipStorage") === "1"
+  );
+}
+
 type LocalStateScreenMode = "checking" | "normal" | "safe" | "recovery" | "reset" | "reset-complete";
 
 interface LocalStateScreenState {
@@ -3208,6 +3422,10 @@ function App() {
   const [codexJobLogs, setCodexJobLogs] = useState<CodexJobLogItem[]>([]);
   const [codexLogsCollapsed, setCodexLogsCollapsed] = useState(false);
   const [codexLogsFullscreen, setCodexLogsFullscreen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(() => shouldOpenSettingsFromSearch(window.location.search));
+  const [settingsTab, setSettingsTab] = useState<SettingsTab>(() => settingsTabFromSearch(window.location.search));
+  const [settingsCopyStatus, setSettingsCopyStatus] = useState("");
+  const [imagegenSmokeState] = useState<ImagegenSmokeState>("not_run");
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -3218,6 +3436,7 @@ function App() {
   const startingQueuedJobIdsRef = useRef<Set<string>>(new Set());
   const retryingFailureJobIdsRef = useRef<Set<string>>(new Set());
   const lastPointerEventAtRef = useRef(0);
+  const settingsAutoDismissedRef = useRef(sessionStorage.getItem("image-cockpit.settings.dismissed") === "1");
   const copy = uiCopy[language];
 
   const selected = useMemo(
@@ -3237,6 +3456,53 @@ function App() {
     [history, visibleHistoryCount]
   );
   const hasMoreHistory = visibleHistoryCount < history.length;
+  const environmentReport = useMemo(() => {
+    const selectedMime = selected?.dataUrl.match(/^data:([^;,]+)/)?.[1];
+    const storageEstimate = storageScreen.preflight?.estimate;
+    return buildImageCockpitEnvironmentReport({
+      appVersion: "0.1.1",
+      appUrl: window.location.origin,
+      route: `${window.location.pathname}${window.location.search}`,
+      userAgent: navigator.userAgent,
+      browserLanguage: navigator.language,
+      browserPlatform: navigator.platform,
+      viewport: {
+        width: window.innerWidth,
+        height: window.innerHeight,
+        devicePixelRatio: window.devicePixelRatio || 1
+      },
+      timezoneOffsetMinutes: new Date().getTimezoneOffset(),
+      localTime: new Date().toISOString(),
+      apiHealth: cockpitHealth.api,
+      runner: runnerPreflight,
+      supervisor: cockpitHealth.supervisor,
+      providerId,
+      workflowMode,
+      safeMode: storageScreen.mode === "safe" || Boolean(storageScreen.preflight?.safeModeRequested),
+      skipStorage: storageScreen.mode === "safe" || storageScreen.mode === "recovery",
+      storagePressure: storageScreen.preflight?.pressure,
+      storageUsageBytes: storageEstimate?.usage,
+      storageQuotaBytes: storageEstimate?.quota,
+      activeJobCount: codexJobs.filter((job) => job.state === "running").length,
+      queuedJobCount: codexJobs.filter((job) => job.state === "queued").length,
+      lastJobId: codexJobs[0]?.id ?? codexFailureNotices[0]?.jobId,
+      lastFailure: codexFailureNotices[0],
+      lastResult: selected
+        ? {
+            provider: selected.provider,
+            source: selected.source,
+            name: selected.name,
+            size: selected.size,
+            outboxImportKey: selected.outboxImportKey,
+            mimeType: selectedMime,
+            dimensions: selected.size,
+            placeholderSuspected: placeholderSuspicionForResult(selected),
+            localProcedural: selected.provider === "local-generator"
+          }
+        : undefined,
+      imagegenSmoke: imagegenSmokeState
+    });
+  }, [cockpitHealth.api, cockpitHealth.supervisor, codexFailureNotices, codexJobs, imagegenSmokeState, providerId, runnerPreflight, selected, storageScreen, workflowMode]);
 
   useEffect(() => {
     setDownloadModalOpen(false);
@@ -3507,6 +3773,53 @@ function App() {
   useEffect(() => {
     if (canPersistLocalState) savePendingCodexJobs(codexJobs);
   }, [canPersistLocalState, codexJobs]);
+
+  useEffect(() => {
+    if (settingsOpen || settingsAutoDismissedRef.current) return;
+    const hasStorageProblem = storageScreen.mode === "safe" || storageScreen.mode === "recovery" || storageScreen.mode === "reset";
+    const hasApiProblem = cockpitHealth.state === "broken";
+    const hasImagegenProblem = codexFailureNotices.some((notice) =>
+      notice.diagnostic.kind === "imagegen_unavailable" || notice.diagnostic.kind === "no_image_returned"
+    );
+    if (hasStorageProblem) {
+      setSettingsTab("recovery");
+      setSettingsOpen(true);
+    } else if (hasApiProblem || hasImagegenProblem) {
+      setSettingsTab("diagnostics");
+      setSettingsOpen(true);
+    }
+  }, [cockpitHealth.state, codexFailureNotices, settingsOpen, storageScreen.mode]);
+
+  function openSettings(tab: SettingsTab = "general") {
+    setSettingsTab(tab);
+    setSettingsCopyStatus("");
+    setSettingsOpen(true);
+  }
+
+  function closeSettings() {
+    settingsAutoDismissedRef.current = true;
+    sessionStorage.setItem("image-cockpit.settings.dismissed", "1");
+    setSettingsOpen(false);
+  }
+
+  async function copyEnvironmentReport(kind: "markdown" | "json") {
+    const value = kind === "markdown" ? environmentReport.markdown : JSON.stringify(environmentReport.json, null, 2);
+    try {
+      await navigator.clipboard.writeText(value);
+      setSettingsCopyStatus(kind === "markdown" ? "Markdown copied." : "JSON copied.");
+    } catch {
+      const textArea = document.createElement("textarea");
+      textArea.value = value;
+      textArea.setAttribute("readonly", "true");
+      textArea.style.position = "fixed";
+      textArea.style.left = "-9999px";
+      document.body.appendChild(textArea);
+      textArea.select();
+      const copied = document.execCommand("copy");
+      document.body.removeChild(textArea);
+      setSettingsCopyStatus(copied ? (kind === "markdown" ? "Markdown copied." : "JSON copied.") : "Copy failed.");
+    }
+  }
 
   useEffect(() => {
     if (!codexLogsFullscreen) return;
@@ -5647,6 +5960,10 @@ function App() {
     window.location.assign(url.toString());
   }
 
+  function openStaticResetPage() {
+    window.location.assign("/reset-local-state.html");
+  }
+
   function openLocalhostOrigin() {
     const port = window.location.port ? `:${window.location.port}` : "";
     window.location.assign(`${window.location.protocol}//localhost${port}${window.location.pathname}`);
@@ -5741,24 +6058,53 @@ function App() {
 
   if (storageScreen.mode !== "normal") {
     return (
-      <LocalStateRecoveryScreen
-        mode={storageScreen.mode}
-        preflight={storageScreen.preflight}
-        summaries={storageScreen.summaries}
-        message={storageScreen.message}
-        error={storageScreen.error}
-        runnerLabel={runnerPreflightLabel(runnerPreflight, copy)}
-        runnerState={runnerPreflight?.state ?? "unavailable"}
-        clearingScope={storageClearState.scope}
-        clearMessage={storageClearState.message}
-        clearError={storageClearState.error}
-        onOpenSafeMode={openStorageSafeMode}
-        onOpenNormalMode={openStorageNormalMode}
-        onOpenLocalhostOrigin={openLocalhostOrigin}
-        onForceLoad={() => setForceLargeStateLoad(true)}
-        onClear={clearLocalStateScope}
-        onDedupeHistory={dedupePersistedHistoryNow}
-      />
+      <>
+        <LocalStateRecoveryScreen
+          mode={storageScreen.mode}
+          preflight={storageScreen.preflight}
+          summaries={storageScreen.summaries}
+          message={storageScreen.message}
+          error={storageScreen.error}
+          runnerLabel={runnerPreflightLabel(runnerPreflight, copy)}
+          runnerState={runnerPreflight?.state ?? "unavailable"}
+          clearingScope={storageClearState.scope}
+          clearMessage={storageClearState.message}
+          clearError={storageClearState.error}
+          onOpenSafeMode={openStorageSafeMode}
+          onOpenNormalMode={openStorageNormalMode}
+          onOpenLocalhostOrigin={openLocalhostOrigin}
+          onForceLoad={() => setForceLargeStateLoad(true)}
+          onClear={clearLocalStateScope}
+          onDedupeHistory={dedupePersistedHistoryNow}
+        />
+        {settingsOpen && (
+          <SettingsModal
+            activeTab={settingsTab}
+            language={language}
+            report={environmentReport}
+            cockpitHealth={cockpitHealth}
+            runnerPreflight={runnerPreflight}
+            storageScreen={storageScreen}
+            storageClearState={storageClearState}
+            copyStatus={settingsCopyStatus}
+            recovering={isRecoveringOutboxResults}
+            repairing={isCockpitRepairing}
+            deduping={isDedupingHistory}
+            onTabChange={setSettingsTab}
+            onClose={closeSettings}
+            onOpenSafeMode={openStorageSafeMode}
+            onOpenNormalMode={openStorageNormalMode}
+            onOpenResetPage={openStaticResetPage}
+            onClear={clearLocalStateScope}
+            onDedupeHistory={() => void dedupePersistedHistoryNow()}
+            onDiagnose={() => void runCockpitHealthCheck()}
+            onRecover={() => void recoverUnimportedOutboxResults()}
+            onRepair={() => void repairCockpit()}
+            onCopyMarkdown={() => void copyEnvironmentReport("markdown")}
+            onCopyJson={() => void copyEnvironmentReport("json")}
+          />
+        )}
+      </>
     );
   }
 
@@ -5773,14 +6119,14 @@ function App() {
         </div>
         <div className="project-strip">
           <LanguageSelect language={language} label={copy.language} onChange={setLanguage} />
+          <button className="icon-button settings-trigger" title={copy.settings} aria-label={copy.settings} onClick={() => openSettings("general")}>
+            <Settings size={18} aria-hidden="true" />
+          </button>
           {SHOW_LOW_PRIORITY_CONTROLS && (
             <>
               <span>{copy.project}</span>
               <button className="icon-button" title={copy.openWorkspace}>
                 <FolderOpen size={18} aria-hidden="true" />
-              </button>
-              <button className="icon-button" title={copy.settings}>
-                <Settings size={18} aria-hidden="true" />
               </button>
             </>
           )}
@@ -5811,6 +6157,12 @@ function App() {
             onRecover={() => void recoverUnimportedOutboxResults()}
             onRepair={() => void repairCockpit()}
           />
+          {selected?.provider === "local-generator" && (
+            <div className="notice local-generator-notice">
+              <AlertTriangle size={15} aria-hidden="true" />
+              <span>{language === "ja" ? "この結果はローカル簡易生成です。Codex imagegenの成功結果ではありません。" : "This result is local procedural generation, not a Codex imagegen success result."}</span>
+            </div>
+          )}
           <WorkflowTabs language={language} activeMode={workflowMode} onSelect={beginWorkflow} />
 
           {isAnimationWorkflow ? (
@@ -6645,6 +6997,33 @@ function App() {
           onExport={() => void exportSelectedAnimationPack()}
         />
       )}
+      {settingsOpen && (
+        <SettingsModal
+          activeTab={settingsTab}
+          language={language}
+          report={environmentReport}
+          cockpitHealth={cockpitHealth}
+          runnerPreflight={runnerPreflight}
+          storageScreen={storageScreen}
+          storageClearState={storageClearState}
+          copyStatus={settingsCopyStatus}
+          recovering={isRecoveringOutboxResults}
+          repairing={isCockpitRepairing}
+          deduping={isDedupingHistory}
+          onTabChange={setSettingsTab}
+          onClose={closeSettings}
+          onOpenSafeMode={openStorageSafeMode}
+          onOpenNormalMode={openStorageNormalMode}
+          onOpenResetPage={openStaticResetPage}
+          onClear={clearLocalStateScope}
+          onDedupeHistory={() => void dedupeLocalInboxHistoryNow()}
+          onDiagnose={() => void runCockpitHealthCheck()}
+          onRecover={() => void recoverUnimportedOutboxResults()}
+          onRepair={() => void repairCockpit()}
+          onCopyMarkdown={() => void copyEnvironmentReport("markdown")}
+          onCopyJson={() => void copyEnvironmentReport("json")}
+        />
+      )}
     </div>
   );
 
@@ -6661,6 +7040,222 @@ function PanelTitle({ index, title }: { index: string; title: string }) {
   return (
     <div className="panel-title">
       <strong>{index}. {title}</strong>
+    </div>
+  );
+}
+
+function SettingsModal({
+  activeTab,
+  language,
+  report,
+  cockpitHealth,
+  runnerPreflight,
+  storageScreen,
+  storageClearState,
+  copyStatus,
+  recovering,
+  repairing,
+  deduping,
+  onTabChange,
+  onClose,
+  onOpenSafeMode,
+  onOpenNormalMode,
+  onOpenResetPage,
+  onClear,
+  onDedupeHistory,
+  onDiagnose,
+  onRecover,
+  onRepair,
+  onCopyMarkdown,
+  onCopyJson
+}: {
+  activeTab: SettingsTab;
+  language: Language;
+  report: EnvironmentReport;
+  cockpitHealth: CockpitHealthReport;
+  runnerPreflight: CodexRunnerPreflight | null;
+  storageScreen: LocalStateScreenState;
+  storageClearState: { scope?: LocalStateResetScope; message?: string; error?: string };
+  copyStatus?: string;
+  recovering: boolean;
+  repairing: boolean;
+  deduping: boolean;
+  onTabChange: (tab: SettingsTab) => void;
+  onClose: () => void;
+  onOpenSafeMode: () => void;
+  onOpenNormalMode: () => void;
+  onOpenResetPage: () => void;
+  onClear: (scope: LocalStateResetScope) => void;
+  onDedupeHistory: () => void;
+  onDiagnose: () => void;
+  onRecover: () => void;
+  onRepair: () => void;
+  onCopyMarkdown: () => void;
+  onCopyJson: () => void;
+}) {
+  const isJa = language === "ja";
+  const labels = {
+    title: isJa ? "設定" : "Settings",
+    subtitle: isJa ? "復旧、診断、環境レポートをここに集約します。" : "Recovery, diagnostics, and environment reporting live here.",
+    general: isJa ? "一般" : "General",
+    recovery: isJa ? "復旧" : "Recovery",
+    diagnostics: isJa ? "診断" : "Diagnostics",
+    environment: isJa ? "環境レポート" : "Environment Report",
+    safe: isJa ? "Safe modeで開く" : "Open Safe Mode",
+    normal: isJa ? "通常URLで開く" : "Open Normal URL",
+    reset: isJa ? "Reset local stateを開く" : "Open Reset Local State",
+    diagnose: isJa ? "診断" : "Diagnose",
+    recover: isJa ? "結果を再取り込み" : "Recover Results",
+    repair: isJa ? "Cockpitを修復" : "Repair Cockpit",
+    dedupe: isJa ? "重複履歴を整理" : "Dedupe History",
+    clearHistory: isJa ? "履歴を削除" : "Clear History",
+    clearFrames: isJa ? "フレームを削除" : "Clear Frames",
+    clearLibrary: isJa ? "Animation libraryを削除" : "Clear Animation Library",
+    clearAll: isJa ? "全ローカル状態を削除" : "Clear All Local State",
+    copyMarkdown: isJa ? "Markdownをコピー" : "Copy Markdown",
+    copyJson: isJa ? "JSONをコピー" : "Copy JSON",
+    refresh: isJa ? "更新" : "Refresh",
+    close: isJa ? "閉じる" : "Close"
+  };
+  const tabOptions: Array<{ id: SettingsTab; label: string }> = [
+    { id: "general", label: labels.general },
+    { id: "recovery", label: labels.recovery },
+    { id: "diagnostics", label: labels.diagnostics },
+    { id: "environment", label: labels.environment }
+  ];
+  const markdown = report.markdown;
+  const json = JSON.stringify(report.json, null, 2);
+  return (
+    <div className="settings-modal-backdrop" role="presentation">
+      <section className="settings-modal" role="dialog" aria-modal="true" aria-label={labels.title}>
+        <header className="settings-modal-header">
+          <span>
+            <Settings size={18} aria-hidden="true" />
+            <strong>{labels.title}</strong>
+            <small>{labels.subtitle}</small>
+          </span>
+          <button className="icon-button" onClick={onClose} aria-label={labels.close} title={labels.close}>
+            <X size={18} aria-hidden="true" />
+          </button>
+        </header>
+        <nav className="settings-tabs" aria-label={labels.title}>
+          {tabOptions.map((tab) => (
+            <button key={tab.id} className={activeTab === tab.id ? "active" : ""} onClick={() => onTabChange(tab.id)}>
+              {tab.label}
+            </button>
+          ))}
+        </nav>
+
+        {activeTab === "general" && (
+          <div className="settings-section">
+            <article className="settings-card">
+              <small>Image Cockpit</small>
+              <strong>v0.1.1</strong>
+              <span>{isJa ? "ChatGPTの画像生成可否と、ローカルCodex runner内でimagegenを使えるかは別の状態です。" : "ChatGPT image generation availability and local Codex runner imagegen availability are separate states."}</span>
+            </article>
+            <article className="settings-card">
+              <small>{isJa ? "現在の状態" : "Current state"}</small>
+              <strong>{cockpitHealth.message}</strong>
+              <span>Runner: {runnerPreflight?.state ?? cockpitHealth.api?.runner.state ?? "unknown"} / Storage: {storageScreen.preflight?.pressure ?? storageScreen.mode}</span>
+            </article>
+          </div>
+        )}
+
+        {activeTab === "recovery" && (
+          <div className="settings-section">
+            <div className="settings-action-grid">
+              <button className="secondary-button" onClick={onOpenSafeMode}>
+                <ShieldIcon />
+                {labels.safe}
+              </button>
+              <button className="secondary-button" onClick={onOpenNormalMode}>
+                <ArrowRight size={16} aria-hidden="true" />
+                {labels.normal}
+              </button>
+              <button className="secondary-button" onClick={onOpenResetPage}>
+                <Trash2 size={16} aria-hidden="true" />
+                {labels.reset}
+              </button>
+              <button className="secondary-button" onClick={onRecover} disabled={recovering || cockpitHealth.state === "broken"}>
+                <Archive size={16} aria-hidden="true" />
+                {labels.recover}
+              </button>
+              <button className="secondary-button" onClick={onDedupeHistory} disabled={deduping}>
+                <Scissors size={16} aria-hidden="true" />
+                {labels.dedupe}
+              </button>
+              <button className="secondary-button" onClick={onRepair} disabled={repairing || !cockpitHealth.repairAvailable}>
+                <Settings size={16} aria-hidden="true" />
+                {labels.repair}
+              </button>
+              <button className="secondary-button" onClick={onDiagnose}>
+                <RefreshCw size={16} aria-hidden="true" />
+                {labels.diagnose}
+              </button>
+            </div>
+            <div className="settings-danger-zone">
+              <button className="secondary-button" onClick={() => onClear("history")} disabled={storageClearState.scope === "history"}>{labels.clearHistory}</button>
+              <button className="secondary-button" onClick={() => onClear("frames")} disabled={storageClearState.scope === "frames"}>{labels.clearFrames}</button>
+              <button className="secondary-button" onClick={() => onClear("animation-library")} disabled={storageClearState.scope === "animation-library"}>{labels.clearLibrary}</button>
+              <button className="secondary-button storage-danger-button" onClick={() => onClear("all")} disabled={storageClearState.scope === "all"}>{labels.clearAll}</button>
+            </div>
+            {(storageClearState.message || storageClearState.error) && (
+              <p className={storageClearState.error ? "settings-error" : "settings-note"}>
+                {storageClearState.error ?? storageClearState.message}
+              </p>
+            )}
+          </div>
+        )}
+
+        {activeTab === "diagnostics" && (
+          <div className="settings-section">
+            <CockpitHealthPanel
+              report={cockpitHealth}
+              language={language}
+              repairing={repairing}
+              recovering={recovering}
+              onRefresh={onDiagnose}
+              onRecover={onRecover}
+              onRepair={onRepair}
+            />
+            <article className="settings-card">
+              <small>Codex Runner</small>
+              <strong>{runnerPreflight?.state ?? cockpitHealth.api?.runner.state ?? "unknown"}</strong>
+              <span>{runnerPreflight?.setupHint ?? runnerPreflight?.message ?? cockpitHealth.api?.runner.message ?? "No runner detail available."}</span>
+            </article>
+          </div>
+        )}
+
+        {activeTab === "environment" && (
+          <div className="settings-section environment-report-section">
+            <div className="settings-report-actions">
+              <button className="secondary-button" onClick={onCopyMarkdown}>
+                <Copy size={16} aria-hidden="true" />
+                {labels.copyMarkdown}
+              </button>
+              <button className="secondary-button" onClick={onCopyJson}>
+                <FileJson size={16} aria-hidden="true" />
+                {labels.copyJson}
+              </button>
+              <button className="secondary-button" onClick={onDiagnose}>
+                <RefreshCw size={16} aria-hidden="true" />
+                {labels.refresh}
+              </button>
+              {copyStatus && <span className="settings-copy-status">{copyStatus}</span>}
+            </div>
+            <div className="environment-report-grid">
+              <article>
+                <strong>Markdown</strong>
+                <pre>{markdown}</pre>
+              </article>
+              <article>
+                <strong>JSON</strong>
+                <pre>{json}</pre>
+              </article>
+            </div>
+          </div>
+        )}
+      </section>
     </div>
   );
 }

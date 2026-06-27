@@ -428,6 +428,22 @@ async function runMockAutorunSmoke() {
     const blockedOutbox = await getJson(port, "/api/codex/results");
     assert(!blockedOutbox.results.some((result) => result.name.startsWith(`${blockedJob.id}-`)), "blocked sidecar should not create a fake image");
 
+    const unavailableJob = await postJson(port, "/api/codex/jobs", {
+      workflowMode: "image-generate",
+      prompt: "Smoke test imagegen unavailable sidecar",
+      negativePrompt: "text",
+      jobNotes: "Trigger imagegen_unavailable diagnostic.",
+      annotations: [],
+      grid: { columns: 1, rows: 1, gutter: 0 },
+      action: "",
+      frames: 0
+    });
+    const unavailableStatus = await waitForJobDiagnostic(port, unavailableJob.id, "imagegen_unavailable");
+    assert(unavailableStatus.status.state === "completed", "imagegen unavailable sidecar should complete without a placeholder image");
+    assert(unavailableStatus.status.diagnostic?.kind === "imagegen_unavailable", "blocked sidecar should return imagegen_unavailable diagnostic");
+    const unavailableOutbox = await getJson(port, "/api/codex/results");
+    assert(!unavailableOutbox.results.some((result) => result.name.startsWith(`${unavailableJob.id}-`)), "imagegen unavailable sidecar should not create a fake image");
+
     const failedJob = await postJson(port, "/api/codex/jobs", {
       workflowMode: "image-generate",
       prompt: "Smoke test policy runner failed",
@@ -580,7 +596,7 @@ if (!stdin.includes("Image Cockpit for Codex Workflows")) {
   process.exit(2);
 }
 
-if (!stdin.includes("imagegen") || !stdin.includes("never a procedural placeholder")) {
+if (!stdin.includes("built-in imagegen / image_gen") || !stdin.includes("procedural, SVG, canvas, diagram, geometric, or placeholder image")) {
   console.error("missing imagegen runner instructions");
   process.exit(5);
 }
@@ -607,6 +623,17 @@ if (job.prompt.includes("policy blocked sidecar")) {
     suggestion: "Revise the prompt and try again."
   }, null, 2), "utf8");
   console.log(\`mock blocked sidecar \${jobId}\`);
+  process.exit(0);
+}
+
+if (job.prompt.includes("imagegen unavailable sidecar")) {
+  await writeFile(join(outboxDir, \`\${jobId}-blocked.json\`), JSON.stringify({
+    status: "blocked",
+    reasonKind: "imagegen_unavailable",
+    userMessage: "Image generation is not available in this Codex environment.",
+    suggestion: "Use manual handoff or another provider."
+  }, null, 2), "utf8");
+  console.log(\`mock imagegen unavailable sidecar \${jobId}\`);
   process.exit(0);
 }
 

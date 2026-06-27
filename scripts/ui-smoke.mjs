@@ -107,6 +107,14 @@ try {
       window.addEventListener("unhandledrejection", (event) => {
         window.__uiSmokeErrors.push(String(event.reason?.message || event.reason || "unhandled rejection"));
       });
+      Object.defineProperty(navigator, "clipboard", {
+        configurable: true,
+        value: {
+          writeText: async (value) => {
+            window.__uiSmokeCopiedText = String(value);
+          }
+        }
+      });
       if (location.search.includes("mockLargeStorage=1")) {
         Object.defineProperty(navigator, "storage", {
           configurable: true,
@@ -147,6 +155,7 @@ try {
 
   await assertInitialWorkspace();
   await assertCockpitHealthAndDedupeControls();
+  await assertSettingsRecoveryEnvironmentReport();
   await assertSafeModeRecovery();
   await assertStoragePreflightRecovery();
   await assertResetLocalStatePage();
@@ -155,6 +164,7 @@ try {
   await assertAnimationPresetExamples();
   await assertAnimationLibraryHidden();
   await assertCodexFailureNotice();
+  await assertImagegenUnavailableSidecar();
   await assertTempCandidateContactImportFilter();
   await assertPartialDirectionSplitRecovery();
   await assertManifestFirstDirectionSplitRecovery();
@@ -249,6 +259,58 @@ async function assertCockpitHealthAndDedupeControls() {
   await assertNoBrowserErrors("Cockpit health and dedupe controls");
 }
 
+async function assertSettingsRecoveryEnvironmentReport() {
+  await waitForEval(
+    () => `Boolean(document.querySelector(".language-control + .settings-trigger"))`,
+    "settings trigger next to language selector"
+  );
+  await evaluate(`document.querySelector(".settings-trigger")?.click()`);
+  await waitForEval(() => `document.body.innerText.includes("Environment Report")`, "settings modal");
+  const initial = await evaluate(`(() => {
+    const text = document.body.innerText;
+    const topbar = document.querySelector(".topbar")?.getBoundingClientRect();
+    const settings = document.querySelector(".settings-trigger")?.getBoundingClientRect();
+    const language = document.querySelector(".language-control")?.getBoundingClientRect();
+    return {
+      hasTabs: ["General", "Recovery", "Diagnostics", "Environment Report"].every((label) => text.includes(label)),
+      triggerRightOfLanguage: Boolean(settings && language && settings.left >= language.right - 1),
+      topbarFits: !topbar || topbar.right <= window.innerWidth + 1
+    };
+  })()`);
+  assert(initial.hasTabs, "Settings modal should expose General, Recovery, Diagnostics, and Environment Report tabs");
+  assert(initial.triggerRightOfLanguage, "Settings trigger should sit next to the language selector");
+  assert(initial.topbarFits, "Settings trigger should not overflow the topbar");
+
+  await clickButtonByText("Recovery");
+  await waitForEval(() => `document.body.innerText.includes("Open Reset Local State")`, "settings recovery tab");
+  const recovery = await evaluate(`(() => {
+    const text = document.body.innerText;
+    return ["Open Safe Mode", "Open Reset Local State", "Recover Results", "Dedupe History", "Repair Cockpit", "Diagnose"].every((label) => text.includes(label));
+  })()`);
+  assert(recovery, "Settings Recovery should gather safe, reset, diagnose, recover, repair, and dedupe actions");
+
+  await clickButtonByText("Environment Report");
+  await waitForEval(() => `document.body.innerText.includes("Copy Markdown") && document.body.innerText.includes("Copy JSON")`, "environment report tab");
+  await clickButtonByText("Copy Markdown");
+  const markdownCopy = await evaluate(`window.__uiSmokeCopiedText || ""`);
+  assert(markdownCopy.includes("Image Cockpit Environment Report"), "Copy Markdown should copy the environment report");
+  assert(markdownCopy.includes("imagegen smoke: not_run"), "Environment report should include imagegen smoke status");
+  assert(!/data:image/i.test(markdownCopy), "Markdown report should not include image data URLs");
+  assert(!/api[_-]?key\s*[=:]|sk-[A-Za-z0-9]|ghp_/i.test(markdownCopy), "Markdown report should not include secret values");
+
+  await clickButtonByText("Copy JSON");
+  const jsonCopy = await evaluate(`window.__uiSmokeCopiedText || ""`);
+  const parsed = JSON.parse(jsonCopy);
+  assert(parsed.imagegen?.smoke === "not_run", "JSON report should include imagegen smoke not_run");
+  assert(parsed.safety?.redacted === true, "JSON report should mark redaction");
+  assert(!/data:image/i.test(jsonCopy), "JSON report should not include image data URLs");
+  assert(!/"prompt"/i.test(jsonCopy), "JSON report should not include prompt fields");
+
+  await evaluate(`document.querySelector(".settings-modal-header .icon-button")?.click()`);
+  await waitForEval(() => `!document.querySelector(".settings-modal")`, "settings modal close");
+  await assertNoBrowserErrors("settings recovery environment report");
+}
+
 async function assertSafeModeRecovery() {
   await cdp.send("Page.navigate", { url: `http://127.0.0.1:${vitePort}/?safe=1` });
   await waitForEval(() => `document.body.innerText.includes("Local state safe mode")`, "safe mode recovery screen");
@@ -258,12 +320,14 @@ async function assertSafeModeRecovery() {
       skipped: text.includes("Large history, frames, and animation library state were not loaded."),
       clearAll: text.includes("Clear all local Image Cockpit state"),
       runner: text.includes("Codex runner"),
+      settingsOpen: Boolean(document.querySelector(".settings-modal")) && text.includes("Environment Report"),
       historyItems: document.querySelectorAll(".history-item").length
     };
   })()`);
   assert(safeMode.skipped, "Safe mode should state that large local state was skipped");
   assert(safeMode.clearAll, "Safe mode should expose the reset action");
   assert(safeMode.runner, "Safe mode should keep lightweight Codex runner status visible");
+  assert(safeMode.settingsOpen, "Safe mode should automatically open the settings recovery modal");
   assert(safeMode.historyItems === 0, "Safe mode should not render restored history items");
   await assertNoBrowserErrors("safe mode recovery");
   await cdp.send("Page.navigate", { url: `http://127.0.0.1:${vitePort}/` });
@@ -786,6 +850,29 @@ async function assertCodexFailureNotice() {
   await assertNoBrowserErrors("Codex failure notice");
   await maybeCapture("codex-failure-notice");
   await selectWorkflowTab("Pixel Art Generation");
+}
+
+async function assertImagegenUnavailableSidecar() {
+  await selectWorkflowTab("Pixel Art Generation");
+  await waitForEval(() => `document.body.innerText.includes("Pixel Art Generation")`, "Pixel Art Generation for imagegen unavailable");
+  const before = await pageSnapshot();
+  await setPromptValue("imagegen unavailable ui smoke");
+
+  await clickButtonByText("Generate Pixel Art");
+  await waitForEval(
+    () => `Array.from(document.querySelectorAll(".codex-failure-card")).some((card) => card.innerText.includes("Image generation unavailable"))`,
+    "imagegen unavailable Codex failure notice",
+    20000
+  );
+  const after = await pageSnapshot();
+  assert(
+    after.codexFailureCards === before.codexFailureCards + 1,
+    `Imagegen unavailable sidecar should add one failure card, got ${after.codexFailureCards}`
+  );
+  assert(after.text.includes("Image generation is not available in this Codex environment."), "Imagegen unavailable should show explicit diagnostic copy");
+  assert(after.historyItems === before.historyItems, "Imagegen unavailable sidecar should not create a fake history image");
+  assert(after.codexJobRows === 0, "Imagegen unavailable sidecar should release the active job slot");
+  await assertNoBrowserErrors("imagegen unavailable sidecar");
 }
 
 async function assertTempCandidateContactImportFilter() {
@@ -2037,6 +2124,17 @@ if (job.prompt.includes("policy blocked ui smoke")) {
     suggestion: "Revise the prompt and try again."
   }, null, 2), "utf8");
   console.log(\`mock blocked sidecar \${jobId}\`);
+  process.exit(0);
+}
+
+if (job.prompt.includes("imagegen unavailable ui smoke")) {
+  await writeFile(join(outboxDir, \`\${jobId}-blocked.json\`), JSON.stringify({
+    status: "blocked",
+    reasonKind: "imagegen_unavailable",
+    userMessage: "Image generation is not available in this Codex environment.",
+    suggestion: "Use manual handoff or another provider."
+  }, null, 2), "utf8");
+  console.log(\`mock imagegen unavailable sidecar \${jobId}\`);
   process.exit(0);
 }
 

@@ -40,6 +40,7 @@ const requiredFiles = [
   "docs/qa/v0.1.1-release-prep.md",
   "docs/qa/cockpit-health-repair-supervisor.md",
   "docs/qa/deduplicate-bronze-candidate-import-retry.md",
+  "docs/qa/settings-recovery-environment-report.md",
   "public/reset-local-state.html",
   "public/samples/idle-breathing-sheet.png",
   "public/samples/walk-cycle-sheet.png",
@@ -1088,6 +1089,8 @@ function checkPendingJobCoverage() {
   });
 
   const uiSmokeText = readText("scripts/ui-smoke.mjs");
+  const smokeText = readText("scripts/smoke.mjs");
+  const serverText = readText("server/index.ts");
   const storageText = readText("src/lib/storage.ts");
   const devSupervisorText = readText("scripts/dev-supervisor.mjs");
   const resetPageText = readText("public/reset-local-state.html");
@@ -1095,6 +1098,7 @@ function checkPendingJobCoverage() {
   const localStateQaText = readText("docs/qa/local-state-oom-safe-mode-retention.md");
   const cockpitHealthQaText = readText("docs/qa/cockpit-health-repair-supervisor.md");
   const dedupeQaText = readText("docs/qa/deduplicate-bronze-candidate-import-retry.md");
+  const settingsQaText = readText("docs/qa/settings-recovery-environment-report.md");
   [
     "assertCompletedDirectionSplitImportFailure",
     "assertPartialDirectionSplitRecovery",
@@ -1248,6 +1252,81 @@ function checkPendingJobCoverage() {
   ].forEach((marker) => {
     if (!dedupeQaText.includes(marker)) {
       failures.push(`Bronze candidate dedupe QA doc is missing marker: ${marker}`);
+    }
+  });
+
+  [
+    "SettingsModal",
+    "settings-trigger",
+    "buildImageCockpitEnvironmentReport",
+    "redactEnvironmentReportText",
+    "settingsTabFromSearch",
+    "shouldOpenSettingsFromSearch",
+    "imagegenSmokeState",
+    "Copy Markdown",
+    "Copy JSON",
+    "Environment Report"
+  ].forEach((marker) => {
+    if (!appText.includes(marker)) {
+      failures.push(`Settings recovery/report app marker is missing: ${marker}`);
+    }
+  });
+
+  [
+    "procedural, SVG, canvas, diagram, geometric, or placeholder image",
+    "reasonKind=imagegen_unavailable",
+    '"reasonKind": "policy_or_safety" | "imagegen_unavailable" | "unknown"'
+  ].forEach((marker) => {
+    if (!serverText.includes(marker)) {
+      failures.push(`Server imagegen-unavailable guard marker is missing: ${marker}`);
+    }
+  });
+
+  [
+    "imagegen unavailable sidecar",
+    "imagegen_unavailable",
+    "should not create a fake image",
+    "built-in imagegen / image_gen",
+    "procedural, SVG, canvas, diagram, geometric, or placeholder image"
+  ].forEach((marker) => {
+    if (!smokeText.includes(marker)) {
+      failures.push(`Smoke imagegen-unavailable guard marker is missing: ${marker}`);
+    }
+  });
+
+  [
+    "assertSettingsRecoveryEnvironmentReport",
+    "assertImagegenUnavailableSidecar",
+    "settings trigger next to language selector",
+    "Copy Markdown",
+    "Copy JSON",
+    "imagegen smoke: not_run",
+    "Open Safe Mode",
+    "Open Reset Local State",
+    "Imagegen unavailable sidecar should not create a fake history image"
+  ].forEach((marker) => {
+    if (!uiSmokeText.includes(marker)) {
+      failures.push(`UI smoke settings/recovery/report marker is missing: ${marker}`);
+    }
+  });
+
+  [
+    "Settings / Recovery / Environment Report QA",
+    "Settings",
+    "Recovery",
+    "Environment Report",
+    "imagegen_unavailable",
+    "not_run",
+    "?safe=1",
+    "/reset-local-state.html",
+    "Copy Markdown",
+    "Copy JSON",
+    "ui-smoke",
+    "browser",
+    "main merge前"
+  ].forEach((marker) => {
+    if (!settingsQaText?.includes(marker)) {
+      failures.push(`Settings recovery/report QA doc is missing marker: ${marker}`);
     }
   });
 }

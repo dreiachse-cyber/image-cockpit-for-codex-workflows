@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   annotationImageCoordinates,
   buildOutboxImportKey,
+  buildImageCockpitEnvironmentReport,
   fingerprintOutboxResults,
   getNextHistoryRenderLimit,
   getVisibleHistoryCount,
@@ -14,8 +15,11 @@ import {
   isOutboxResultForJob,
   isLikelyFrameGarbageComponent,
   resolveInitialLanguage,
+  redactEnvironmentReportText,
   selectDirectionSplitAnimationResults,
+  settingsTabFromSearch,
   shouldIgnoreOutboxResultName,
+  shouldOpenSettingsFromSearch,
   shouldReportCompletedCodexImportFailure,
   shouldWaitForCodexRunner,
   summarizeCodexImportFailureReason,
@@ -115,6 +119,106 @@ describe("initial language", () => {
   it("falls back to English when no stored or supported browser language exists", () => {
     expect(resolveInitialLanguage(null, ["en-US"])).toBe("en");
     expect(resolveInitialLanguage("xx", [])).toBe("en");
+  });
+});
+
+describe("settings recovery environment report", () => {
+  it("opens settings from explicit recovery and diagnostics URL params", () => {
+    expect(shouldOpenSettingsFromSearch("?settings=1")).toBe(true);
+    expect(shouldOpenSettingsFromSearch("?settings=environment")).toBe(true);
+    expect(shouldOpenSettingsFromSearch("?diagnostics=1")).toBe(true);
+    expect(shouldOpenSettingsFromSearch("?safe=1")).toBe(true);
+    expect(settingsTabFromSearch("?settings=environment")).toBe("environment");
+    expect(settingsTabFromSearch("?diagnostics=1")).toBe("diagnostics");
+    expect(settingsTabFromSearch("?safe=1")).toBe("recovery");
+  });
+
+  it("redacts secrets, data URLs, and user home paths", () => {
+    const windowsHome = ["C:", "Users", "alice", "secret"].join("\\");
+    const redactedWindowsHome = ["C:", "Users", "<USER>"].join("\\");
+    const unixHome = ["/Users", "alice", "secret"].join("/");
+    const redacted = redactEnvironmentReportText(
+      `api_key=sk-testsecret token=ghp_testsecret data:image/png;base64,abcdef ${windowsHome} ${unixHome}`
+    );
+
+    expect(redacted).toContain("api_key=[REDACTED]");
+    expect(redacted).toContain("token=[REDACTED]");
+    expect(redacted).toContain("[REDACTED_DATA_URL]");
+    expect(redacted).toContain(redactedWindowsHome);
+    expect(redacted).toContain("/Users/<USER>");
+    expect(redacted).not.toContain("sk-testsecret");
+    expect(redacted).not.toContain("abcdef");
+    expect(redacted).not.toContain("alice");
+  });
+
+  it("builds a report from summaries without including prompts or image data", () => {
+    const report = buildImageCockpitEnvironmentReport({
+      appVersion: "0.1.1",
+      appUrl: "http://127.0.0.1:5181",
+      route: "/?settings=environment",
+      userAgent: "Vitest Browser",
+      browserLanguage: "ja-JP",
+      browserPlatform: "Win32",
+      viewport: { width: 1280, height: 720, devicePixelRatio: 1 },
+      timezoneOffsetMinutes: -540,
+      localTime: "2026-06-27T02:41:00.000Z",
+      apiHealth: {
+        app: "image-cockpit",
+        version: "0.1.1",
+        role: "api",
+        port: 8794,
+        handoffRoot: ["C:", "Users", "alice", "project", "codex-handoff"].join("\\"),
+        inboxReadable: true,
+        outboxReadable: true,
+        statusReadable: true,
+        logsReadable: true,
+        runner: { state: "ready", message: "ok", checkedAt: "now", autorun: true }
+      },
+      runner: {
+        state: "ready",
+        message: "ok",
+        command: "codex",
+        checkedAt: "now",
+        autorun: true,
+        sandbox: "workspace-write",
+        approval: "never"
+      },
+      providerId: "codex-handoff",
+      workflowMode: "image-generate",
+      safeMode: false,
+      skipStorage: false,
+      activeJobCount: 0,
+      queuedJobCount: 0,
+      lastFailure: {
+        jobId: "codex-job-test",
+        label: "Image",
+        diagnostic: {
+          kind: "imagegen_unavailable",
+          title: "imagegen unavailable",
+          userMessage: "The imagegen tool was unavailable."
+        }
+      },
+      lastResult: {
+        provider: "local-generator",
+        source: "generate",
+        name: "local.png",
+        size: "1024x1024",
+        mimeType: "image/png",
+        dimensions: "1024x1024",
+        placeholderSuspected: "no",
+        localProcedural: true
+      },
+      imagegenSmoke: "not_run"
+    });
+
+    const json = JSON.stringify(report.json);
+    expect(report.markdown).toContain("Image Cockpit Environment Report");
+    expect(report.markdown).toContain("imagegen_unavailable");
+    expect(report.markdown).toContain("Local procedural result: yes");
+    expect(json).toContain("localProcedural");
+    expect(json).not.toContain("data:image");
+    expect(json).not.toContain("forest mage prompt");
+    expect(json).not.toContain("alice");
   });
 });
 
