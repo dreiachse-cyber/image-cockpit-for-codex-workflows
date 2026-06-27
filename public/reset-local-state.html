@@ -1,0 +1,213 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Image Cockpit Local State Reset</title>
+    <style>
+      :root {
+        color-scheme: light;
+        font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        background: #f4f6f4;
+        color: #17211b;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+        margin: 0;
+        padding: 20px;
+      }
+
+      main {
+        width: min(860px, 100%);
+        display: grid;
+        gap: 16px;
+        border: 1px solid #d9dfd9;
+        border-radius: 8px;
+        background: #ffffff;
+        padding: 22px;
+        box-shadow: 0 18px 50px rgba(23, 33, 27, 0.08);
+      }
+
+      h1 {
+        margin: 0;
+        font-size: 28px;
+        letter-spacing: 0;
+      }
+
+      p {
+        margin: 0;
+        color: #617064;
+        line-height: 1.5;
+      }
+
+      .notice {
+        border: 1px solid #d6c7a6;
+        border-radius: 6px;
+        background: #fff5de;
+        padding: 12px;
+        color: #6a4b0f;
+      }
+
+      .actions {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 10px;
+      }
+
+      button,
+      a {
+        min-height: 40px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border: 1px solid #c9d7ce;
+        border-radius: 5px;
+        background: #ffffff;
+        color: #17211b;
+        padding: 8px 12px;
+        font: inherit;
+        font-weight: 700;
+        text-align: center;
+        text-decoration: none;
+        cursor: pointer;
+      }
+
+      button.primary {
+        border-color: #99c7a9;
+        background: #edf8f0;
+        color: #145f35;
+      }
+
+      button.danger {
+        border-color: #e1b5aa;
+        background: #fff1ee;
+        color: #8a2e1f;
+      }
+
+      #status {
+        min-height: 24px;
+        color: #33443a;
+        font-weight: 700;
+      }
+
+      @media (max-width: 760px) {
+        .actions {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Image Cockpit Local State Reset</h1>
+      <p>This page clears only Image Cockpit browser local state for this origin. It never deletes repository files, codex-handoff/outbox, docs/qa, or generated PNG files.</p>
+      <p class="notice">Use this page when the main app cannot start because history, frames, or animation library state grew too large.</p>
+      <div class="actions">
+        <button class="primary" type="button" data-scope="history">Clear history</button>
+        <button class="primary" type="button" data-scope="frames">Clear frames</button>
+        <button class="primary" type="button" data-scope="animation-library">Clear animation library</button>
+        <button class="danger" type="button" data-scope="all">Clear all local state</button>
+      </div>
+      <div class="actions">
+        <a href="/?safe=1">Open safe mode</a>
+        <a href="/">Open normal app</a>
+      </div>
+      <output id="status" role="status">Ready.</output>
+    </main>
+    <script>
+      const DB_NAME = "image-cockpit-local-state";
+      const STORE_NAME = "state";
+      const KEYS = {
+        history: ["image-cockpit.v3.history", "image-cockpit.v3.history.summary"],
+        frames: ["image-cockpit.v3.frames", "image-cockpit.v3.frames.summary"],
+        "animation-library": ["image-cockpit.v3.animation-library"],
+        actions: ["image-cockpit.v3.actions"],
+        pending: ["image-cockpit.pendingCodexJob"]
+      };
+
+      const INDEXED_KEYS = {
+        history: ["image-cockpit.v3.history"],
+        frames: ["image-cockpit.v3.frames"],
+        "animation-library": ["image-cockpit.v3.animation-library"],
+        actions: ["image-cockpit.v3.actions"]
+      };
+
+      const status = document.querySelector("#status");
+
+      document.querySelectorAll("button[data-scope]").forEach((button) => {
+        button.addEventListener("click", () => clearScope(button.dataset.scope));
+      });
+
+      async function clearScope(scope) {
+        const label = scope === "all" ? "all Image Cockpit local state" : scope;
+        if (!window.confirm(`Clear ${label}? This only affects browser local state for this origin.`)) return;
+        status.textContent = `Clearing ${label}...`;
+
+        const localStorageKeys = scope === "all"
+          ? Object.values(KEYS).flat()
+          : KEYS[scope] || [];
+        localStorageKeys.forEach((key) => {
+          try {
+            localStorage.removeItem(key);
+          } catch {
+            // Keep going so the user can still clear IndexedDB.
+          }
+        });
+
+        const clearedDb = scope === "all"
+          ? await deleteDatabase()
+          : await deleteIndexedKeys(INDEXED_KEYS[scope] || []);
+        status.textContent = clearedDb
+          ? `${label} cleared.`
+          : `${label} localStorage cleared. IndexedDB was unavailable or blocked.`;
+      }
+
+      function deleteDatabase() {
+        if (!("indexedDB" in window)) return Promise.resolve(false);
+        return new Promise((resolve) => {
+          const request = indexedDB.deleteDatabase(DB_NAME);
+          request.onsuccess = () => resolve(true);
+          request.onerror = () => resolve(false);
+          request.onblocked = () => resolve(false);
+        });
+      }
+
+      function deleteIndexedKeys(keys) {
+        if (!keys.length || !("indexedDB" in window)) return Promise.resolve(false);
+        return new Promise((resolve) => {
+          const open = indexedDB.open(DB_NAME, 1);
+          open.onerror = () => resolve(false);
+          open.onupgradeneeded = () => {
+            const db = open.result;
+            if (!db.objectStoreNames.contains(STORE_NAME)) db.createObjectStore(STORE_NAME);
+          };
+          open.onsuccess = () => {
+            const db = open.result;
+            const transaction = db.transaction(STORE_NAME, "readwrite");
+            const store = transaction.objectStore(STORE_NAME);
+            keys.forEach((key) => store.delete(key));
+            transaction.oncomplete = () => {
+              db.close();
+              resolve(true);
+            };
+            transaction.onerror = () => {
+              db.close();
+              resolve(false);
+            };
+            transaction.onabort = () => {
+              db.close();
+              resolve(false);
+            };
+          };
+        });
+      }
+    </script>
+  </body>
+</html>

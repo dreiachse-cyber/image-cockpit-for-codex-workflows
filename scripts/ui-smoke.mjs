@@ -104,6 +104,17 @@ try {
       window.addEventListener("unhandledrejection", (event) => {
         window.__uiSmokeErrors.push(String(event.reason?.message || event.reason || "unhandled rejection"));
       });
+      if (location.search.includes("mockLargeStorage=1")) {
+        Object.defineProperty(navigator, "storage", {
+          configurable: true,
+          value: {
+            estimate: async () => ({
+              usage: 600 * 1024 * 1024,
+              quota: 2 * 1024 * 1024 * 1024
+            })
+          }
+        });
+      }
       localStorage.setItem("image-cockpit.language", "en");
       localStorage.removeItem("image-cockpit.pendingCodexJob");
       if (sessionStorage.getItem("image-cockpit.ui-smoke.skip-default-seed") !== "1") {
@@ -132,6 +143,9 @@ try {
   );
 
   await assertInitialWorkspace();
+  await assertSafeModeRecovery();
+  await assertStoragePreflightRecovery();
+  await assertResetLocalStatePage();
   await assertLanguageSwitch();
   await assertPromptExamples();
   await assertAnimationPresetExamples();
@@ -204,6 +218,69 @@ async function assertInitialWorkspace() {
   assert(snapshot.resultDownloadGridButtonsInWorkspace === 0, "Initial workspace should not expose detailed download buttons under the preview");
   assert(snapshot.resultDownloadPanelHeight <= 110, `Initial download panel should stay compact, got ${snapshot.resultDownloadPanelHeight}`);
   await maybeCapture("initial-workspace");
+}
+
+async function assertSafeModeRecovery() {
+  await cdp.send("Page.navigate", { url: `http://127.0.0.1:${vitePort}/?safe=1` });
+  await waitForEval(() => `document.body.innerText.includes("Local state safe mode")`, "safe mode recovery screen");
+  const safeMode = await evaluate(`(() => {
+    const text = document.body.innerText;
+    return {
+      skipped: text.includes("Large history, frames, and animation library state were not loaded."),
+      clearAll: text.includes("Clear all local Image Cockpit state"),
+      runner: text.includes("Codex runner"),
+      historyItems: document.querySelectorAll(".history-item").length
+    };
+  })()`);
+  assert(safeMode.skipped, "Safe mode should state that large local state was skipped");
+  assert(safeMode.clearAll, "Safe mode should expose the reset action");
+  assert(safeMode.runner, "Safe mode should keep lightweight Codex runner status visible");
+  assert(safeMode.historyItems === 0, "Safe mode should not render restored history items");
+  await assertNoBrowserErrors("safe mode recovery");
+  await cdp.send("Page.navigate", { url: `http://127.0.0.1:${vitePort}/` });
+  await waitForEval(() => `document.body.innerText.includes("Pixel Art Generation")`, "safe mode return to normal workspace");
+}
+
+async function assertStoragePreflightRecovery() {
+  await cdp.send("Page.navigate", { url: `http://127.0.0.1:${vitePort}/?mockLargeStorage=1` });
+  await waitForEval(() => `document.body.innerText.includes("Local state recovery")`, "mock large storage recovery screen");
+  const recovery = await evaluate(`(() => {
+    const text = document.body.innerText;
+    return {
+      pressure: text.includes("auto-safe"),
+      usage: text.includes("600.0 MB"),
+      dangerLoad: text.includes("危険を理解して読み込む")
+    };
+  })()`);
+  assert(recovery.pressure, "Storage preflight should classify mocked 600 MB usage as auto-safe");
+  assert(recovery.usage, "Storage recovery should show the mocked origin usage");
+  assert(recovery.dangerLoad, "Storage recovery should expose the explicit unsafe-load option");
+  await assertNoBrowserErrors("mock large storage recovery");
+  await cdp.send("Page.navigate", { url: `http://127.0.0.1:${vitePort}/` });
+  await waitForEval(() => `document.body.innerText.includes("Pixel Art Generation")`, "storage recovery return to normal workspace");
+}
+
+async function assertResetLocalStatePage() {
+  await cdp.send("Page.navigate", { url: `http://127.0.0.1:${vitePort}/reset-local-state.html` });
+  await waitForEval(() => `document.body.innerText.includes("Image Cockpit Local State Reset")`, "static local state reset page");
+  await evaluate(`(() => {
+    window.confirm = () => true;
+    localStorage.setItem("image-cockpit.v3.history", JSON.stringify([{ id: "reset-smoke" }]));
+    localStorage.setItem("image-cockpit.pendingCodexJob", JSON.stringify({ id: "reset-pending" }));
+  })()`);
+  await clickButtonByText("Clear all local state");
+  await waitForEval(() => `document.querySelector("#status")?.textContent.includes("cleared")`, "static reset clear all status");
+  const resetState = await evaluate(`(() => ({
+    history: localStorage.getItem("image-cockpit.v3.history"),
+    pending: localStorage.getItem("image-cockpit.pendingCodexJob"),
+    safeLink: Boolean(document.querySelector('a[href="/?safe=1"]'))
+  }))()`);
+  assert(resetState.history === null, "Reset page should clear history localStorage");
+  assert(resetState.pending === null, "Reset page should clear pending Codex job localStorage");
+  assert(resetState.safeLink, "Reset page should provide a safe mode link");
+  await assertNoBrowserErrors("static local state reset page");
+  await cdp.send("Page.navigate", { url: `http://127.0.0.1:${vitePort}/` });
+  await waitForEval(() => `document.body.innerText.includes("Pixel Art Generation")`, "reset page return to normal workspace");
 }
 
 async function assertLanguageSwitch() {

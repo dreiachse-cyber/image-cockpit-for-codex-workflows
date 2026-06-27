@@ -50,17 +50,21 @@ import { createId, dataUrlToBlob, downloadBlob, loadImage, readFileAsDataUrl } f
 import { OFFICIAL_ANIMATION_LIBRARY } from "./lib/officialAnimations";
 import { calculateGridCells, summarizeFrames } from "./lib/sprite";
 import {
-  loadActions,
-  loadFrames,
-  loadHistory,
+  clearImageCockpitLocalState,
+  formatStorageBytes,
+  isStorageSafeModeSearch,
+  isStorageResetSearch,
   loadPersistedState,
-  loadUserAnimationLibrary,
   MAX_USER_ANIMATION_LIBRARY_ITEMS,
+  PENDING_CODEX_JOB_STORAGE_KEY,
+  preflightLocalStateStorage,
+  readLocalStateSummaries,
   saveActions,
   saveFrames,
   saveHistory,
   saveUserAnimationLibrary
 } from "./lib/storage";
+import type { LocalStateResetScope, LocalStateStoragePreflight, LocalStateSummary } from "./lib/storage";
 import type {
   Annotation,
   AnimationLibraryItem,
@@ -91,7 +95,6 @@ const SAMPLE_URL = "/samples/forest-mage-sheet.png";
 const CANVAS_WIDTH = 920;
 const CANVAS_HEIGHT = 520;
 const LANGUAGE_STORAGE_KEY = "image-cockpit.language";
-const PENDING_CODEX_JOB_STORAGE_KEY = "image-cockpit.pendingCodexJob";
 const SHOW_LOW_PRIORITY_CONTROLS = false;
 const SHOW_SPRITE_ACTIONS_PANEL = false;
 const SHOW_ANIMATION_LIBRARY = false;
@@ -2996,21 +2999,43 @@ export function summarizeCodexImportFailureReason(error: unknown, fallback = "Im
     .slice(0, 220);
 }
 
+type LocalStateScreenMode = "checking" | "normal" | "safe" | "recovery" | "reset" | "reset-complete";
+
+interface LocalStateScreenState {
+  mode: LocalStateScreenMode;
+  preflight?: LocalStateStoragePreflight;
+  summaries?: {
+    history: LocalStateSummary | null;
+    frames: LocalStateSummary | null;
+  };
+  message?: string;
+  error?: string;
+}
+
 function App() {
-  const [history, setHistory] = useState<HistoryItem[]>(() => loadHistory());
+  const [history, setHistory] = useState<HistoryItem[]>([]);
   const [historyRenderLimit, setHistoryRenderLimit] = useState(INITIAL_HISTORY_RENDER_COUNT);
-  const [frames, setFrames] = useState<SpriteFrame[]>(() => loadFrames());
-  const [actions, setActions] = useState<SpriteAction[]>(() => normalizeAnimationActions(loadActions(defaultActions)));
+  const [frames, setFrames] = useState<SpriteFrame[]>([]);
+  const [actions, setActions] = useState<SpriteAction[]>(() => normalizeAnimationActions(defaultActions));
   const [selectedId, setSelectedId] = useState<string>("");
   const [activeActionName, setActiveActionName] = useState("run");
   const [selectedAnimationPresetId, setSelectedAnimationPresetId] = useState(DEFAULT_ANIMATION_PRESET_ID);
   const [animationLibraryTab, setAnimationLibraryTab] = useState<AnimationLibraryKind>("official");
-  const [userAnimationLibrary, setUserAnimationLibrary] = useState<AnimationLibraryItem[]>(() => loadUserAnimationLibrary());
+  const [userAnimationLibrary, setUserAnimationLibrary] = useState<AnimationLibraryItem[]>([]);
   const [showAnimationPackExportModal, setShowAnimationPackExportModal] = useState(false);
   const [downloadModalOpen, setDownloadModalOpen] = useState(false);
   const [animationPackExportDraft, setAnimationPackExportDraft] = useState<AnimationPackExportDraft>(() => createAnimationPackExportDraft());
   const [language, setLanguage] = useState<Language>(loadLanguage);
   const [storageHydrated, setStorageHydrated] = useState(false);
+  const [forceLargeStateLoad, setForceLargeStateLoad] = useState(false);
+  const [storageScreen, setStorageScreen] = useState<LocalStateScreenState>(() =>
+    isStorageSafeModeSearch() ? { mode: "safe" } : isStorageResetSearch() ? { mode: "reset" } : { mode: "checking" }
+  );
+  const [storageClearState, setStorageClearState] = useState<{
+    scope?: LocalStateResetScope;
+    message?: string;
+    error?: string;
+  }>({});
   const [workflowMode, setWorkflowMode] = useState<WorkflowMode>("image-generate");
   const [showPromptExamples, setShowPromptExamples] = useState(false);
   const [showAnimationPresetExamples, setShowAnimationPresetExamples] = useState(false);
@@ -3037,7 +3062,7 @@ function App() {
   const [chromaTolerance, setChromaTolerance] = useState(32);
   const [status, setStatus] = useState("All changes saved locally");
   const [isBusy, setIsBusy] = useState(false);
-  const [codexJobs, setCodexJobs] = useState<CodexJobQueueItem[]>(() => loadPendingCodexJobs());
+  const [codexJobs, setCodexJobs] = useState<CodexJobQueueItem[]>([]);
   const gifPreviewUrl = "";
   const [animationDirectionPreviews, setAnimationDirectionPreviews] = useState<AnimationDirectionPreview[]>([]);
   const [isAnimationPreviewBuilding, setIsAnimationPreviewBuilding] = useState(false);
@@ -3182,6 +3207,11 @@ function App() {
     () => (selectedFrameId ? frames.find((frame) => frame.id === selectedFrameId) : undefined),
     [frames, selectedFrameId]
   );
+  const protectedPersistedFrameIds = useMemo(
+    () => new Set([...activeAction.frameIds, ...selectedAnimationFrames.map((frame) => frame.id)]),
+    [activeAction.frameIds, selectedAnimationFrames]
+  );
+  const canPersistLocalState = storageHydrated && storageScreen.mode === "normal";
 
   const isPreviewingSelectedFrame = Boolean(selectedFrameForPreview?.sourceId && selectedFrameForPreview.sourceId === selected?.id);
   const selectedAnnotations = useMemo(
@@ -3237,37 +3267,98 @@ function App() {
 
   useEffect(() => {
     let cancelled = false;
-    loadPersistedState(defaultActions)
-      .then((persisted) => {
+    const hydrateLocalState = async () => {
+      setStorageHydrated(false);
+      const preflight = await preflightLocalStateStorage();
+      if (cancelled) return;
+
+      const summaries = readLocalStateSummaries();
+      if (preflight.resetRequested) {
+        setHistory([]);
+        setFrames([]);
+        setActions(normalizeAnimationActions(defaultActions));
+        setUserAnimationLibrary([]);
+        setCodexJobs([]);
+        setStorageScreen({ mode: "reset", preflight, summaries, message: "Local state reset is ready." });
+        setStatus("Local state reset is ready. No large browser state was loaded.");
+        setStorageHydrated(true);
+        return;
+      }
+
+      if (!forceLargeStateLoad && preflight.shouldSkipLargeState) {
+        setHistory([]);
+        setFrames([]);
+        setActions(normalizeAnimationActions(defaultActions));
+        setUserAnimationLibrary([]);
+        setCodexJobs([]);
+        setStorageScreen({
+          mode: preflight.safeModeRequested ? "safe" : "recovery",
+          preflight,
+          summaries,
+          message: "Local state safe mode: large browser storage was not loaded."
+        });
+        setStatus("Local state safe mode: large browser storage was not loaded.");
+        setStorageHydrated(true);
+        return;
+      }
+
+      try {
+        const persisted = await loadPersistedState(defaultActions);
         if (cancelled) return;
         setHistory(persisted.history);
         setFrames(persisted.frames);
         setActions(normalizeAnimationActions(persisted.actions));
         setUserAnimationLibrary(persisted.animationLibrary.slice(0, MAX_USER_ANIMATION_LIBRARY_ITEMS));
+        setCodexJobs(loadPendingCodexJobs());
+        setStorageScreen({
+          mode: "normal",
+          preflight,
+          summaries,
+          message: preflight.pressure === "warning" ? "Browser storage is above the warning threshold." : undefined
+        });
+        if (preflight.pressure === "warning") {
+          setStatus(`Browser storage warning: ${formatStorageBytes(preflight.estimate?.usage)} used. Old local results will be retained conservatively.`);
+        }
         setStorageHydrated(true);
-      })
-      .catch(() => {
-        if (!cancelled) setStorageHydrated(true);
-      });
+      } catch (error) {
+        if (cancelled) return;
+        setHistory([]);
+        setFrames([]);
+        setActions(normalizeAnimationActions(defaultActions));
+        setUserAnimationLibrary([]);
+        setCodexJobs([]);
+        setStorageScreen({
+          mode: "recovery",
+          preflight,
+          summaries,
+          error: error instanceof Error ? error.message : "Could not load local browser state."
+        });
+        setStatus("Could not load local browser state. Recovery mode is available.");
+        setStorageHydrated(true);
+      }
+    };
+    void hydrateLocalState();
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [forceLargeStateLoad]);
 
   useEffect(() => {
-    if (storageHydrated) saveHistory(history);
-  }, [history, storageHydrated]);
+    if (canPersistLocalState) saveHistory(history, selectedId);
+  }, [canPersistLocalState, history, selectedId]);
   useEffect(() => {
-    if (storageHydrated) saveFrames(frames);
-  }, [frames, storageHydrated]);
+    if (canPersistLocalState) saveFrames(frames, protectedPersistedFrameIds);
+  }, [canPersistLocalState, frames, protectedPersistedFrameIds]);
   useEffect(() => {
-    if (storageHydrated) saveActions(actions);
-  }, [actions, storageHydrated]);
+    if (canPersistLocalState) saveActions(actions);
+  }, [actions, canPersistLocalState]);
   useEffect(() => {
-    if (storageHydrated) saveUserAnimationLibrary(userAnimationLibrary);
-  }, [storageHydrated, userAnimationLibrary]);
+    if (canPersistLocalState) saveUserAnimationLibrary(userAnimationLibrary);
+  }, [canPersistLocalState, userAnimationLibrary]);
   useEffect(() => saveLanguage(language), [language]);
-  useEffect(() => savePendingCodexJobs(codexJobs), [codexJobs]);
+  useEffect(() => {
+    if (canPersistLocalState) savePendingCodexJobs(codexJobs);
+  }, [canPersistLocalState, codexJobs]);
 
   useEffect(() => {
     if (!codexLogsFullscreen) return;
@@ -5038,6 +5129,66 @@ function App() {
     }
   }
 
+  function openStorageSafeMode() {
+    const url = new URL(window.location.href);
+    url.searchParams.set("safe", "1");
+    url.searchParams.delete("skipStorage");
+    url.searchParams.delete("reset");
+    window.location.assign(url.toString());
+  }
+
+  function openStorageNormalMode() {
+    const url = new URL(window.location.href);
+    url.searchParams.delete("safe");
+    url.searchParams.delete("skipStorage");
+    url.searchParams.delete("reset");
+    window.location.assign(url.toString());
+  }
+
+  function openLocalhostOrigin() {
+    const port = window.location.port ? `:${window.location.port}` : "";
+    window.location.assign(`${window.location.protocol}//localhost${port}${window.location.pathname}`);
+  }
+
+  async function clearLocalStateScope(scope: LocalStateResetScope) {
+    const scopeLabel = localStateResetScopeLabel(scope);
+    const confirmed = window.confirm(
+      `Clear ${scopeLabel}? This only removes Image Cockpit browser local state. It does not delete repository files, codex-handoff/outbox, docs/qa, or generated PNG files.`
+    );
+    if (!confirmed) return;
+
+    setStorageClearState({ scope });
+    const dbCleared = await clearImageCockpitLocalState(scope);
+    if (scope === "all" || scope === "history") {
+      setHistory([]);
+      setSelectedId("");
+      setAnimationSourceId("");
+    }
+    if (scope === "all" || scope === "frames") {
+      setFrames([]);
+      setSelectedFrameId("");
+    }
+    if (scope === "all" || scope === "animation-library") {
+      setUserAnimationLibrary([]);
+    }
+    if (scope === "all") {
+      setActions(normalizeAnimationActions(defaultActions));
+      setCodexJobs([]);
+    }
+
+    const message = dbCleared
+      ? `${scopeLabel} cleared. Open the normal URL to start with a clean local state.`
+      : `${scopeLabel} localStorage cleared. IndexedDB was unavailable or blocked; close other tabs and retry if needed.`;
+    setStorageClearState({ message });
+    setStorageScreen((current) => ({
+      ...current,
+      mode: scope === "all" ? "reset-complete" : current.mode,
+      summaries: readLocalStateSummaries(),
+      message
+    }));
+    setStatus(message);
+  }
+
   const codexProvider = providers.find((provider) => provider.id === "codex-handoff");
   const activeWorkflowCopy = workflowCopy[language][workflowMode];
   const activeWorkflowFormCopy = workflowFormCopy[language][workflowMode];
@@ -5082,6 +5233,28 @@ function App() {
   function openDownloadModal() {
     if (!resultDownloadReady) return;
     setDownloadModalOpen(true);
+  }
+
+  if (storageScreen.mode !== "normal") {
+    return (
+      <LocalStateRecoveryScreen
+        mode={storageScreen.mode}
+        preflight={storageScreen.preflight}
+        summaries={storageScreen.summaries}
+        message={storageScreen.message}
+        error={storageScreen.error}
+        runnerLabel={runnerPreflightLabel(runnerPreflight, copy)}
+        runnerState={runnerPreflight?.state ?? "unavailable"}
+        clearingScope={storageClearState.scope}
+        clearMessage={storageClearState.message}
+        clearError={storageClearState.error}
+        onOpenSafeMode={openStorageSafeMode}
+        onOpenNormalMode={openStorageNormalMode}
+        onOpenLocalhostOrigin={openLocalhostOrigin}
+        onForceLoad={() => setForceLargeStateLoad(true)}
+        onClear={clearLocalStateScope}
+      />
+    );
   }
 
   return (
@@ -5966,6 +6139,199 @@ function PanelTitle({ index, title }: { index: string; title: string }) {
       <strong>{index}. {title}</strong>
     </div>
   );
+}
+
+function LocalStateRecoveryScreen({
+  mode,
+  preflight,
+  summaries,
+  message,
+  error,
+  runnerLabel,
+  runnerState,
+  clearingScope,
+  clearMessage,
+  clearError,
+  onOpenSafeMode,
+  onOpenNormalMode,
+  onOpenLocalhostOrigin,
+  onForceLoad,
+  onClear
+}: {
+  mode: LocalStateScreenMode;
+  preflight?: LocalStateStoragePreflight;
+  summaries?: { history: LocalStateSummary | null; frames: LocalStateSummary | null };
+  message?: string;
+  error?: string;
+  runnerLabel: string;
+  runnerState: CodexRunnerPreflight["state"];
+  clearingScope?: LocalStateResetScope;
+  clearMessage?: string;
+  clearError?: string;
+  onOpenSafeMode: () => void;
+  onOpenNormalMode: () => void;
+  onOpenLocalhostOrigin: () => void;
+  onForceLoad: () => void;
+  onClear: (scope: LocalStateResetScope) => void;
+}) {
+  const title =
+    mode === "checking"
+      ? "Checking local browser state"
+      : mode === "safe"
+        ? "Local state safe mode"
+        : mode === "reset"
+          ? "Local state reset"
+          : mode === "reset-complete"
+            ? "Local state reset complete"
+            : "Local state recovery";
+  const detail =
+    mode === "checking"
+      ? "Image Cockpit is checking origin storage before reading IndexedDB."
+      : mode === "safe"
+        ? "Large history, frames, and animation library state were not loaded."
+        : mode === "reset"
+          ? "Choose a reset action. Browser state is cleared only after confirmation."
+          : mode === "reset-complete"
+            ? "Image Cockpit browser local state has been cleared for this origin."
+            : "Origin storage is above the safe startup threshold, so large local state was skipped.";
+  const usage = formatStorageBytes(preflight?.estimate?.usage);
+  const quota = formatStorageBytes(preflight?.estimate?.quota);
+  const historySummary = summaries?.history;
+  const framesSummary = summaries?.frames;
+  const canForceLoad = mode === "recovery" || mode === "safe";
+
+  return (
+    <div className="app-shell storage-recovery-shell">
+      <header className="topbar">
+        <div className="brand">
+          <Grid3X3 size={18} aria-hidden="true" />
+          <strong>Image Cockpit for Codex Workflows</strong>
+          <span>Storage recovery</span>
+          <small>v0.1.0</small>
+        </div>
+      </header>
+
+      <main className="storage-recovery-main">
+        <section className={`storage-recovery-panel ${mode}`}>
+          <div className="storage-recovery-heading">
+            {mode === "reset-complete" ? <CheckCircle2 size={28} aria-hidden="true" /> : <AlertTriangle size={28} aria-hidden="true" />}
+            <div>
+              <small>Local State Recovery</small>
+              <h1>{title}</h1>
+              <p>{detail}</p>
+            </div>
+          </div>
+
+          <div className="storage-metric-grid">
+            <div>
+              <small>Origin storage</small>
+              <strong>{usage}</strong>
+              <span>Quota: {quota}</span>
+            </div>
+            <div>
+              <small>Startup threshold</small>
+              <strong>{preflight?.pressure ?? "checking"}</strong>
+              <span>Warning 200 MB / Auto safe 500 MB / Hard block 1 GB</span>
+            </div>
+            <div>
+              <small>Codex runner</small>
+              <strong className={`runner-pill runner-${runnerState}`}>
+                <Plug size={14} aria-hidden="true" />
+                {runnerLabel}
+              </strong>
+              <span>Server checks stay available while local state is skipped.</span>
+            </div>
+          </div>
+
+          <div className="storage-summary-grid">
+            <LocalStateSummaryCard title="History summary" summary={historySummary} />
+            <LocalStateSummaryCard title="Frames summary" summary={framesSummary} />
+          </div>
+
+          {(message || error || clearMessage || clearError) && (
+            <div className={`storage-recovery-message ${error || clearError ? "error" : ""}`}>
+              {error || clearError || message || clearMessage}
+            </div>
+          )}
+
+          <div className="storage-action-grid">
+            <button className="primary-button" onClick={onOpenSafeMode}>
+              <ShieldIcon />
+              Safe modeで開く
+            </button>
+            <button className="secondary-button" onClick={onOpenNormalMode}>
+              <RefreshCw size={16} aria-hidden="true" />
+              通常起動へ戻る / export
+            </button>
+            <button className="secondary-button" onClick={onOpenLocalhostOrigin}>
+              <ArrowRight size={16} aria-hidden="true" />
+              localhostで新規origin
+            </button>
+            <button className="secondary-button storage-danger-button" onClick={onForceLoad} disabled={!canForceLoad}>
+              <AlertTriangle size={16} aria-hidden="true" />
+              危険を理解して読み込む
+            </button>
+          </div>
+
+          <div className="storage-reset-panel">
+            <div>
+              <strong>Reset browser local state</strong>
+              <span>These actions never delete repository files, codex-handoff/outbox, docs/qa, or generated PNG files.</span>
+            </div>
+            <div className="storage-reset-grid">
+              <button className="secondary-button" onClick={() => onClear("history")} disabled={clearingScope === "history"}>
+                <Trash2 size={16} aria-hidden="true" />
+                Clear history
+              </button>
+              <button className="secondary-button" onClick={() => onClear("frames")} disabled={clearingScope === "frames"}>
+                <Trash2 size={16} aria-hidden="true" />
+                Clear frames
+              </button>
+              <button className="secondary-button" onClick={() => onClear("animation-library")} disabled={clearingScope === "animation-library"}>
+                <Trash2 size={16} aria-hidden="true" />
+                Clear animation library
+              </button>
+              <button className="secondary-button storage-danger-button" onClick={() => onClear("all")} disabled={clearingScope === "all"}>
+                <Trash2 size={16} aria-hidden="true" />
+                Clear all local Image Cockpit state
+              </button>
+            </div>
+          </div>
+        </section>
+      </main>
+
+      <footer className="statusbar">
+        <span className="live-dot" />
+        <span>{message || clearMessage || "Large browser local state has not been loaded."}</span>
+        <span className="spacer" />
+        <Archive size={15} aria-hidden="true" />
+        <span>Local workspace</span>
+      </footer>
+    </div>
+  );
+}
+
+function LocalStateSummaryCard({ title, summary }: { title: string; summary: LocalStateSummary | null | undefined }) {
+  return (
+    <article className="storage-summary-card">
+      <small>{title}</small>
+      <strong>{summary ? `${summary.persistedCount}/${summary.count} items` : "No summary"}</strong>
+      <span>{summary ? `${formatStorageBytes(summary.approxBytes)} retained, largest ${formatStorageBytes(summary.largestItemBytes)}` : "No retained local summary was found."}</span>
+      {summary && <em>{summary.retentionPolicy}</em>}
+    </article>
+  );
+}
+
+function ShieldIcon() {
+  return <CheckCircle2 size={16} aria-hidden="true" />;
+}
+
+function localStateResetScopeLabel(scope: LocalStateResetScope) {
+  if (scope === "history") return "history";
+  if (scope === "frames") return "frames";
+  if (scope === "animation-library") return "animation library";
+  if (scope === "actions") return "actions";
+  return "all local Image Cockpit state";
 }
 
 function selectedImageSafeBaseName(item: Pick<HistoryItem, "name">) {

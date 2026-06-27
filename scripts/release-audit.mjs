@@ -34,6 +34,8 @@ const requiredFiles = [
   "scripts/ui-smoke.mjs",
   "scripts/capture-readme-screenshots.mjs",
   "docs/qa/completed-codex-job-import-storage-quota.md",
+  "docs/qa/local-state-oom-safe-mode-retention.md",
+  "public/reset-local-state.html",
   "public/samples/idle-breathing-sheet.png",
   "public/samples/walk-cycle-sheet.png",
   "public/samples/run-cycle-sheet.png",
@@ -1006,7 +1008,9 @@ function checkPendingJobCoverage() {
 
   const uiSmokeText = readText("scripts/ui-smoke.mjs");
   const storageText = readText("src/lib/storage.ts");
+  const resetPageText = readText("public/reset-local-state.html");
   const qaText = readText("docs/qa/completed-codex-job-import-storage-quota.md");
+  const localStateQaText = readText("docs/qa/local-state-oom-safe-mode-retention.md");
   [
     "assertCompletedDirectionSplitImportFailure",
     "assertPartialDirectionSplitRecovery",
@@ -1026,12 +1030,65 @@ function checkPendingJobCoverage() {
     "HISTORY_SUMMARY_KEY",
     "FRAMES_SUMMARY_KEY",
     "saveLargeState",
-    "localStorage mirror"
+    "localStorage mirror",
+    "STORAGE_WARNING_BYTES",
+    "STORAGE_AUTO_SAFE_BYTES",
+    "STORAGE_HARD_BLOCK_BYTES",
+    "isStorageSafeModeSearch",
+    "preflightLocalStateStorage",
+    "clearImageCockpitLocalState",
+    "HISTORY_RETENTION_LIMIT",
+    "FRAME_RETENTION_LIMIT",
+    "approxBytes",
+    "largestItemBytes",
+    "retentionPolicy",
+    "PENDING_CODEX_JOB_STORAGE_KEY"
   ].forEach((marker) => {
     if (!storageText.includes(marker)) {
       failures.push(`Large history/frame storage quota guard is missing marker: ${marker}`);
     }
   });
+
+  [
+    "Local state safe mode",
+    "Local state recovery",
+    "Clear history",
+    "Clear frames",
+    "Clear animation library",
+    "Clear all local Image Cockpit state",
+    "localhostで新規origin",
+    "危険を理解して読み込む"
+  ].forEach((marker) => {
+    if (!appText.includes(marker)) {
+      failures.push(`Local state recovery UI marker is missing: ${marker}`);
+    }
+  });
+
+  [
+    "assertSafeModeRecovery",
+    "assertStoragePreflightRecovery",
+    "assertResetLocalStatePage",
+    "mockLargeStorage=1",
+    "Local state safe mode",
+    "Local state recovery"
+  ].forEach((marker) => {
+    if (!uiSmokeText.includes(marker)) {
+      failures.push(`Local state OOM UI smoke coverage is missing marker: ${marker}`);
+    }
+  });
+
+  [
+    "Image Cockpit Local State Reset",
+    "codex-handoff/outbox",
+    "image-cockpit.pendingCodexJob",
+    "indexedDB.deleteDatabase",
+    "/?safe=1"
+  ].forEach((marker) => {
+    if (!resetPageText.includes(marker)) {
+      failures.push(`Static reset page is missing safety marker: ${marker}`);
+    }
+  });
+
   [
     "completed + outboxあり + import失敗",
     "Direction split import failed",
@@ -1040,6 +1097,20 @@ function checkPendingJobCoverage() {
   ].forEach((marker) => {
     if (!qaText.includes(marker)) {
       failures.push(`Completed Codex import QA doc is missing marker: ${marker}`);
+    }
+  });
+
+  [
+    "?safe=1",
+    "?skipStorage=1",
+    "reset-local-state.html",
+    "navigator.storage.estimate",
+    "ui-smoke",
+    "codex-handoff/outbox",
+    "main merge前"
+  ].forEach((marker) => {
+    if (!localStateQaText.includes(marker)) {
+      failures.push(`Local state OOM QA doc is missing marker: ${marker}`);
     }
   });
 }

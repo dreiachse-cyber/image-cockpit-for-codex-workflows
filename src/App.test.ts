@@ -17,7 +17,20 @@ import {
   summarizeCodexImportFailureReason,
   SUPPORTED_LANGUAGE_IDS
 } from "./App";
-import type { CodexArtifactStatus, CodexRunnerStatus } from "./types";
+import {
+  applyFrameRetention,
+  applyHistoryRetention,
+  classifyStorageUsageBytes,
+  FRAME_RETENTION_LIMIT,
+  HISTORY_RETENTION_LIMIT,
+  IMAGE_COCKPIT_LOCAL_STATE_KEYS,
+  isStorageSafeModeSearch,
+  PENDING_CODEX_JOB_STORAGE_KEY,
+  STORAGE_AUTO_SAFE_BYTES,
+  STORAGE_HARD_BLOCK_BYTES,
+  STORAGE_WARNING_BYTES
+} from "./lib/storage";
+import type { CodexArtifactStatus, CodexRunnerStatus, HistoryItem, SpriteFrame } from "./types";
 
 describe("Codex runner wait state", () => {
   it("keeps waiting only when the runner is actively running or status is not loaded yet", () => {
@@ -110,6 +123,50 @@ describe("history result rendering window", () => {
   it("keeps the selected result visible even when it is outside the current window", () => {
     expect(getVisibleHistoryCount(240, INITIAL_HISTORY_RENDER_COUNT, 137)).toBe(138);
     expect(getVisibleHistoryCount(40, INITIAL_HISTORY_RENDER_COUNT, 30)).toBe(40);
+  });
+});
+
+describe("local state safe mode and retention", () => {
+  it("recognizes safe startup query aliases before reading large state", () => {
+    expect(isStorageSafeModeSearch("?safe=1")).toBe(true);
+    expect(isStorageSafeModeSearch("?skipStorage=true")).toBe(true);
+    expect(isStorageSafeModeSearch("?safe=0")).toBe(false);
+  });
+
+  it("classifies origin storage pressure at the documented thresholds", () => {
+    expect(classifyStorageUsageBytes(STORAGE_WARNING_BYTES - 1)).toBe("normal");
+    expect(classifyStorageUsageBytes(STORAGE_WARNING_BYTES)).toBe("warning");
+    expect(classifyStorageUsageBytes(STORAGE_AUTO_SAFE_BYTES)).toBe("auto-safe");
+    expect(classifyStorageUsageBytes(STORAGE_HARD_BLOCK_BYTES)).toBe("hard-block");
+  });
+
+  it("retains latest history while preserving adopted and selected items", () => {
+    const history = Array.from({ length: HISTORY_RETENTION_LIMIT + 10 }, (_, index) =>
+      makeHistoryItem(`hist-${index}`, { adopted: index === HISTORY_RETENTION_LIMIT + 4 })
+    );
+    const selectedId = `hist-${HISTORY_RETENTION_LIMIT + 8}`;
+    const retained = applyHistoryRetention(history, { selectedId });
+
+    expect(retained.length).toBe(HISTORY_RETENTION_LIMIT);
+    expect(retained.some((item) => item.id === selectedId)).toBe(true);
+    expect(retained.some((item) => item.adopted)).toBe(true);
+    expect(retained.some((item) => item.id === "hist-0")).toBe(true);
+  });
+
+  it("retains recent frames while preserving protected action frames", () => {
+    const frames = Array.from({ length: FRAME_RETENTION_LIMIT + 20 }, (_, index) => makeFrame(`frame-${index}`));
+    const retained = applyFrameRetention(frames, {
+      protectedFrameIds: ["frame-0", "frame-1"]
+    });
+
+    expect(retained.length).toBe(FRAME_RETENTION_LIMIT);
+    expect(retained.some((frame) => frame.id === "frame-0")).toBe(true);
+    expect(retained.some((frame) => frame.id === "frame-1")).toBe(true);
+    expect(retained.some((frame) => frame.id === `frame-${FRAME_RETENTION_LIMIT + 19}`)).toBe(true);
+  });
+
+  it("includes pending Codex jobs in the formal local reset key list", () => {
+    expect(IMAGE_COCKPIT_LOCAL_STATE_KEYS).toContain(PENDING_CODEX_JOB_STORAGE_KEY);
   });
 });
 
@@ -326,6 +383,34 @@ describe("animation frame cleanup", () => {
     expect(isLikelyFrameGarbageComponent(shoe, primary, 256, 256)).toBe(false);
   });
 });
+
+function makeHistoryItem(id: string, overrides: Partial<HistoryItem> = {}): HistoryItem {
+  return {
+    id,
+    name: `${id}.png`,
+    dataUrl: "data:image/png;base64,test",
+    provider: "local-file",
+    prompt: "test",
+    seed: "test",
+    size: "1x1",
+    createdAt: "2026-06-27T00:00:00.000Z",
+    adopted: false,
+    source: "import",
+    ...overrides
+  };
+}
+
+function makeFrame(id: string, overrides: Partial<SpriteFrame> = {}): SpriteFrame {
+  return {
+    id,
+    name: `${id}.png`,
+    dataUrl: "data:image/png;base64,test",
+    width: 1,
+    height: 1,
+    index: 0,
+    ...overrides
+  };
+}
 
 function makeStatus(state: CodexRunnerStatus["state"]): CodexRunnerStatus {
   return {
