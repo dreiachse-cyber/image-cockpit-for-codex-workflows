@@ -178,6 +178,7 @@ type Language = (typeof SUPPORTED_LANGUAGE_IDS)[number];
 type BaseLanguage = "ja" | "en";
 type LocalizedText = Record<BaseLanguage, string> & Partial<Record<Language, string>>;
 type AnimationGenerationMode = "standard" | "hatch-pet" | "directional-hatch-pet";
+type AnimationBackgroundMode = "chroma-key" | "direct-transparent";
 type AnimationChromaKeyName = "green" | "magenta";
 type CodexJobQueueState = "queued" | "running";
 
@@ -205,6 +206,9 @@ const animationChromaKeys: Record<AnimationChromaKeyName, AnimationChromaKey> = 
   green: { name: "green", label: "chroma-key green", hex: "#00ff00", rgb: { r: 0, g: 255, b: 0 } },
   magenta: { name: "magenta", label: "chroma-key magenta", hex: "#ff00ff", rgb: { r: 255, g: 0, b: 255 } }
 };
+
+const DEFAULT_ANIMATION_BACKGROUND_MODE: AnimationBackgroundMode = "chroma-key";
+const ANIMATION_BACKGROUND_MODE_STORAGE_KEY = "image-cockpit.animationBackgroundMode";
 
 const languageOptions: Array<{ id: Language; label: string }> = [
   { id: "ja", label: "日本語" },
@@ -269,7 +273,7 @@ interface FrameSplitOptions {
   residueChromaKey?: FrameResidueChromaKey;
 }
 
-type FrameResidueChromaKey = AnimationChromaKeyName | "both";
+type FrameResidueChromaKey = AnimationChromaKeyName | "both" | "none";
 
 interface DirectionSplitAnimationManifest {
   schema: typeof DIRECTION_SPLIT_ANIMATION_SCHEMA;
@@ -281,6 +285,8 @@ interface DirectionSplitAnimationManifest {
   cell?: SpriteAction["cell"];
   files?: Record<string, string> | Array<{ direction?: string; file?: string; name?: string; path?: string }>;
   chromaKey?: string | { name?: string };
+  backgroundMode?: AnimationBackgroundMode | string;
+  alphaValidation?: DirectTransparentAlphaValidation;
 }
 
 interface DirectionSplitSelection {
@@ -307,7 +313,7 @@ interface ReadyDirectionSplitArtifact {
 
 type DirectionSplitImportContext = Pick<
   CodexJobQueueItem,
-  "id" | "actionName" | "cell" | "chromaKey" | "sourceImageId" | "sourceImageName"
+  "id" | "actionName" | "cell" | "chromaKey" | "backgroundMode" | "sourceImageId" | "sourceImageName"
 >;
 
 interface DirectionSplitPreparedCell {
@@ -330,6 +336,16 @@ interface DirectionSplitNormalizedCell {
   failures: string[];
 }
 
+interface DirectTransparentAlphaValidation {
+  passed: boolean;
+  warnings: string[];
+  errors: string[];
+  backgroundTransparentRatio: number;
+  edgeOpaqueRatio: number;
+  internalTransparentHolePixels: number;
+  checkedDirections: number;
+}
+
 interface PendingCodexJob {
   id: string;
   path: string;
@@ -340,6 +356,7 @@ interface PendingCodexJob {
   grid?: GridSettings;
   cell?: SpriteAction["cell"];
   chromaKey?: AnimationChromaKeyName;
+  backgroundMode?: AnimationBackgroundMode;
   spriteVariant?: AnimationGenerationMode;
   sourceImageId?: string;
   sourceImageName?: string;
@@ -364,6 +381,7 @@ interface CodexJobDraft {
   frames: number;
   cell: SpriteAction["cell"] | null;
   chromaKey: AnimationChromaKeyName | "";
+  backgroundMode: AnimationBackgroundMode;
   spriteVariant?: AnimationGenerationMode;
   directions: string[];
   label: string;
@@ -372,6 +390,7 @@ interface CodexJobDraft {
   resultGrid?: GridSettings;
   resultCell?: SpriteAction["cell"];
   resultChromaKey?: AnimationChromaKeyName;
+  resultBackgroundMode?: AnimationBackgroundMode;
   resultSpriteVariant?: AnimationGenerationMode;
   resultSourceImageId?: string;
   resultSourceImageName?: string;
@@ -390,6 +409,7 @@ interface CodexJobQueueItem {
   grid?: GridSettings;
   cell?: SpriteAction["cell"];
   chromaKey?: AnimationChromaKeyName;
+  backgroundMode?: AnimationBackgroundMode;
   spriteVariant?: AnimationGenerationMode;
   sourceImageId?: string;
   sourceImageName?: string;
@@ -3497,6 +3517,7 @@ function App() {
   const [animationDirectionPreviews, setAnimationDirectionPreviews] = useState<AnimationDirectionPreview[]>([]);
   const [isAnimationPreviewBuilding, setIsAnimationPreviewBuilding] = useState(false);
   const [animationChromaKey, setAnimationChromaKey] = useState<AnimationChromaKeyName>("green");
+  const [animationBackgroundMode] = useState<AnimationBackgroundMode>(loadAnimationBackgroundMode);
   const [imageEditComparison, setImageEditComparison] = useState<ImageEditComparison | null>(null);
   const [codexFailureNotices, setCodexFailureNotices] = useState<CodexFailureNotice[]>([]);
   const [codexJobLogs, setCodexJobLogs] = useState<CodexJobLogItem[]>([]);
@@ -4336,6 +4357,10 @@ function App() {
     const animationJobGenerationMode: AnimationGenerationMode = "standard";
     const isHatchPetAnimationJob = false;
     const isDirectionalHatchPetAnimationJob = false;
+    const standardAnimationBackgroundMode: AnimationBackgroundMode =
+      isAnimationJob && animationJobGenerationMode === "standard"
+        ? animationBackgroundMode
+        : DEFAULT_ANIMATION_BACKGROUND_MODE;
     const sourceImageForJob = isAnimationJob ? animationSource : selected;
     const animationAction = isDirectionalHatchPetAnimationJob
       ? directionalHatchPetSpriteAction()
@@ -4395,6 +4420,7 @@ function App() {
             motionPrompt: animationMotionPrompt,
             actionName: animationAction.name,
             chromaKey: chromaDecision.key,
+            backgroundMode: standardAnimationBackgroundMode,
             cell: spriteCell
           })
       : isImageEditJob
@@ -4421,6 +4447,7 @@ function App() {
             userNotes: animationPresetNotes,
             chromaKey: chromaDecision.key,
             chromaReason: chromaDecision.reason,
+            backgroundMode: standardAnimationBackgroundMode,
             grid: spriteGrid,
             cell: spriteCell
           })
@@ -4454,6 +4481,7 @@ function App() {
       frames: includeSpriteContext ? spriteFrameCount : 0,
       cell: includeSpriteContext ? spriteCell : null,
       chromaKey: isAnimationJob ? chromaDecision.key.name : "",
+      backgroundMode: isAnimationJob ? standardAnimationBackgroundMode : DEFAULT_ANIMATION_BACKGROUND_MODE,
       spriteVariant: isAnimationJob ? animationJobGenerationMode : undefined,
       directions: isAnimationJob
         ? isDirectionalHatchPetAnimationJob
@@ -4468,6 +4496,7 @@ function App() {
       resultGrid: isAnimationJob ? spriteGrid : undefined,
       resultCell: isAnimationJob ? spriteCell : undefined,
       resultChromaKey: isAnimationJob ? chromaDecision.key.name : undefined,
+      resultBackgroundMode: isAnimationJob ? standardAnimationBackgroundMode : undefined,
       resultSpriteVariant: isAnimationJob ? animationJobGenerationMode : undefined,
       resultSourceImageId: isImageEditJob || isAnimationJob ? sourceImageForJob?.id : undefined,
       resultSourceImageName: isImageEditJob || isAnimationJob ? sourceImageForJob?.name : undefined
@@ -4491,6 +4520,7 @@ function App() {
         grid: draft.resultGrid,
         cell: draft.resultCell,
         chromaKey: draft.resultChromaKey,
+        backgroundMode: draft.resultBackgroundMode,
         spriteVariant: draft.resultSpriteVariant,
         sourceImageId: draft.resultSourceImageId,
         sourceImageName: draft.resultSourceImageName
@@ -4524,6 +4554,7 @@ function App() {
           frames: draft.frames,
           cell: draft.cell,
           chromaKey: draft.chromaKey,
+          backgroundMode: draft.backgroundMode,
           spriteVariant: draft.spriteVariant,
           directions: draft.directions
         })
@@ -4547,6 +4578,7 @@ function App() {
           grid: draft.resultGrid,
           cell: draft.resultCell,
           chromaKey: draft.resultChromaKey,
+          backgroundMode: draft.resultBackgroundMode,
           spriteVariant: draft.resultSpriteVariant,
           sourceImageId: draft.resultSourceImageId,
           sourceImageName: draft.resultSourceImageName
@@ -5215,6 +5247,10 @@ function App() {
     return raw === "green" || raw === "magenta" ? raw : fallback;
   }
 
+  function manifestBackgroundMode(manifest: DirectionSplitAnimationManifest | null, fallback: AnimationBackgroundMode) {
+    return normalizeAnimationBackgroundModeValue(manifest?.backgroundMode) ?? fallback;
+  }
+
   function manifestActionName(manifest: DirectionSplitAnimationManifest | null) {
     const action = manifest?.action;
     return action && actions.some((item) => item.name === action) ? action : activeAction.name;
@@ -5228,7 +5264,8 @@ function App() {
       id: artifact.jobId,
       actionName: manifestActionName(manifest),
       cell: manifest?.cell ?? STANDARD_ANIMATION_CELL,
-      chromaKey: manifestChromaKeyName(manifest, animationChromaKey)
+      chromaKey: manifestChromaKeyName(manifest, animationChromaKey),
+      backgroundMode: manifestBackgroundMode(manifest, DEFAULT_ANIMATION_BACKGROUND_MODE)
     };
   }
 
@@ -5247,6 +5284,7 @@ function App() {
       actionName: context.actionName,
       cell: context.cell,
       chromaKey: context.chromaKey,
+      backgroundMode: context.backgroundMode,
       sourceImageId: context.sourceImageId,
       sourceImageName: context.sourceImageName
     };
@@ -5283,7 +5321,8 @@ function App() {
     const actionName = importContext.actionName ?? manifestActionName(manifest);
     const spriteCell = importContext.cell ?? manifest?.cell ?? STANDARD_ANIMATION_CELL;
     const chromaKey = animationChromaKeys[importContext.chromaKey ?? manifestChromaKeyName(manifest, animationChromaKey)];
-    const composed = await composeDirectionSplitAnimationSheet(importedResults, chromaKey, spriteCell);
+    const backgroundMode = importContext.backgroundMode ?? manifestBackgroundMode(manifest, DEFAULT_ANIMATION_BACKGROUND_MODE);
+    const composed = await composeDirectionSplitAnimationSheet(importedResults, chromaKey, spriteCell, backgroundMode);
     const image = await loadImage(composed.dataUrl);
     const itemName = `${importContext.id}-direction-split-animation-sheet.png`;
     const item: HistoryItem = {
@@ -5316,7 +5355,7 @@ function App() {
     if (newFrames.length === 0) throw new Error("Returned direction split animation could not be split into frames.");
 
     setAnimationGenerationMode("standard");
-    setAnimationChromaKey(chromaKey.name);
+    if (backgroundMode === "chroma-key") setAnimationChromaKey(chromaKey.name);
     setGrid(ANIMATION_SHEET_GRID);
     addLocalInboxHistoryItem(item);
     setFrames((current) => [...current, ...newFrames]);
@@ -5332,7 +5371,8 @@ function App() {
 
     const manifestSuffix = manifest?.schema === DIRECTION_SPLIT_ANIMATION_SCHEMA ? " direction-split manifest ok." : "";
     const warningSuffix = composed.warnings.length > 0 ? ` QA warnings: ${composed.warnings.length}.` : "";
-    setStatus(`${copy.statusAnimationGenerated}: ${item.name}. ${formatFramesAddedStatus(newFrames.length, actionName, language)}${manifestSuffix}${warningSuffix}`);
+    const backgroundSuffix = backgroundMode === "direct-transparent" ? " direct transparent alpha QA ok." : "";
+    setStatus(`${copy.statusAnimationGenerated}: ${item.name}. ${formatFramesAddedStatus(newFrames.length, actionName, language)}${manifestSuffix}${backgroundSuffix}${warningSuffix}`);
     return { added: true, item, frameCount: newFrames.length };
   }
 
@@ -8468,15 +8508,23 @@ function buildAnimationCodexPrompt({
   motionPrompt,
   actionName,
   chromaKey,
+  backgroundMode,
   cell
 }: {
   sourceName: string;
   motionPrompt: string;
   actionName: string;
   chromaKey: AnimationChromaKey;
+  backgroundMode: AnimationBackgroundMode;
   cell: SpriteAction["cell"];
 }) {
   const motion = motionPrompt.trim() || actionName;
+  const backgroundLine = backgroundMode === "direct-transparent"
+    ? "Create every returned direction image as a transparent PNG with a real alpha channel. The canvas outside the character is empty transparent alpha. Each frame contains only the character sprite, with no drawn background, no preview pattern, no guide grid, no floor, and no backdrop. If true alpha output is unavailable, do not silently use a chroma-key or opaque background as a successful result."
+    : `Prefer a transparent background in every cell. If true transparency is not available during generation, use a flat ${chromaKey.label} background (${chromaKey.hex}) in every cell; do not use black, white, gradients, scenery, shadows, UI, text, logos, watermarks, letters, or numbers.`;
+  const guideLine = backgroundMode === "direct-transparent"
+    ? "Do not add guide grids, labels, UI borders, preview patterns, or background swatches to direct transparent output."
+    : "If you add a temporary guide grid, use a temporary 1-pixel pure cyan #00FFFF guide grid only on the exact 4x2 cell boundaries for each direction image; no labels, numbers, text, UI, or decorative borders.";
   return [
     "このキャラクターをデフォルメして、方向別アニメーション素材として画像生成してほしい。",
     `Use the uploaded source image "${sourceName}" as the character reference.`,
@@ -8491,11 +8539,11 @@ function buildAnimationCodexPrompt({
     "Do not crop the head, feet, hair, held item, weapon, projectile, or effects. Do not let body parts, items, projectiles, or effects cross cell borders. Do not place heads or body fragments under the feet.",
     "Use consistent character scale, baseline, foot contact point, silhouette size, palette, outfit, and pixel density across all direction images.",
     "Hard consistency requirement across all five direction images: keep the same chibi body proportions, same head-to-body ratio, same head size, same body height from feet to top of head within about 5%, same limb thickness, same outfit colors, same clothing layers, and same prop design. Do not redesign any direction or make one direction taller, older, younger, more realistic, or differently dressed than the others.",
-    `Prefer a transparent background in every cell. If true transparency is not available during generation, use a flat ${chromaKey.label} background (${chromaKey.hex}) in every cell; do not use black, white, gradients, scenery, shadows, UI, text, logos, watermarks, letters, or numbers.`,
-    "If you add a temporary guide grid, use a temporary 1-pixel pure cyan #00FFFF guide grid only on the exact 4x2 cell boundaries for each direction image; no labels, numbers, text, UI, or decorative borders.",
+    backgroundLine,
+    guideLine,
     "Quality gate before returning: inspect all 40 cells and regenerate if any cell is cropped, has missing feet, has a cut-off head, contains multiple heads, has a head below the feet, has a different character, or uses a non-flat background.",
     `Return exactly these direction files using the real job id prefix: ${directionSplitAnimationFileSet("<job-id>").join(", ")}.`,
-    `Also return <job-id>-manifest.json with schema "${DIRECTION_SPLIT_ANIMATION_SCHEMA}".`
+    `Also return <job-id>-manifest.json with schema "${DIRECTION_SPLIT_ANIMATION_SCHEMA}", backgroundMode "${backgroundMode}", and alphaValidation metadata when backgroundMode is direct-transparent.`
   ].join(" ");
 }
 
@@ -8503,26 +8551,38 @@ function buildAnimationCodexNotes({
   userNotes,
   chromaKey,
   chromaReason,
+  backgroundMode,
   grid,
   cell
 }: {
   userNotes: string;
   chromaKey: AnimationChromaKey;
   chromaReason: string;
+  backgroundMode: AnimationBackgroundMode;
   grid: GridSettings;
   cell: SpriteAction["cell"];
 }) {
+  const backgroundNotes = backgroundMode === "direct-transparent"
+    ? [
+        "Animation sprite workflow: generate five source-image-driven direction images through Codex imagegen / built-in image_gen as direct transparent PNGs. Image Cockpit will not run chroma-key removal on direct transparent output; it will only validate alpha, slice cells, normalize the character, and compose the final sheet.",
+        "Direct transparent contract: the canvas outside each character must be real alpha 0, with no drawn background, no preview pattern, no guide grid, no floor, no opaque white/black/green/magenta field, and no background swatch.",
+        "If direct transparent generation fails, do not silently fallback to a successful chroma-key result. Mark the manifest alphaValidation as failed or return a blocked/needs-review sidecar so the app can surface the failure."
+      ]
+    : [
+        `Animation sprite workflow: generate five source-image-driven direction images through Codex imagegen / built-in image_gen, then Image Cockpit will remove the ${chromaKey.label} background and compose the final sheet.`,
+        `Chroma key decision: ${chromaKey.name} ${chromaKey.hex}. ${chromaReason}`,
+        "The generated sheet should keep the chroma key background simple and flat so the app can remove it reliably.",
+        "Temporary guide grid: pure cyan #00FFFF on exact 4x2 direction-image cell boundaries only. Image Cockpit removes those guide pixels before slicing/export."
+      ];
   return [
     userNotes.trim(),
-    `Animation sprite workflow: generate five source-image-driven direction images through Codex imagegen / built-in image_gen, then Image Cockpit will remove the ${chromaKey.label} background and compose the final sheet.`,
-    `Chroma key decision: ${chromaKey.name} ${chromaKey.hex}. ${chromaReason}`,
+    `Background mode: ${backgroundMode}.`,
+    ...backgroundNotes,
     `Final app sheet layout after import: ${grid.columns} columns x ${grid.rows} rows, ${cell.width}x${cell.height} per cell.`,
     `Raw returned direction layout: ${DIRECTION_SPLIT_ANIMATION_GRID.columns} columns x ${DIRECTION_SPLIT_ANIMATION_GRID.rows} rows per direction image, ${cell.width}x${cell.height} per cell.`,
     `Required direction files: ${directionSplitAnimationFileSet("<job-id>").join(", ")}.`,
-    `Manifest schema: ${DIRECTION_SPLIT_ANIMATION_SCHEMA}; include directions, files, grid, cell, and framesPerDirection=${ANIMATION_FRAME_COUNT}.`,
-    "Cell QA is mandatory: one full-body character per cell, consistent baseline and scale, at least 24px inner padding, no cropping, no duplicated heads, no body fragments under feet, no character parts, items, projectiles, or effects crossing cell borders.",
-    "The generated sheet should keep the chroma key background simple and flat so the app can remove it reliably.",
-    "Temporary guide grid: pure cyan #00FFFF on exact 4x2 direction-image cell boundaries only. Image Cockpit removes those guide pixels before slicing/export."
+    `Manifest schema: ${DIRECTION_SPLIT_ANIMATION_SCHEMA}; include directions, files, grid, cell, framesPerDirection=${ANIMATION_FRAME_COUNT}, backgroundMode, and chromaKey only when backgroundMode is chroma-key.`,
+    "Cell QA is mandatory: one full-body character per cell, consistent baseline and scale, at least 24px inner padding, no cropping, no duplicated heads, no body fragments under feet, no character parts, items, projectiles, or effects crossing cell borders."
   ].filter(Boolean).join("\n");
 }
 
@@ -8636,14 +8696,203 @@ async function createTransparentSpriteSheetDataUrl(dataUrl: string, chromaKey: A
   return canvas.toDataURL("image/png");
 }
 
+async function createDirectTransparentSpriteSheetDataUrl(dataUrl: string, direction: string) {
+  const image = await loadImage(dataUrl);
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.max(1, image.naturalWidth || image.width);
+  canvas.height = Math.max(1, image.naturalHeight || image.height);
+  const context = canvas.getContext("2d", { willReadFrequently: true });
+  if (!context) throw new Error("Could not create direct transparent sprite sheet canvas.");
+  context.clearRect(0, 0, canvas.width, canvas.height);
+  context.drawImage(image, 0, 0, canvas.width, canvas.height);
+  return {
+    dataUrl: canvas.toDataURL("image/png"),
+    alphaValidation: validateDirectTransparentDirectionImage(context, canvas.width, canvas.height, direction)
+  };
+}
+
+function mergeDirectTransparentAlphaValidations(validations: DirectTransparentAlphaValidation[]): DirectTransparentAlphaValidation {
+  if (validations.length === 0) {
+    return {
+      passed: true,
+      warnings: [],
+      errors: [],
+      backgroundTransparentRatio: 0,
+      edgeOpaqueRatio: 0,
+      internalTransparentHolePixels: 0,
+      checkedDirections: 0
+    };
+  }
+  const checkedDirections = validations.reduce((total, validation) => total + validation.checkedDirections, 0);
+  return {
+    passed: validations.every((validation) => validation.passed),
+    warnings: validations.flatMap((validation) => validation.warnings),
+    errors: validations.flatMap((validation) => validation.errors),
+    backgroundTransparentRatio: roundNumber(
+      validations.reduce((total, validation) => total + validation.backgroundTransparentRatio, 0) / validations.length,
+      4
+    ),
+    edgeOpaqueRatio: roundNumber(
+      validations.reduce((total, validation) => total + validation.edgeOpaqueRatio, 0) / validations.length,
+      4
+    ),
+    internalTransparentHolePixels: validations.reduce((total, validation) => total + validation.internalTransparentHolePixels, 0),
+    checkedDirections
+  };
+}
+
+function validateDirectTransparentDirectionImage(
+  context: CanvasRenderingContext2D,
+  width: number,
+  height: number,
+  direction: string
+): DirectTransparentAlphaValidation {
+  const imageData = context.getImageData(0, 0, width, height);
+  const data = imageData.data;
+  const warnings: string[] = [];
+  const errors: string[] = [];
+  const totalPixels = Math.max(1, width * height);
+  let transparentPixels = 0;
+
+  for (let offset = 0; offset < data.length; offset += 4) {
+    if (data[offset + 3] <= FRAME_ALPHA_THRESHOLD) transparentPixels += 1;
+  }
+
+  const cells = calculateGridCells(width, height, DIRECTION_SPLIT_ANIMATION_GRID).slice(0, ANIMATION_FRAME_COUNT);
+  const cellWidth = Math.max(1, Math.round(width / DIRECTION_SPLIT_ANIMATION_GRID.columns));
+  const cellHeight = Math.max(1, Math.round(height / DIRECTION_SPLIT_ANIMATION_GRID.rows));
+  const edgeMargin = clampNumber(Math.round(Math.min(cellWidth, cellHeight) * 0.08), 4, 24);
+  let edgePixels = 0;
+  let edgeOpaquePixels = 0;
+  let internalTransparentHolePixels = 0;
+
+  cells.forEach((cell) => {
+    const left = Math.max(0, Math.round(cell.x));
+    const top = Math.max(0, Math.round(cell.y));
+    const right = Math.min(width, Math.round(cell.x + cell.width));
+    const bottom = Math.min(height, Math.round(cell.y + cell.height));
+    for (let y = top; y < bottom; y += 1) {
+      for (let x = left; x < right; x += 1) {
+        const inEdgeBand =
+          x - left < edgeMargin ||
+          right - x <= edgeMargin ||
+          y - top < edgeMargin ||
+          bottom - y <= edgeMargin;
+        if (!inEdgeBand) continue;
+        edgePixels += 1;
+        if (data[(y * width + x) * 4 + 3] > FRAME_ALPHA_THRESHOLD) edgeOpaquePixels += 1;
+      }
+    }
+
+    const cellImageData = context.getImageData(left, top, Math.max(1, right - left), Math.max(1, bottom - top));
+    const { components } = labelOpaqueComponents(cellImageData, cellImageData.width, cellImageData.height, "none");
+    const primary = selectPrimaryOpaqueComponent(components, cellImageData.width, cellImageData.height);
+    if (!primary || primary.count < 64) return;
+    const holes = countInternalTransparentHolePixels(cellImageData, cellImageData.width, cellImageData.height, primary);
+    internalTransparentHolePixels += holes;
+    const failHoleThreshold = Math.max(700, Math.round(primary.count * 0.12));
+    const warnHoleThreshold = Math.max(260, Math.round(primary.count * 0.055));
+    const label = directionSplitCellLabel(direction, cell.index);
+    if (holes >= failHoleThreshold) {
+      errors.push(`${label}: large internal transparent hole detected (${holes}px)`);
+    } else if (holes >= warnHoleThreshold) {
+      warnings.push(`${label}: possible internal transparent hole detected (${holes}px)`);
+    }
+  });
+
+  const backgroundTransparentRatio = transparentPixels / totalPixels;
+  const edgeOpaqueRatio = edgeOpaquePixels / Math.max(1, edgePixels);
+  if (backgroundTransparentRatio < 0.35) {
+    errors.push(`${direction}: direct transparent output has too little alpha background (${roundNumber(backgroundTransparentRatio, 3)})`);
+  } else if (backgroundTransparentRatio < 0.55) {
+    warnings.push(`${direction}: alpha background is lower than expected (${roundNumber(backgroundTransparentRatio, 3)})`);
+  }
+  if (edgeOpaqueRatio > 0.12) {
+    errors.push(`${direction}: opaque pixels on cell edges suggest a drawn background (${roundNumber(edgeOpaqueRatio, 3)})`);
+  } else if (edgeOpaqueRatio > 0.045) {
+    warnings.push(`${direction}: possible drawn background residue on cell edges (${roundNumber(edgeOpaqueRatio, 3)})`);
+  }
+
+  return {
+    passed: errors.length === 0,
+    warnings,
+    errors,
+    backgroundTransparentRatio: roundNumber(backgroundTransparentRatio, 4),
+    edgeOpaqueRatio: roundNumber(edgeOpaqueRatio, 4),
+    internalTransparentHolePixels,
+    checkedDirections: 1
+  };
+}
+
+function countInternalTransparentHolePixels(imageData: ImageData, width: number, height: number, bounds: OpaqueBounds) {
+  const data = imageData.data;
+  const minX = clampNumber(bounds.minX, 0, width - 1);
+  const minY = clampNumber(bounds.minY, 0, height - 1);
+  const maxX = clampNumber(bounds.maxX, minX, width - 1);
+  const maxY = clampNumber(bounds.maxY, minY, height - 1);
+  const boxWidth = maxX - minX + 1;
+  const boxHeight = maxY - minY + 1;
+  const area = boxWidth * boxHeight;
+  if (area < 64) return 0;
+
+  const visited = new Uint8Array(area);
+  const stack = new Int32Array(area);
+  let stackLength = 0;
+  const tryPush = (x: number, y: number) => {
+    const boxX = x - minX;
+    const boxY = y - minY;
+    if (boxX < 0 || boxX >= boxWidth || boxY < 0 || boxY >= boxHeight) return;
+    const index = boxY * boxWidth + boxX;
+    if (visited[index]) return;
+    if (data[(y * width + x) * 4 + 3] > FRAME_ALPHA_THRESHOLD) return;
+    visited[index] = 1;
+    stack[stackLength] = index;
+    stackLength += 1;
+  };
+
+  for (let x = minX; x <= maxX; x += 1) {
+    tryPush(x, minY);
+    tryPush(x, maxY);
+  }
+  for (let y = minY; y <= maxY; y += 1) {
+    tryPush(minX, y);
+    tryPush(maxX, y);
+  }
+
+  while (stackLength > 0) {
+    stackLength -= 1;
+    const index = stack[stackLength];
+    const boxX = index % boxWidth;
+    const boxY = Math.floor(index / boxWidth);
+    const x = minX + boxX;
+    const y = minY + boxY;
+    tryPush(x - 1, y);
+    tryPush(x + 1, y);
+    tryPush(x, y - 1);
+    tryPush(x, y + 1);
+  }
+
+  let holes = 0;
+  for (let y = minY; y <= maxY; y += 1) {
+    for (let x = minX; x <= maxX; x += 1) {
+      const boxIndex = (y - minY) * boxWidth + (x - minX);
+      if (visited[boxIndex]) continue;
+      if (data[(y * width + x) * 4 + 3] <= FRAME_ALPHA_THRESHOLD) holes += 1;
+    }
+  }
+  return holes;
+}
+
 async function composeDirectionSplitAnimationSheet(
   importedResults: CodexOutboxImportResponse[],
   chromaKey: AnimationChromaKey,
-  cell: SpriteAction["cell"]
+  cell: SpriteAction["cell"],
+  backgroundMode: AnimationBackgroundMode = DEFAULT_ANIMATION_BACKGROUND_MODE
 ) {
   const preparedCells: DirectionSplitPreparedCell[] = [];
   const warnings: string[] = [];
   const failures: string[] = [];
+  const alphaValidations: DirectTransparentAlphaValidation[] = [];
   const expectedWidth = cell.width * DIRECTION_SPLIT_ANIMATION_GRID.columns;
   const expectedHeight = cell.height * DIRECTION_SPLIT_ANIMATION_GRID.rows;
 
@@ -8655,8 +8904,11 @@ async function composeDirectionSplitAnimationSheet(
       continue;
     }
 
-    const transparentDataUrl = await createTransparentSpriteSheetDataUrl(result.dataUrl, chromaKey);
-    const image = await loadImage(transparentDataUrl);
+    const prepared = backgroundMode === "direct-transparent"
+      ? await createDirectTransparentSpriteSheetDataUrl(result.dataUrl, direction)
+      : { dataUrl: await createTransparentSpriteSheetDataUrl(result.dataUrl, chromaKey), alphaValidation: null };
+    if (prepared.alphaValidation) alphaValidations.push(prepared.alphaValidation);
+    const image = await loadImage(prepared.dataUrl);
     if (image.width !== expectedWidth || image.height !== expectedHeight) {
       failures.push(`${direction}: expected ${expectedWidth}x${expectedHeight}, got ${image.width}x${image.height}`);
     }
@@ -8675,8 +8927,20 @@ async function composeDirectionSplitAnimationSheet(
     cells.slice(0, ANIMATION_FRAME_COUNT).forEach((gridCell) => {
       context.clearRect(0, 0, cell.width, cell.height);
       context.drawImage(image, gridCell.x, gridCell.y, gridCell.width, gridCell.height, 0, 0, cell.width, cell.height);
-      preparedCells.push(prepareDirectionSplitCell(canvas, direction, directionIndex, gridCell.index, chromaKey.name));
+      preparedCells.push(prepareDirectionSplitCell(
+        canvas,
+        direction,
+        directionIndex,
+        gridCell.index,
+        backgroundMode === "direct-transparent" ? "none" : chromaKey.name
+      ));
     });
+  }
+
+  if (backgroundMode === "direct-transparent") {
+    const alphaValidation = mergeDirectTransparentAlphaValidations(alphaValidations);
+    warnings.push(...alphaValidation.warnings);
+    failures.push(...alphaValidation.errors);
   }
 
   const normalizedCells = normalizeDirectionSplitCells(preparedCells, cell);
@@ -10134,6 +10398,7 @@ export function isFrameChromaResiduePixel(
   offset: number,
   residueChromaKey: FrameResidueChromaKey = "both"
 ) {
+  if (residueChromaKey === "none") return false;
   const alpha = data[offset + 3];
   if (alpha <= FRAME_ALPHA_THRESHOLD) return false;
   const r = data[offset];
@@ -10432,6 +10697,28 @@ function loadLanguage(): Language {
   }
 }
 
+function loadAnimationBackgroundMode(): AnimationBackgroundMode {
+  try {
+    const params = new URLSearchParams(window.location.search);
+    const fromSearch = normalizeAnimationBackgroundModeValue(params.get("animationBackgroundMode") ?? params.get("animation-background-mode"));
+    if (fromSearch) return fromSearch;
+    const stored = window.localStorage.getItem(ANIMATION_BACKGROUND_MODE_STORAGE_KEY);
+    const fromStorage = normalizeAnimationBackgroundModeValue(stored);
+    if (fromStorage) return fromStorage;
+  } catch {
+    // Hidden experiment switch only; default mode stays compatible if storage/search is unavailable.
+  }
+  return DEFAULT_ANIMATION_BACKGROUND_MODE;
+}
+
+function normalizeAnimationBackgroundModeValue(value: unknown): AnimationBackgroundMode | undefined {
+  if (typeof value !== "string") return undefined;
+  const normalized = value.trim().toLowerCase().replace(/[_\s]+/g, "-");
+  if (normalized === "direct-transparent" || normalized === "transparent" || normalized === "alpha") return "direct-transparent";
+  if (normalized === "chroma-key" || normalized === "chroma" || normalized === "key") return "chroma-key";
+  return undefined;
+}
+
 function formatImagesImportedStatus(count: number, language: Language) {
   return imageImportedStatusCopy[language](count);
 }
@@ -10495,7 +10782,8 @@ function loadPendingCodexJobs(): CodexJobQueueItem[] {
       .map((job) => ({
         ...job,
         state: "running" as const,
-        label: job.label ?? codexJobLabel(job.workflowMode ?? null, "", job.actionName)
+        label: job.label ?? codexJobLabel(job.workflowMode ?? null, "", job.actionName),
+        backgroundMode: normalizeAnimationBackgroundModeValue(job.backgroundMode) ?? DEFAULT_ANIMATION_BACKGROUND_MODE
       }));
   } catch {
     return [];
@@ -10516,6 +10804,7 @@ function savePendingCodexJobs(jobs: CodexJobQueueItem[]) {
         grid: job.grid,
         cell: job.cell,
         chromaKey: job.chromaKey,
+        backgroundMode: job.backgroundMode,
         spriteVariant: job.spriteVariant,
         sourceImageId: job.sourceImageId,
         sourceImageName: job.sourceImageName

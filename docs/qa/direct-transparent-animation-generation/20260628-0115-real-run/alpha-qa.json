@@ -1,0 +1,1705 @@
+{
+  "createdAt": "2026-06-28T02:16:45+09:00",
+  "sourceImage": "forest-mage-idle.png",
+  "criteria": {
+    "directTransparentPassRequires": [
+      "useful alpha channel",
+      "nearTransparentPixelRatio >= 0.35",
+      "edgeOpaqueRatio <= 0.12",
+      "no large internal transparent holes"
+    ],
+    "visualAdoptionRequires": [
+      "full-color sprite detail preserved",
+      "not silhouette/mask-like"
+    ],
+    "alphaThreshold": 16
+  },
+  "baseline-chroma-key": {
+    "jobId": "codex-job-2026-06-27T16-17-01-671Z",
+    "backgroundMode": "chroma-key",
+    "alphaPassed": true,
+    "visualQuality": "pass",
+    "adoptionCandidate": false,
+    "visualNote": "reference chroma-key baseline after green removal",
+    "directions": [
+      {
+        "label": "baseline-chroma-key",
+        "direction": "front",
+        "mode": "RGBA",
+        "size": [
+          1024,
+          512
+        ],
+        "hasUsefulAlpha": true,
+        "alphaExtrema": [
+          0,
+          255
+        ],
+        "transparentPixelRatio": 0.7728,
+        "nearTransparentPixelRatio": 0.7728,
+        "opaquePixelRatio": 0.2272,
+        "edgeOpaqueRatio": 0.0,
+        "greenOpaquePixels": 0,
+        "internalTransparentHolePixels": 80,
+        "frameHoleDetails": [
+          {
+            "frame": 0,
+            "primaryOpaquePixels": 14879,
+            "internalTransparentHolePixels": 12,
+            "warnThreshold": 818,
+            "failThreshold": 1785
+          },
+          {
+            "frame": 1,
+            "primaryOpaquePixels": 15067,
+            "internalTransparentHolePixels": 4,
+            "warnThreshold": 829,
+            "failThreshold": 1808
+          },
+          {
+            "frame": 2,
+            "primaryOpaquePixels": 14285,
+            "internalTransparentHolePixels": 6,
+            "warnThreshold": 786,
+            "failThreshold": 1714
+          },
+          {
+            "frame": 3,
+            "primaryOpaquePixels": 14734,
+            "internalTransparentHolePixels": 14,
+            "warnThreshold": 810,
+            "failThreshold": 1768
+          },
+          {
+            "frame": 4,
+            "primaryOpaquePixels": 15170,
+            "internalTransparentHolePixels": 5,
+            "warnThreshold": 834,
+            "failThreshold": 1820
+          },
+          {
+            "frame": 5,
+            "primaryOpaquePixels": 14476,
+            "internalTransparentHolePixels": 12,
+            "warnThreshold": 796,
+            "failThreshold": 1737
+          },
+          {
+            "frame": 6,
+            "primaryOpaquePixels": 14865,
+            "internalTransparentHolePixels": 12,
+            "warnThreshold": 818,
+            "failThreshold": 1784
+          },
+          {
+            "frame": 7,
+            "primaryOpaquePixels": 14467,
+            "internalTransparentHolePixels": 15,
+            "warnThreshold": 796,
+            "failThreshold": 1736
+          }
+        ],
+        "passed": true,
+        "warnings": [],
+        "errors": []
+      },
+      {
+        "label": "baseline-chroma-key",
+        "direction": "front three-quarter",
+        "mode": "RGBA",
+        "size": [
+          1024,
+          512
+        ],
+        "hasUsefulAlpha": true,
+        "alphaExtrema": [
+          0,
+          255
+        ],
+        "transparentPixelRatio": 0.671,
+        "nearTransparentPixelRatio": 0.671,
+        "opaquePixelRatio": 0.329,
+        "edgeOpaqueRatio": 0.0048,
+        "greenOpaquePixels": 0,
+        "internalTransparentHolePixels": 1466,
+        "frameHoleDetails": [
+          {
+            "frame": 0,
+            "primaryOpaquePixels": 21350,
+            "internalTransparentHolePixels": 615,
+            "warnThreshold": 1174,
+            "failThreshold": 2562
+          },
+          {
+            "frame": 1,
+            "primaryOpaquePixels": 21041,
+            "internalTransparentHolePixels": 480,
+            "warnThreshold": 1157,
+            "failThreshold": 2525
+          },
+          {
+            "frame": 2,
+            "primaryOpaquePixels": 21613,
+            "internalTransparentHolePixels": 79,
+            "warnThreshold": 1189,
+            "failThreshold": 2594
+          },
+          {
+            "frame": 3,
+            "primaryOpaquePixels": 21694,
+            "internalTransparentHolePixels": 49,
+            "warnThreshold": 1193,
+            "failThreshold": 2603
+          },
+          {
+            "frame": 4,
+            "primaryOpaquePixels": 21707,
+            "internalTransparentHolePixels": 64,
+            "warnThreshold": 1194,
+            "failThreshold": 2605
+          },
+          {
+            "frame": 5,
+            "primaryOpaquePixels": 21246,
+            "internalTransparentHolePixels": 57,
+            "warnThreshold": 1169,
+            "failThreshold": 2550
+          },
+          {
+            "frame": 6,
+            "primaryOpaquePixels": 21072,
+            "internalTransparentHolePixels": 73,
+            "warnThreshold": 1159,
+            "failThreshold": 2529
+          },
+          {
+            "frame": 7,
+            "primaryOpaquePixels": 21020,
+            "internalTransparentHolePixels": 49,
+            "warnThreshold": 1156,
+            "failThreshold": 2522
+          }
+        ],
+        "passed": true,
+        "warnings": [],
+        "errors": []
+      },
+      {
+        "label": "baseline-chroma-key",
+        "direction": "side",
+        "mode": "RGBA",
+        "size": [
+          1024,
+          512
+        ],
+        "hasUsefulAlpha": true,
+        "alphaExtrema": [
+          0,
+          255
+        ],
+        "transparentPixelRatio": 0.6752,
+        "nearTransparentPixelRatio": 0.6752,
+        "opaquePixelRatio": 0.3248,
+        "edgeOpaqueRatio": 0.0026,
+        "greenOpaquePixels": 0,
+        "internalTransparentHolePixels": 438,
+        "frameHoleDetails": [
+          {
+            "frame": 0,
+            "primaryOpaquePixels": 21500,
+            "internalTransparentHolePixels": 14,
+            "warnThreshold": 1182,
+            "failThreshold": 2580
+          },
+          {
+            "frame": 1,
+            "primaryOpaquePixels": 21391,
+            "internalTransparentHolePixels": 29,
+            "warnThreshold": 1177,
+            "failThreshold": 2567
+          },
+          {
+            "frame": 2,
+            "primaryOpaquePixels": 21571,
+            "internalTransparentHolePixels": 85,
+            "warnThreshold": 1186,
+            "failThreshold": 2589
+          },
+          {
+            "frame": 3,
+            "primaryOpaquePixels": 21238,
+            "internalTransparentHolePixels": 65,
+            "warnThreshold": 1168,
+            "failThreshold": 2549
+          },
+          {
+            "frame": 4,
+            "primaryOpaquePixels": 20404,
+            "internalTransparentHolePixels": 67,
+            "warnThreshold": 1122,
+            "failThreshold": 2448
+          },
+          {
+            "frame": 5,
+            "primaryOpaquePixels": 20733,
+            "internalTransparentHolePixels": 72,
+            "warnThreshold": 1140,
+            "failThreshold": 2488
+          },
+          {
+            "frame": 6,
+            "primaryOpaquePixels": 20807,
+            "internalTransparentHolePixels": 51,
+            "warnThreshold": 1144,
+            "failThreshold": 2497
+          },
+          {
+            "frame": 7,
+            "primaryOpaquePixels": 20943,
+            "internalTransparentHolePixels": 55,
+            "warnThreshold": 1152,
+            "failThreshold": 2513
+          }
+        ],
+        "passed": true,
+        "warnings": [],
+        "errors": []
+      },
+      {
+        "label": "baseline-chroma-key",
+        "direction": "back three-quarter",
+        "mode": "RGBA",
+        "size": [
+          1024,
+          512
+        ],
+        "hasUsefulAlpha": true,
+        "alphaExtrema": [
+          0,
+          255
+        ],
+        "transparentPixelRatio": 0.7106,
+        "nearTransparentPixelRatio": 0.7106,
+        "opaquePixelRatio": 0.2894,
+        "edgeOpaqueRatio": 0.0001,
+        "greenOpaquePixels": 0,
+        "internalTransparentHolePixels": 331,
+        "frameHoleDetails": [
+          {
+            "frame": 0,
+            "primaryOpaquePixels": 19242,
+            "internalTransparentHolePixels": 30,
+            "warnThreshold": 1058,
+            "failThreshold": 2309
+          },
+          {
+            "frame": 1,
+            "primaryOpaquePixels": 18999,
+            "internalTransparentHolePixels": 48,
+            "warnThreshold": 1045,
+            "failThreshold": 2280
+          },
+          {
+            "frame": 2,
+            "primaryOpaquePixels": 19018,
+            "internalTransparentHolePixels": 61,
+            "warnThreshold": 1046,
+            "failThreshold": 2282
+          },
+          {
+            "frame": 3,
+            "primaryOpaquePixels": 18738,
+            "internalTransparentHolePixels": 24,
+            "warnThreshold": 1031,
+            "failThreshold": 2249
+          },
+          {
+            "frame": 4,
+            "primaryOpaquePixels": 18773,
+            "internalTransparentHolePixels": 64,
+            "warnThreshold": 1033,
+            "failThreshold": 2253
+          },
+          {
+            "frame": 5,
+            "primaryOpaquePixels": 18450,
+            "internalTransparentHolePixels": 26,
+            "warnThreshold": 1015,
+            "failThreshold": 2214
+          },
+          {
+            "frame": 6,
+            "primaryOpaquePixels": 18541,
+            "internalTransparentHolePixels": 46,
+            "warnThreshold": 1020,
+            "failThreshold": 2225
+          },
+          {
+            "frame": 7,
+            "primaryOpaquePixels": 18527,
+            "internalTransparentHolePixels": 32,
+            "warnThreshold": 1019,
+            "failThreshold": 2223
+          }
+        ],
+        "passed": true,
+        "warnings": [],
+        "errors": []
+      },
+      {
+        "label": "baseline-chroma-key",
+        "direction": "back",
+        "mode": "RGBA",
+        "size": [
+          1024,
+          512
+        ],
+        "hasUsefulAlpha": true,
+        "alphaExtrema": [
+          0,
+          255
+        ],
+        "transparentPixelRatio": 0.6954,
+        "nearTransparentPixelRatio": 0.6954,
+        "opaquePixelRatio": 0.3046,
+        "edgeOpaqueRatio": 0.0056,
+        "greenOpaquePixels": 0,
+        "internalTransparentHolePixels": 365,
+        "frameHoleDetails": [
+          {
+            "frame": 0,
+            "primaryOpaquePixels": 19925,
+            "internalTransparentHolePixels": 24,
+            "warnThreshold": 1096,
+            "failThreshold": 2391
+          },
+          {
+            "frame": 1,
+            "primaryOpaquePixels": 19777,
+            "internalTransparentHolePixels": 47,
+            "warnThreshold": 1088,
+            "failThreshold": 2373
+          },
+          {
+            "frame": 2,
+            "primaryOpaquePixels": 19797,
+            "internalTransparentHolePixels": 64,
+            "warnThreshold": 1089,
+            "failThreshold": 2376
+          },
+          {
+            "frame": 3,
+            "primaryOpaquePixels": 19339,
+            "internalTransparentHolePixels": 47,
+            "warnThreshold": 1064,
+            "failThreshold": 2321
+          },
+          {
+            "frame": 4,
+            "primaryOpaquePixels": 19685,
+            "internalTransparentHolePixels": 35,
+            "warnThreshold": 1083,
+            "failThreshold": 2362
+          },
+          {
+            "frame": 5,
+            "primaryOpaquePixels": 19914,
+            "internalTransparentHolePixels": 58,
+            "warnThreshold": 1095,
+            "failThreshold": 2390
+          },
+          {
+            "frame": 6,
+            "primaryOpaquePixels": 20019,
+            "internalTransparentHolePixels": 62,
+            "warnThreshold": 1101,
+            "failThreshold": 2402
+          },
+          {
+            "frame": 7,
+            "primaryOpaquePixels": 19906,
+            "internalTransparentHolePixels": 28,
+            "warnThreshold": 1095,
+            "failThreshold": 2389
+          }
+        ],
+        "passed": true,
+        "warnings": [],
+        "errors": []
+      }
+    ],
+    "manifest": "manifest.json",
+    "composedSheet": "baseline-chroma-key/composed-sheet.png"
+  },
+  "direct-transparent-b-no-checkerboard": {
+    "jobId": "codex-job-2026-06-27T16-28-44-549Z",
+    "backgroundMode": "direct-transparent",
+    "alphaPassed": true,
+    "visualQuality": "fail-silhouette",
+    "adoptionCandidate": false,
+    "visualNote": "alpha-pass but visual quality is poor: black silhouette/mask-like output",
+    "directions": [
+      {
+        "label": "direct-transparent-b-no-checkerboard",
+        "direction": "front",
+        "mode": "RGBA",
+        "size": [
+          1024,
+          512
+        ],
+        "hasUsefulAlpha": true,
+        "alphaExtrema": [
+          0,
+          255
+        ],
+        "transparentPixelRatio": 0.7573,
+        "nearTransparentPixelRatio": 0.76,
+        "opaquePixelRatio": 0.2147,
+        "edgeOpaqueRatio": 0.0,
+        "greenOpaquePixels": 0,
+        "internalTransparentHolePixels": 687,
+        "frameHoleDetails": [
+          {
+            "frame": 0,
+            "primaryOpaquePixels": 15810,
+            "internalTransparentHolePixels": 54,
+            "warnThreshold": 870,
+            "failThreshold": 1897
+          },
+          {
+            "frame": 1,
+            "primaryOpaquePixels": 15778,
+            "internalTransparentHolePixels": 126,
+            "warnThreshold": 868,
+            "failThreshold": 1893
+          },
+          {
+            "frame": 2,
+            "primaryOpaquePixels": 15741,
+            "internalTransparentHolePixels": 171,
+            "warnThreshold": 866,
+            "failThreshold": 1889
+          },
+          {
+            "frame": 3,
+            "primaryOpaquePixels": 15719,
+            "internalTransparentHolePixels": 58,
+            "warnThreshold": 865,
+            "failThreshold": 1886
+          },
+          {
+            "frame": 4,
+            "primaryOpaquePixels": 15588,
+            "internalTransparentHolePixels": 31,
+            "warnThreshold": 857,
+            "failThreshold": 1871
+          },
+          {
+            "frame": 5,
+            "primaryOpaquePixels": 15689,
+            "internalTransparentHolePixels": 101,
+            "warnThreshold": 863,
+            "failThreshold": 1883
+          },
+          {
+            "frame": 6,
+            "primaryOpaquePixels": 15631,
+            "internalTransparentHolePixels": 80,
+            "warnThreshold": 860,
+            "failThreshold": 1876
+          },
+          {
+            "frame": 7,
+            "primaryOpaquePixels": 15527,
+            "internalTransparentHolePixels": 66,
+            "warnThreshold": 854,
+            "failThreshold": 1863
+          }
+        ],
+        "passed": true,
+        "warnings": [],
+        "errors": []
+      },
+      {
+        "label": "direct-transparent-b-no-checkerboard",
+        "direction": "front three-quarter",
+        "mode": "RGBA",
+        "size": [
+          1024,
+          512
+        ],
+        "hasUsefulAlpha": true,
+        "alphaExtrema": [
+          0,
+          255
+        ],
+        "transparentPixelRatio": 0.6531,
+        "nearTransparentPixelRatio": 0.658,
+        "opaquePixelRatio": 0.3096,
+        "edgeOpaqueRatio": 0.0,
+        "greenOpaquePixels": 0,
+        "internalTransparentHolePixels": 739,
+        "frameHoleDetails": [
+          {
+            "frame": 0,
+            "primaryOpaquePixels": 22652,
+            "internalTransparentHolePixels": 86,
+            "warnThreshold": 1246,
+            "failThreshold": 2718
+          },
+          {
+            "frame": 1,
+            "primaryOpaquePixels": 22504,
+            "internalTransparentHolePixels": 125,
+            "warnThreshold": 1238,
+            "failThreshold": 2700
+          },
+          {
+            "frame": 2,
+            "primaryOpaquePixels": 21945,
+            "internalTransparentHolePixels": 49,
+            "warnThreshold": 1207,
+            "failThreshold": 2633
+          },
+          {
+            "frame": 3,
+            "primaryOpaquePixels": 22375,
+            "internalTransparentHolePixels": 98,
+            "warnThreshold": 1231,
+            "failThreshold": 2685
+          },
+          {
+            "frame": 4,
+            "primaryOpaquePixels": 22672,
+            "internalTransparentHolePixels": 148,
+            "warnThreshold": 1247,
+            "failThreshold": 2721
+          },
+          {
+            "frame": 5,
+            "primaryOpaquePixels": 22608,
+            "internalTransparentHolePixels": 27,
+            "warnThreshold": 1243,
+            "failThreshold": 2713
+          },
+          {
+            "frame": 6,
+            "primaryOpaquePixels": 22174,
+            "internalTransparentHolePixels": 63,
+            "warnThreshold": 1220,
+            "failThreshold": 2661
+          },
+          {
+            "frame": 7,
+            "primaryOpaquePixels": 22375,
+            "internalTransparentHolePixels": 143,
+            "warnThreshold": 1231,
+            "failThreshold": 2685
+          }
+        ],
+        "passed": true,
+        "warnings": [],
+        "errors": []
+      },
+      {
+        "label": "direct-transparent-b-no-checkerboard",
+        "direction": "side",
+        "mode": "RGBA",
+        "size": [
+          1024,
+          512
+        ],
+        "hasUsefulAlpha": true,
+        "alphaExtrema": [
+          0,
+          255
+        ],
+        "transparentPixelRatio": 0.761,
+        "nearTransparentPixelRatio": 0.7637,
+        "opaquePixelRatio": 0.2176,
+        "edgeOpaqueRatio": 0.0,
+        "greenOpaquePixels": 0,
+        "internalTransparentHolePixels": 5450,
+        "frameHoleDetails": [
+          {
+            "frame": 0,
+            "primaryOpaquePixels": 16782,
+            "internalTransparentHolePixels": 937,
+            "warnThreshold": 923,
+            "failThreshold": 2014
+          },
+          {
+            "frame": 1,
+            "primaryOpaquePixels": 16390,
+            "internalTransparentHolePixels": 32,
+            "warnThreshold": 901,
+            "failThreshold": 1967
+          },
+          {
+            "frame": 2,
+            "primaryOpaquePixels": 15246,
+            "internalTransparentHolePixels": 655,
+            "warnThreshold": 839,
+            "failThreshold": 1830
+          },
+          {
+            "frame": 3,
+            "primaryOpaquePixels": 15294,
+            "internalTransparentHolePixels": 676,
+            "warnThreshold": 841,
+            "failThreshold": 1835
+          },
+          {
+            "frame": 4,
+            "primaryOpaquePixels": 14849,
+            "internalTransparentHolePixels": 771,
+            "warnThreshold": 817,
+            "failThreshold": 1782
+          },
+          {
+            "frame": 5,
+            "primaryOpaquePixels": 15147,
+            "internalTransparentHolePixels": 785,
+            "warnThreshold": 833,
+            "failThreshold": 1818
+          },
+          {
+            "frame": 6,
+            "primaryOpaquePixels": 15044,
+            "internalTransparentHolePixels": 804,
+            "warnThreshold": 827,
+            "failThreshold": 1805
+          },
+          {
+            "frame": 7,
+            "primaryOpaquePixels": 15119,
+            "internalTransparentHolePixels": 790,
+            "warnThreshold": 832,
+            "failThreshold": 1814
+          }
+        ],
+        "passed": true,
+        "warnings": [
+          "frame 0 possible internal transparent hole: 937px"
+        ],
+        "errors": []
+      },
+      {
+        "label": "direct-transparent-b-no-checkerboard",
+        "direction": "back three-quarter",
+        "mode": "RGBA",
+        "size": [
+          1024,
+          512
+        ],
+        "hasUsefulAlpha": true,
+        "alphaExtrema": [
+          0,
+          255
+        ],
+        "transparentPixelRatio": 0.7486,
+        "nearTransparentPixelRatio": 0.7518,
+        "opaquePixelRatio": 0.2232,
+        "edgeOpaqueRatio": 0.0,
+        "greenOpaquePixels": 0,
+        "internalTransparentHolePixels": 422,
+        "frameHoleDetails": [
+          {
+            "frame": 0,
+            "primaryOpaquePixels": 15947,
+            "internalTransparentHolePixels": 54,
+            "warnThreshold": 877,
+            "failThreshold": 1914
+          },
+          {
+            "frame": 1,
+            "primaryOpaquePixels": 16248,
+            "internalTransparentHolePixels": 39,
+            "warnThreshold": 894,
+            "failThreshold": 1950
+          },
+          {
+            "frame": 2,
+            "primaryOpaquePixels": 16273,
+            "internalTransparentHolePixels": 50,
+            "warnThreshold": 895,
+            "failThreshold": 1953
+          },
+          {
+            "frame": 3,
+            "primaryOpaquePixels": 16461,
+            "internalTransparentHolePixels": 46,
+            "warnThreshold": 905,
+            "failThreshold": 1975
+          },
+          {
+            "frame": 4,
+            "primaryOpaquePixels": 15875,
+            "internalTransparentHolePixels": 61,
+            "warnThreshold": 873,
+            "failThreshold": 1905
+          },
+          {
+            "frame": 5,
+            "primaryOpaquePixels": 16377,
+            "internalTransparentHolePixels": 68,
+            "warnThreshold": 901,
+            "failThreshold": 1965
+          },
+          {
+            "frame": 6,
+            "primaryOpaquePixels": 16154,
+            "internalTransparentHolePixels": 50,
+            "warnThreshold": 888,
+            "failThreshold": 1938
+          },
+          {
+            "frame": 7,
+            "primaryOpaquePixels": 16305,
+            "internalTransparentHolePixels": 54,
+            "warnThreshold": 897,
+            "failThreshold": 1957
+          }
+        ],
+        "passed": true,
+        "warnings": [],
+        "errors": []
+      },
+      {
+        "label": "direct-transparent-b-no-checkerboard",
+        "direction": "back",
+        "mode": "RGBA",
+        "size": [
+          1024,
+          512
+        ],
+        "hasUsefulAlpha": true,
+        "alphaExtrema": [
+          0,
+          255
+        ],
+        "transparentPixelRatio": 0.7393,
+        "nearTransparentPixelRatio": 0.7424,
+        "opaquePixelRatio": 0.2346,
+        "edgeOpaqueRatio": 0.0,
+        "greenOpaquePixels": 0,
+        "internalTransparentHolePixels": 358,
+        "frameHoleDetails": [
+          {
+            "frame": 0,
+            "primaryOpaquePixels": 17112,
+            "internalTransparentHolePixels": 95,
+            "warnThreshold": 941,
+            "failThreshold": 2053
+          },
+          {
+            "frame": 1,
+            "primaryOpaquePixels": 16676,
+            "internalTransparentHolePixels": 41,
+            "warnThreshold": 917,
+            "failThreshold": 2001
+          },
+          {
+            "frame": 2,
+            "primaryOpaquePixels": 16821,
+            "internalTransparentHolePixels": 62,
+            "warnThreshold": 925,
+            "failThreshold": 2019
+          },
+          {
+            "frame": 3,
+            "primaryOpaquePixels": 16508,
+            "internalTransparentHolePixels": 12,
+            "warnThreshold": 908,
+            "failThreshold": 1981
+          },
+          {
+            "frame": 4,
+            "primaryOpaquePixels": 17235,
+            "internalTransparentHolePixels": 61,
+            "warnThreshold": 948,
+            "failThreshold": 2068
+          },
+          {
+            "frame": 5,
+            "primaryOpaquePixels": 16811,
+            "internalTransparentHolePixels": 43,
+            "warnThreshold": 925,
+            "failThreshold": 2017
+          },
+          {
+            "frame": 6,
+            "primaryOpaquePixels": 16930,
+            "internalTransparentHolePixels": 30,
+            "warnThreshold": 931,
+            "failThreshold": 2032
+          },
+          {
+            "frame": 7,
+            "primaryOpaquePixels": 16609,
+            "internalTransparentHolePixels": 14,
+            "warnThreshold": 913,
+            "failThreshold": 1993
+          }
+        ],
+        "passed": true,
+        "warnings": [],
+        "errors": []
+      }
+    ],
+    "manifest": "manifest.json",
+    "composedSheet": "direct-transparent-b-no-checkerboard/composed-sheet.png"
+  },
+  "direct-transparent-c-alpha-contract": {
+    "jobId": "codex-job-2026-06-27T16-40-58-676Z",
+    "backgroundMode": "direct-transparent",
+    "alphaPassed": true,
+    "visualQuality": "pass",
+    "adoptionCandidate": true,
+    "visualNote": "alpha-pass and visual quality is usable/full color",
+    "directions": [
+      {
+        "label": "direct-transparent-c-alpha-contract",
+        "direction": "front",
+        "mode": "RGBA",
+        "size": [
+          1024,
+          512
+        ],
+        "hasUsefulAlpha": true,
+        "alphaExtrema": [
+          0,
+          255
+        ],
+        "transparentPixelRatio": 0.6522,
+        "nearTransparentPixelRatio": 0.6743,
+        "opaquePixelRatio": 0.3002,
+        "edgeOpaqueRatio": 0.0137,
+        "greenOpaquePixels": 145,
+        "internalTransparentHolePixels": 515,
+        "frameHoleDetails": [
+          {
+            "frame": 0,
+            "primaryOpaquePixels": 22779,
+            "internalTransparentHolePixels": 58,
+            "warnThreshold": 1253,
+            "failThreshold": 2733
+          },
+          {
+            "frame": 1,
+            "primaryOpaquePixels": 21729,
+            "internalTransparentHolePixels": 80,
+            "warnThreshold": 1195,
+            "failThreshold": 2607
+          },
+          {
+            "frame": 2,
+            "primaryOpaquePixels": 21083,
+            "internalTransparentHolePixels": 59,
+            "warnThreshold": 1160,
+            "failThreshold": 2530
+          },
+          {
+            "frame": 3,
+            "primaryOpaquePixels": 21067,
+            "internalTransparentHolePixels": 79,
+            "warnThreshold": 1159,
+            "failThreshold": 2528
+          },
+          {
+            "frame": 4,
+            "primaryOpaquePixels": 20573,
+            "internalTransparentHolePixels": 88,
+            "warnThreshold": 1132,
+            "failThreshold": 2469
+          },
+          {
+            "frame": 5,
+            "primaryOpaquePixels": 20490,
+            "internalTransparentHolePixels": 72,
+            "warnThreshold": 1127,
+            "failThreshold": 2459
+          },
+          {
+            "frame": 6,
+            "primaryOpaquePixels": 20706,
+            "internalTransparentHolePixels": 78,
+            "warnThreshold": 1139,
+            "failThreshold": 2485
+          },
+          {
+            "frame": 7,
+            "primaryOpaquePixels": 20632,
+            "internalTransparentHolePixels": 1,
+            "warnThreshold": 1135,
+            "failThreshold": 2476
+          }
+        ],
+        "passed": true,
+        "warnings": [
+          "145 opaque chroma-green-like pixels remain"
+        ],
+        "errors": []
+      },
+      {
+        "label": "direct-transparent-c-alpha-contract",
+        "direction": "front three-quarter",
+        "mode": "RGBA",
+        "size": [
+          1024,
+          512
+        ],
+        "hasUsefulAlpha": true,
+        "alphaExtrema": [
+          0,
+          255
+        ],
+        "transparentPixelRatio": 0.5887,
+        "nearTransparentPixelRatio": 0.6126,
+        "opaquePixelRatio": 0.3581,
+        "edgeOpaqueRatio": 0.0282,
+        "greenOpaquePixels": 90,
+        "internalTransparentHolePixels": 1354,
+        "frameHoleDetails": [
+          {
+            "frame": 0,
+            "primaryOpaquePixels": 24936,
+            "internalTransparentHolePixels": 10,
+            "warnThreshold": 1371,
+            "failThreshold": 2992
+          },
+          {
+            "frame": 1,
+            "primaryOpaquePixels": 25657,
+            "internalTransparentHolePixels": 428,
+            "warnThreshold": 1411,
+            "failThreshold": 3079
+          },
+          {
+            "frame": 2,
+            "primaryOpaquePixels": 25145,
+            "internalTransparentHolePixels": 396,
+            "warnThreshold": 1383,
+            "failThreshold": 3017
+          },
+          {
+            "frame": 3,
+            "primaryOpaquePixels": 25027,
+            "internalTransparentHolePixels": 2,
+            "warnThreshold": 1376,
+            "failThreshold": 3003
+          },
+          {
+            "frame": 4,
+            "primaryOpaquePixels": 25228,
+            "internalTransparentHolePixels": 397,
+            "warnThreshold": 1388,
+            "failThreshold": 3027
+          },
+          {
+            "frame": 5,
+            "primaryOpaquePixels": 25057,
+            "internalTransparentHolePixels": 9,
+            "warnThreshold": 1378,
+            "failThreshold": 3007
+          },
+          {
+            "frame": 6,
+            "primaryOpaquePixels": 25280,
+            "internalTransparentHolePixels": 41,
+            "warnThreshold": 1390,
+            "failThreshold": 3034
+          },
+          {
+            "frame": 7,
+            "primaryOpaquePixels": 25324,
+            "internalTransparentHolePixels": 71,
+            "warnThreshold": 1393,
+            "failThreshold": 3039
+          }
+        ],
+        "passed": true,
+        "warnings": [
+          "90 opaque chroma-green-like pixels remain"
+        ],
+        "errors": []
+      },
+      {
+        "label": "direct-transparent-c-alpha-contract",
+        "direction": "side",
+        "mode": "RGBA",
+        "size": [
+          1024,
+          512
+        ],
+        "hasUsefulAlpha": true,
+        "alphaExtrema": [
+          0,
+          255
+        ],
+        "transparentPixelRatio": 0.649,
+        "nearTransparentPixelRatio": 0.671,
+        "opaquePixelRatio": 0.3029,
+        "edgeOpaqueRatio": 0.0012,
+        "greenOpaquePixels": 0,
+        "internalTransparentHolePixels": 730,
+        "frameHoleDetails": [
+          {
+            "frame": 0,
+            "primaryOpaquePixels": 22144,
+            "internalTransparentHolePixels": 96,
+            "warnThreshold": 1218,
+            "failThreshold": 2657
+          },
+          {
+            "frame": 1,
+            "primaryOpaquePixels": 21664,
+            "internalTransparentHolePixels": 168,
+            "warnThreshold": 1192,
+            "failThreshold": 2600
+          },
+          {
+            "frame": 2,
+            "primaryOpaquePixels": 21696,
+            "internalTransparentHolePixels": 111,
+            "warnThreshold": 1193,
+            "failThreshold": 2604
+          },
+          {
+            "frame": 3,
+            "primaryOpaquePixels": 22531,
+            "internalTransparentHolePixels": 100,
+            "warnThreshold": 1239,
+            "failThreshold": 2704
+          },
+          {
+            "frame": 4,
+            "primaryOpaquePixels": 20976,
+            "internalTransparentHolePixels": 25,
+            "warnThreshold": 1154,
+            "failThreshold": 2517
+          },
+          {
+            "frame": 5,
+            "primaryOpaquePixels": 21416,
+            "internalTransparentHolePixels": 68,
+            "warnThreshold": 1178,
+            "failThreshold": 2570
+          },
+          {
+            "frame": 6,
+            "primaryOpaquePixels": 20883,
+            "internalTransparentHolePixels": 98,
+            "warnThreshold": 1149,
+            "failThreshold": 2506
+          },
+          {
+            "frame": 7,
+            "primaryOpaquePixels": 20889,
+            "internalTransparentHolePixels": 64,
+            "warnThreshold": 1149,
+            "failThreshold": 2507
+          }
+        ],
+        "passed": true,
+        "warnings": [],
+        "errors": []
+      },
+      {
+        "label": "direct-transparent-c-alpha-contract",
+        "direction": "back three-quarter",
+        "mode": "RGBA",
+        "size": [
+          1024,
+          512
+        ],
+        "hasUsefulAlpha": true,
+        "alphaExtrema": [
+          0,
+          255
+        ],
+        "transparentPixelRatio": 0.6743,
+        "nearTransparentPixelRatio": 0.6959,
+        "opaquePixelRatio": 0.2791,
+        "edgeOpaqueRatio": 0.014,
+        "greenOpaquePixels": 215,
+        "internalTransparentHolePixels": 278,
+        "frameHoleDetails": [
+          {
+            "frame": 0,
+            "primaryOpaquePixels": 19245,
+            "internalTransparentHolePixels": 58,
+            "warnThreshold": 1058,
+            "failThreshold": 2309
+          },
+          {
+            "frame": 1,
+            "primaryOpaquePixels": 19280,
+            "internalTransparentHolePixels": 58,
+            "warnThreshold": 1060,
+            "failThreshold": 2314
+          },
+          {
+            "frame": 2,
+            "primaryOpaquePixels": 19954,
+            "internalTransparentHolePixels": 3,
+            "warnThreshold": 1097,
+            "failThreshold": 2394
+          },
+          {
+            "frame": 3,
+            "primaryOpaquePixels": 20387,
+            "internalTransparentHolePixels": 53,
+            "warnThreshold": 1121,
+            "failThreshold": 2446
+          },
+          {
+            "frame": 4,
+            "primaryOpaquePixels": 20188,
+            "internalTransparentHolePixels": 7,
+            "warnThreshold": 1110,
+            "failThreshold": 2423
+          },
+          {
+            "frame": 5,
+            "primaryOpaquePixels": 19520,
+            "internalTransparentHolePixels": 7,
+            "warnThreshold": 1074,
+            "failThreshold": 2342
+          },
+          {
+            "frame": 6,
+            "primaryOpaquePixels": 19773,
+            "internalTransparentHolePixels": 47,
+            "warnThreshold": 1088,
+            "failThreshold": 2373
+          },
+          {
+            "frame": 7,
+            "primaryOpaquePixels": 19817,
+            "internalTransparentHolePixels": 45,
+            "warnThreshold": 1090,
+            "failThreshold": 2378
+          }
+        ],
+        "passed": true,
+        "warnings": [
+          "215 opaque chroma-green-like pixels remain"
+        ],
+        "errors": []
+      },
+      {
+        "label": "direct-transparent-c-alpha-contract",
+        "direction": "back",
+        "mode": "RGBA",
+        "size": [
+          1024,
+          512
+        ],
+        "hasUsefulAlpha": true,
+        "alphaExtrema": [
+          0,
+          255
+        ],
+        "transparentPixelRatio": 0.6673,
+        "nearTransparentPixelRatio": 0.6886,
+        "opaquePixelRatio": 0.2869,
+        "edgeOpaqueRatio": 0.0099,
+        "greenOpaquePixels": 35,
+        "internalTransparentHolePixels": 230,
+        "frameHoleDetails": [
+          {
+            "frame": 0,
+            "primaryOpaquePixels": 20519,
+            "internalTransparentHolePixels": 43,
+            "warnThreshold": 1129,
+            "failThreshold": 2462
+          },
+          {
+            "frame": 1,
+            "primaryOpaquePixels": 20517,
+            "internalTransparentHolePixels": 20,
+            "warnThreshold": 1128,
+            "failThreshold": 2462
+          },
+          {
+            "frame": 2,
+            "primaryOpaquePixels": 19950,
+            "internalTransparentHolePixels": 36,
+            "warnThreshold": 1097,
+            "failThreshold": 2394
+          },
+          {
+            "frame": 3,
+            "primaryOpaquePixels": 19491,
+            "internalTransparentHolePixels": 36,
+            "warnThreshold": 1072,
+            "failThreshold": 2339
+          },
+          {
+            "frame": 4,
+            "primaryOpaquePixels": 20418,
+            "internalTransparentHolePixels": 9,
+            "warnThreshold": 1123,
+            "failThreshold": 2450
+          },
+          {
+            "frame": 5,
+            "primaryOpaquePixels": 21344,
+            "internalTransparentHolePixels": 34,
+            "warnThreshold": 1174,
+            "failThreshold": 2561
+          },
+          {
+            "frame": 6,
+            "primaryOpaquePixels": 20789,
+            "internalTransparentHolePixels": 10,
+            "warnThreshold": 1143,
+            "failThreshold": 2495
+          },
+          {
+            "frame": 7,
+            "primaryOpaquePixels": 20215,
+            "internalTransparentHolePixels": 42,
+            "warnThreshold": 1112,
+            "failThreshold": 2426
+          }
+        ],
+        "passed": true,
+        "warnings": [
+          "35 opaque chroma-green-like pixels remain"
+        ],
+        "errors": []
+      }
+    ],
+    "manifest": "manifest.json",
+    "composedSheet": "direct-transparent-c-alpha-contract/composed-sheet.png"
+  },
+  "direct-transparent-d-color-preserve": {
+    "jobId": "codex-job-2026-06-27T17-02-26-534Z",
+    "backgroundMode": "direct-transparent",
+    "alphaPassed": true,
+    "visualQuality": "pass",
+    "adoptionCandidate": true,
+    "visualNote": "alpha-pass and visual quality is usable/full color",
+    "directions": [
+      {
+        "label": "direct-transparent-d-color-preserve",
+        "direction": "front",
+        "mode": "RGBA",
+        "size": [
+          1024,
+          512
+        ],
+        "hasUsefulAlpha": true,
+        "alphaExtrema": [
+          0,
+          255
+        ],
+        "transparentPixelRatio": 0.6446,
+        "nearTransparentPixelRatio": 0.6639,
+        "opaquePixelRatio": 0.3082,
+        "edgeOpaqueRatio": 0.0,
+        "greenOpaquePixels": 905,
+        "internalTransparentHolePixels": 852,
+        "frameHoleDetails": [
+          {
+            "frame": 0,
+            "primaryOpaquePixels": 22918,
+            "internalTransparentHolePixels": 120,
+            "warnThreshold": 1260,
+            "failThreshold": 2750
+          },
+          {
+            "frame": 1,
+            "primaryOpaquePixels": 22563,
+            "internalTransparentHolePixels": 137,
+            "warnThreshold": 1241,
+            "failThreshold": 2708
+          },
+          {
+            "frame": 2,
+            "primaryOpaquePixels": 22302,
+            "internalTransparentHolePixels": 110,
+            "warnThreshold": 1227,
+            "failThreshold": 2676
+          },
+          {
+            "frame": 3,
+            "primaryOpaquePixels": 22362,
+            "internalTransparentHolePixels": 120,
+            "warnThreshold": 1230,
+            "failThreshold": 2683
+          },
+          {
+            "frame": 4,
+            "primaryOpaquePixels": 22121,
+            "internalTransparentHolePixels": 83,
+            "warnThreshold": 1217,
+            "failThreshold": 2655
+          },
+          {
+            "frame": 5,
+            "primaryOpaquePixels": 21121,
+            "internalTransparentHolePixels": 93,
+            "warnThreshold": 1162,
+            "failThreshold": 2535
+          },
+          {
+            "frame": 6,
+            "primaryOpaquePixels": 21201,
+            "internalTransparentHolePixels": 109,
+            "warnThreshold": 1166,
+            "failThreshold": 2544
+          },
+          {
+            "frame": 7,
+            "primaryOpaquePixels": 21630,
+            "internalTransparentHolePixels": 80,
+            "warnThreshold": 1190,
+            "failThreshold": 2596
+          }
+        ],
+        "passed": true,
+        "warnings": [
+          "905 opaque chroma-green-like pixels remain"
+        ],
+        "errors": []
+      },
+      {
+        "label": "direct-transparent-d-color-preserve",
+        "direction": "front three-quarter",
+        "mode": "RGBA",
+        "size": [
+          1024,
+          512
+        ],
+        "hasUsefulAlpha": true,
+        "alphaExtrema": [
+          0,
+          255
+        ],
+        "transparentPixelRatio": 0.6705,
+        "nearTransparentPixelRatio": 0.6898,
+        "opaquePixelRatio": 0.2855,
+        "edgeOpaqueRatio": 0.0,
+        "greenOpaquePixels": 434,
+        "internalTransparentHolePixels": 895,
+        "frameHoleDetails": [
+          {
+            "frame": 0,
+            "primaryOpaquePixels": 19723,
+            "internalTransparentHolePixels": 81,
+            "warnThreshold": 1085,
+            "failThreshold": 2367
+          },
+          {
+            "frame": 1,
+            "primaryOpaquePixels": 20631,
+            "internalTransparentHolePixels": 394,
+            "warnThreshold": 1135,
+            "failThreshold": 2476
+          },
+          {
+            "frame": 2,
+            "primaryOpaquePixels": 20614,
+            "internalTransparentHolePixels": 77,
+            "warnThreshold": 1134,
+            "failThreshold": 2474
+          },
+          {
+            "frame": 3,
+            "primaryOpaquePixels": 20343,
+            "internalTransparentHolePixels": 75,
+            "warnThreshold": 1119,
+            "failThreshold": 2441
+          },
+          {
+            "frame": 4,
+            "primaryOpaquePixels": 20527,
+            "internalTransparentHolePixels": 50,
+            "warnThreshold": 1129,
+            "failThreshold": 2463
+          },
+          {
+            "frame": 5,
+            "primaryOpaquePixels": 20173,
+            "internalTransparentHolePixels": 41,
+            "warnThreshold": 1110,
+            "failThreshold": 2421
+          },
+          {
+            "frame": 6,
+            "primaryOpaquePixels": 20256,
+            "internalTransparentHolePixels": 86,
+            "warnThreshold": 1114,
+            "failThreshold": 2431
+          },
+          {
+            "frame": 7,
+            "primaryOpaquePixels": 20346,
+            "internalTransparentHolePixels": 91,
+            "warnThreshold": 1119,
+            "failThreshold": 2442
+          }
+        ],
+        "passed": true,
+        "warnings": [
+          "434 opaque chroma-green-like pixels remain"
+        ],
+        "errors": []
+      },
+      {
+        "label": "direct-transparent-d-color-preserve",
+        "direction": "side",
+        "mode": "RGBA",
+        "size": [
+          1024,
+          512
+        ],
+        "hasUsefulAlpha": true,
+        "alphaExtrema": [
+          0,
+          255
+        ],
+        "transparentPixelRatio": 0.674,
+        "nearTransparentPixelRatio": 0.6916,
+        "opaquePixelRatio": 0.2836,
+        "edgeOpaqueRatio": 0.0,
+        "greenOpaquePixels": 468,
+        "internalTransparentHolePixels": 2105,
+        "frameHoleDetails": [
+          {
+            "frame": 0,
+            "primaryOpaquePixels": 20097,
+            "internalTransparentHolePixels": 719,
+            "warnThreshold": 1105,
+            "failThreshold": 2412
+          },
+          {
+            "frame": 1,
+            "primaryOpaquePixels": 20653,
+            "internalTransparentHolePixels": 891,
+            "warnThreshold": 1136,
+            "failThreshold": 2478
+          },
+          {
+            "frame": 2,
+            "primaryOpaquePixels": 20932,
+            "internalTransparentHolePixels": 81,
+            "warnThreshold": 1151,
+            "failThreshold": 2512
+          },
+          {
+            "frame": 3,
+            "primaryOpaquePixels": 20415,
+            "internalTransparentHolePixels": 83,
+            "warnThreshold": 1123,
+            "failThreshold": 2450
+          },
+          {
+            "frame": 4,
+            "primaryOpaquePixels": 20246,
+            "internalTransparentHolePixels": 94,
+            "warnThreshold": 1114,
+            "failThreshold": 2430
+          },
+          {
+            "frame": 5,
+            "primaryOpaquePixels": 19671,
+            "internalTransparentHolePixels": 57,
+            "warnThreshold": 1082,
+            "failThreshold": 2361
+          },
+          {
+            "frame": 6,
+            "primaryOpaquePixels": 20009,
+            "internalTransparentHolePixels": 104,
+            "warnThreshold": 1100,
+            "failThreshold": 2401
+          },
+          {
+            "frame": 7,
+            "primaryOpaquePixels": 19645,
+            "internalTransparentHolePixels": 76,
+            "warnThreshold": 1080,
+            "failThreshold": 2357
+          }
+        ],
+        "passed": true,
+        "warnings": [
+          "468 opaque chroma-green-like pixels remain"
+        ],
+        "errors": []
+      },
+      {
+        "label": "direct-transparent-d-color-preserve",
+        "direction": "back three-quarter",
+        "mode": "RGBA",
+        "size": [
+          1024,
+          512
+        ],
+        "hasUsefulAlpha": true,
+        "alphaExtrema": [
+          0,
+          255
+        ],
+        "transparentPixelRatio": 0.6589,
+        "nearTransparentPixelRatio": 0.6773,
+        "opaquePixelRatio": 0.2978,
+        "edgeOpaqueRatio": 0.0,
+        "greenOpaquePixels": 580,
+        "internalTransparentHolePixels": 674,
+        "frameHoleDetails": [
+          {
+            "frame": 0,
+            "primaryOpaquePixels": 20942,
+            "internalTransparentHolePixels": 59,
+            "warnThreshold": 1152,
+            "failThreshold": 2513
+          },
+          {
+            "frame": 1,
+            "primaryOpaquePixels": 20915,
+            "internalTransparentHolePixels": 84,
+            "warnThreshold": 1150,
+            "failThreshold": 2510
+          },
+          {
+            "frame": 2,
+            "primaryOpaquePixels": 20817,
+            "internalTransparentHolePixels": 85,
+            "warnThreshold": 1145,
+            "failThreshold": 2498
+          },
+          {
+            "frame": 3,
+            "primaryOpaquePixels": 21051,
+            "internalTransparentHolePixels": 58,
+            "warnThreshold": 1158,
+            "failThreshold": 2526
+          },
+          {
+            "frame": 4,
+            "primaryOpaquePixels": 21257,
+            "internalTransparentHolePixels": 69,
+            "warnThreshold": 1169,
+            "failThreshold": 2551
+          },
+          {
+            "frame": 5,
+            "primaryOpaquePixels": 21023,
+            "internalTransparentHolePixels": 128,
+            "warnThreshold": 1156,
+            "failThreshold": 2523
+          },
+          {
+            "frame": 6,
+            "primaryOpaquePixels": 21561,
+            "internalTransparentHolePixels": 132,
+            "warnThreshold": 1186,
+            "failThreshold": 2587
+          },
+          {
+            "frame": 7,
+            "primaryOpaquePixels": 21629,
+            "internalTransparentHolePixels": 59,
+            "warnThreshold": 1190,
+            "failThreshold": 2595
+          }
+        ],
+        "passed": true,
+        "warnings": [
+          "580 opaque chroma-green-like pixels remain"
+        ],
+        "errors": []
+      },
+      {
+        "label": "direct-transparent-d-color-preserve",
+        "direction": "back",
+        "mode": "RGBA",
+        "size": [
+          1024,
+          512
+        ],
+        "hasUsefulAlpha": true,
+        "alphaExtrema": [
+          0,
+          255
+        ],
+        "transparentPixelRatio": 0.6178,
+        "nearTransparentPixelRatio": 0.6386,
+        "opaquePixelRatio": 0.3348,
+        "edgeOpaqueRatio": 0.0,
+        "greenOpaquePixels": 160,
+        "internalTransparentHolePixels": 496,
+        "frameHoleDetails": [
+          {
+            "frame": 0,
+            "primaryOpaquePixels": 23356,
+            "internalTransparentHolePixels": 47,
+            "warnThreshold": 1285,
+            "failThreshold": 2803
+          },
+          {
+            "frame": 1,
+            "primaryOpaquePixels": 23515,
+            "internalTransparentHolePixels": 78,
+            "warnThreshold": 1293,
+            "failThreshold": 2822
+          },
+          {
+            "frame": 2,
+            "primaryOpaquePixels": 23720,
+            "internalTransparentHolePixels": 49,
+            "warnThreshold": 1305,
+            "failThreshold": 2846
+          },
+          {
+            "frame": 3,
+            "primaryOpaquePixels": 23313,
+            "internalTransparentHolePixels": 55,
+            "warnThreshold": 1282,
+            "failThreshold": 2798
+          },
+          {
+            "frame": 4,
+            "primaryOpaquePixels": 23665,
+            "internalTransparentHolePixels": 42,
+            "warnThreshold": 1302,
+            "failThreshold": 2840
+          },
+          {
+            "frame": 5,
+            "primaryOpaquePixels": 24210,
+            "internalTransparentHolePixels": 84,
+            "warnThreshold": 1332,
+            "failThreshold": 2905
+          },
+          {
+            "frame": 6,
+            "primaryOpaquePixels": 24334,
+            "internalTransparentHolePixels": 66,
+            "warnThreshold": 1338,
+            "failThreshold": 2920
+          },
+          {
+            "frame": 7,
+            "primaryOpaquePixels": 23348,
+            "internalTransparentHolePixels": 75,
+            "warnThreshold": 1284,
+            "failThreshold": 2802
+          }
+        ],
+        "passed": true,
+        "warnings": [
+          "160 opaque chroma-green-like pixels remain"
+        ],
+        "errors": []
+      }
+    ],
+    "manifest": "manifest.json",
+    "composedSheet": "direct-transparent-d-color-preserve/composed-sheet.png"
+  }
+}

@@ -1,0 +1,36 @@
+{
+  "schema": "image-cockpit.direction-split-animation.v1",
+  "jobId": "codex-job-2026-06-27T17-02-26-534Z",
+  "serverVerified": true,
+  "verifiedAt": "2026-06-27T17:15:04.335Z",
+  "quality": "gold",
+  "warnings": [],
+  "directions": [
+    "front",
+    "front three-quarter",
+    "side",
+    "back three-quarter",
+    "back"
+  ],
+  "framesPerDirection": 8,
+  "files": {
+    "front": "codex-job-2026-06-27T17-02-26-534Z-front.png",
+    "front three-quarter": "codex-job-2026-06-27T17-02-26-534Z-front-three-quarter.png",
+    "side": "codex-job-2026-06-27T17-02-26-534Z-side.png",
+    "back three-quarter": "codex-job-2026-06-27T17-02-26-534Z-back-three-quarter.png",
+    "back": "codex-job-2026-06-27T17-02-26-534Z-back.png"
+  },
+  "backgroundMode": "direct-transparent",
+  "alphaValidation": {
+    "passed": false,
+    "warnings": [
+      "Alpha validation is completed by Image Cockpit during import."
+    ],
+    "errors": []
+  },
+  "sourceManifest": {
+    "name": "codex-job-2026-06-27T17-02-26-534Z-manifest.json",
+    "fromStaging": true,
+    "serverRewritten": true
+  }
+}

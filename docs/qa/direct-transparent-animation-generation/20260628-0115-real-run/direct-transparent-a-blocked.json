@@ -1,0 +1,6 @@
+{
+  "status": "blocked",
+  "reasonKind": "unknown",
+  "userMessage": "Direct-transparent alpha PNG output could not be produced by the available built-in image generation path.",
+  "suggestion": "Retry with a native-transparency-capable generation path, or submit a job that permits chroma-key removal."
+}

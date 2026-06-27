@@ -61,6 +61,7 @@ type CodexJobRequest = {
   frames?: number;
   cell?: unknown;
   chromaKey?: string;
+  backgroundMode?: string;
   spriteVariant?: string;
   directions?: unknown;
 };
@@ -116,6 +117,11 @@ type CodexArtifactStatus = {
   stable: boolean;
   candidateCount: number;
   chromaKey?: {
+    expected?: string;
+    manifest?: string;
+    warning?: string;
+  };
+  backgroundMode?: {
     expected?: string;
     manifest?: string;
     warning?: string;
@@ -328,6 +334,7 @@ const server = createServer(async (request, response) => {
       const workflowMode = normalizeWorkflowMode(body.workflowMode);
       const includeSelectedImage = workflowUsesSelectedImage(workflowMode);
       const includeSpriteContext = workflowUsesSpriteContext(workflowMode);
+      const backgroundMode = includeSpriteContext ? normalizeBackgroundModeValue(body.backgroundMode) ?? "chroma-key" : "chroma-key";
       const includeAnnotations = workflowMode === "image-edit";
       const selectedImageAsset = includeSelectedImage ? await writeSelectedImageAsset(id, body) : null;
       const annotations = includeAnnotations && Array.isArray(body.annotations) ? body.annotations : [];
@@ -336,7 +343,7 @@ const server = createServer(async (request, response) => {
         createdAt,
         kind: "image-cockpit.codex-handoff",
         workflowMode,
-        intent: workflowIntent(workflowMode),
+        intent: workflowIntent(workflowMode, backgroundMode),
         prompt: body.prompt,
         negativePrompt: body.negativePrompt ?? "",
         jobNotes: body.jobNotes ?? "",
@@ -366,6 +373,7 @@ const server = createServer(async (request, response) => {
           grid: includeSpriteContext ? body.grid ?? null : null,
           cell: includeSpriteContext ? body.cell ?? null : null,
           chromaKey: includeSpriteContext ? body.chromaKey ?? "" : "",
+          backgroundMode,
           variant: includeSpriteContext ? body.spriteVariant ?? "standard" : "",
           directions: includeSpriteContext && Array.isArray(body.directions) ? body.directions : []
         },
@@ -376,7 +384,7 @@ const server = createServer(async (request, response) => {
         notes: [
           "This app does not call OpenAI APIs directly.",
           "Codex or the user should perform generation/editing externally and place results in the outbox or import them through the UI.",
-          ...workflowNotes(workflowMode)
+          ...workflowNotes(workflowMode, backgroundMode)
         ]
       };
       const path = join(inboxDir, `${id}.json`);
@@ -464,12 +472,14 @@ function workflowUsesSpriteContext(mode: CodexWorkflowMode) {
   return mode === "sprite-generate" || mode === "sprite-edit";
 }
 
-function workflowIntent(mode: CodexWorkflowMode) {
+function workflowIntent(mode: CodexWorkflowMode, backgroundMode = "chroma-key") {
   if (mode === "image-edit") {
     return "Ask local Codex to revise the selected source image using annotations and edit notes, then return image files to the outbox.";
   }
   if (mode === "sprite-generate") {
-    return "Ask local Codex to inspect the selected source image and use imagegen / built-in image_gen to create a chroma-key animation sprite sheet.";
+    return backgroundMode === "direct-transparent"
+      ? "Ask local Codex to inspect the selected source image and use imagegen / built-in image_gen to create a direct transparent alpha animation sprite sheet."
+      : "Ask local Codex to inspect the selected source image and use imagegen / built-in image_gen to create a chroma-key animation sprite sheet.";
   }
   if (mode === "sprite-edit") {
     return "Ask local Codex to revise sprite-sheet frames or metadata when available, or record sprite edit context for manual handoff.";
@@ -477,7 +487,7 @@ function workflowIntent(mode: CodexWorkflowMode) {
   return "Ask local Codex to use imagegen / built-in image_gen to generate a real pixel-art image from the prompt, then return image files to the outbox.";
 }
 
-function workflowNotes(mode: CodexWorkflowMode) {
+function workflowNotes(mode: CodexWorkflowMode, backgroundMode = "chroma-key") {
   const blockerSidecarNote =
     "If built-in imagegen / image_gen is unavailable, do not create any procedural, SVG, canvas, diagram, geometric, or placeholder image. Return a blocked JSON sidecar with reasonKind=imagegen_unavailable instead. If image generation/editing is blocked by safety or policy, do not create a placeholder image. Write only a small JSON sidecar with status=blocked, reasonKind, userMessage, and suggestion.";
   if (mode === "image-edit") {
@@ -500,12 +510,14 @@ function workflowNotes(mode: CodexWorkflowMode) {
       "Use selectedImage.assetPath as the source character image.",
       "Use imagegen / built-in image_gen when available to create a real raster sprite sheet from that source image; never create a procedural placeholder.",
       "Extract only the character from the source image, then generate the requested motion as a sprite sheet.",
-      "Use spriteContext.grid, spriteContext.cell, spriteContext.action, spriteContext.frames, spriteContext.directions, and spriteContext.chromaKey exactly when they are populated.",
+      "Use spriteContext.grid, spriteContext.cell, spriteContext.action, spriteContext.frames, spriteContext.directions, spriteContext.chromaKey, and spriteContext.backgroundMode exactly when they are populated.",
       "Treat spriteContext.grid and spriteContext.cell as strict cut lines: no gutters, no extra sheet margin, no character pixels crossing cell borders.",
       "The default direction-row order is front, front three-quarter, side, back three-quarter, back.",
       "Every cell must contain exactly one full-body character with head, hair, hands, equipment, and both feet visible, centered with at least 10% inner padding.",
       "Reject and retry the sprite sheet if any cell has a cropped head, missing feet, multiple heads, a head below the feet, inconsistent scale, body fragments, or a different character.",
-      "Use the requested chroma-key background color as a flat simple background in every cell so Image Cockpit can remove it after import.",
+      backgroundMode === "direct-transparent"
+        ? "Use direct transparent output: every returned direction image must be a PNG with a real alpha channel, empty transparent alpha outside the character, and no drawn background, preview pattern, guide grid, floor, or backdrop. If true alpha cannot be produced, do not mark the result successful as a chroma-key fallback."
+        : "Use the requested chroma-key background color as a flat simple background in every cell so Image Cockpit can remove it after import.",
       "For standard direction-split output, prefer writing all generated direction images and any source manifest under outbox/.staging/<job-id>/; Image Cockpit will verify, publish, and write the final manifest. If you must write to the outbox root, write only final direction images with the job id prefix and keep *-qa.json, work files, temporary files, contact sheets, comparison sheets, and debug images outside the root.",
       "Avoid readable text, logos, watermarks, labels, UI words, numbers, scenery, and complex backgrounds.",
       blockerSidecarNote
@@ -864,10 +876,12 @@ function buildCodexRunnerPrompt(job: { id: string; path: string }) {
     "For workflowMode=image-generate, if built-in imagegen / image_gen is unavailable, write only a small blocked JSON sidecar into the outbox with reasonKind=imagegen_unavailable and do not create a fake image.",
     "For workflowMode=image-edit, inspect selectedImage.assetPath, use imagegen / built-in image_gen editing when available, follow numbered annotationContext region comments plus prompt/jobNotes, use imageRectNormalized/imageRectPixels when present, preserve the original canvas size/aspect ratio, keep the full character including head, hair, hands, equipment, and both feet visible, do not zoom, crop, or reframe into a portrait/detail shot, preserve transparency or use a flat chroma fallback, change only requested regions when possible, and return a real edited PNG or WebP with the job id filename prefix. Never create a procedural, SVG, canvas, diagram, geometric, or placeholder image.",
     "For workflowMode=sprite-generate, inspect selectedImage.assetPath, then use imagegen / built-in image_gen when available to create the requested sprite sheet assets from the source character image. Never create a procedural, SVG, canvas, diagram, geometric, or placeholder image.",
-    "For workflowMode=sprite-generate, follow spriteContext.grid, spriteContext.cell, spriteContext.directions, spriteContext.variant, and spriteContext.chromaKey exactly. Keep one full-body character centered inside each strict cell with padding, no cropping, no duplicated heads, and no body parts crossing cells.",
+    "For workflowMode=sprite-generate, follow spriteContext.grid, spriteContext.cell, spriteContext.directions, spriteContext.variant, spriteContext.chromaKey, and spriteContext.backgroundMode exactly. Keep one full-body character centered inside each strict cell with padding, no cropping, no duplicated heads, and no body parts crossing cells.",
     "For workflowMode=sprite-generate with spriteContext.variant=standard, return exactly five separate direction PNG/WebP images using the suffixes front, front-three-quarter, side, back-three-quarter, and back. Each direction image must be 4 columns x 2 rows, 256x256 cells unless spriteContext.cell says otherwise. Do not return only one combined 5x8 sheet.",
+    "For workflowMode=sprite-generate with spriteContext.backgroundMode=direct-transparent, every returned direction image must be a PNG with a real alpha channel: empty alpha outside the character, no drawn background, no preview pattern, no guide grid, no floor, and no backdrop. Do not silently fallback to a successful chroma-key or opaque-background output; include backgroundMode=direct-transparent and alphaValidation metadata in the manifest when possible.",
+    "For workflowMode=sprite-generate with spriteContext.backgroundMode=chroma-key or no backgroundMode, use the requested flat chroma-key background so Image Cockpit can remove it after import.",
     "For standard direction-split output, write generated direction images and any source manifest under outbox/.staging/<job-id>/ when possible. Image Cockpit will decode, verify, publish final direction files to the outbox root, and write the final <job-id>-manifest.json last. If you must write directly to the outbox root, use final job-id filenames only; Image Cockpit will still verify and may rewrite the manifest. Keep QA contact sheets, comparison sheets, and .tmp files outside the outbox root.",
-    "For workflowMode=sprite-generate, inspect all cells before writing the final file and retry if any head is cut off, feet are missing, a head appears below feet, scale changes wildly, or the background is not flat chroma key.",
+    "For workflowMode=sprite-generate, inspect all cells before writing the final file and retry if any head is cut off, feet are missing, a head appears below feet, scale changes wildly, or the requested background mode is not satisfied.",
     "For workflowMode=sprite-generate with spriteContext.variant=hatch-pet, use the installed hatch-pet skill/scripts when available. Build a Codex pet atlas with 8 columns x 9 rows, 192x208 cells, 1536x1872 total, transparent unused cells, contact-sheet QA, and final spritesheet PNG/WebP returned with the job id filename prefix. Include pet.json as a sidecar if produced.",
     "For workflowMode=sprite-generate with spriteContext.variant=directional-hatch-pet, use the installed hatch-pet skill/scripts when available and return exactly five separate Codex pet atlas images: direction-01-front, direction-02-front-three-quarter, direction-03-side, direction-04-back-three-quarter, and direction-05-back. Each atlas must be 8 columns x 9 rows, 192x208 cells, 1536x1872 total, transparent unused cells, and use the job id filename prefix plus the direction suffix. Do not return only one giant combined sheet.",
     "Use jobNotes, annotationContext, and spriteContext only when those fields are populated for the workflow.",
@@ -1192,12 +1206,19 @@ async function inspectDirectionSplitArtifact(jobId: string): Promise<CodexArtifa
 
   const candidateCount = bySlug.size + (sourceManifest ? 1 : 0);
   const expectedChromaKey = await readJobExpectedChromaKey(jobId);
+  const expectedBackgroundMode = await readJobExpectedBackgroundMode(jobId);
   const manifestChromaKey = normalizeChromaKeyValue(readManifestChromaKey(sourceManifest?.parsed));
+  const manifestBackgroundMode = normalizeBackgroundModeValue(readManifestBackgroundMode(sourceManifest?.parsed));
   const chromaWarning =
     expectedChromaKey && manifestChromaKey && expectedChromaKey !== manifestChromaKey
       ? `manifest chroma key ${manifestChromaKey} differs from pending job chroma key ${expectedChromaKey}`
       : undefined;
+  const backgroundWarning =
+    expectedBackgroundMode && manifestBackgroundMode && expectedBackgroundMode !== manifestBackgroundMode
+      ? `manifest background mode ${manifestBackgroundMode} differs from pending job background mode ${expectedBackgroundMode}`
+      : undefined;
   if (chromaWarning) warnings.push(chromaWarning);
+  if (backgroundWarning) warnings.push(backgroundWarning);
 
   if (missingDirections.length > 0) {
     return {
@@ -1218,6 +1239,11 @@ async function inspectDirectionSplitArtifact(jobId: string): Promise<CodexArtifa
         expected: expectedChromaKey,
         manifest: manifestChromaKey,
         warning: chromaWarning
+      },
+      backgroundMode: {
+        expected: expectedBackgroundMode,
+        manifest: manifestBackgroundMode,
+        warning: backgroundWarning
       }
     };
   }
@@ -1244,6 +1270,11 @@ async function inspectDirectionSplitArtifact(jobId: string): Promise<CodexArtifa
         expected: expectedChromaKey,
         manifest: manifestChromaKey,
         warning: chromaWarning
+      },
+      backgroundMode: {
+        expected: expectedBackgroundMode,
+        manifest: manifestBackgroundMode,
+        warning: backgroundWarning
       }
     };
   }
@@ -1272,6 +1303,11 @@ async function inspectDirectionSplitArtifact(jobId: string): Promise<CodexArtifa
         expected: expectedChromaKey,
         manifest: manifestChromaKey,
         warning: chromaWarning
+      },
+      backgroundMode: {
+        expected: expectedBackgroundMode,
+        manifest: manifestBackgroundMode,
+        warning: backgroundWarning
       }
     };
   }
@@ -1290,7 +1326,7 @@ async function inspectDirectionSplitArtifact(jobId: string): Promise<CodexArtifa
       : undefined;
   if (manifestOrderWarning) warnings.push(manifestOrderWarning);
 
-  const manifestName = await publishVerifiedDirectionSplitArtifact(jobId, candidates, sourceManifest, expectedChromaKey, warnings);
+  const manifestName = await publishVerifiedDirectionSplitArtifact(jobId, candidates, sourceManifest, expectedChromaKey, expectedBackgroundMode, warnings);
   return {
     jobId,
     artifactKind: "direction-split",
@@ -1309,6 +1345,11 @@ async function inspectDirectionSplitArtifact(jobId: string): Promise<CodexArtifa
       expected: expectedChromaKey,
       manifest: manifestChromaKey,
       warning: chromaWarning
+    },
+    backgroundMode: {
+      expected: expectedBackgroundMode,
+      manifest: manifestBackgroundMode,
+      warning: backgroundWarning
     }
   };
 }
@@ -1405,6 +1446,7 @@ async function publishVerifiedDirectionSplitArtifact(
   candidates: DirectionSplitCandidateFile[],
   sourceManifest: DirectionSplitSourceManifest,
   expectedChromaKey: string | undefined,
+  expectedBackgroundMode: string | undefined,
   warnings: string[]
 ) {
   for (const candidate of candidates) {
@@ -1422,6 +1464,7 @@ async function publishVerifiedDirectionSplitArtifact(
     sourceManifestVerified &&
     sourceManifest.mtimeMs >= Math.max(...candidates.map((candidate) => candidate.mtimeMs));
   if (!manifestIsCurrent) {
+    const resolvedBackgroundMode = expectedBackgroundMode ?? normalizeBackgroundModeValue(readManifestBackgroundMode(sourceManifest?.parsed)) ?? "chroma-key";
     const serverManifest = {
       schema: directionSplitManifestSchema,
       jobId,
@@ -1432,7 +1475,19 @@ async function publishVerifiedDirectionSplitArtifact(
       directions: directionSplitNames,
       framesPerDirection: 8,
       files: Object.fromEntries(directionSplitSlugs.map((slug, index) => [directionSplitNames[index], `${jobId}-${slug}${extname(candidates[index]?.finalName ?? ".png") || ".png"}`])),
-      chromaKey: expectedChromaKey ? { name: expectedChromaKey } : undefined,
+      backgroundMode: resolvedBackgroundMode,
+      chromaKey: resolvedBackgroundMode === "direct-transparent"
+        ? undefined
+        : expectedChromaKey
+          ? { name: expectedChromaKey }
+          : undefined,
+      alphaValidation: resolvedBackgroundMode === "direct-transparent"
+        ? readManifestAlphaValidation(sourceManifest?.parsed) ?? {
+            passed: false,
+            warnings: ["Alpha validation is completed by Image Cockpit during import."],
+            errors: []
+          }
+        : undefined,
       sourceManifest: sourceManifest
         ? {
             name: sourceManifest.name,
@@ -1456,6 +1511,16 @@ async function readJobExpectedChromaKey(jobId: string) {
   }
 }
 
+async function readJobExpectedBackgroundMode(jobId: string) {
+  try {
+    const text = await readFile(join(inboxDir, `${jobId}.json`), "utf8");
+    const parsed = JSON.parse(text) as { spriteContext?: { backgroundMode?: unknown } };
+    return normalizeBackgroundModeValue(parsed.spriteContext?.backgroundMode);
+  } catch {
+    return undefined;
+  }
+}
+
 function readManifestChromaKey(manifest?: Record<string, unknown>) {
   if (!manifest) return undefined;
   const chromaKey = manifest.chromaKey;
@@ -1472,12 +1537,48 @@ function readManifestChromaKey(manifest?: Record<string, unknown>) {
   return manifest.background;
 }
 
+function readManifestBackgroundMode(manifest?: Record<string, unknown>) {
+  if (!manifest) return undefined;
+  if (manifest.backgroundMode) return manifest.backgroundMode;
+  const image = manifest.image;
+  if (image && typeof image === "object") {
+    const value = image as Record<string, unknown>;
+    return value.backgroundMode ?? value.background;
+  }
+  const background = manifest.background;
+  if (typeof background === "string" && /transparent|alpha|chroma|key/i.test(background)) return background;
+  return undefined;
+}
+
+function readManifestAlphaValidation(manifest?: Record<string, unknown>) {
+  const alphaValidation = manifest?.alphaValidation;
+  if (!alphaValidation || typeof alphaValidation !== "object") return undefined;
+  const value = alphaValidation as Record<string, unknown>;
+  return {
+    passed: value.passed === true,
+    warnings: Array.isArray(value.warnings) ? value.warnings.filter((item): item is string => typeof item === "string") : [],
+    errors: Array.isArray(value.errors) ? value.errors.filter((item): item is string => typeof item === "string") : []
+  };
+}
+
 function normalizeChromaKeyValue(value: unknown) {
   if (typeof value !== "string") return undefined;
   const normalized = value.trim().toLowerCase();
   if (!normalized) return undefined;
   if (normalized.includes("magenta") || normalized.includes("#ff00ff") || normalized.includes("255,0,255")) return "magenta";
   if (normalized.includes("green") || normalized.includes("#00ff00") || normalized.includes("0,255,0")) return "green";
+  return undefined;
+}
+
+function normalizeBackgroundModeValue(value: unknown) {
+  if (typeof value !== "string") return undefined;
+  const normalized = value.trim().toLowerCase().replace(/[_\s]+/g, "-");
+  if (normalized === "direct-transparent" || normalized === "transparent" || normalized === "alpha" || normalized.includes("real-alpha")) {
+    return "direct-transparent";
+  }
+  if (normalized === "chroma-key" || normalized === "chroma" || normalized === "key" || normalized.includes("chroma")) {
+    return "chroma-key";
+  }
   return undefined;
 }
 

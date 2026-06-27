@@ -1,0 +1,110 @@
+{
+  "createdAt": "2026-06-27T17:15:04.453Z",
+  "sourceImage": "forest-mage-idle.png",
+  "note": "Raw runner handoff/log folders were omitted from the committed QA artifact. Selected manifests, raw PNGs, processed PNGs, composed sheets, GIFs, alpha QA, and browser evidence are copied into this directory.",
+  "records": [
+    {
+      "label": "baseline-chroma-key",
+      "jobId": "codex-job-2026-06-27T16-17-01-671Z",
+      "backgroundMode": "chroma-key",
+      "prompt": "Baseline experiment: use the uploaded forest mage source image to create five separate direction PNG files for an idle-breathing 4x2 animation set. Use a perfectly flat #00ff00 chroma-key background in every cell, no drawn scenery, no shadows, no labels, no numbers, no UI.",
+      "jobNotes": "Baseline chroma-key run for Direct Transparent Animation Generation experiment. Return five direction PNG files and a manifest. Keep background flat green for postprocessing.",
+      "runnerState": "completed",
+      "exitCode": null,
+      "resultNames": [
+        "codex-job-2026-06-27T16-17-01-671Z-manifest.json",
+        "codex-job-2026-06-27T16-17-01-671Z-back.png",
+        "codex-job-2026-06-27T16-17-01-671Z-back-three-quarter.png",
+        "codex-job-2026-06-27T16-17-01-671Z-side.png",
+        "codex-job-2026-06-27T16-17-01-671Z-front-three-quarter.png",
+        "codex-job-2026-06-27T16-17-01-671Z-front.png"
+      ],
+      "manifestName": "codex-job-2026-06-27T16-17-01-671Z-manifest.json",
+      "alphaPassed": true,
+      "visualQuality": "pass",
+      "adoptionCandidate": false,
+      "visualNote": "reference chroma-key baseline after green removal"
+    },
+    {
+      "label": "direct-transparent-a-empty-alpha",
+      "jobId": "codex-job-2026-06-27T16-25-23-584Z",
+      "backgroundMode": "direct-transparent",
+      "prompt": "Direct transparent experiment variant A: use the uploaded forest mage source image to create five separate direction PNG files for an idle-breathing 4x2 animation set. Create real transparent PNG output with an alpha channel; the canvas outside the character is empty alpha 0. Each frame contains only the character sprite, no drawn background, no preview pattern, no guide grid, no floor, no backdrop, no labels, no numbers, no UI.",
+      "jobNotes": "Direct transparent variant A. Do not silently fallback to chroma key. If alpha output cannot be produced, return a blocked or failed alphaValidation sidecar/manifest instead of a fake success.",
+      "runnerState": "completed",
+      "exitCode": 0,
+      "resultNames": [],
+      "manifestName": null,
+      "alphaPassed": null,
+      "visualQuality": null,
+      "adoptionCandidate": null,
+      "visualNote": null
+    },
+    {
+      "label": "direct-transparent-b-no-checkerboard",
+      "jobId": "codex-job-2026-06-27T16-28-44-549Z",
+      "backgroundMode": "direct-transparent",
+      "prompt": "Direct transparent experiment variant B: use the uploaded forest mage source image to create five separate direction PNG files for an idle-breathing 4x2 animation set as game-ready transparent PNGs. Use real alpha transparency outside each character. Do not draw a checkerboard, UI preview background, grid, floor, solid color backdrop, white background, black background, green screen, text, labels, or numbers.",
+      "jobNotes": "Direct transparent variant B explicitly negates checkerboard/preview-background language. Do not treat chroma-key or opaque output as successful direct transparent output.",
+      "runnerState": "completed",
+      "exitCode": null,
+      "resultNames": [
+        "codex-job-2026-06-27T16-28-44-549Z-manifest.json",
+        "codex-job-2026-06-27T16-28-44-549Z-back.png",
+        "codex-job-2026-06-27T16-28-44-549Z-back-three-quarter.png",
+        "codex-job-2026-06-27T16-28-44-549Z-side.png",
+        "codex-job-2026-06-27T16-28-44-549Z-front-three-quarter.png",
+        "codex-job-2026-06-27T16-28-44-549Z-front.png"
+      ],
+      "manifestName": "codex-job-2026-06-27T16-28-44-549Z-manifest.json",
+      "alphaPassed": true,
+      "visualQuality": "fail-silhouette",
+      "adoptionCandidate": false,
+      "visualNote": "alpha-pass but visual quality is poor: black silhouette/mask-like output"
+    },
+    {
+      "label": "direct-transparent-c-alpha-contract",
+      "jobId": "codex-job-2026-06-27T16-40-58-676Z",
+      "backgroundMode": "direct-transparent",
+      "prompt": "Direct transparent experiment variant C: use the uploaded forest mage source image to create five separate direction PNG files for an idle-breathing 4x2 animation set. The final PNG files must have a real alpha channel: every pixel outside the character silhouette is alpha 0 transparent, not white, black, green, checkerboard, gray, scenery, floor, shadow, or a preview pattern. Preserve the character body, face, clothes, staff, and silhouette without internal transparent holes. No labels, no numbers, no UI.",
+      "jobNotes": "Direct transparent variant C restates the alpha contract and body-integrity requirement. Do not silently fallback to chroma key or opaque-background output.",
+      "runnerState": "completed",
+      "exitCode": null,
+      "resultNames": [
+        "codex-job-2026-06-27T16-40-58-676Z-manifest.json",
+        "codex-job-2026-06-27T16-40-58-676Z-back.png",
+        "codex-job-2026-06-27T16-40-58-676Z-back-three-quarter.png",
+        "codex-job-2026-06-27T16-40-58-676Z-side.png",
+        "codex-job-2026-06-27T16-40-58-676Z-front-three-quarter.png",
+        "codex-job-2026-06-27T16-40-58-676Z-front.png"
+      ],
+      "manifestName": "codex-job-2026-06-27T16-40-58-676Z-manifest.json",
+      "alphaPassed": true,
+      "visualQuality": "pass",
+      "adoptionCandidate": true,
+      "visualNote": "alpha-pass and visual quality is usable/full color"
+    },
+    {
+      "label": "direct-transparent-d-color-preserve",
+      "jobId": "codex-job-2026-06-27T17-02-26-534Z",
+      "backgroundMode": "direct-transparent",
+      "prompt": "Direct transparent experiment variant D: use the uploaded forest mage source image to create five separate direction PNG files for an idle-breathing 4x2 animation set. Preserve the full-color pixel art appearance, facial features, green cloak, brown boots, wooden staff, glowing crystal, outlines, and shading from the source image; do not turn the character into a black silhouette or mask. Use real alpha transparency outside each character only: transparent alpha 0 background, no checkerboard, no green screen, no white/black/gray backdrop, no scenery, no floor, no shadow, no text, no labels, no UI.",
+      "jobNotes": "Direct transparent variant D checks whether native alpha can preserve full-color sprite detail. Silhouette or mask-like output should not be accepted as production-quality direct transparent output.",
+      "runnerState": "completed",
+      "exitCode": null,
+      "resultNames": [
+        "codex-job-2026-06-27T17-02-26-534Z-manifest.json",
+        "codex-job-2026-06-27T17-02-26-534Z-back.png",
+        "codex-job-2026-06-27T17-02-26-534Z-back-three-quarter.png",
+        "codex-job-2026-06-27T17-02-26-534Z-side.png",
+        "codex-job-2026-06-27T17-02-26-534Z-front-three-quarter.png",
+        "codex-job-2026-06-27T17-02-26-534Z-front.png"
+      ],
+      "manifestName": "codex-job-2026-06-27T17-02-26-534Z-manifest.json",
+      "alphaPassed": true,
+      "visualQuality": "pass",
+      "adoptionCandidate": true,
+      "visualNote": "alpha-pass and visual quality is usable/full color"
+    }
+  ]
+}

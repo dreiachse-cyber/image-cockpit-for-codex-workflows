@@ -97,7 +97,9 @@ async function runManualHandoffSmoke() {
         "back-three-quarter": `${artifactJobId}-back-three-quarter.png`,
         back: `${artifactJobId}-back.png`
       },
-      chromaKey: { name: "green" }
+      chromaKey: { name: "green" },
+      backgroundMode: "direct-transparent",
+      alphaValidation: { passed: true, warnings: [], errors: [] }
     }, null, 2), "utf8");
     for (const slug of directionSlugs) {
       await writeFile(join(handoffDir, "outbox", `${artifactJobId}-${slug}.png`), tinyPngBytes);
@@ -114,6 +116,8 @@ async function runManualHandoffSmoke() {
     const verifiedManifest = await getJson(port, `/api/codex/results/${artifactJobId}-manifest.json`);
     const verifiedManifestText = Buffer.from(verifiedManifest.dataUrl.split(",")[1], "base64").toString("utf8");
     assert(verifiedManifestText.includes('"serverVerified": true'), "server should rewrite the final direction split manifest");
+    assert(verifiedManifestText.includes('"backgroundMode": "direct-transparent"'), "server manifest should preserve direct transparent background mode");
+    assert(verifiedManifestText.includes('"alphaValidation"'), "server manifest should preserve direct transparent alpha validation metadata");
 
     const localImages = await postJson(port, "/api/generate", {
       workflowMode: "image-generate",
@@ -242,6 +246,7 @@ async function runManualHandoffSmoke() {
     assert(spriteGenerateJobJson.spriteContext.action === "idle", "sprite generation job should include action");
     assert(spriteGenerateJobJson.spriteContext.cell.width === 512, "sprite generation job should include cell size");
     assert(spriteGenerateJobJson.spriteContext.chromaKey === "green", "sprite generation job should include chroma key");
+    assert(spriteGenerateJobJson.spriteContext.backgroundMode === "chroma-key", "sprite generation job should default to chroma-key background mode");
     assert(spriteGenerateJobJson.spriteContext.variant === "standard", "sprite generation job should include the standard variant");
     assert(spriteGenerateJobJson.spriteContext.directions.length === 5, "sprite generation job should include five direction rows");
     assert(spriteGenerateJobJson.selectedImage.assetPath, "sprite generation job should attach the source image");
@@ -249,6 +254,36 @@ async function runManualHandoffSmoke() {
     assert(
       spriteGenerateJobJson.notes.some((note) => note.includes("built-in image_gen")),
       "sprite generation job should instruct Codex to use built-in image generation"
+    );
+
+    const directTransparentJob = await postJson(port, "/api/codex/jobs", {
+      workflowMode: "sprite-generate",
+      prompt: "Smoke test direct transparent sprite sheet generation",
+      negativePrompt: "text",
+      jobNotes: "Create a 4x2 idle sheet as a real transparent PNG.",
+      selectedImageName: "tiny.png",
+      selectedImageSize: "1x1",
+      selectedImageSource: "sample",
+      selectedImageDataUrl: tinyPng,
+      grid: { columns: 4, rows: 2, gutter: 0 },
+      action: "idle",
+      frames: 8,
+      cell: { width: 256, height: 256 },
+      chromaKey: "green",
+      backgroundMode: "direct-transparent",
+      spriteVariant: "standard",
+      directions: ["front", "front three-quarter", "side", "back three-quarter", "back"]
+    });
+    const directTransparentJobJson = JSON.parse(await readFile(directTransparentJob.path, "utf8"));
+    assert(directTransparentJobJson.intent.includes("direct transparent alpha"), "direct transparent job should describe direct transparent intent");
+    assert(directTransparentJobJson.spriteContext.backgroundMode === "direct-transparent", "direct transparent job should include background mode");
+    assert(
+      directTransparentJobJson.notes.some((note) => note.includes("real alpha channel")),
+      "direct transparent job should require a real alpha channel"
+    );
+    assert(
+      directTransparentJobJson.notes.some((note) => note.includes("do not mark the result successful as a chroma-key fallback")),
+      "direct transparent job should forbid silent chroma-key fallback"
     );
 
     const hatchPetJob = await postJson(port, "/api/codex/jobs", {

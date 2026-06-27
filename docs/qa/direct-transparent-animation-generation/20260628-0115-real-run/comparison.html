@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang='en'>
+<head>
+  <meta charset='utf-8'>
+  <meta name='viewport' content='width=device-width, initial-scale=1'>
+  <title>Direct Transparent Animation Generation QA</title>
+  <style>
+    :root { color-scheme: light; font-family: Inter, Segoe UI, sans-serif; background: #f6f7f9; color: #15202b; }
+    body { margin: 0; padding: 24px; }
+    main { max-width: 1280px; margin: 0 auto; }
+    h1, h2 { letter-spacing: 0; }
+    table { border-collapse: collapse; width: 100%; margin: 18px 0 28px; background: white; }
+    th, td { border: 1px solid #d9dee7; padding: 8px; text-align: left; vertical-align: top; }
+    th { background: #eef2f7; }
+    .sheet { display: block; max-width: 100%; border: 1px solid #cfd6e2; background: repeating-conic-gradient(#d8dde6 0% 25%, #fff 0% 50%) 50% / 24px 24px; }
+    .gif-table img { width: 112px; height: 112px; object-fit: contain; background: repeating-conic-gradient(#d8dde6 0% 25%, #fff 0% 50%) 50% / 16px 16px; image-rendering: auto; }
+    pre { white-space: pre-wrap; background: #17202a; color: #f6f7f9; padding: 12px; overflow: auto; }
+    section { margin: 24px 0 34px; }
+  </style>
+</head>
+<body>
+<main>
+  <h1>Direct Transparent Animation Generation QA</h1>
+  <p>Source: forest-mage-idle.png. Sheets below use a checkerboard matte only for review; direct transparent PNG files keep their original alpha.</p>
+  <table>
+    <thead><tr><th>Label</th><th>Job ID</th><th>Mode</th><th>Alpha QA</th><th>Visual quality</th><th>Near transparent ratio</th><th>Edge opaque ratio</th></tr></thead>
+    <tbody><tr><td>baseline-chroma-key</td><td>codex-job-2026-06-27T16-17-01-671Z</td><td>chroma-key</td><td>PASS</td><td>pass</td><td>0.671-0.773</td><td>0.000-0.006</td></tr><tr><td>direct-transparent-b-no-checkerboard</td><td>codex-job-2026-06-27T16-28-44-549Z</td><td>direct-transparent</td><td>PASS</td><td>fail-silhouette</td><td>0.658-0.764</td><td>0.000-0.000</td></tr><tr><td>direct-transparent-c-alpha-contract</td><td>codex-job-2026-06-27T16-40-58-676Z</td><td>direct-transparent</td><td>PASS</td><td>pass</td><td>0.613-0.696</td><td>0.001-0.028</td></tr><tr><td>direct-transparent-d-color-preserve</td><td>codex-job-2026-06-27T17-02-26-534Z</td><td>direct-transparent</td><td>PASS</td><td>pass</td><td>0.639-0.692</td><td>0.000-0.000</td></tr></tbody>
+  </table>
+
+        <section>
+          <h2>baseline-chroma-key</h2>
+          <p>reference chroma-key baseline after green removal</p>
+          <img class='sheet' src='baseline-chroma-key/composed-sheet.png' alt='baseline-chroma-key composed sheet on checkerboard'>
+        </section>
+        <section>
+          <h2>direct-transparent-b-no-checkerboard</h2>
+          <p>alpha-pass but visual quality is poor: black silhouette/mask-like output</p>
+          <img class='sheet' src='direct-transparent-b-no-checkerboard/composed-sheet.png' alt='direct-transparent-b-no-checkerboard composed sheet on checkerboard'>
+        </section>
+        <section>
+          <h2>direct-transparent-c-alpha-contract</h2>
+          <p>alpha-pass and visual quality is usable/full color</p>
+          <img class='sheet' src='direct-transparent-c-alpha-contract/composed-sheet.png' alt='direct-transparent-c-alpha-contract composed sheet on checkerboard'>
+        </section>
+        <section>
+          <h2>direct-transparent-d-color-preserve</h2>
+          <p>alpha-pass and visual quality is usable/full color</p>
+          <img class='sheet' src='direct-transparent-d-color-preserve/composed-sheet.png' alt='direct-transparent-d-color-preserve composed sheet on checkerboard'>
+        </section>
+  <section>
+    <h2>Animated GIF Comparison</h2>
+    <table class='gif-table'>
+      <thead><tr><th>Direction</th><th>Baseline</th><th>Direct B</th><th>Direct C</th><th>Direct D</th></tr></thead>
+      <tbody><tr><th>front</th><td><img src='baseline-chroma-key/gifs/front.gif' alt='baseline-chroma-key front'></td><td><img src='direct-transparent-b-no-checkerboard/gifs/front.gif' alt='direct-transparent-b-no-checkerboard front'></td><td><img src='direct-transparent-c-alpha-contract/gifs/front.gif' alt='direct-transparent-c-alpha-contract front'></td><td><img src='direct-transparent-d-color-preserve/gifs/front.gif' alt='direct-transparent-d-color-preserve front'></td></tr><tr><th>front three-quarter</th><td><img src='baseline-chroma-key/gifs/front-three-quarter.gif' alt='baseline-chroma-key front three-quarter'></td><td><img src='direct-transparent-b-no-checkerboard/gifs/front-three-quarter.gif' alt='direct-transparent-b-no-checkerboard front three-quarter'></td><td><img src='direct-transparent-c-alpha-contract/gifs/front-three-quarter.gif' alt='direct-transparent-c-alpha-contract front three-quarter'></td><td><img src='direct-transparent-d-color-preserve/gifs/front-three-quarter.gif' alt='direct-transparent-d-color-preserve front three-quarter'></td></tr><tr><th>side</th><td><img src='baseline-chroma-key/gifs/side.gif' alt='baseline-chroma-key side'></td><td><img src='direct-transparent-b-no-checkerboard/gifs/side.gif' alt='direct-transparent-b-no-checkerboard side'></td><td><img src='direct-transparent-c-alpha-contract/gifs/side.gif' alt='direct-transparent-c-alpha-contract side'></td><td><img src='direct-transparent-d-color-preserve/gifs/side.gif' alt='direct-transparent-d-color-preserve side'></td></tr><tr><th>back three-quarter</th><td><img src='baseline-chroma-key/gifs/back-three-quarter.gif' alt='baseline-chroma-key back three-quarter'></td><td><img src='direct-transparent-b-no-checkerboard/gifs/back-three-quarter.gif' alt='direct-transparent-b-no-checkerboard back three-quarter'></td><td><img src='direct-transparent-c-alpha-contract/gifs/back-three-quarter.gif' alt='direct-transparent-c-alpha-contract back three-quarter'></td><td><img src='direct-transparent-d-color-preserve/gifs/back-three-quarter.gif' alt='direct-transparent-d-color-preserve back three-quarter'></td></tr><tr><th>back</th><td><img src='baseline-chroma-key/gifs/back.gif' alt='baseline-chroma-key back'></td><td><img src='direct-transparent-b-no-checkerboard/gifs/back.gif' alt='direct-transparent-b-no-checkerboard back'></td><td><img src='direct-transparent-c-alpha-contract/gifs/back.gif' alt='direct-transparent-c-alpha-contract back'></td><td><img src='direct-transparent-d-color-preserve/gifs/back.gif' alt='direct-transparent-d-color-preserve back'></td></tr></tbody>
+    </table>
+  </section>
+  <section>
+    <h2>Direct A Blocked Sidecar</h2>
+    <pre>{
+  &quot;status&quot;: &quot;blocked&quot;,
+  &quot;reasonKind&quot;: &quot;unknown&quot;,
+  &quot;userMessage&quot;: &quot;Direct-transparent alpha PNG output could not be produced by the available built-in image generation path.&quot;,
+  &quot;suggestion&quot;: &quot;Retry with a native-transparency-capable generation path, or submit a job that permits chroma-key removal.&quot;
+}
+</pre>
+  </section>
+</main>
+</body>
+</html>

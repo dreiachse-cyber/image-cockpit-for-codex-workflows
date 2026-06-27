@@ -252,6 +252,11 @@ export interface CodexArtifactStatus {
     manifest?: string;
     warning?: string;
   };
+  backgroundMode?: {
+    expected?: string;
+    manifest?: string;
+    warning?: string;
+  };
 }
 
 export interface CodexJobStatusResponse {
