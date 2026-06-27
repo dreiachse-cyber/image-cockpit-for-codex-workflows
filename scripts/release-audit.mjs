@@ -32,9 +32,12 @@ const requiredFiles = [
   "scripts/real-codex-runner-smoke.mjs",
   "scripts/real-imagegen-smoke.mjs",
   "scripts/ui-smoke.mjs",
+  "scripts/dev-supervisor.mjs",
   "scripts/capture-readme-screenshots.mjs",
   "docs/qa/completed-codex-job-import-storage-quota.md",
   "docs/qa/local-state-oom-safe-mode-retention.md",
+  "docs/qa/cockpit-health-repair-supervisor.md",
+  "docs/qa/deduplicate-bronze-candidate-import-retry.md",
   "public/reset-local-state.html",
   "public/samples/idle-breathing-sheet.png",
   "public/samples/walk-cycle-sheet.png",
@@ -1057,9 +1060,12 @@ function checkPendingJobCoverage() {
 
   const uiSmokeText = readText("scripts/ui-smoke.mjs");
   const storageText = readText("src/lib/storage.ts");
+  const devSupervisorText = readText("scripts/dev-supervisor.mjs");
   const resetPageText = readText("public/reset-local-state.html");
   const qaText = readText("docs/qa/completed-codex-job-import-storage-quota.md");
   const localStateQaText = readText("docs/qa/local-state-oom-safe-mode-retention.md");
+  const cockpitHealthQaText = readText("docs/qa/cockpit-health-repair-supervisor.md");
+  const dedupeQaText = readText("docs/qa/deduplicate-bronze-candidate-import-retry.md");
   [
     "assertCompletedDirectionSplitImportFailure",
     "assertPartialDirectionSplitRecovery",
@@ -1095,6 +1101,33 @@ function checkPendingJobCoverage() {
   ].forEach((marker) => {
     if (!storageText.includes(marker)) {
       failures.push(`Large history/frame storage quota guard is missing marker: ${marker}`);
+    }
+  });
+
+  [
+    "outboxImportKey",
+    "prependHistoryItemWithDedupe",
+    "dedupePersistedLocalInboxHistory",
+    "lastOutboxFingerprint",
+    "CockpitHealthPanel",
+    "Cockpitを修復",
+    "結果を再取り込み"
+  ].forEach((marker) => {
+    if (!appText.includes(marker) && !storageText.includes(marker)) {
+      failures.push(`Cockpit health / import dedupe guard is missing marker: ${marker}`);
+    }
+  });
+
+  [
+    "/api/dev/health",
+    "/api/dev/repair",
+    "127.0.0.1",
+    "IMAGE_COCKPIT_API_TARGET",
+    "hasRunningCodexJobs",
+    "restart-vite"
+  ].forEach((marker) => {
+    if (!devSupervisorText.includes(marker)) {
+      failures.push(`Dev supervisor safety marker is missing: ${marker}`);
     }
   });
 
@@ -1160,6 +1193,32 @@ function checkPendingJobCoverage() {
   ].forEach((marker) => {
     if (!localStateQaText.includes(marker)) {
       failures.push(`Local state OOM QA doc is missing marker: ${marker}`);
+    }
+  });
+
+  [
+    "/api/health",
+    "/api/dev/health",
+    "Cockpitを修復",
+    "結果を再取り込み",
+    "running Codex job",
+    "browser"
+  ].forEach((marker) => {
+    if (!cockpitHealthQaText.includes(marker)) {
+      failures.push(`Cockpit health QA doc is missing marker: ${marker}`);
+    }
+  });
+
+  [
+    "outboxImportKey",
+    "bronze candidate",
+    "IndexedDB",
+    "exact duplicate",
+    "Retry import",
+    "ui-smoke"
+  ].forEach((marker) => {
+    if (!dedupeQaText.includes(marker)) {
+      failures.push(`Bronze candidate dedupe QA doc is missing marker: ${marker}`);
     }
   });
 }

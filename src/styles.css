@@ -862,6 +862,66 @@ button {
   color: #8a2e1f;
 }
 
+.cockpit-health-panel {
+  display: grid;
+  gap: 8px;
+  margin: 0 10px 10px;
+  border: 1px solid #cdd8d0;
+  border-radius: 6px;
+  background: #fbfcfa;
+  padding: 9px;
+}
+
+.cockpit-health-panel.state-ok {
+  border-color: #9fcaaf;
+  background: #f1faf4;
+}
+
+.cockpit-health-panel.state-warning,
+.cockpit-health-panel.state-checking {
+  border-color: #d7c69f;
+  background: #fff9e9;
+}
+
+.cockpit-health-panel.state-broken,
+.cockpit-health-panel.state-repairing {
+  border-color: #dfa99f;
+  background: #fff4f1;
+}
+
+.cockpit-health-main {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.cockpit-health-main strong {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #17211b;
+  font-size: 13px;
+}
+
+.cockpit-health-main span,
+.cockpit-health-main small {
+  overflow-wrap: anywhere;
+  color: var(--text-muted);
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+.cockpit-health-actions,
+.history-tools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.history-tools {
+  padding: 0 10px 8px;
+}
+
 .animation-steps {
   display: grid;
   gap: 10px;

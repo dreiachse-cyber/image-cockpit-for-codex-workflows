@@ -5,6 +5,7 @@ import {
   ArrowRight,
   Brush,
   CheckCircle2,
+  CircleAlert,
   Copy,
   Download,
   FileArchive,
@@ -51,14 +52,18 @@ import { OFFICIAL_ANIMATION_LIBRARY } from "./lib/officialAnimations";
 import { calculateGridCells, summarizeFrames } from "./lib/sprite";
 import {
   clearImageCockpitLocalState,
+  dedupeLocalInboxHistory,
+  dedupePersistedLocalInboxHistory,
   formatStorageBytes,
   isStorageSafeModeSearch,
   isStorageResetSearch,
   loadPersistedState,
   MAX_USER_ANIMATION_LIBRARY_ITEMS,
   PENDING_CODEX_JOB_STORAGE_KEY,
+  prependHistoryItemWithDedupe,
   preflightLocalStateStorage,
   readLocalStateSummaries,
+  remapFrameSourceIds,
   saveActions,
   saveFrames,
   saveHistory,
@@ -76,6 +81,8 @@ import type {
   CodexJobLogResponse,
   GridSettings,
   HistoryItem,
+  ImageCockpitApiHealth,
+  ImageCockpitDevSupervisorHealth,
   CodexJobResponse,
   CodexJobStatusResponse,
   CodexOutboxImportResponse,
@@ -109,6 +116,8 @@ const MAX_ACTIVE_CODEX_JOBS = 3;
 const CODEX_LOG_POLL_INTERVAL_MS = 2000;
 const CODEX_LOG_TAIL_BYTES = 32768;
 const CODEX_LOG_HISTORY_LIMIT = MAX_ACTIVE_CODEX_JOBS;
+const DEFAULT_SUPERVISOR_PORT = 8793;
+const COCKPIT_HEALTH_POLL_INTERVAL_MS = 15000;
 export const INITIAL_HISTORY_RENDER_COUNT = 100;
 export const HISTORY_RENDER_BATCH_SIZE = 20;
 const HISTORY_SCROLL_LOAD_THRESHOLD_PX = 160;
@@ -378,6 +387,7 @@ interface ImportLatestOptions {
   job?: CodexJobQueueItem;
   throwOnError?: boolean;
   failOnIncompleteDirectionSplit?: boolean;
+  limit?: number;
 }
 
 interface ImageEditComparison {
@@ -393,7 +403,22 @@ interface CodexFailureNotice {
   createdAt: string;
   workflowMode?: WorkflowMode;
   retryJob?: CodexJobQueueItem;
+  lastOutboxFingerprint?: string;
+  lastImportAttemptAt?: string;
   diagnostic: CodexJobDiagnostic;
+}
+
+type CockpitHealthState = "checking" | "ok" | "warning" | "broken" | "repairing";
+
+interface CockpitHealthReport {
+  state: CockpitHealthState;
+  checkedAt: string;
+  message: string;
+  api?: ImageCockpitApiHealth;
+  supervisor?: ImageCockpitDevSupervisorHealth;
+  mismatches: string[];
+  unimportedResults: number;
+  repairAvailable: boolean;
 }
 
 interface CodexJobLogItem {
@@ -3074,6 +3099,31 @@ export function summarizeCodexImportFailureReason(error: unknown, fallback = "Im
     .slice(0, 220);
 }
 
+export function buildOutboxImportKey(
+  kind: "single" | "image-edit" | "animation-sheet" | "direction-split" | "bronze-candidate",
+  options: { jobId?: string; filenames: string[]; manifestName?: string } | string
+) {
+  if (typeof options === "string") return `${kind}:${options}`;
+  const jobId = options.jobId?.trim();
+  const filenames = options.filenames.map((name) => name.trim()).filter(Boolean).sort((left, right) => left.localeCompare(right));
+  const fileSignature = filenames.join("|");
+  if (kind === "single") return `single:${fileSignature}`;
+  if (!jobId) return `${kind}:${fileSignature}`;
+  if (kind === "direction-split") return `direction-split:${jobId}:${fileSignature}:${options.manifestName ?? ""}`;
+  return `${kind}:${jobId}:${fileSignature}`;
+}
+
+export function fingerprintOutboxResults(results: CodexOutboxResult[], jobId?: string, newerThan?: string) {
+  const newerThanTime = newerThan ? Date.parse(newerThan) : Number.NEGATIVE_INFINITY;
+  return results
+    .filter((result) => !shouldIgnoreOutboxResultName(result.name))
+    .filter((result) => (jobId ? isOutboxResultForJob(result.name, jobId) : true))
+    .filter((result) => Date.parse(result.modifiedAt) >= newerThanTime)
+    .map((result) => `${result.name}:${result.size}:${result.modifiedAt}`)
+    .sort((left, right) => left.localeCompare(right))
+    .join("|");
+}
+
 type LocalStateScreenMode = "checking" | "normal" | "safe" | "recovery" | "reset" | "reset-complete";
 
 interface LocalStateScreenState {
@@ -3119,6 +3169,14 @@ function App() {
   const [animationSourceId, setAnimationSourceId] = useState("");
   const [providers, setProviders] = useState<ProviderStatus[]>(fallbackProviders);
   const [runnerPreflight, setRunnerPreflight] = useState<CodexRunnerPreflight | null>(null);
+  const [cockpitHealth, setCockpitHealth] = useState<CockpitHealthReport>({
+    state: "checking",
+    checkedAt: "",
+    message: "Checking Cockpit health.",
+    mismatches: [],
+    unimportedResults: 0,
+    repairAvailable: false
+  });
   const [prompt, setPrompt] = useState("idle breathing loop with gentle robe sway, ready for a 5-direction sprite sheet");
   const [negativePrompt, setNegativePrompt] = useState("blur, text, watermark, cropped feet");
   const [jobNotes, setJobNotes] = useState("");
@@ -3137,6 +3195,9 @@ function App() {
   const [chromaTolerance, setChromaTolerance] = useState(32);
   const [status, setStatus] = useState("All changes saved locally");
   const [isBusy, setIsBusy] = useState(false);
+  const [isCockpitRepairing, setIsCockpitRepairing] = useState(false);
+  const [isRecoveringOutboxResults, setIsRecoveringOutboxResults] = useState(false);
+  const [isDedupingHistory, setIsDedupingHistory] = useState(false);
   const [codexJobs, setCodexJobs] = useState<CodexJobQueueItem[]>([]);
   const gifPreviewUrl = "";
   const [animationDirectionPreviews, setAnimationDirectionPreviews] = useState<AnimationDirectionPreview[]>([]);
@@ -3153,6 +3214,7 @@ function App() {
   const animationPackInputRef = useRef<HTMLInputElement | null>(null);
   const historyListRef = useRef<HTMLDivElement | null>(null);
   const historyLoadMoreRef = useRef<HTMLDivElement | null>(null);
+  const historyRef = useRef<HistoryItem[]>([]);
   const startingQueuedJobIdsRef = useRef<Set<string>>(new Set());
   const retryingFailureJobIdsRef = useRef<Set<string>>(new Set());
   const lastPointerEventAtRef = useRef(0);
@@ -3380,8 +3442,11 @@ function App() {
       try {
         const persisted = await loadPersistedState(defaultActions);
         if (cancelled) return;
-        setHistory(persisted.history);
-        setFrames(persisted.frames);
+        const dedupedHistory = dedupeLocalInboxHistory(persisted.history);
+        const remappedFrames = remapFrameSourceIds(persisted.frames, dedupedHistory.idReplacements);
+        setHistory(dedupedHistory.history);
+        historyRef.current = dedupedHistory.history;
+        setFrames(remappedFrames.frames);
         setActions(normalizeAnimationActions(persisted.actions));
         setUserAnimationLibrary(persisted.animationLibrary.slice(0, MAX_USER_ANIMATION_LIBRARY_ITEMS));
         setCodexJobs(loadPendingCodexJobs());
@@ -3391,7 +3456,11 @@ function App() {
           summaries,
           message: preflight.pressure === "warning" ? "Browser storage is above the warning threshold." : undefined
         });
-        if (preflight.pressure === "warning") {
+        if (dedupedHistory.removedCount > 0) {
+          setStatus(
+            `Recovered local history: removed ${dedupedHistory.removedCount} duplicate Local Inbox result${dedupedHistory.removedCount === 1 ? "" : "s"}.`
+          );
+        } else if (preflight.pressure === "warning") {
           setStatus(`Browser storage warning: ${formatStorageBytes(preflight.estimate?.usage)} used. Old local results will be retained conservatively.`);
         }
         setStorageHydrated(true);
@@ -3417,6 +3486,10 @@ function App() {
       cancelled = true;
     };
   }, [forceLargeStateLoad]);
+
+  useEffect(() => {
+    historyRef.current = history;
+  }, [history]);
 
   useEffect(() => {
     if (canPersistLocalState) saveHistory(history, selectedId);
@@ -3505,6 +3578,19 @@ function App() {
       });
     return () => {
       cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    const check = async () => {
+      if (!cancelled) await runCockpitHealthCheck({ quiet: true });
+    };
+    void check();
+    const intervalId = window.setInterval(() => void check(), COCKPIT_HEALTH_POLL_INTERVAL_MS);
+    return () => {
+      cancelled = true;
+      window.clearInterval(intervalId);
     };
   }, []);
 
@@ -3664,8 +3750,22 @@ function App() {
     const retryRecoveredOutboxImports = async () => {
       for (const notice of retryableNotices) {
         if (cancelled || !notice.retryJob || retryingFailureJobIdsRef.current.has(notice.jobId)) continue;
+        let outboxFingerprint = "";
+        try {
+          outboxFingerprint = await loadOutboxFingerprintForJob(notice.retryJob);
+        } catch {
+          continue;
+        }
+        if (cancelled) continue;
+        if (!notice.lastOutboxFingerprint) {
+          updateCodexFailureNoticeOutboxFingerprint(notice.jobId, outboxFingerprint);
+          continue;
+        }
+        if (notice.lastOutboxFingerprint === outboxFingerprint) continue;
+
         retryingFailureJobIdsRef.current.add(notice.jobId);
         try {
+          updateCodexFailureNoticeOutboxFingerprint(notice.jobId, outboxFingerprint, new Date().toISOString());
           await importLatestOutboxResult({
             background: true,
             newerThan: notice.retryJob.createdAt,
@@ -3797,6 +3897,10 @@ function App() {
   }
 
   async function handleGenerate() {
+    if (cockpitHealth.state === "broken" && providerId !== "local-file") {
+      setStatus(`${cockpitHealth.message} Run diagnostics or repair Cockpit before starting API-backed work.`);
+      return;
+    }
     if (providerId === "local-file") {
       setStatus(`${providerLabel(providerId, language)} ${copy.statusUsesImport}`);
       fileInputRef.current?.click();
@@ -4128,6 +4232,27 @@ function App() {
     setCodexFailureNotices((current) => current.filter((notice) => notice.jobId !== jobId));
   }
 
+  function updateCodexFailureNoticeOutboxFingerprint(jobId: string, fingerprint: string, attemptedAt?: string) {
+    setCodexFailureNotices((current) =>
+      current.map((notice) =>
+        notice.jobId === jobId
+          ? {
+              ...notice,
+              lastOutboxFingerprint: fingerprint,
+              lastImportAttemptAt: attemptedAt ?? notice.lastImportAttemptAt
+            }
+          : notice
+      )
+    );
+  }
+
+  async function loadOutboxFingerprintForJob(job: CodexJobQueueItem) {
+    const response = await fetch("/api/codex/results?limit=200");
+    if (!response.ok) throw new Error(await response.text());
+    const data = (await response.json()) as { results: CodexOutboxResult[] };
+    return fingerprintOutboxResults(data.results, job.id, job.createdAt);
+  }
+
   function recordCodexImportFailure(job: CodexJobQueueItem, error: unknown) {
     const reason = summarizeCodexImportFailureReason(error);
     const isReviewCandidate = isStandardDirectionSplitJob(job) && /bronze candidate|needs review|raw direction candidate/i.test(reason);
@@ -4184,6 +4309,262 @@ function App() {
       setStatus(error instanceof Error ? error.message : copy.statusInboxError);
     } finally {
       retryingFailureJobIdsRef.current.delete(notice.jobId);
+    }
+  }
+
+  function addLocalInboxHistoryItem(item: HistoryItem) {
+    const result = prependHistoryItemWithDedupe(historyRef.current, item);
+    if (result.added) {
+      historyRef.current = result.history;
+      setHistory((current) => {
+        const next = prependHistoryItemWithDedupe(current, item);
+        historyRef.current = next.history;
+        return next.history;
+      });
+    }
+    setSelectedId(result.item.id);
+    setSelectedFrameId("");
+    return result;
+  }
+
+  function dedupeCurrentHistory() {
+    const deduped = dedupeLocalInboxHistory(historyRef.current);
+    const remappedFrames = remapFrameSourceIds(frames, deduped.idReplacements);
+    if (deduped.removedCount === 0 && remappedFrames.changedCount === 0) return deduped;
+
+    historyRef.current = deduped.history;
+    setHistory(deduped.history);
+    if (remappedFrames.changedCount > 0) setFrames(remappedFrames.frames);
+    setSelectedId((current) => deduped.idReplacements[current] ?? current);
+    setAnimationSourceId((current) => deduped.idReplacements[current] ?? current);
+    setImageEditComparison((current) => {
+      if (!current) return current;
+      const beforeId = deduped.idReplacements[current.before.id];
+      const afterId = current.after ? deduped.idReplacements[current.after.id] : undefined;
+      if (!beforeId && !afterId) return current;
+      return {
+        ...current,
+        before: beforeId ? deduped.history.find((item) => item.id === beforeId) ?? current.before : current.before,
+        after: current.after && afterId ? deduped.history.find((item) => item.id === afterId) ?? current.after : current.after
+      };
+    });
+    return deduped;
+  }
+
+  async function dedupeLocalInboxHistoryNow() {
+    setIsDedupingHistory(true);
+    try {
+      const result = dedupeCurrentHistory();
+      setStatus(
+        result.removedCount > 0
+          ? `Duplicate Local Inbox history cleaned: ${result.removedCount} duplicate result${result.removedCount === 1 ? "" : "s"} removed.`
+          : "Duplicate Local Inbox history check complete: nothing to clean."
+      );
+    } finally {
+      setIsDedupingHistory(false);
+    }
+  }
+
+  async function dedupePersistedHistoryNow() {
+    setIsDedupingHistory(true);
+    setStorageClearState({ scope: "history" });
+    try {
+      const result = await dedupePersistedLocalInboxHistory();
+      if (storageScreen.mode === "normal") {
+        historyRef.current = result.history;
+        setHistory(result.history);
+        setFrames(result.frames);
+      }
+      const message =
+        result.removedCount > 0
+          ? `Duplicate Local Inbox history cleaned: ${result.removedCount} duplicate result${result.removedCount === 1 ? "" : "s"} removed.`
+          : "Duplicate Local Inbox history check complete: nothing to clean.";
+      setStorageClearState({ message });
+      setStorageScreen((current) => ({
+        ...current,
+        summaries: readLocalStateSummaries(),
+        message
+      }));
+      setStatus(message);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Could not dedupe Local Inbox history.";
+      setStorageClearState({ error: message });
+      setStatus(message);
+    } finally {
+      setIsDedupingHistory(false);
+    }
+  }
+
+  async function loadOutboxResults(limit = 200) {
+    const response = await fetch(`/api/codex/results?limit=${limit}`);
+    if (!response.ok) throw new Error(await response.text());
+    return (await response.json()) as { outboxPath: string; results: CodexOutboxResult[] };
+  }
+
+  function isRecoverableOutboxImageResult(result: CodexOutboxResult) {
+    return isStaticImageResult(result) && !isDirectionSplitComponentOutboxName(result.name);
+  }
+
+  function isDirectionSplitComponentOutboxName(name: string) {
+    const lower = name.toLowerCase();
+    if (!lower.startsWith("codex-job-")) return false;
+    return DIRECTION_SPLIT_ANIMATION_FILE_SLUGS.some((slug) => lower.endsWith(`-${slug}.png`) || lower.endsWith(`-${slug}.webp`));
+  }
+
+  function isOutboxResultAlreadyImported(result: CodexOutboxResult) {
+    const singleKey = buildOutboxImportKey("single", result.name);
+    return historyRef.current.some(
+      (item) =>
+        item.provider === "local-inbox" &&
+        (item.outboxImportKey === singleKey ||
+          item.outboxImportKey?.endsWith(`:${result.name}`) ||
+          item.name === result.name)
+    );
+  }
+
+  function countUnimportedOutboxResults(results: CodexOutboxResult[]) {
+    return results.filter(isRecoverableOutboxImageResult).filter((result) => !isOutboxResultAlreadyImported(result)).length;
+  }
+
+  async function recoverUnimportedOutboxResults() {
+    setIsRecoveringOutboxResults(true);
+    try {
+      const listData = await loadOutboxResults(200);
+      const candidates = listData.results
+        .filter(isRecoverableOutboxImageResult)
+        .filter((result) => !isOutboxResultAlreadyImported(result))
+        .slice(0, 50);
+      let recoveredCount = 0;
+      for (const candidate of candidates) {
+        const imported = await fetchOutboxResult(candidate.name);
+        const image = await loadImage(imported.dataUrl);
+        const item: HistoryItem = {
+          id: createId("hist"),
+          name: imported.name,
+          dataUrl: imported.dataUrl,
+          provider: "local-inbox",
+          prompt,
+          seed,
+          size: `${image.width}x${image.height}`,
+          createdAt: new Date().toISOString(),
+          adopted: false,
+          source: "inbox",
+          outboxImportKey: buildOutboxImportKey("single", imported.name)
+        };
+        const inserted = addLocalInboxHistoryItem(item);
+        if (inserted.added) recoveredCount += 1;
+      }
+      const skippedCount = Math.max(0, listData.results.filter(isRecoverableOutboxImageResult).length - recoveredCount);
+      setStatus(
+        recoveredCount > 0
+          ? `Recovered ${recoveredCount} outbox result${recoveredCount === 1 ? "" : "s"}. ${skippedCount} already imported or not recoverable.`
+          : "Recover Results complete: no new formal outbox images were found."
+      );
+      await runCockpitHealthCheck({ quiet: true });
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : copy.statusInboxError);
+    } finally {
+      setIsRecoveringOutboxResults(false);
+    }
+  }
+
+  async function runCockpitHealthCheck(options: { quiet?: boolean } = {}) {
+    if (!options.quiet) {
+      setCockpitHealth((current) => ({
+        ...current,
+        state: current.state === "repairing" ? "repairing" : "checking",
+        message: "Checking Cockpit health."
+      }));
+    }
+
+    const checkedAt = new Date().toISOString();
+    const mismatches: string[] = [];
+    let apiHealth: ImageCockpitApiHealth | undefined;
+    let supervisorHealth: ImageCockpitDevSupervisorHealth | undefined;
+    let unimportedResults = 0;
+
+    try {
+      apiHealth = await fetchJsonWithTimeout<ImageCockpitApiHealth>("/api/health");
+      if (apiHealth.app !== "image-cockpit" || apiHealth.role !== "api") {
+        mismatches.push("API route mismatch: /api/health did not return Image Cockpit API metadata.");
+        apiHealth = undefined;
+      }
+    } catch {
+      mismatches.push("API route mismatch or unavailable: /api/health is not responding as Image Cockpit.");
+    }
+
+    if (apiHealth) {
+      try {
+        const providersResponse = await fetchJsonWithTimeout<{ providers?: ProviderStatus[] }>("/api/providers");
+        const providerIds = new Set((providersResponse.providers ?? []).map((provider) => provider.id));
+        if (!providerIds.has("codex-handoff") || !providerIds.has("local-inbox")) {
+          mismatches.push("API provider schema mismatch.");
+        }
+      } catch {
+        mismatches.push("API providers endpoint is not readable.");
+      }
+
+      try {
+        const listData = await loadOutboxResults(200);
+        unimportedResults = countUnimportedOutboxResults(listData.results);
+      } catch {
+        mismatches.push("Outbox results endpoint is not readable.");
+      }
+    }
+
+    supervisorHealth = await loadDevSupervisorHealth().catch(() => undefined);
+    if (supervisorHealth) {
+      mismatches.push(...supervisorHealth.mismatches);
+      if (apiHealth && supervisorHealth.api.port !== apiHealth.port) {
+        mismatches.push(`API port mismatch: UI reached ${apiHealth.port}, supervisor expects ${supervisorHealth.api.port}.`);
+      }
+    }
+
+    const repairAvailable = Boolean(supervisorHealth);
+    const state: CockpitHealthState = !apiHealth ? "broken" : mismatches.length > 0 || unimportedResults > 0 ? "warning" : "ok";
+    const message = !apiHealth
+      ? "Cockpit connection issue: API route is not Image Cockpit."
+      : mismatches.length > 0
+        ? mismatches[0] ?? "Cockpit warning."
+        : unimportedResults > 0
+          ? `${unimportedResults} outbox result${unimportedResults === 1 ? "" : "s"} can be recovered.`
+          : "Cockpit OK.";
+
+    setCockpitHealth({
+      state,
+      checkedAt,
+      message,
+      api: apiHealth,
+      supervisor: supervisorHealth,
+      mismatches,
+      unimportedResults,
+      repairAvailable
+    });
+  }
+
+  async function repairCockpit() {
+    const confirmed = window.confirm(
+      "Cockpitを修復します。Vite/API/supervisorの整合性だけを確認し、repo、outbox画像、status、logsは削除しません。running Codex jobは停止しません。"
+    );
+    if (!confirmed) return;
+
+    setIsCockpitRepairing(true);
+    setCockpitHealth((current) => ({ ...current, state: "repairing", message: "Repairing Cockpit." }));
+    try {
+      await postDevSupervisorRepair();
+      await runCockpitHealthCheck({ quiet: true });
+      await recoverUnimportedOutboxResults();
+      setStatus("Cockpit repair complete. API health was rechecked and outbox recovery ran.");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Cockpit repair failed.";
+      setStatus(message);
+      setCockpitHealth((current) => ({
+        ...current,
+        state: "broken",
+        message
+      }));
+    } finally {
+      setIsCockpitRepairing(false);
     }
   }
 
@@ -4310,8 +4691,16 @@ function App() {
       adopted: false,
       source: "generate",
       derivedFromId: pendingJob.sourceImageId,
-      derivedFromName: pendingJob.sourceImageName
+      derivedFromName: pendingJob.sourceImageName,
+      outboxImportKey: buildOutboxImportKey("animation-sheet", { jobId: pendingJob.id, filenames: [imported.name] })
     };
+    const duplicate = prependHistoryItemWithDedupe(historyRef.current, item);
+    if (!duplicate.added) {
+      setSelectedId(duplicate.item.id);
+      setSelectedFrameId("");
+      setStatus(`${copy.statusInboxImported}: ${item.name} (already imported)`);
+      return;
+    }
     const newFrames = await splitImageIntoFrames(transparentSheetDataUrl, baseName, spriteGrid, item.id, spriteCell, {
       normalizeOpaqueBounds: spriteVariant === "standard",
       residueChromaKey: chromaKey.name
@@ -4321,8 +4710,7 @@ function App() {
     setAnimationGenerationMode(spriteVariant);
     if (spriteVariant !== "hatch-pet") setAnimationChromaKey(chromaKey.name);
     setGrid(spriteGrid);
-    setHistory((current) => [item, ...current]);
-    setSelectedId(item.id);
+    addLocalInboxHistoryItem(item);
     setFrames((current) => [...current, ...newFrames]);
     setActiveActionName(actionName);
     setActions((current) =>
@@ -4357,16 +4745,26 @@ function App() {
       adopted: false,
       source: "generate",
       derivedFromId: pendingJob.sourceImageId,
-      derivedFromName: pendingJob.sourceImageName
+      derivedFromName: pendingJob.sourceImageName,
+      outboxImportKey: buildOutboxImportKey("animation-sheet", {
+        jobId: pendingJob.id,
+        filenames: importedResults.map((result) => result.name)
+      })
     };
+    const duplicate = prependHistoryItemWithDedupe(historyRef.current, item);
+    if (!duplicate.added) {
+      setSelectedId(duplicate.item.id);
+      setSelectedFrameId("");
+      setStatus(`${copy.statusInboxImported}: ${item.name} (already imported)`);
+      return;
+    }
     const newFrames = await splitImageIntoFrames(combinedDataUrl, itemName.replace(/\.[^.]+$/, ""), DIRECTIONAL_HATCH_PET_GRID, item.id, HATCH_PET_CELL);
     if (newFrames.length === 0) throw new Error("Returned directional hatch-pet atlases could not be split into frames.");
 
     setAnimationGenerationMode("directional-hatch-pet");
     setAnimationChromaKey(chromaKey.name);
     setGrid(DIRECTIONAL_HATCH_PET_GRID);
-    setHistory((current) => [item, ...current]);
-    setSelectedId(item.id);
+    addLocalInboxHistoryItem(item);
     setFrames((current) => [...current, ...newFrames]);
     setActiveActionName(actionName);
     setActions((current) =>
@@ -4385,7 +4783,8 @@ function App() {
   async function importDirectionSplitAnimationResults(
     importedResults: CodexOutboxImportResponse[],
     manifest: DirectionSplitAnimationManifest | null,
-    pendingJob: CodexJobQueueItem
+    pendingJob: CodexJobQueueItem,
+    manifestName = ""
   ) {
     const actionName = pendingJob.actionName ?? activeAction.name;
     const spriteCell = pendingJob.cell ?? STANDARD_ANIMATION_CELL;
@@ -4405,16 +4804,27 @@ function App() {
       adopted: false,
       source: "generate",
       derivedFromId: pendingJob.sourceImageId,
-      derivedFromName: pendingJob.sourceImageName
+      derivedFromName: pendingJob.sourceImageName,
+      outboxImportKey: buildOutboxImportKey("direction-split", {
+        jobId: pendingJob.id,
+        filenames: importedResults.map((result) => result.name),
+        manifestName
+      })
     };
+    const duplicate = prependHistoryItemWithDedupe(historyRef.current, item);
+    if (!duplicate.added) {
+      setSelectedId(duplicate.item.id);
+      setSelectedFrameId("");
+      setStatus(`${copy.statusInboxImported}: ${item.name} (already imported)`);
+      return;
+    }
     const newFrames = await splitImageIntoFrames(composed.dataUrl, itemName.replace(/\.[^.]+$/, ""), ANIMATION_SHEET_GRID, item.id, spriteCell);
     if (newFrames.length === 0) throw new Error("Returned direction split animation could not be split into frames.");
 
     setAnimationGenerationMode("standard");
     setAnimationChromaKey(chromaKey.name);
     setGrid(ANIMATION_SHEET_GRID);
-    setHistory((current) => [item, ...current]);
-    setSelectedId(item.id);
+    addLocalInboxHistoryItem(item);
     setFrames((current) => [...current, ...newFrames]);
     setActiveActionName(actionName);
     setActions((current) =>
@@ -4452,13 +4862,18 @@ function App() {
       adopted: false,
       source: "inbox",
       derivedFromId: pendingJob.sourceImageId,
-      derivedFromName: pendingJob.sourceImageName
+      derivedFromName: pendingJob.sourceImageName,
+      outboxImportKey: buildOutboxImportKey("bronze-candidate", {
+        jobId: pendingJob.id,
+        filenames: [firstCandidate.name]
+      })
     };
-    setHistory((current) => [item, ...current]);
-    setSelectedId(item.id);
+    const result = addLocalInboxHistoryItem(item);
     setAnimationGenerationMode("standard");
     setStatus(
-      `${language === "ja" ? "Bronze候補" : "Bronze candidate"}: ${item.name}. ${summarizeCodexImportFailureReason(error)}`
+      result.added
+        ? `${language === "ja" ? "Bronze候補" : "Bronze candidate"}: ${item.name}. ${summarizeCodexImportFailureReason(error)}`
+        : `${language === "ja" ? "取り込み済みのBronze候補" : "Bronze candidate already imported"}: ${result.item.name}. ${summarizeCodexImportFailureReason(error)}`
     );
   }
 
@@ -4521,7 +4936,7 @@ function App() {
     if (!options.background) setIsBusy(true);
     try {
       const pendingJob = options.job;
-      const listResponse = await fetch("/api/codex/results");
+      const listResponse = await fetch(`/api/codex/results${options.limit ? `?limit=${options.limit}` : ""}`);
       if (!listResponse.ok) throw new Error(await listResponse.text());
       const listData = (await listResponse.json()) as { outboxPath: string; results: CodexOutboxResult[] };
       const newerThanTime = options.newerThan ? Date.parse(options.newerThan) : Number.NEGATIVE_INFINITY;
@@ -4571,7 +4986,7 @@ function App() {
           }
           const importedResults = await Promise.all(directionSplitSelection.directionResults.map((result) => fetchOutboxResult(result.name)));
           try {
-            await importDirectionSplitAnimationResults(importedResults, manifest, pendingJob);
+            await importDirectionSplitAnimationResults(importedResults, manifest, pendingJob, manifestResult?.name);
             clearCodexFailureNotice(pendingJob.id);
           } catch (error) {
             await importDirectionSplitBronzeCandidate(importedResults, pendingJob, error);
@@ -4628,17 +5043,25 @@ function App() {
         adopted: false,
         source: "inbox",
         derivedFromId: isImageEditImport ? imageEditBefore?.id : undefined,
-        derivedFromName: isImageEditImport ? imageEditSourceName : undefined
+        derivedFromName: isImageEditImport ? imageEditSourceName : undefined,
+        outboxImportKey: buildOutboxImportKey(isImageEditImport ? "image-edit" : "single", {
+          jobId: pendingJob?.id,
+          filenames: [imported.name]
+        })
       };
-      if (isImageEditImport && imageEditBefore) setImageEditComparison({ before: imageEditBefore, after: item, jobId: pendingJob?.id ?? imageEditComparison?.jobId });
-      setHistory((current) => [item, ...current]);
-      setSelectedId(item.id);
-      setSelectedFrameId("");
+      const inserted = addLocalInboxHistoryItem(item);
+      if (isImageEditImport && imageEditBefore) {
+        setImageEditComparison({
+          before: imageEditBefore,
+          after: inserted.item,
+          jobId: pendingJob?.id ?? imageEditComparison?.jobId
+        });
+      }
       if (pendingJob) {
         clearCodexFailureNotice(pendingJob.id);
         removeCodexJob(pendingJob.id, "completed");
       }
-      setStatus(`${copy.statusInboxImported}: ${imported.name}`);
+      setStatus(`${copy.statusInboxImported}: ${imported.name}${inserted.added ? "" : " (already imported)"}`);
       return true;
     } catch (error) {
       if (options.throwOnError) throw error;
@@ -5308,6 +5731,8 @@ function App() {
     : resultDownloadIsAnimation
       ? copy.animationReady
       : copy.imageDownloadReady;
+  const recoverResultsLabel = language === "ja" ? "結果を再取り込み" : "Recover Results";
+  const dedupeHistoryLabel = language === "ja" ? "重複整理" : "Dedupe History";
 
   function openDownloadModal() {
     if (!resultDownloadReady) return;
@@ -5332,6 +5757,7 @@ function App() {
         onOpenLocalhostOrigin={openLocalhostOrigin}
         onForceLoad={() => setForceLargeStateLoad(true)}
         onClear={clearLocalStateScope}
+        onDedupeHistory={dedupePersistedHistoryNow}
       />
     );
   }
@@ -5376,6 +5802,15 @@ function App() {
               </em>
             )}
           </div>
+          <CockpitHealthPanel
+            report={cockpitHealth}
+            language={language}
+            repairing={isCockpitRepairing}
+            recovering={isRecoveringOutboxResults}
+            onRefresh={() => void runCockpitHealthCheck()}
+            onRecover={() => void recoverUnimportedOutboxResults()}
+            onRepair={() => void repairCockpit()}
+          />
           <WorkflowTabs language={language} activeMode={workflowMode} onSelect={beginWorkflow} />
 
           {isAnimationWorkflow ? (
@@ -5932,6 +6367,16 @@ function App() {
 
         <aside className="panel history-panel">
           <PanelTitle index="3" title={copy.results} />
+          <div className="history-tools">
+            <button className="secondary-button mini" onClick={() => void recoverUnimportedOutboxResults()} disabled={isRecoveringOutboxResults}>
+              <Archive size={14} aria-hidden="true" />
+              {recoverResultsLabel}
+            </button>
+            <button className="secondary-button mini" onClick={() => void dedupeLocalInboxHistoryNow()} disabled={isDedupingHistory}>
+              <Scissors size={14} aria-hidden="true" />
+              {dedupeHistoryLabel}
+            </button>
+          </div>
           {providerId === "codex-handoff" && codexJobs.length > 0 && (
             <CodexJobShelf jobs={codexJobs} maxActive={MAX_ACTIVE_CODEX_JOBS} language={language} />
           )}
@@ -6235,7 +6680,8 @@ function LocalStateRecoveryScreen({
   onOpenNormalMode,
   onOpenLocalhostOrigin,
   onForceLoad,
-  onClear
+  onClear,
+  onDedupeHistory
 }: {
   mode: LocalStateScreenMode;
   preflight?: LocalStateStoragePreflight;
@@ -6252,6 +6698,7 @@ function LocalStateRecoveryScreen({
   onOpenLocalhostOrigin: () => void;
   onForceLoad: () => void;
   onClear: (scope: LocalStateResetScope) => void;
+  onDedupeHistory: () => void;
 }) {
   const title =
     mode === "checking"
@@ -6358,6 +6805,10 @@ function LocalStateRecoveryScreen({
               <span>These actions never delete repository files, codex-handoff/outbox, docs/qa, or generated PNG files.</span>
             </div>
             <div className="storage-reset-grid">
+              <button className="secondary-button" onClick={onDedupeHistory} disabled={clearingScope === "history"}>
+                <Scissors size={16} aria-hidden="true" />
+                重複した取り込み履歴を整理
+              </button>
               <button className="secondary-button" onClick={() => onClear("history")} disabled={clearingScope === "history"}>
                 <Trash2 size={16} aria-hidden="true" />
                 Clear history
@@ -6772,6 +7223,70 @@ function CodexLogPanel({
           ))}
         </div>
       )}
+    </section>
+  );
+}
+
+function CockpitHealthPanel({
+  report,
+  language,
+  repairing,
+  recovering,
+  onRefresh,
+  onRecover,
+  onRepair
+}: {
+  report: CockpitHealthReport;
+  language: Language;
+  repairing: boolean;
+  recovering: boolean;
+  onRefresh: () => void;
+  onRecover: () => void;
+  onRepair: () => void;
+}) {
+  const stateLabel =
+    report.state === "ok"
+      ? "OK"
+      : report.state === "warning"
+        ? "Warning"
+        : report.state === "broken"
+          ? "Broken"
+          : report.state === "repairing"
+            ? "Repairing"
+            : "Checking";
+  const apiLabel = report.api ? `API ${report.api.port}` : "API mismatch";
+  const runnerLabel = report.api?.runner.state ?? "unknown";
+  const supervisorLabel = report.supervisor ? `Supervisor ${report.supervisor.supervisor.port}` : "Supervisor off";
+  const recoverLabel = language === "ja" ? "結果を再取り込み" : "Recover Results";
+  const repairLabel = language === "ja" ? "Cockpitを修復" : "Repair Cockpit";
+  const refreshLabel = language === "ja" ? "診断" : "Diagnose";
+  return (
+    <section className={`cockpit-health-panel state-${report.state}`}>
+      <div className="cockpit-health-main">
+        <strong>
+          {report.state === "ok" ? <CheckCircle2 size={15} aria-hidden="true" /> : <CircleAlert size={15} aria-hidden="true" />}
+          Cockpit: {stateLabel}
+        </strong>
+        <span>{report.message}</span>
+        <small>
+          {apiLabel} / Runner {runnerLabel} / {supervisorLabel}
+          {report.unimportedResults > 0 ? ` / ${report.unimportedResults} unimported` : ""}
+        </small>
+      </div>
+      <div className="cockpit-health-actions">
+        <button className="secondary-button mini" onClick={onRefresh} disabled={report.state === "checking" || repairing}>
+          <RefreshCw size={14} aria-hidden="true" />
+          {refreshLabel}
+        </button>
+        <button className="secondary-button mini" onClick={onRecover} disabled={recovering || report.state === "broken"}>
+          <Archive size={14} aria-hidden="true" />
+          {recoverLabel}
+        </button>
+        <button className="secondary-button mini" onClick={onRepair} disabled={repairing || !report.repairAvailable}>
+          <Settings size={14} aria-hidden="true" />
+          {repairLabel}
+        </button>
+      </div>
     </section>
   );
 }
@@ -8052,6 +8567,57 @@ function runnerPreflightLabel(runner: CodexRunnerPreflight | null, copy: Record<
   if (runner.state === "ready") return copy.runnerReady;
   if (runner.state === "disabled") return copy.runnerDisabled;
   return runner.errorCode ? `${copy.runnerUnavailable}: ${runner.errorCode}` : copy.runnerUnavailable;
+}
+
+async function fetchJsonWithTimeout<T>(url: string, init: RequestInit = {}, timeoutMs = 2500): Promise<T> {
+  const controller = new AbortController();
+  const timeoutId = window.setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const response = await fetch(url, { ...init, signal: controller.signal });
+    if (!response.ok) throw new Error(await response.text());
+    return (await response.json()) as T;
+  } finally {
+    window.clearTimeout(timeoutId);
+  }
+}
+
+async function loadDevSupervisorHealth() {
+  try {
+    const health = await fetchJsonWithTimeout<ImageCockpitDevSupervisorHealth>("/api/dev/health");
+    if (isDevSupervisorHealth(health)) return health;
+  } catch {
+    // Fall back to the direct loopback supervisor when Vite's /api proxy is misdirected.
+  }
+  const health = await fetchJsonWithTimeout<ImageCockpitDevSupervisorHealth>(`${devSupervisorBaseUrl()}/api/dev/health`);
+  if (!isDevSupervisorHealth(health)) throw new Error("Dev supervisor health did not return Image Cockpit supervisor metadata.");
+  return health;
+}
+
+async function postDevSupervisorRepair() {
+  try {
+    const result = await fetchJsonWithTimeout<{ ok?: boolean }>("/api/dev/repair", { method: "POST" }, 8000);
+    if (result.ok) return result;
+  } catch {
+    // Fall back to direct loopback when the UI is alive but /api points at the wrong server.
+  }
+  const result = await fetchJsonWithTimeout<{ ok?: boolean }>(`${devSupervisorBaseUrl()}/api/dev/repair`, { method: "POST" }, 12000);
+  if (!result.ok) throw new Error("Dev supervisor repair did not complete.");
+  return result;
+}
+
+function devSupervisorBaseUrl() {
+  const rawPort = Number(import.meta.env.VITE_IMAGE_COCKPIT_SUPERVISOR_PORT ?? DEFAULT_SUPERVISOR_PORT);
+  const port = Number.isFinite(rawPort) && rawPort > 0 ? rawPort : DEFAULT_SUPERVISOR_PORT;
+  return `http://127.0.0.1:${port}`;
+}
+
+function isDevSupervisorHealth(value: unknown): value is ImageCockpitDevSupervisorHealth {
+  return Boolean(
+    value &&
+      typeof value === "object" &&
+      (value as ImageCockpitDevSupervisorHealth).app === "image-cockpit" &&
+      (value as ImageCockpitDevSupervisorHealth).role === "supervisor"
+  );
 }
 
 async function loadCodexRunnerStatus(jobId: string) {
