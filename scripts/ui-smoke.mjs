@@ -4,6 +4,7 @@ import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { createServer } from "node:net";
 import { tmpdir } from "node:os";
 import { delimiter, join } from "node:path";
+import { deflateSync } from "node:zlib";
 import JSZip from "jszip";
 
 const nodeCommand = process.execPath;
@@ -43,6 +44,7 @@ const handoffDir = join(tempRoot, "handoff");
 const chromeProfileDir = join(tempRoot, "chrome-profile");
 const mockRunnerPath = join(tempRoot, "mock-codex-runner.mjs");
 const mockAnimationPackPath = join(tempRoot, "mock-run-cycle.image-cockpit-animation.zip");
+const mockFullBodySourcePath = join(tempRoot, "mock-full-body-source.png");
 const mockImportFailureMarkerPath = join(tempRoot, "mock-direction-split-import-failure.flag");
 const mockPartialDirectionSplitMarkerPath = join(tempRoot, "mock-partial-direction-split-recovery.flag");
 const mockManifestFirstDirectionSplitMarkerPath = join(tempRoot, "mock-manifest-first-direction-split-recovery.flag");
@@ -59,6 +61,7 @@ let cdp;
 try {
   await writeFile(mockRunnerPath, mockRunnerSource(), "utf8");
   await writeFile(mockAnimationPackPath, Buffer.from(await createMockAnimationPack()));
+  await writeFile(mockFullBodySourcePath, makeFullBodySourcePng());
   apiServer = startProcess(nodeCommand, ["node_modules/tsx/dist/cli.mjs", "server/index.ts"], {
     IMAGE_COCKPIT_API_PORT: String(apiPort),
     IMAGE_COCKPIT_HANDOFF_DIR: handoffDir,
@@ -718,6 +721,7 @@ async function assertCodexLogFullscreen() {
   await evaluate(`window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }))`);
   await waitForEval(() => `!document.querySelector(".codex-log-panel")?.classList.contains("fullscreen")`, "mobile Codex log fullscreen closes with Escape");
   await cdp.send("Emulation.clearDeviceMetricsOverride");
+  await cdp.send("Emulation.setDeviceMetricsOverride", { width: 1280, height: 720, deviceScaleFactor: 1, mobile: false });
   await delay(250);
 }
 
@@ -900,6 +904,11 @@ async function assertImageEditing() {
   assert(!snapshot.buttons.includes("Annotated PNG"), "Image Editing should hide the old annotation PNG button");
   assert(!snapshot.buttons.includes("Brush"), "Image Editing should hide the old brush tool");
   assert(!snapshot.buttons.includes("Arrow"), "Image Editing should hide the old arrow tool");
+  await setFileInputFiles('input[accept="image/*"]', [mockFullBodySourcePath]);
+  await waitForEval(
+    () => `document.querySelector("canvas")?.dataset.previewName === "mock-full-body-source.png"`,
+    "Image Editing full-body source upload"
+  );
   await assertDownloadModal({
     expectedButtons: ["PNG"],
     absentButtons: ["Animated GIF", "Animated WebP", "Sprite Sheet", "Export Animation Pack"],
@@ -914,6 +923,7 @@ async function assertImageEditing() {
     })()`,
     "Image Editing canvas ready"
   );
+  await assertImageEditingFullBodyFitWithLogs("Image Editing full-body source canvas");
 
   await dragCanvasRegion();
   await waitForEval(() => `document.querySelectorAll(".annotation-region-row").length === 1`, "Image Editing numbered region");
@@ -942,6 +952,7 @@ async function assertImageEditing() {
   assert(snapshot.resultDownloadActionButtons === 1, "Image Editing edited result should keep one compact Download button");
   assert(snapshot.resultDownloadGridButtonsInWorkspace === 0, "Image Editing edited result should keep detailed downloads in the modal");
   assert(snapshot.canvasPreviewMode === "edit", `Image Editing should keep edit canvas mode after import, got ${snapshot.canvasPreviewMode}`);
+  await assertImageEditingFullBodyFitWithLogs("Image Editing edited full-body result");
   await assertSelectedPreviewHasTransparentPixels("Image Editing edited result preview should preserve transparent alpha");
   await installDownloadSpy();
   await assertDownloadModal({
@@ -956,6 +967,74 @@ async function assertImageEditing() {
   await assertSourceStatusRoundTrip("Image Editing", ".image-edit-source-status.source-status-button");
   await assertNoBrowserErrors("Image Editing source round trip");
   await selectWorkflowTab("Pixel Art Generation");
+}
+
+async function assertImageEditingFullBodyFitWithLogs(label) {
+  const metrics = await evaluate(`(() => {
+    const rectFor = (node) => {
+      if (!node) return null;
+      const rect = node.getBoundingClientRect();
+      return {
+        top: rect.top,
+        right: rect.right,
+        bottom: rect.bottom,
+        left: rect.left,
+        width: rect.width,
+        height: rect.height
+      };
+    };
+    const log = document.querySelector(".codex-log-panel");
+    const workspace = document.querySelector(".workspace");
+    const canvasPanel = document.querySelector(".canvas-panel");
+    const stage = document.querySelector(".canvas-stage");
+    const canvas = document.querySelector("canvas");
+    const resultFrame = document.querySelector(".result-preview-frame");
+    const downloadPanel = document.querySelector(".workspace .result-download-panel");
+    const canvasVisible = Boolean(canvas && getComputedStyle(canvas).display !== "none");
+    const activePreview = resultFrame || (canvasVisible ? canvas : null);
+    const activeStyle = activePreview ? getComputedStyle(activePreview) : null;
+    const logRect = rectFor(log);
+    const workspaceRect = rectFor(workspace);
+    const panelRect = rectFor(canvasPanel);
+    const stageRect = rectFor(stage);
+    const previewRect = rectFor(activePreview);
+    const downloadRect = rectFor(downloadPanel);
+    return {
+      logVisible: Boolean(logRect),
+      activeVisible: Boolean(previewRect && previewRect.width > 0 && previewRect.height > 0),
+      activeTag: activePreview?.tagName || "",
+      activeClass: activePreview?.className || "",
+      activeStyleHeight: activeStyle?.height || "",
+      activeStyleWidth: activeStyle?.width || "",
+      activeStyleMaxHeight: activeStyle?.maxHeight || "",
+      activeStyleMaxWidth: activeStyle?.maxWidth || "",
+      activeHeight: Math.round(previewRect?.height || 0),
+      stageHeight: Math.round(stageRect?.height || 0),
+      panelHeight: Math.round(panelRect?.height || 0),
+      logTop: Math.round(logRect?.top || 0),
+      workspaceBottom: Math.round(workspaceRect?.bottom || 0),
+      downloadBottom: Math.round(downloadRect?.bottom || 0),
+      activeFitsStage: Boolean(previewRect && stageRect
+        && previewRect.top >= stageRect.top - 1
+        && previewRect.left >= stageRect.left - 1
+        && previewRect.right <= stageRect.right + 1
+        && previewRect.bottom <= stageRect.bottom + 1),
+      stageFitsPanel: Boolean(stageRect && panelRect
+        && stageRect.top >= panelRect.top - 1
+        && stageRect.bottom <= panelRect.bottom + 1),
+      workspaceBeforeLog: Boolean(!logRect || !workspaceRect || workspaceRect.bottom <= logRect.top + 1),
+      downloadBeforeLog: Boolean(!logRect || !downloadRect || downloadRect.bottom <= logRect.top + 1),
+      distanceToLog: Math.round((logRect?.top || 0) - (workspaceRect?.bottom || 0))
+    };
+  })()`);
+  assert(metrics.logVisible, `${label}: Codex log panel should be visible while checking full-body fit`);
+  assert(metrics.activeVisible, `${label}: active preview should be visible`);
+  assert(metrics.activeHeight >= 160, `${label}: active preview should remain inspectable, got height ${metrics.activeHeight}`);
+  assert(metrics.stageHeight >= 220, `${label}: canvas stage should reserve enough height for full-body inspection, got ${metrics.stageHeight}`);
+  assert(metrics.activeFitsStage, `${label}: active preview should fit inside the canvas stage: ${JSON.stringify(metrics)}`);
+  assert(metrics.stageFitsPanel, `${label}: canvas stage should fit inside the canvas panel: ${JSON.stringify(metrics)}`);
+  assert(metrics.workspaceBeforeLog, `${label}: workspace should not overlap the Codex log panel, distance ${metrics.distanceToLog}: ${JSON.stringify(metrics)}`);
+  assert(metrics.downloadBeforeLog, `${label}: download panel should stay above the Codex log panel: ${JSON.stringify(metrics)}`);
 }
 
 async function assertAnimationResultNotEditable() {
@@ -1804,6 +1883,85 @@ async function createMockAnimationPack() {
   return zip.generateAsync({ type: "uint8array" });
 }
 
+function makeFullBodySourcePng() {
+  const width = 320;
+  const height = 960;
+  const bytesPerPixel = 4;
+  const stride = 1 + width * bytesPerPixel;
+  const raw = Buffer.alloc(stride * height);
+  for (let y = 0; y < height; y += 1) {
+    const rowOffset = y * stride;
+    raw[rowOffset] = 0;
+    for (let x = 0; x < width; x += 1) {
+      const offset = rowOffset + 1 + x * bytesPerPixel;
+      raw[offset] = 0;
+      raw[offset + 1] = 0;
+      raw[offset + 2] = 0;
+      raw[offset + 3] = 0;
+      const centerX = width / 2;
+      const head = (x - centerX) ** 2 + (y - 118) ** 2 <= 54 ** 2;
+      const hair = (x - centerX) ** 2 + (y - 76) ** 2 <= 64 ** 2;
+      const body = Math.abs(x - centerX) <= 48 && y >= 168 && y <= 520;
+      const leftArm = Math.abs(x - (centerX - 74)) <= 14 && y >= 205 && y <= 500;
+      const rightArm = Math.abs(x - (centerX + 74)) <= 14 && y >= 205 && y <= 500;
+      const leftLeg = Math.abs(x - (centerX - 30)) <= 18 && y >= 518 && y <= 840;
+      const rightLeg = Math.abs(x - (centerX + 30)) <= 18 && y >= 518 && y <= 840;
+      const feet = y >= 838 && y <= 888 && Math.abs(x - centerX) <= 88;
+      const staff = Math.abs(x - (centerX + 108)) <= 6 && y >= 96 && y <= 892;
+      if (hair || staff) {
+        raw[offset] = 36;
+        raw[offset + 1] = 30;
+        raw[offset + 2] = 74;
+        raw[offset + 3] = 255;
+      }
+      if (head) {
+        raw[offset] = 236;
+        raw[offset + 1] = 186;
+        raw[offset + 2] = 132;
+        raw[offset + 3] = 255;
+      }
+      if (body || leftArm || rightArm || leftLeg || rightLeg || feet) {
+        raw[offset] = body ? 34 : 26;
+        raw[offset + 1] = body ? 122 : 82;
+        raw[offset + 2] = body ? 95 : 70;
+        raw[offset + 3] = 255;
+      }
+    }
+  }
+  return makePng(width, height, raw);
+}
+
+function makePng(width, height, raw) {
+  return Buffer.concat([
+    Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]),
+    chunk("IHDR", Buffer.concat([u32(width), u32(height), Buffer.from([8, 6, 0, 0, 0])])),
+    chunk("IDAT", deflateSync(raw)),
+    chunk("IEND", Buffer.alloc(0))
+  ]);
+}
+
+function chunk(type, data) {
+  const typeBytes = Buffer.from(type, "ascii");
+  return Buffer.concat([u32(data.length), typeBytes, data, u32(crc32(Buffer.concat([typeBytes, data])))]);
+}
+
+function u32(value) {
+  const buffer = Buffer.alloc(4);
+  buffer.writeUInt32BE(value >>> 0, 0);
+  return buffer;
+}
+
+function crc32(buffer) {
+  let crc = 0xffffffff;
+  for (const byte of buffer) {
+    crc ^= byte;
+    for (let bit = 0; bit < 8; bit += 1) {
+      crc = (crc >>> 1) ^ (0xedb88320 & -(crc & 1));
+    }
+  }
+  return (crc ^ 0xffffffff) >>> 0;
+}
+
 function mockRunnerSource() {
   return `import { existsSync } from "node:fs";
 import { readFile, rm, writeFile } from "node:fs/promises";
@@ -1858,11 +2016,17 @@ if (job.prompt.includes("policy blocked ui smoke")) {
 
 if (job.workflowMode === "image-edit") {
   const comments = (job.annotationContext?.annotations || []).map((annotation) => annotation.comment || "").join("\\n");
+  const annotation = (job.annotationContext?.annotations || [])[0] || {};
+  const promptContract = [job.prompt, job.jobNotes, ...(job.notes || [])].join("\\n");
   if (!job.selectedImage?.assetPath || job.annotationContext?.annotationCount < 1 || !comments.includes("text X")) {
     console.error("image edit job missing selected asset, numbered annotation, or comment");
     process.exit(4);
   }
-  await writeFile(join(outboxDir, \`\${jobId}.png\`), makeSpriteSheetPng(512, 512, 1, 1, 512, 512, [0, 0, 0, 0]));
+  if (!annotation.imageRectNormalized || !annotation.imageRectPixels || !promptContract.includes("Preserve the original canvas size and aspect ratio") || !promptContract.includes("Do not zoom in, crop, or reframe")) {
+    console.error("image edit job missing source-image coordinate metadata or full-body no-crop prompt contract");
+    process.exit(4);
+  }
+  await writeFile(join(outboxDir, \`\${jobId}.png\`), makeSpriteSheetPng(320, 960, 1, 1, 320, 960, [0, 0, 0, 0]));
   console.log(\`mock transparent image edit completed \${jobId}\`);
   process.exit(0);
 }

@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
+  annotationImageCoordinates,
   getNextHistoryRenderLimit,
   getVisibleHistoryCount,
   HISTORY_RENDER_BATCH_SIZE,
+  imageDisplayRectForCanvas,
   INITIAL_HISTORY_RENDER_COUNT,
   isCharacterGreenPixel,
   isDirectionSplitAnimationManifestName,
@@ -30,7 +32,7 @@ import {
   STORAGE_HARD_BLOCK_BYTES,
   STORAGE_WARNING_BYTES
 } from "./lib/storage";
-import type { CodexArtifactStatus, CodexRunnerStatus, HistoryItem, SpriteFrame } from "./types";
+import type { Annotation, CodexArtifactStatus, CodexRunnerStatus, HistoryItem, SpriteFrame } from "./types";
 
 describe("Codex runner wait state", () => {
   it("keeps waiting only when the runner is actively running or status is not loaded yet", () => {
@@ -123,6 +125,35 @@ describe("history result rendering window", () => {
   it("keeps the selected result visible even when it is outside the current window", () => {
     expect(getVisibleHistoryCount(240, INITIAL_HISTORY_RENDER_COUNT, 137)).toBe(138);
     expect(getVisibleHistoryCount(40, INITIAL_HISTORY_RENDER_COUNT, 30)).toBe(40);
+  });
+});
+
+describe("Image Editing annotation coordinates", () => {
+  it("fits a portrait full-body source inside the edit canvas padding", () => {
+    const displayed = imageDisplayRectForCanvas({ width: 300, height: 900 });
+
+    expect(displayed.x).toBe(388);
+    expect(displayed.y).toBe(44);
+    expect(displayed.width).toBe(144);
+    expect(displayed.height).toBe(432);
+  });
+
+  it("maps canvas annotations to normalized and pixel source-image rectangles", () => {
+    const annotation = makeAnnotation([{ x: 388, y: 44 }, { x: 532, y: 476 }]);
+    const coordinates = annotationImageCoordinates(annotation, { width: 300, height: 900 });
+
+    expect(coordinates.imageRectNormalized).toEqual({ x: 0, y: 0, width: 1, height: 1 });
+    expect(coordinates.imageRectPixels).toEqual({ x: 0, y: 0, width: 300, height: 900 });
+    expect(coordinates.imageRectClamped).toBe(false);
+  });
+
+  it("clamps canvas annotations to the actual displayed image rectangle", () => {
+    const annotation = makeAnnotation([{ x: 320, y: 20 }, { x: 600, y: 500 }]);
+    const coordinates = annotationImageCoordinates(annotation, { width: 300, height: 900 });
+
+    expect(coordinates.imageRectNormalized).toEqual({ x: 0, y: 0, width: 1, height: 1 });
+    expect(coordinates.imageRectPixels).toEqual({ x: 0, y: 0, width: 300, height: 900 });
+    expect(coordinates.imageRectClamped).toBe(true);
   });
 });
 
@@ -409,6 +440,16 @@ function makeFrame(id: string, overrides: Partial<SpriteFrame> = {}): SpriteFram
     height: 1,
     index: 0,
     ...overrides
+  };
+}
+
+function makeAnnotation(points: Annotation["points"]): Annotation {
+  return {
+    id: "annotation-test",
+    tool: "rect",
+    color: "#ff0000",
+    width: 3,
+    points
   };
 }
 

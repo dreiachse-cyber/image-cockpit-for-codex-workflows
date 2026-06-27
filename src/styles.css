@@ -239,14 +239,17 @@ button {
 .codex-log-panel {
   grid-row: 3;
   min-height: 0;
-  max-height: 184px;
+  height: 112px;
+  max-height: 112px;
   display: grid;
   grid-template-rows: 34px minmax(0, 1fr);
   border-top: 1px solid var(--line);
   background: #f9fbf9;
+  overflow: hidden;
 }
 
 .codex-log-panel.collapsed {
+  height: 34px;
   max-height: 34px;
   grid-template-rows: 34px;
 }
@@ -664,12 +667,14 @@ button {
 
 .workspace.with-downloads {
   display: grid;
-  grid-template-rows: minmax(360px, 1fr) auto;
+  grid-template-rows: minmax(340px, 1fr) auto;
   gap: 6px;
 }
 
 .canvas-panel {
   height: 100%;
+  min-width: 0;
+  min-height: 0;
   display: grid;
   grid-template-rows: 38px 44px minmax(0, 1fr) auto;
 }
@@ -1782,15 +1787,20 @@ button:disabled {
   position: relative;
   display: grid;
   place-items: center;
+  min-width: 0;
   min-height: 0;
+  height: 100%;
+  container-type: size;
   padding: 8px;
+  box-sizing: border-box;
   background: #f0f2f0;
   overflow: hidden;
 }
 
 .canvas-stage canvas {
-  width: 100%;
+  width: min(100%, calc(100cqh * 920 / 520));
   height: auto;
+  max-width: 100%;
   max-height: 100%;
   aspect-ratio: 920 / 520;
   object-fit: contain;

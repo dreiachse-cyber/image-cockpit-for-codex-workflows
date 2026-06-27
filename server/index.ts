@@ -333,7 +333,7 @@ const server = createServer(async (request, response) => {
         annotationContext: {
           annotations,
           annotationCount: annotations.length,
-          coordinateSpace: "Image Cockpit canvas coordinates",
+          coordinateSpace: "Image Cockpit canvas coordinates plus source image normalized and pixel rectangles",
           canvasSize: { width: 920, height: 520 }
         },
         spriteContext: {
@@ -452,7 +452,12 @@ function workflowNotes(mode: CodexWorkflowMode) {
       "Use selectedImage.assetPath as the source image when present.",
       "Use imagegen / built-in image_gen editing when available so the result is a real edited raster image.",
       "Use annotationContext.annotations, numbered region comments, prompt, and jobNotes as the user's edit instructions.",
-      "Preserve unrelated pixels when possible, and return the edited image as a real PNG or WebP with the job id filename prefix.",
+      "Use annotationContext.annotations[].imageRectNormalized and imageRectPixels when present to target the source image region, while retaining the original canvas coordinate rect for visual context.",
+      "Preserve the original canvas size and aspect ratio. Do not zoom in, crop, or reframe the image into a portrait/detail shot.",
+      "Keep the full character visible, including head, hair, hands, equipment, and both feet.",
+      "Treat selectedImage.assetPath as the exact base image to edit, not inspiration for a new variant.",
+      "Preserve transparency when present; if transparency cannot be preserved, use a flat chroma fallback background.",
+      "Preserve unrelated pixels when possible, change only requested regions, and return the edited image as a real PNG or WebP with the job id filename prefix.",
       "Do not create a placeholder, SVG, diagram, or text-only result.",
       blockerSidecarNote
     ];
@@ -824,7 +829,7 @@ function buildCodexRunnerPrompt(job: { id: string; path: string }) {
     "On Windows, do not use System.Drawing for image inspection because it may be unavailable. Use Python/Pillow, PNG header bytes, or another local image tool instead.",
     "For workflowMode=image-generate, use the imagegen skill default built-in image generation path with built-in image_gen when available. Create a real raster image from the job prompt, never a procedural placeholder or SVG.",
     "For workflowMode=image-generate, if image generation is unavailable, write only a small blocker sidecar into the outbox and do not create a fake image.",
-    "For workflowMode=image-edit, inspect selectedImage.assetPath, use imagegen / built-in image_gen editing when available, follow numbered annotationContext region comments plus prompt/jobNotes, and return a real edited PNG or WebP with the job id filename prefix. Never create a procedural placeholder or SVG.",
+    "For workflowMode=image-edit, inspect selectedImage.assetPath, use imagegen / built-in image_gen editing when available, follow numbered annotationContext region comments plus prompt/jobNotes, use imageRectNormalized/imageRectPixels when present, preserve the original canvas size/aspect ratio, keep the full character including head, hair, hands, equipment, and both feet visible, do not zoom, crop, or reframe into a portrait/detail shot, preserve transparency or use a flat chroma fallback, change only requested regions when possible, and return a real edited PNG or WebP with the job id filename prefix. Never create a procedural placeholder or SVG.",
     "For workflowMode=sprite-generate, inspect selectedImage.assetPath, then use imagegen / built-in image_gen when available to create the requested sprite sheet assets from the source character image. Never create a procedural placeholder or SVG.",
     "For workflowMode=sprite-generate, follow spriteContext.grid, spriteContext.cell, spriteContext.directions, spriteContext.variant, and spriteContext.chromaKey exactly. Keep one full-body character centered inside each strict cell with padding, no cropping, no duplicated heads, and no body parts crossing cells.",
     "For workflowMode=sprite-generate with spriteContext.variant=standard, return exactly five separate direction PNG/WebP images using the suffixes front, front-three-quarter, side, back-three-quarter, and back. Each direction image must be 4 columns x 2 rows, 256x256 cells unless spriteContext.cell says otherwise. Do not return only one combined 5x8 sheet.",

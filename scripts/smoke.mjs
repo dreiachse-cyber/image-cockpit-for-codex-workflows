@@ -150,7 +150,19 @@ async function runManualHandoffSmoke() {
       selectedImageSize: "1x1",
       selectedImageSource: "import",
       selectedImageDataUrl: tinyPng,
-      annotations: [{ id: "ann-1", tool: "rect", color: "#ff0000", number: 1, comment: "Add the text X here", points: [{ x: 1, y: 2 }, { x: 3, y: 4 }] }],
+      annotations: [{
+        id: "ann-1",
+        tool: "rect",
+        color: "#ff0000",
+        number: 1,
+        comment: "Add the text X here",
+        points: [{ x: 1, y: 2 }, { x: 3, y: 4 }],
+        displayedImageRect: { x: 200, y: 44, width: 520, height: 432 },
+        imageRectNormalized: { x: 0.12, y: 0.25, width: 0.2, height: 0.16 },
+        imageRectPixels: { x: 0.12, y: 0.25, width: 0.2, height: 0.16 },
+        sourceImageNaturalSize: { width: 1, height: 1 },
+        imageRectClamped: false
+      }],
       grid: { columns: 8, rows: 4, gutter: 0 },
       action: "idle",
       frames: 8
@@ -163,6 +175,10 @@ async function runManualHandoffSmoke() {
     assert(jobJson.annotationContext.annotationCount === 1, "job should include annotation count");
     assert(jobJson.annotationContext.annotations[0].number === 1, "job should include numbered edit annotations");
     assert(jobJson.annotationContext.annotations[0].comment.includes("text X"), "job should include numbered edit comments");
+    assert(jobJson.annotationContext.annotations[0].imageRectNormalized.width === 0.2, "job should preserve normalized source image edit coordinates");
+    assert(jobJson.annotationContext.annotations[0].imageRectPixels.height === 0.16, "job should preserve pixel source image edit coordinates");
+    assert(jobJson.annotationContext.coordinateSpace.includes("source image normalized"), "job should describe source image coordinate metadata");
+    assert(jobJson.notes.some((note) => note.includes("Do not zoom in, crop, or reframe")), "job should include full-body no-crop edit instructions");
     assert(jobJson.selectedImage.assetPath, "job should include selected image asset path");
     await stat(jobJson.selectedImage.assetPath);
 

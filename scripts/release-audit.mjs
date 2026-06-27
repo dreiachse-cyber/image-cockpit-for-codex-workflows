@@ -399,6 +399,7 @@ function checkWorkflowIds() {
   const exportersText = readText("src/lib/exporters.ts");
   const animationPackText = readText("src/lib/animationPack.ts");
   const realCodexSmokeText = readText("scripts/real-codex-runner-smoke.mjs");
+  const imageEditFullBodyQaText = readText("docs/qa/image-edit-full-body-fit.md");
   if (!appText || !stylesText || !smokeText || !uiSmokeText || !realCodexSmokeText) return;
 
   requiredWorkflowIds.forEach((workflowId) => {
@@ -479,6 +480,11 @@ function checkWorkflowIds() {
     "Codex job shelf should appear above the Results cards in the right column",
     "Codex queue drains after results return",
     "assertImageEditing",
+    "assertImageEditingFullBodyFitWithLogs",
+    "mock-full-body-source.png",
+    "imageRectNormalized",
+    "imageRectPixels",
+    "workspace should not overlap the Codex log panel",
     "assertAnimationResultNotEditable",
     "Edit Image",
     "Upload Image",
@@ -757,6 +763,16 @@ function checkWorkflowIds() {
     failures.push("Smoke test should cover Local Inbox outbox result listing/import.");
   }
   [
+    "imageRectNormalized",
+    "imageRectPixels",
+    "source image normalized",
+    "Do not zoom in, crop, or reframe"
+  ].forEach((marker) => {
+    if (!smokeText.includes(marker)) {
+      failures.push(`Smoke test should cover Image Editing source coordinate handoff: ${marker}`);
+    }
+  });
+  [
     "QA JSON outbox file should be ignored",
     "work-in-progress outbox image should be ignored",
     "staging outbox image should be ignored",
@@ -817,6 +833,10 @@ function checkWorkflowIds() {
     "never a procedural placeholder",
     "workflowMode=image-edit",
     "numbered annotationContext region comments",
+    "imageRectNormalized",
+    "imageRectPixels",
+    "Preserve the original canvas size and aspect ratio",
+    "Do not zoom in, crop, or reframe",
     "workflowMode=sprite-generate",
     "spriteContext.chromaKey",
     "spriteContext.directions",
@@ -892,6 +912,23 @@ function checkWorkflowIds() {
   });
 
   [
+    "imageDisplayRectForCanvas",
+    "annotationImageCoordinates",
+    "imageRectNormalized",
+    "imageRectPixels",
+    "Preserve the original canvas size and aspect ratio",
+    "Do not zoom in, crop, or reframe",
+    "grid-template-rows: minmax(340px, 1fr) auto",
+    "height: 112px",
+    "max-height: 112px",
+    "container-type: size"
+  ].forEach((marker) => {
+    if (!appText.includes(marker) && !stylesText.includes(marker)) {
+      failures.push(`App should preserve Image Editing full-body fit handling: ${marker}`);
+    }
+  });
+
+  [
     "INITIAL_HISTORY_RENDER_COUNT",
     "HISTORY_RENDER_BATCH_SIZE",
     "visibleHistory",
@@ -901,6 +938,18 @@ function checkWorkflowIds() {
   ].forEach((marker) => {
     if (!appText.includes(marker)) {
       failures.push(`App should preserve incremental Results list rendering: ${marker}`);
+    }
+  });
+
+  [
+    "Image Editing Full-Body Fit QA",
+    "imageRectNormalized",
+    "imageRectPixels",
+    "Codex log panel",
+    "Real imagegen editing was not run"
+  ].forEach((marker) => {
+    if (!imageEditFullBodyQaText?.includes(marker)) {
+      failures.push(`Image Editing full-body fit QA doc should record: ${marker}`);
     }
   });
 

@@ -84,6 +84,8 @@ import type {
   CodexRunnerPreflightResponse,
   CodexRunnerStatus,
   LocalGenerationResponse,
+  ImageRectCoordinates,
+  ImageSizeCoordinates,
   ProviderId,
   ProviderStatus,
   SpriteAction,
@@ -94,6 +96,7 @@ import type {
 const SAMPLE_URL = "/samples/forest-mage-sheet.png";
 const CANVAS_WIDTH = 920;
 const CANVAS_HEIGHT = 520;
+const IMAGE_DISPLAY_PADDING = 44;
 const LANGUAGE_STORAGE_KEY = "image-cockpit.language";
 const SHOW_LOW_PRIORITY_CONTROLS = false;
 const SHOW_SPRITE_ACTIONS_PANEL = false;
@@ -2828,6 +2831,78 @@ export function getNextHistoryRenderLimit(currentLimit: number, historyLength: n
   return Math.min(historyLength, Math.max(0, currentLimit) + HISTORY_RENDER_BATCH_SIZE);
 }
 
+export function imageDisplayRectForCanvas(
+  imageSize: ImageSizeCoordinates,
+  canvasSize: ImageSizeCoordinates = { width: CANVAS_WIDTH, height: CANVAS_HEIGHT },
+  padding = IMAGE_DISPLAY_PADDING
+): ImageRectCoordinates & { scale: number } {
+  const imageWidth = Math.max(1, Number.isFinite(imageSize.width) ? imageSize.width : 1);
+  const imageHeight = Math.max(1, Number.isFinite(imageSize.height) ? imageSize.height : 1);
+  const canvasWidth = Math.max(1, Number.isFinite(canvasSize.width) ? canvasSize.width : CANVAS_WIDTH);
+  const canvasHeight = Math.max(1, Number.isFinite(canvasSize.height) ? canvasSize.height : CANVAS_HEIGHT);
+  const safePadding = Math.max(0, Math.min(padding, canvasWidth / 2 - 1, canvasHeight / 2 - 1));
+  const availableWidth = Math.max(1, canvasWidth - safePadding * 2);
+  const availableHeight = Math.max(1, canvasHeight - safePadding * 2);
+  const scale = Math.min(availableWidth / imageWidth, availableHeight / imageHeight);
+  const width = imageWidth * scale;
+  const height = imageHeight * scale;
+
+  return {
+    x: (canvasWidth - width) / 2,
+    y: (canvasHeight - height) / 2,
+    width,
+    height,
+    scale
+  };
+}
+
+export function annotationImageCoordinates(
+  annotation: Annotation,
+  imageSize: ImageSizeCoordinates,
+  canvasSize: ImageSizeCoordinates = { width: CANVAS_WIDTH, height: CANVAS_HEIGHT },
+  padding = IMAGE_DISPLAY_PADDING
+): Pick<Annotation, "displayedImageRect" | "imageRectNormalized" | "imageRectPixels" | "sourceImageNaturalSize" | "imageRectClamped"> {
+  const naturalSize = {
+    width: Math.max(1, Number.isFinite(imageSize.width) ? imageSize.width : 1),
+    height: Math.max(1, Number.isFinite(imageSize.height) ? imageSize.height : 1)
+  };
+  const displayed = imageDisplayRectForCanvas(naturalSize, canvasSize, padding);
+  const rect = annotationRect(annotation);
+  const displayRight = displayed.x + displayed.width;
+  const displayBottom = displayed.y + displayed.height;
+  const rectRight = rect.x + rect.width;
+  const rectBottom = rect.y + rect.height;
+  const clampedLeft = clampNumber(rect.x, displayed.x, displayRight);
+  const clampedTop = clampNumber(rect.y, displayed.y, displayBottom);
+  const clampedRight = clampNumber(rectRight, displayed.x, displayRight);
+  const clampedBottom = clampNumber(rectBottom, displayed.y, displayBottom);
+  const clampedWidth = Math.max(0, clampedRight - clampedLeft);
+  const clampedHeight = Math.max(0, clampedBottom - clampedTop);
+  const normalized = {
+    x: roundNumber((clampedLeft - displayed.x) / displayed.width, 6),
+    y: roundNumber((clampedTop - displayed.y) / displayed.height, 6),
+    width: roundNumber(clampedWidth / displayed.width, 6),
+    height: roundNumber(clampedHeight / displayed.height, 6)
+  };
+  const clamped = Math.abs(clampedLeft - rect.x) > 0.001
+    || Math.abs(clampedTop - rect.y) > 0.001
+    || Math.abs(clampedRight - rectRight) > 0.001
+    || Math.abs(clampedBottom - rectBottom) > 0.001;
+
+  return {
+    displayedImageRect: roundRect(displayed, 3),
+    imageRectNormalized: normalized,
+    imageRectPixels: {
+      x: roundNumber(normalized.x * naturalSize.width, 2),
+      y: roundNumber(normalized.y * naturalSize.height, 2),
+      width: roundNumber(normalized.width * naturalSize.width, 2),
+      height: roundNumber(normalized.height * naturalSize.height, 2)
+    },
+    sourceImageNaturalSize: naturalSize,
+    imageRectClamped: clamped
+  };
+}
+
 export function isOutboxResultForJob(resultName: string, jobId: string) {
   return resultName.startsWith(`${jobId}-`) || resultName.startsWith(`${jobId}.`);
 }
@@ -3679,16 +3754,15 @@ function App() {
 
     const displayingFrame = Boolean(selectedFrameForPreview?.sourceId && selectedFrameForPreview.sourceId === selected.id);
     const image = await loadImage(displayingFrame && selectedFrameForPreview ? selectedFrameForPreview.dataUrl : selected.dataUrl);
-    const padding = 44;
-    const scale = Math.min((CANVAS_WIDTH - padding * 2) / image.width, (CANVAS_HEIGHT - padding * 2) / image.height);
-    const width = image.width * scale;
-    const height = image.height * scale;
-    const x = (CANVAS_WIDTH - width) / 2;
-    const y = (CANVAS_HEIGHT - height) / 2;
-    context.drawImage(image, x, y, width, height);
+    const displayRect = imageDisplayRectForCanvas({ width: image.width, height: image.height });
+    context.drawImage(image, displayRect.x, displayRect.y, displayRect.width, displayRect.height);
 
-    if (showGrid && !displayingFrame && workflowMode !== "image-edit") drawGridOverlay(context, x, y, width, height, grid.columns, grid.rows);
-    if (showCenter && workflowMode !== "image-edit") drawCenterOverlay(context, x, y, width, height);
+    if (showGrid && !displayingFrame && workflowMode !== "image-edit") {
+      drawGridOverlay(context, displayRect.x, displayRect.y, displayRect.width, displayRect.height, grid.columns, grid.rows);
+    }
+    if (showCenter && workflowMode !== "image-edit") {
+      drawCenterOverlay(context, displayRect.x, displayRect.y, displayRect.width, displayRect.height);
+    }
     if (workflowMode === "image-edit") {
       const annotations = [...(annotationsByItem[selected.id] ?? []), ...(draftAnnotation ? [draftAnnotation] : [])];
       annotations.forEach((annotation) => drawAnnotation(context, annotation));
@@ -3802,6 +3876,10 @@ function App() {
       setAnimationChromaKey(chromaDecision.key.name);
     }
 
+    const imageEditAnnotations = isImageEditJob && sourceImageForJob
+      ? selectedAnnotations.map((annotation) => annotationWithSourceImageCoordinates(annotation, sourceImageForJob))
+      : [];
+
     const codexPrompt = isAnimationJob
       ? isDirectionalHatchPetAnimationJob
         ? buildDirectionalHatchPetCodexPrompt({
@@ -3826,7 +3904,7 @@ function App() {
         ? buildImageEditCodexPrompt({
             prompt,
             sourceName: sourceImageForJob?.name ?? "",
-            annotations: selectedAnnotations
+            annotations: imageEditAnnotations
           })
         : prompt;
     const codexJobNotes = isAnimationJob
@@ -3852,7 +3930,7 @@ function App() {
       : isImageEditJob
         ? buildImageEditCodexNotes({
             userNotes: jobNotes,
-            annotations: selectedAnnotations
+            annotations: imageEditAnnotations
           })
         : jobNotes;
 
@@ -3873,7 +3951,7 @@ function App() {
       selectedImageSize: includeSelectedImage ? sourceImageForJob?.size ?? "" : "",
       selectedImageSource: includeSelectedImage ? sourceImageForJob?.source ?? "" : "",
       selectedImageDataUrl: includeSelectedImage ? sourceImageForJob?.dataUrl ?? "" : "",
-      annotations: isImageEditJob && selected ? selectedAnnotations : [],
+      annotations: imageEditAnnotations,
       grid: includeSpriteContext ? spriteGrid : null,
       action: includeSpriteContext ? animationAction.name : "",
       frames: includeSpriteContext ? spriteFrameCount : 0,
@@ -4810,13 +4888,14 @@ function App() {
     setAnnotationsByItem((current) => {
       const currentList = current[selected.id] ?? [];
       const number = currentList.length + 1;
+      const nextAnnotation = annotationWithSourceImageCoordinates({ ...draftAnnotation, number }, selected);
       return {
         ...current,
-        [selected.id]: [...currentList, { ...draftAnnotation, number }]
+        [selected.id]: [...currentList, nextAnnotation]
       };
     });
     setDraftAnnotation(null);
-    setStatus(`${copy.imageEditRegionAdded} #${draftAnnotation.number ?? ""}`.trim());
+    setStatus(`${copy.imageEditRegionAdded} #${draftAnnotation.number ?? 1}`.trim());
   }
 
   function updateAnnotationComment(annotationId: string, comment: string) {
@@ -6877,6 +6956,11 @@ function buildImageEditCodexPrompt({
     `Source image: ${sourceName || "selected image asset"}.`,
     "Use the selected source image as the edit base.",
     "Apply only the requested edits while preserving the rest of the image.",
+    "Preserve the original canvas size and aspect ratio.",
+    "Keep the full character visible, including head, hair, hands, equipment, and both feet.",
+    "Do not zoom in, crop, or reframe the image into a portrait/detail shot.",
+    "Treat the base image as the exact source to edit, not inspiration for a new variant.",
+    "Preserve transparency when present; if transparency cannot be preserved, use a flat chroma fallback background.",
     "Return the edited image as a real PNG or WebP with the job id filename prefix.",
     "",
     "Numbered edit regions:",
@@ -6900,7 +6984,12 @@ function buildImageEditCodexNotes({
     "Image edit region comments:",
     regionNotes,
     "",
-    "Keep unrelated pixels unchanged when possible. Do not add labels, watermarks, or UI text unless a region comment explicitly asks for text."
+    "Keep unrelated pixels unchanged when possible. Only change requested regions unless the general edit prompt explicitly requires a global adjustment.",
+    "Preserve the original canvas size and aspect ratio. Do not zoom in, crop, or reframe the image into a portrait/detail shot.",
+    "Keep the full character visible, including head, hair, hands, equipment, and both feet.",
+    "Treat the base image as the exact source to edit, not inspiration for a new variant.",
+    "Preserve transparency when present; if transparency cannot be preserved, use a flat chroma fallback background.",
+    "Do not add labels, watermarks, or UI text unless a region comment explicitly asks for text."
   ]
     .filter((line, index) => index > 0 || line.length > 0)
     .join("\n")
@@ -6911,7 +7000,8 @@ function formatAnnotationInstruction(annotation: Annotation) {
   const rect = annotationRect(annotation);
   const number = annotation.number ?? 0;
   const comment = annotation.comment?.trim() || "(no comment yet)";
-  return `- #${number}: ${comment} [canvas rect x=${Math.round(rect.x)}, y=${Math.round(rect.y)}, w=${Math.round(rect.width)}, h=${Math.round(rect.height)}]`;
+  const imageCoordinates = formatAnnotationImageCoordinates(annotation);
+  return `- #${number}: ${comment} [canvas rect x=${Math.round(rect.x)}, y=${Math.round(rect.y)}, w=${Math.round(rect.width)}, h=${Math.round(rect.height)}${imageCoordinates}]`;
 }
 
 function annotationRect(annotation: Annotation) {
@@ -6921,6 +7011,45 @@ function annotationRect(annotation: Annotation) {
   const width = Math.abs(end.x - start.x);
   const height = Math.abs(end.y - start.y);
   return { x, y, width, height };
+}
+
+function annotationWithSourceImageCoordinates(annotation: Annotation, sourceImage: HistoryItem): Annotation {
+  const imageSize = parseHistoryImageSize(sourceImage.size);
+  if (!imageSize) return annotation;
+  return { ...annotation, ...annotationImageCoordinates(annotation, imageSize) };
+}
+
+function parseHistoryImageSize(size: string): ImageSizeCoordinates | null {
+  const match = size.match(/(\d+(?:\.\d+)?)\s*x\s*(\d+(?:\.\d+)?)/i);
+  if (!match) return null;
+  const width = Number(match[1]);
+  const height = Number(match[2]);
+  if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) return null;
+  return { width, height };
+}
+
+function formatAnnotationImageCoordinates(annotation: Annotation) {
+  const fields: string[] = [];
+  if (annotation.imageRectNormalized) {
+    fields.push(`source image normalized x=${formatCoordinate(annotation.imageRectNormalized.x)}, y=${formatCoordinate(annotation.imageRectNormalized.y)}, w=${formatCoordinate(annotation.imageRectNormalized.width)}, h=${formatCoordinate(annotation.imageRectNormalized.height)}`);
+  }
+  if (annotation.imageRectPixels) {
+    fields.push(`source image pixels x=${formatCoordinate(annotation.imageRectPixels.x)}, y=${formatCoordinate(annotation.imageRectPixels.y)}, w=${formatCoordinate(annotation.imageRectPixels.width)}, h=${formatCoordinate(annotation.imageRectPixels.height)}`);
+  }
+  if (annotation.displayedImageRect) {
+    fields.push(`displayed image rect x=${formatCoordinate(annotation.displayedImageRect.x)}, y=${formatCoordinate(annotation.displayedImageRect.y)}, w=${formatCoordinate(annotation.displayedImageRect.width)}, h=${formatCoordinate(annotation.displayedImageRect.height)}`);
+  }
+  if (annotation.sourceImageNaturalSize) {
+    fields.push(`source image size ${Math.round(annotation.sourceImageNaturalSize.width)}x${Math.round(annotation.sourceImageNaturalSize.height)}`);
+  }
+  if (typeof annotation.imageRectClamped === "boolean") {
+    fields.push(`clampedToImage=${annotation.imageRectClamped ? "yes" : "no"}`);
+  }
+  return fields.length > 0 ? `; ${fields.join("; ")}` : "";
+}
+
+function formatCoordinate(value: number) {
+  return Number.isInteger(value) ? String(value) : value.toFixed(4).replace(/0+$/, "").replace(/\.$/, "");
 }
 
 function renumberAnnotations(annotations: Annotation[]) {
@@ -8755,6 +8884,20 @@ function despillFrameEdgePixels(
 
 function clampNumber(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value));
+}
+
+function roundNumber(value: number, digits: number) {
+  const factor = 10 ** digits;
+  return Math.round(value * factor) / factor;
+}
+
+function roundRect(rect: ImageRectCoordinates, digits: number): ImageRectCoordinates {
+  return {
+    x: roundNumber(rect.x, digits),
+    y: roundNumber(rect.y, digits),
+    width: roundNumber(rect.width, digits),
+    height: roundNumber(rect.height, digits)
+  };
 }
 
 function drawCheckerboard(context: CanvasRenderingContext2D, width: number, height: number, size: number) {

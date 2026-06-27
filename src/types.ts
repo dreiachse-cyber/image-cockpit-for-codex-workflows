@@ -43,6 +43,18 @@ export interface SpriteAction {
   };
 }
 
+export interface ImageRectCoordinates {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+export interface ImageSizeCoordinates {
+  width: number;
+  height: number;
+}
+
 export interface Annotation {
   id: string;
   tool: Exclude<ToolMode, "select">;
@@ -51,6 +63,11 @@ export interface Annotation {
   number?: number;
   comment?: string;
   points: Array<{ x: number; y: number }>;
+  displayedImageRect?: ImageRectCoordinates;
+  imageRectNormalized?: ImageRectCoordinates;
+  imageRectPixels?: ImageRectCoordinates;
+  sourceImageNaturalSize?: ImageSizeCoordinates;
+  imageRectClamped?: boolean;
 }
 
 export interface GridSettings {
