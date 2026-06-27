@@ -306,7 +306,14 @@ export function findLocalInboxHistoryDuplicate(history: HistoryItem[], item: His
   );
 }
 
+function isInvalidRecoveredLocalGeneratorHistoryItem(item: HistoryItem) {
+  return item.provider === "local-inbox" && item.name.toLowerCase().startsWith("local-gen-");
+}
+
 export function prependHistoryItemWithDedupe(history: HistoryItem[], item: HistoryItem): LocalInboxHistoryInsertResult {
+  if (isInvalidRecoveredLocalGeneratorHistoryItem(item)) {
+    return { history, item, added: false };
+  }
   const duplicate = findLocalInboxHistoryDuplicate(history, item);
   if (duplicate) {
     return { history, item: duplicate, added: false, duplicate };
@@ -320,6 +327,10 @@ export function dedupeLocalInboxHistory(history: HistoryItem[]): LocalInboxHisto
   const deduped: HistoryItem[] = [];
 
   for (const item of history) {
+    if (isInvalidRecoveredLocalGeneratorHistoryItem(item)) {
+      continue;
+    }
+
     const keys = [localInboxHistoryDedupeKey(item), localInboxHistoryExactDedupeKey(item)].filter(
       (key): key is string => Boolean(key)
     );

@@ -390,6 +390,29 @@ describe("Local Inbox import dedupe", () => {
     expect(result.idReplacements["local-inbox-b"]).toBe("local-inbox-a");
   });
 
+  it("drops recovered local generator artifacts without touching real local generator history", () => {
+    const recoveredLocalGeneratorName = "local-gen-2026-06-27T16-21-33-465Z-image-1.png";
+    const recoveredLocalGenerator = makeHistoryItem("bad-local-inbox", {
+      provider: "local-inbox",
+      source: "inbox",
+      name: recoveredLocalGeneratorName,
+      outboxImportKey: buildOutboxImportKey("single", recoveredLocalGeneratorName)
+    });
+    const realLocalGenerator = makeHistoryItem("real-local-generator", {
+      provider: "local-generator",
+      source: "generate",
+      name: recoveredLocalGeneratorName
+    });
+
+    const inserted = prependHistoryItemWithDedupe([], recoveredLocalGenerator);
+    const result = dedupeLocalInboxHistory([recoveredLocalGenerator, realLocalGenerator]);
+
+    expect(inserted.added).toBe(false);
+    expect(inserted.history).toHaveLength(0);
+    expect(result.removedCount).toBe(1);
+    expect(result.history.map((item) => item.id)).toEqual(["real-local-generator"]);
+  });
+
   it("remaps frame source ids when exact duplicate history is removed", () => {
     const remapped = remapFrameSourceIds(
       [
@@ -481,6 +504,8 @@ describe("Codex outbox job result matching", () => {
       `${jobId}-qa.png`,
       `${jobId}-qa.json`,
       `${jobId}-work-output.png`,
+      `local-gen-2026-06-27T16-21-33-465Z-image-1.png`,
+      `local-gen-2026-06-27T16-21-33-465Z-local-generation.json`,
       `.staging-${jobId}.png`
     ].forEach((name) => {
       expect(shouldIgnoreOutboxResultName(name), name).toBe(true);
