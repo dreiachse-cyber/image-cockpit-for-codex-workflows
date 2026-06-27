@@ -1,6 +1,6 @@
 {
   "schema": "image-cockpit.ranger-rerun.run-log.v1",
-  "generatedAt": "2026-06-27T09:40:00+09:00",
+  "generatedAt": "2026-06-27T10:25:00+09:00",
   "source": {
     "jobId": "codex-job-2026-06-27T00-01-04-639Z",
     "artifact": "source-ranger-transparent.png",
@@ -23,6 +23,13 @@
       "action": "walk"
     },
     {
+      "slug": "walk-b-v2-ranger-001",
+      "preset": "walk-cycle",
+      "variant": "B2",
+      "job": "codex-job-2026-06-27T00-57-14-622Z",
+      "action": "walk"
+    },
+    {
       "slug": "run-a-current-ranger-001",
       "preset": "run-cycle",
       "variant": "A current",
@@ -39,7 +46,7 @@
   ],
   "gallery": {
     "file": "ab-gallery.html",
-    "gifComparisonPerPreset": 10,
+    "gifComparisonPerSection": 10,
     "directions": [
       "front",
       "front-three-quarter",
@@ -50,23 +57,24 @@
     "browserQa": {
       "surface": "Codex in-app browser",
       "url": "http://127.0.0.1:5194/docs/qa/recursive-animation-prompt-tournament/walk-run-focus/ranger-rerun/ab-gallery.html",
-      "sections": 2,
+      "sections": 3,
       "sourceImages": 1,
-      "sheetImages": 4,
-      "gifImages": 20,
-      "gifCardsPerPreset": 10,
+      "sheetImages": 6,
+      "gifImages": 30,
+      "gifCardsPerSection": 10,
       "allTenGifCardsFitAt1280": true,
       "brokenImages": 0,
       "consoleErrors": 0,
       "scaleControls": [
         "scale-4"
       ],
-      "screenshot": "browser-ranger-gallery-4x.png",
+      "screenshot": "browser-ranger-gallery-b2-1280-4x.png",
       "status": "pass"
     }
   },
   "decisions": {
     "walk-cycle": "keep A current; B v1 is too jog/run-like on this source",
+    "walk-cycle-b2": "keep A current; B2 reduces jog-like energy but is too static to adopt",
     "run-cycle": "B v1 is the stronger prompt hypothesis; send to a broader candidate gate before official adoption"
   }
 }

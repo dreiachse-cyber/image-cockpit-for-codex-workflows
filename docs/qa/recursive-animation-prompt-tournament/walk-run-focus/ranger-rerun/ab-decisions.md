@@ -21,9 +21,25 @@ Evidence:
 
 Next hypothesis:
 
-- Make a walk B2 that keeps front/back shoe-depth wording.
-- Add a hard cap on stride length.
-- Explicitly forbid running arm pump, flight-like spacing, and high-energy forward drive.
+- Walk B2 was generated from that hypothesis.
+- B2 reduces the jog-like energy, but it also loses some visible gait energy.
+- The next useful prompt should start from A and add only a very small shoe-depth cue.
+
+## walk-cycle B2
+
+Decision: do not adopt B2 as the official walk prompt.
+
+Evidence:
+
+- B2 is calmer than B v1 and no longer reads as strongly like a jog.
+- B2's front and back rows can read close to idle or very subtle shuffling.
+- A still has the best balance of walk energy and groundedness on this source.
+
+Next hypothesis:
+
+- Keep A as the champion.
+- Try an A-plus-depth prompt only if the next round is needed.
+- Avoid large frame-role changes for walk unless a new source shows a clear A failure.
 
 ## run-cycle
 
