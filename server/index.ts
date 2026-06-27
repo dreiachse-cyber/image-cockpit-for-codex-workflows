@@ -1979,6 +1979,7 @@ function shouldIgnoreOutboxResultName(name: string) {
   const filterName = normalizeOutboxResultNameForFiltering(name);
   return (
     normalized.startsWith(".") ||
+    filterName.startsWith("local-gen-") ||
     filterName.includes(".staging") ||
     hasTemporaryOutboxResultMarker(normalized) ||
     filterName.includes("-work-") ||

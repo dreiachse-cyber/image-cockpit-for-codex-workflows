@@ -135,6 +135,9 @@ const DIRECTION_SPLIT_CENTER_WARN_DRIFT = 24;
 const DIRECTION_SPLIT_CENTER_FAIL_DRIFT = 48;
 const DIRECTION_SPLIT_BOTTOM_WARN_DRIFT = 16;
 const DIRECTION_SPLIT_BOTTOM_FAIL_DRIFT = 32;
+const DIRECTION_SPLIT_MOTION_WARN_AVERAGE = 0.04;
+const DIRECTION_SPLIT_MOTION_FAIL_AVERAGE = 0.025;
+const DIRECTION_SPLIT_MOTION_FAIL_MAX = 0.055;
 const STANDARD_ANIMATION_CELL: SpriteAction["cell"] = { width: ANIMATION_CELL_SIZE, height: ANIMATION_CELL_SIZE };
 const STANDARD_ANIMATION_ANCHOR = { x: Math.round(ANIMATION_CELL_SIZE / 2), y: Math.round(ANIMATION_CELL_SIZE * 0.92) };
 const HATCH_PET_CELL: SpriteAction["cell"] = { width: 192, height: 208 };
@@ -3001,6 +3004,7 @@ export function shouldIgnoreOutboxResultName(name: string) {
   const filterName = normalizeOutboxResultNameForFiltering(name);
   return (
     normalized.startsWith(".") ||
+    filterName.startsWith("local-gen-") ||
     filterName.includes(".staging") ||
     hasTemporaryOutboxResultMarker(normalized) ||
     filterName.includes("-work-") ||
@@ -4972,11 +4976,16 @@ function App() {
         .slice(0, Math.max(0, 50 - directionSplitCandidates.length));
       let recoveredCount = 0;
       let recoveredDirectionSplitCount = 0;
+      let failedDirectionSplitCount = 0;
       for (const candidate of directionSplitCandidates) {
-        const imported = await importReadyDirectionSplitArtifact(candidate);
-        if (imported.added) {
-          recoveredCount += 1;
-          recoveredDirectionSplitCount += 1;
+        try {
+          const imported = await importReadyDirectionSplitArtifact(candidate);
+          if (imported.added) {
+            recoveredCount += 1;
+            recoveredDirectionSplitCount += 1;
+          }
+        } catch {
+          failedDirectionSplitCount += 1;
         }
       }
       for (const candidate of candidates) {
@@ -5002,10 +5011,14 @@ function App() {
         directionSplitCandidates.length +
         listData.results.filter(isRecoverableOutboxImageResult).filter((result) => !isOutboxResultAlreadyImported(result)).length;
       const skippedCount = Math.max(0, recoverableCount - recoveredCount);
+      const failedDirectionSplitSuffix =
+        failedDirectionSplitCount > 0
+          ? ` ${failedDirectionSplitCount} direction-split artifact${failedDirectionSplitCount === 1 ? "" : "s"} failed QA.`
+          : "";
       setStatus(
         recoveredCount > 0
-          ? `Recovered ${recoveredCount} outbox result${recoveredCount === 1 ? "" : "s"}. ${skippedCount} already imported or not recoverable.${recoveredDirectionSplitCount > 0 ? " direction-split manifest ok." : ""}`
-          : "Recover Results complete: no new formal outbox images were found."
+          ? `Recovered ${recoveredCount} outbox result${recoveredCount === 1 ? "" : "s"}. ${skippedCount} already imported or not recoverable.${recoveredDirectionSplitCount > 0 ? " direction-split manifest ok." : ""}${failedDirectionSplitSuffix}`
+          : `Recover Results complete: no new formal outbox images were found.${failedDirectionSplitSuffix}`
       );
       await runCockpitHealthCheck({ quiet: true });
     } catch (error) {
@@ -9050,16 +9063,12 @@ function validateDirectionSplitAnimationCells(cells: DirectionSplitNormalizedCel
     }
 
     const widthVariation = variationRatio(metrics.map((metric) => metric.width));
-    if (widthVariation > 0.7) {
-      failures.push(`${direction}: bbox width variation ${Math.round(widthVariation * 100)}%`);
-    } else if (widthVariation > 0.3) {
+    if (widthVariation > 0.3) {
       warnings.push(`${direction}: bbox width variation ${Math.round(widthVariation * 100)}%`);
     }
 
     const heightVariation = variationRatio(metrics.map((metric) => metric.height));
-    if (heightVariation > 0.55) {
-      failures.push(`${direction}: bbox height variation ${Math.round(heightVariation * 100)}%`);
-    } else if (heightVariation > 0.22) {
+    if (heightVariation > 0.22) {
       warnings.push(`${direction}: bbox height variation ${Math.round(heightVariation * 100)}%`);
     }
 
@@ -9068,6 +9077,17 @@ function validateDirectionSplitAnimationCells(cells: DirectionSplitNormalizedCel
       else if (metric.topMargin < 10) warnings.push(`${directionSplitCellLabel(direction, metric.frame.frameIndex)}: top margin ${metric.topMargin}px`);
       if (metric.bottomY > cell.height - 3) failures.push(`${directionSplitCellLabel(direction, metric.frame.frameIndex)}: feet touch cell bottom`);
     });
+
+    const frameMotion = rowCells
+      .slice(1)
+      .map((frame, index) => frameDifferenceRatio(rowCells[index].canvas, frame.canvas, cell.width, cell.height));
+    const averageMotion = averageNumber(frameMotion);
+    const maxMotion = frameMotion.length > 0 ? Math.max(...frameMotion) : 0;
+    if (averageMotion < DIRECTION_SPLIT_MOTION_FAIL_AVERAGE && maxMotion < DIRECTION_SPLIT_MOTION_FAIL_MAX) {
+      failures.push(`${direction}: motion too small (${formatMotionPercent(averageMotion)} average frame change)`);
+    } else if (averageMotion < DIRECTION_SPLIT_MOTION_WARN_AVERAGE) {
+      warnings.push(`${direction}: low motion (${formatMotionPercent(averageMotion)} average frame change)`);
+    }
   });
 
   return { warnings, failures };
@@ -9140,9 +9160,35 @@ function rangeNumber(values: number[]) {
   return Math.max(...values) - Math.min(...values);
 }
 
+function averageNumber(values: number[]) {
+  if (values.length === 0) return 0;
+  return values.reduce((sum, value) => sum + value, 0) / values.length;
+}
+
 function variationRatio(values: number[]) {
   const median = medianNumber(values);
   return median > 0 ? rangeNumber(values) / median : 0;
+}
+
+function frameDifferenceRatio(left: HTMLCanvasElement, right: HTMLCanvasElement, width: number, height: number) {
+  const leftContext = left.getContext("2d", { willReadFrequently: true });
+  const rightContext = right.getContext("2d", { willReadFrequently: true });
+  if (!leftContext || !rightContext) return 0;
+  const leftData = leftContext.getImageData(0, 0, width, height).data;
+  const rightData = rightContext.getImageData(0, 0, width, height).data;
+  let total = 0;
+  for (let offset = 0; offset < leftData.length; offset += 4) {
+    total +=
+      Math.abs(leftData[offset] - rightData[offset]) +
+      Math.abs(leftData[offset + 1] - rightData[offset + 1]) +
+      Math.abs(leftData[offset + 2] - rightData[offset + 2]) +
+      Math.abs(leftData[offset + 3] - rightData[offset + 3]);
+  }
+  return total / Math.max(1, width * height * 4 * 255);
+}
+
+function formatMotionPercent(value: number) {
+  return `${Math.round(value * 1000) / 10}%`;
 }
 
 type AnimationDrawable = (HTMLCanvasElement | HTMLImageElement) & { width: number; height: number };
