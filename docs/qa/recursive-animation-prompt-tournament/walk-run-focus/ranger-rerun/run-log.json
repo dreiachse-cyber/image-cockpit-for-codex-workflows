@@ -1,0 +1,72 @@
+{
+  "schema": "image-cockpit.ranger-rerun.run-log.v1",
+  "generatedAt": "2026-06-27T09:40:00+09:00",
+  "source": {
+    "jobId": "codex-job-2026-06-27T00-01-04-639Z",
+    "artifact": "source-ranger-transparent.png",
+    "status": "completed",
+    "exitCode": 0
+  },
+  "trials": [
+    {
+      "slug": "walk-a-current-ranger-001",
+      "preset": "walk-cycle",
+      "variant": "A current",
+      "job": "codex-job-2026-06-27T00-13-16-952Z",
+      "action": "walk"
+    },
+    {
+      "slug": "walk-b-v1-ranger-001",
+      "preset": "walk-cycle",
+      "variant": "B v1",
+      "job": "codex-job-2026-06-27T00-13-16-909Z",
+      "action": "walk"
+    },
+    {
+      "slug": "run-a-current-ranger-001",
+      "preset": "run-cycle",
+      "variant": "A current",
+      "job": "codex-job-2026-06-27T00-13-16-936Z",
+      "action": "run"
+    },
+    {
+      "slug": "run-b-v1-ranger-001",
+      "preset": "run-cycle",
+      "variant": "B v1",
+      "job": "codex-job-2026-06-27T00-25-51-214Z",
+      "action": "run"
+    }
+  ],
+  "gallery": {
+    "file": "ab-gallery.html",
+    "gifComparisonPerPreset": 10,
+    "directions": [
+      "front",
+      "front-three-quarter",
+      "side",
+      "back-three-quarter",
+      "back"
+    ],
+    "browserQa": {
+      "surface": "Codex in-app browser",
+      "url": "http://127.0.0.1:5194/docs/qa/recursive-animation-prompt-tournament/walk-run-focus/ranger-rerun/ab-gallery.html",
+      "sections": 2,
+      "sourceImages": 1,
+      "sheetImages": 4,
+      "gifImages": 20,
+      "gifCardsPerPreset": 10,
+      "allTenGifCardsFitAt1280": true,
+      "brokenImages": 0,
+      "consoleErrors": 0,
+      "scaleControls": [
+        "scale-4"
+      ],
+      "screenshot": "browser-ranger-gallery-4x.png",
+      "status": "pass"
+    }
+  },
+  "decisions": {
+    "walk-cycle": "keep A current; B v1 is too jog/run-like on this source",
+    "run-cycle": "B v1 is the stronger prompt hypothesis; send to a broader candidate gate before official adoption"
+  }
+}

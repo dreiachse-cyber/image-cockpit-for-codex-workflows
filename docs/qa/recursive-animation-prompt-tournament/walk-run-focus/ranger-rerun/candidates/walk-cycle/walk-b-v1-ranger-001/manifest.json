@@ -1,0 +1,31 @@
+{
+  "schema": "image-cockpit.direction-split-animation.v1",
+  "jobId": "codex-job-2026-06-27T00-13-16-909Z",
+  "serverVerified": true,
+  "verifiedAt": "2026-06-27T00:24:51.769Z",
+  "quality": "gold",
+  "warnings": [],
+  "directions": [
+    "front",
+    "front three-quarter",
+    "side",
+    "back three-quarter",
+    "back"
+  ],
+  "framesPerDirection": 8,
+  "files": {
+    "front": "codex-job-2026-06-27T00-13-16-909Z-front.png",
+    "front three-quarter": "codex-job-2026-06-27T00-13-16-909Z-front-three-quarter.png",
+    "side": "codex-job-2026-06-27T00-13-16-909Z-side.png",
+    "back three-quarter": "codex-job-2026-06-27T00-13-16-909Z-back-three-quarter.png",
+    "back": "codex-job-2026-06-27T00-13-16-909Z-back.png"
+  },
+  "chromaKey": {
+    "name": "green"
+  },
+  "sourceManifest": {
+    "name": "codex-job-2026-06-27T00-13-16-909Z-manifest.json",
+    "fromStaging": false,
+    "serverRewritten": true
+  }
+}

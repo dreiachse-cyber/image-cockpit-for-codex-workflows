@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en" class="scale-2">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Ranger Same Source Walk Run A/B Gallery</title><style>
+:root { color-scheme: light; font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+body { margin: 0; background: #f5f7f4; color: #14211b; }
+header { position: sticky; top: 0; z-index: 2; display: flex; gap: 16px; align-items: center; justify-content: space-between; padding: 12px 18px; background: rgba(245,247,244,.95); border-bottom: 1px solid #ccd8cf; backdrop-filter: blur(8px); }
+h1 { margin: 0; font-size: 18px; }
+.controls { display: flex; gap: 8px; flex-wrap: wrap; }
+button { border: 1px solid #91a897; background: white; border-radius: 6px; padding: 6px 10px; cursor: pointer; }
+button.active { background: #236447; color: white; border-color: #236447; }
+main { padding: 18px; display: grid; gap: 24px; }
+.source { display: grid; grid-template-columns: minmax(160px, 240px) 1fr; gap: 16px; align-items: start; background: white; border: 1px solid #d5ded4; border-radius: 8px; padding: 16px; }
+.source img { image-rendering: pixelated; width: min(100%, 240px); background: #1a1a1a; }
+section { background: white; border: 1px solid #d5ded4; border-radius: 8px; padding: 16px; box-shadow: 0 1px 2px rgba(0,0,0,.04); }
+h2 { margin: 0 0 6px; font-size: 17px; }
+.subhead { margin: 16px 0 8px; font-size: 14px; }
+p { margin: 4px 0 12px; color: #526157; }
+.compare { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; align-items: start; }
+.panel { border: 1px solid #dbe3da; border-radius: 6px; overflow: auto; background: #fff; }
+.panel h3 { position: sticky; top: 0; margin: 0; padding: 8px 10px; background: #edf4ee; font-size: 13px; z-index: 1; }
+.sheet { image-rendering: pixelated; transform-origin: top left; width: calc(2048px * var(--sheet-scale)); max-width: none; display: block; }
+.gif-grid { display: grid; grid-template-columns: repeat(10, minmax(84px, 1fr)); gap: 8px; align-items: start; padding-bottom: 8px; }
+.gif-card { border: 1px solid #dbe3da; border-radius: 6px; padding: 8px; background: #fbfdfb; min-width: 0; }
+.gif-card strong { display: block; font-size: 12px; margin-bottom: 6px; white-space: nowrap; }
+.gif-card img { image-rendering: pixelated; width: min(100%, var(--gif-size)); max-width: none; background: white; }
+.meta { display: flex; gap: 10px; flex-wrap: wrap; font-size: 12px; color: #445247; margin-bottom: 10px; }
+.scale-1 { --sheet-scale: .25; --gif-size: 96px; }
+.scale-2 { --sheet-scale: .5; --gif-size: 132px; }
+.scale-4 { --sheet-scale: 1; --gif-size: 256px; }
+@media (max-width: 900px) { .compare, .source { grid-template-columns: 1fr; } .gif-grid { grid-template-columns: repeat(2, minmax(120px, 1fr)); } }
+</style></head>
+<body>
+<header><h1>Ranger Same Source Walk / Run A/B Gallery</h1><div class="controls"><button data-scale="scale-1">1x review</button><button class="active" data-scale="scale-2">2x review</button><button data-scale="scale-4">4x review</button></div></header>
+<main>
+<div class="source"><img src="source-ranger-transparent.png" alt="Ranger source"><div><h2>Source: ranger rerun</h2><p>Same source image used for all four jobs: walk A, walk B, run A, run B.</p><p>Each section below includes two grid sheets plus ten direction GIFs: A/B for front, front-three-quarter, side, back-three-quarter, and back.</p></div></div>
+<section id="walk-cycle">
+  <h2>Walk Cycle same-source A/B</h2>
+  <div class="meta"><span>A job codex-job-2026-06-27T00-13-16-952Z</span><span>B job codex-job-2026-06-27T00-13-16-909Z</span><span>same source: ranger</span></div>
+  <div class="compare">
+    <div class="panel"><h3>A current sheet</h3><img class="sheet" src="candidates/walk-cycle/walk-a-current-ranger-001/grid-qa.png" alt="A walk-cycle grid QA"></div>
+    <div class="panel"><h3>B v1 sheet</h3><img class="sheet" src="candidates/walk-cycle/walk-b-v1-ranger-001/grid-qa.png" alt="B walk-cycle grid QA"></div>
+  </div>
+  <h3 class="subhead">5-direction GIF comparison: A/B pairs, 10 GIFs</h3>
+  <div class="gif-grid"><div class="gif-card"><strong>A front</strong><img src="candidates/walk-cycle/walk-a-current-ranger-001/gifs/front.gif" alt="A front GIF"></div><div class="gif-card"><strong>B front</strong><img src="candidates/walk-cycle/walk-b-v1-ranger-001/gifs/front.gif" alt="B front GIF"></div><div class="gif-card"><strong>A front-three-quarter</strong><img src="candidates/walk-cycle/walk-a-current-ranger-001/gifs/front-three-quarter.gif" alt="A front-three-quarter GIF"></div><div class="gif-card"><strong>B front-three-quarter</strong><img src="candidates/walk-cycle/walk-b-v1-ranger-001/gifs/front-three-quarter.gif" alt="B front-three-quarter GIF"></div><div class="gif-card"><strong>A side</strong><img src="candidates/walk-cycle/walk-a-current-ranger-001/gifs/side.gif" alt="A side GIF"></div><div class="gif-card"><strong>B side</strong><img src="candidates/walk-cycle/walk-b-v1-ranger-001/gifs/side.gif" alt="B side GIF"></div><div class="gif-card"><strong>A back-three-quarter</strong><img src="candidates/walk-cycle/walk-a-current-ranger-001/gifs/back-three-quarter.gif" alt="A back-three-quarter GIF"></div><div class="gif-card"><strong>B back-three-quarter</strong><img src="candidates/walk-cycle/walk-b-v1-ranger-001/gifs/back-three-quarter.gif" alt="B back-three-quarter GIF"></div><div class="gif-card"><strong>A back</strong><img src="candidates/walk-cycle/walk-a-current-ranger-001/gifs/back.gif" alt="A back GIF"></div><div class="gif-card"><strong>B back</strong><img src="candidates/walk-cycle/walk-b-v1-ranger-001/gifs/back.gif" alt="B back GIF"></div></div>
+</section><section id="run-cycle">
+  <h2>Run Cycle same-source A/B</h2>
+  <div class="meta"><span>A job codex-job-2026-06-27T00-13-16-936Z</span><span>B job codex-job-2026-06-27T00-25-51-214Z</span><span>same source: ranger</span></div>
+  <div class="compare">
+    <div class="panel"><h3>A current sheet</h3><img class="sheet" src="candidates/run-cycle/run-a-current-ranger-001/grid-qa.png" alt="A run-cycle grid QA"></div>
+    <div class="panel"><h3>B v1 sheet</h3><img class="sheet" src="candidates/run-cycle/run-b-v1-ranger-001/grid-qa.png" alt="B run-cycle grid QA"></div>
+  </div>
+  <h3 class="subhead">5-direction GIF comparison: A/B pairs, 10 GIFs</h3>
+  <div class="gif-grid"><div class="gif-card"><strong>A front</strong><img src="candidates/run-cycle/run-a-current-ranger-001/gifs/front.gif" alt="A front GIF"></div><div class="gif-card"><strong>B front</strong><img src="candidates/run-cycle/run-b-v1-ranger-001/gifs/front.gif" alt="B front GIF"></div><div class="gif-card"><strong>A front-three-quarter</strong><img src="candidates/run-cycle/run-a-current-ranger-001/gifs/front-three-quarter.gif" alt="A front-three-quarter GIF"></div><div class="gif-card"><strong>B front-three-quarter</strong><img src="candidates/run-cycle/run-b-v1-ranger-001/gifs/front-three-quarter.gif" alt="B front-three-quarter GIF"></div><div class="gif-card"><strong>A side</strong><img src="candidates/run-cycle/run-a-current-ranger-001/gifs/side.gif" alt="A side GIF"></div><div class="gif-card"><strong>B side</strong><img src="candidates/run-cycle/run-b-v1-ranger-001/gifs/side.gif" alt="B side GIF"></div><div class="gif-card"><strong>A back-three-quarter</strong><img src="candidates/run-cycle/run-a-current-ranger-001/gifs/back-three-quarter.gif" alt="A back-three-quarter GIF"></div><div class="gif-card"><strong>B back-three-quarter</strong><img src="candidates/run-cycle/run-b-v1-ranger-001/gifs/back-three-quarter.gif" alt="B back-three-quarter GIF"></div><div class="gif-card"><strong>A back</strong><img src="candidates/run-cycle/run-a-current-ranger-001/gifs/back.gif" alt="A back GIF"></div><div class="gif-card"><strong>B back</strong><img src="candidates/run-cycle/run-b-v1-ranger-001/gifs/back.gif" alt="B back GIF"></div></div>
+</section>
+</main>
+<script>
+for (const button of document.querySelectorAll('[data-scale]')) {
+  button.addEventListener('click', () => {
+    document.documentElement.className = button.dataset.scale;
+    for (const item of document.querySelectorAll('[data-scale]')) item.classList.toggle('active', item === button);
+  });
+}
+</script>
+</body></html>
