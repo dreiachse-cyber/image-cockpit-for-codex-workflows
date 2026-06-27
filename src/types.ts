@@ -233,6 +233,24 @@ export interface ImageCockpitDevSupervisorHealth {
 
 export type CodexArtifactQuality = "gold" | "silver" | "bronze" | "blocked" | "waiting";
 
+export type CodexResultQualityClassification =
+  | "usable-final"
+  | "quality-failed"
+  | "quarantined-candidate"
+  | "debug-artifact"
+  | "running"
+  | "failed";
+
+export interface CodexResultQualityGate {
+  classification: CodexResultQualityClassification;
+  reason: string;
+  code?: string;
+  historyAllowed: boolean;
+  downloadAllowed: boolean;
+  retryable: boolean;
+  warnings?: string[];
+}
+
 export interface CodexArtifactStatus {
   jobId: string;
   artifactKind: "direction-split";
@@ -247,6 +265,7 @@ export interface CodexArtifactStatus {
   manifestName?: string;
   stable: boolean;
   candidateCount: number;
+  qualityGate?: CodexResultQualityGate;
   chromaKey?: {
     expected?: string;
     manifest?: string;
@@ -275,6 +294,7 @@ export interface CodexOutboxResult {
   size: number;
   modifiedAt: string;
   mimeType: string;
+  qualityGate?: CodexResultQualityGate;
   artifact?: CodexArtifactStatus;
 }
 

@@ -101,6 +101,31 @@ type CodexRunnerStatus = {
 
 type CodexArtifactQuality = "gold" | "silver" | "bronze" | "blocked" | "waiting";
 
+type CodexResultQualityClassification =
+  | "usable-final"
+  | "quality-failed"
+  | "quarantined-candidate"
+  | "debug-artifact"
+  | "running"
+  | "failed";
+
+type CodexResultQualityGate = {
+  classification: CodexResultQualityClassification;
+  reason: string;
+  code?: string;
+  historyAllowed: boolean;
+  downloadAllowed: boolean;
+  retryable: boolean;
+  warnings?: string[];
+};
+
+type CodexResultQualityGateRequest = {
+  classification?: unknown;
+  reason?: unknown;
+  code?: unknown;
+  warnings?: unknown;
+};
+
 type CodexArtifactStatus = {
   jobId: string;
   artifactKind: "direction-split";
@@ -115,6 +140,7 @@ type CodexArtifactStatus = {
   manifestName?: string;
   stable: boolean;
   candidateCount: number;
+  qualityGate?: CodexResultQualityGate;
   chromaKey?: {
     expected?: string;
     manifest?: string;
@@ -283,6 +309,19 @@ const server = createServer(async (request, response) => {
       }
       const requestedBytes = Number(requestUrl.searchParams.get("bytes") ?? runnerLogTailDefaultBytes);
       sendJson(response, 200, await readRunnerLogTail(jobId, requestedBytes));
+      return;
+    }
+
+    const qualityGateMatch = pathname.match(/^\/api\/codex\/artifacts\/([^/]+)\/quality-gate$/);
+    if (request.method === "POST" && qualityGateMatch) {
+      const jobId = decodeURIComponent(qualityGateMatch[1]);
+      if (!isSafeJobId(jobId)) {
+        sendJson(response, 400, { error: "Unsupported or unsafe job id" });
+        return;
+      }
+      const gate = qualityGateFromRequest((await readJson(request)) as CodexResultQualityGateRequest);
+      const writeResult = await writeDirectionSplitQualityGate(jobId, gate);
+      sendJson(response, 200, writeResult);
       return;
     }
 
@@ -506,7 +545,7 @@ function workflowNotes(mode: CodexWorkflowMode) {
       "Every cell must contain exactly one full-body character with head, hair, hands, equipment, and both feet visible, centered with at least 10% inner padding.",
       "Reject and retry the sprite sheet if any cell has a cropped head, missing feet, multiple heads, a head below the feet, inconsistent scale, body fragments, or a different character.",
       "Use the requested chroma-key background color as a flat simple background in every cell so Image Cockpit can remove it after import.",
-      "For standard direction-split output, prefer writing all generated direction images and any source manifest under outbox/.staging/<job-id>/; Image Cockpit will verify, publish, and write the final manifest. If you must write to the outbox root, write only final direction images with the job id prefix and keep *-qa.json, work files, temporary files, contact sheets, comparison sheets, and debug images outside the root.",
+      "For standard direction-split output, write all generated direction images and any source manifest under outbox/.staging/<job-id>/ first; do not write root outbox direction files or the root manifest until the whole five-direction set is normalized and self-checked. Image Cockpit will verify, publish, and write the final manifest. If you must write to the outbox root, write only fully normalized final direction images with the job id prefix and keep *-qa.json, work files, temporary files, contact sheets, comparison sheets, and debug images outside the root.",
       "Avoid readable text, logos, watermarks, labels, UI words, numbers, scenery, and complex backgrounds.",
       blockerSidecarNote
     ];
@@ -866,7 +905,7 @@ function buildCodexRunnerPrompt(job: { id: string; path: string }) {
     "For workflowMode=sprite-generate, inspect selectedImage.assetPath, then use imagegen / built-in image_gen when available to create the requested sprite sheet assets from the source character image. Never create a procedural, SVG, canvas, diagram, geometric, or placeholder image.",
     "For workflowMode=sprite-generate, follow spriteContext.grid, spriteContext.cell, spriteContext.directions, spriteContext.variant, and spriteContext.chromaKey exactly. Keep one full-body character centered inside each strict cell with padding, no cropping, no duplicated heads, and no body parts crossing cells.",
     "For workflowMode=sprite-generate with spriteContext.variant=standard, return exactly five separate direction PNG/WebP images using the suffixes front, front-three-quarter, side, back-three-quarter, and back. Each direction image must be 4 columns x 2 rows, 256x256 cells unless spriteContext.cell says otherwise. Do not return only one combined 5x8 sheet.",
-    "For standard direction-split output, write generated direction images and any source manifest under outbox/.staging/<job-id>/ when possible. Image Cockpit will decode, verify, publish final direction files to the outbox root, and write the final <job-id>-manifest.json last. If you must write directly to the outbox root, use final job-id filenames only; Image Cockpit will still verify and may rewrite the manifest. Keep QA contact sheets, comparison sheets, and .tmp files outside the outbox root.",
+    "For standard direction-split output, write generated direction images and any source manifest under outbox/.staging/<job-id>/ first. Do not write root outbox direction files or the root manifest until the complete five-direction set is normalized, self-checked, and ready for final use. Image Cockpit will decode, verify, publish final direction files to the outbox root, and write the final <job-id>-manifest.json last. If you must write directly to the outbox root, use fully normalized final job-id filenames only; Image Cockpit will still verify and may rewrite the manifest. Keep QA contact sheets, comparison sheets, and .tmp files outside the outbox root.",
     "For workflowMode=sprite-generate, inspect all cells before writing the final file and retry if any head is cut off, feet are missing, a head appears below feet, scale changes wildly, or the background is not flat chroma key.",
     "For workflowMode=sprite-generate with spriteContext.variant=hatch-pet, use the installed hatch-pet skill/scripts when available. Build a Codex pet atlas with 8 columns x 9 rows, 192x208 cells, 1536x1872 total, transparent unused cells, contact-sheet QA, and final spritesheet PNG/WebP returned with the job id filename prefix. Include pet.json as a sidecar if produced.",
     "For workflowMode=sprite-generate with spriteContext.variant=directional-hatch-pet, use the installed hatch-pet skill/scripts when available and return exactly five separate Codex pet atlas images: direction-01-front, direction-02-front-three-quarter, direction-03-side, direction-04-back-three-quarter, and direction-05-back. Each atlas must be 8 columns x 9 rows, 192x208 cells, 1536x1872 total, transparent unused cells, and use the job id filename prefix plus the direction suffix. Do not return only one giant combined sheet.",
@@ -1089,7 +1128,15 @@ function readSidecarReasonKind(name: string, text: string) {
 async function hasOutboxImageForJob(jobId: string) {
   try {
     const directionSplitArtifact = await inspectDirectionSplitArtifact(jobId);
-    if (directionSplitArtifact.detected) return directionSplitArtifact.ready || directionSplitArtifact.quality === "bronze";
+    if (directionSplitArtifact.detected) {
+      const classification = directionSplitArtifact.qualityGate?.classification;
+      return (
+        directionSplitArtifact.ready ||
+        directionSplitArtifact.quality === "bronze" ||
+        classification === "quality-failed" ||
+        classification === "quarantined-candidate"
+      );
+    }
 
     const entries = await readdir(outboxDir, { withFileTypes: true });
     const names = entries
@@ -1193,13 +1240,54 @@ async function inspectDirectionSplitArtifact(jobId: string): Promise<CodexArtifa
   const candidateCount = bySlug.size + (sourceManifest ? 1 : 0);
   const expectedChromaKey = await readJobExpectedChromaKey(jobId);
   const manifestChromaKey = normalizeChromaKeyValue(readManifestChromaKey(sourceManifest?.parsed));
+  const manifestQualityGate = sourceManifest ? qualityGateFromManifest(sourceManifest.parsed) : null;
+  const newestCandidateMtimeMs = Math.max(0, ...Array.from(bySlug.values()).map((candidate) => candidate.mtimeMs));
+  const manifestQualityGateIsStale =
+    sourceManifest &&
+    manifestQualityGate &&
+    manifestQualityGate.classification !== "usable-final" &&
+    newestCandidateMtimeMs > manifestQualityGateRecordedMtimeMs(sourceManifest) + 50;
+  const manifestQualityGateWasSuperseded =
+    manifestQualityGate &&
+    manifestQualityGate.classification !== "usable-final" &&
+    isSupersededSoftClientQualityGate(manifestQualityGate);
   const chromaWarning =
     expectedChromaKey && manifestChromaKey && expectedChromaKey !== manifestChromaKey
       ? `manifest chroma key ${manifestChromaKey} differs from pending job chroma key ${expectedChromaKey}`
       : undefined;
   if (chromaWarning) warnings.push(chromaWarning);
+  if (manifestQualityGateIsStale) {
+    warnings.push("stale manifest quality gate was ignored because newer direction image candidates were detected");
+  }
+  if (manifestQualityGateWasSuperseded) {
+    warnings.push("soft client bbox variation quality gate was rechecked under the current animation QA policy");
+  }
+  if (manifestQualityGate && !manifestQualityGateIsStale && !manifestQualityGateWasSuperseded && manifestQualityGate.classification !== "usable-final") {
+    return {
+      jobId,
+      artifactKind: "direction-split",
+      detected: true,
+      ready: false,
+      verified: false,
+      quality: manifestQualityGate.classification === "quarantined-candidate" ? "bronze" : "blocked",
+      reason: manifestQualityGate.reason,
+      missingDirections,
+      warnings,
+      files,
+      manifestName: sourceManifest?.name,
+      stable: false,
+      candidateCount,
+      qualityGate: manifestQualityGate,
+      chromaKey: {
+        expected: expectedChromaKey,
+        manifest: manifestChromaKey,
+        warning: chromaWarning
+      }
+    };
+  }
 
   if (missingDirections.length > 0) {
+    const reason = `missing ${missingDirections.join(", ")}`;
     return {
       jobId,
       artifactKind: "direction-split",
@@ -1207,13 +1295,14 @@ async function inspectDirectionSplitArtifact(jobId: string): Promise<CodexArtifa
       ready: false,
       verified: false,
       quality: "waiting",
-      reason: `missing ${missingDirections.join(", ")}`,
+      reason,
       missingDirections,
       warnings,
       files,
       manifestName: sourceManifest?.name,
       stable: false,
       candidateCount,
+      qualityGate: makeQualityGate("running", reason, "direction-split-missing-directions", false, false, true, warnings),
       chromaKey: {
         expected: expectedChromaKey,
         manifest: manifestChromaKey,
@@ -1226,6 +1315,7 @@ async function inspectDirectionSplitArtifact(jobId: string): Promise<CodexArtifa
   const newestMtimeMs = Math.max(...candidates.map((candidate) => candidate.mtimeMs), sourceManifest?.mtimeMs ?? 0);
   const stable = artifactStableMs <= 0 || Date.now() - newestMtimeMs >= artifactStableMs;
   if (!stable) {
+    const reason = "waiting for stable verified artifacts";
     return {
       jobId,
       artifactKind: "direction-split",
@@ -1233,13 +1323,14 @@ async function inspectDirectionSplitArtifact(jobId: string): Promise<CodexArtifa
       ready: false,
       verified: false,
       quality: "waiting",
-      reason: "waiting for stable verified artifacts",
+      reason,
       missingDirections,
       warnings,
       files,
       manifestName: sourceManifest?.name,
       stable,
       candidateCount,
+      qualityGate: makeQualityGate("running", reason, "direction-split-waiting-stable", false, false, true, warnings),
       chromaKey: {
         expected: expectedChromaKey,
         manifest: manifestChromaKey,
@@ -1254,6 +1345,7 @@ async function inspectDirectionSplitArtifact(jobId: string): Promise<CodexArtifa
   )));
   const decodeFailures = imageInfos.filter((info) => info.error);
   if (decodeFailures.length > 0) {
+    const reason = `raw direction candidate needs review: ${decodeFailures.map((info) => `${info.candidate.slug} ${info.error}`).join("; ")}`;
     return {
       jobId,
       artifactKind: "direction-split",
@@ -1261,13 +1353,14 @@ async function inspectDirectionSplitArtifact(jobId: string): Promise<CodexArtifa
       ready: false,
       verified: false,
       quality: "bronze",
-      reason: `raw direction candidate needs review: ${decodeFailures.map((info) => `${info.candidate.slug} ${info.error}`).join("; ")}`,
+      reason,
       missingDirections,
       warnings,
       files,
       manifestName: sourceManifest?.name,
       stable,
       candidateCount,
+      qualityGate: makeQualityGate("quarantined-candidate", reason, "raw-direction-decode-failed", false, false, true, warnings),
       chromaKey: {
         expected: expectedChromaKey,
         manifest: manifestChromaKey,
@@ -1291,6 +1384,7 @@ async function inspectDirectionSplitArtifact(jobId: string): Promise<CodexArtifa
   if (manifestOrderWarning) warnings.push(manifestOrderWarning);
 
   const manifestName = await publishVerifiedDirectionSplitArtifact(jobId, candidates, sourceManifest, expectedChromaKey, warnings);
+  const reason = warnings.length > 0 ? "server verified with warnings" : "server verified";
   return {
     jobId,
     artifactKind: "direction-split",
@@ -1298,13 +1392,14 @@ async function inspectDirectionSplitArtifact(jobId: string): Promise<CodexArtifa
     ready: true,
     verified: true,
     quality: warnings.length > 0 ? "silver" : "gold",
-    reason: warnings.length > 0 ? "server verified with warnings" : "server verified",
+    reason,
     missingDirections,
     warnings,
     files: directionSplitSlugs.map((slug) => `${jobId}-${slug}${extname(bySlug.get(slug)?.finalName ?? ".png") || ".png"}`),
     manifestName,
     stable: true,
     candidateCount,
+    qualityGate: makeQualityGate("usable-final", reason, "direction-split-server-verified", true, true, false, warnings),
     chromaKey: {
       expected: expectedChromaKey,
       manifest: manifestChromaKey,
@@ -1326,23 +1421,32 @@ function emptyDirectionSplitArtifactStatus(jobId: string): CodexArtifactStatus {
     warnings: [],
     files: [],
     stable: false,
-    candidateCount: 0
+    candidateCount: 0,
+    qualityGate: makeQualityGate("running", "no direction split candidate", "direction-split-not-detected", false, false, true)
   };
 }
 
 async function findDirectionSplitCandidateFile(jobId: string, slug: string): Promise<DirectionSplitCandidateFile | null> {
   const candidateNames = directionSplitCandidateNames(jobId, slug);
   const stagingDir = join(outboxDir, ".staging", jobId);
+  const candidates: DirectionSplitCandidateFile[] = [];
   for (const candidateName of candidateNames.outbox) {
     const candidate = await statDirectionSplitCandidate(join(outboxDir, candidateName), slug, candidateName, candidateName, false);
-    if (candidate) return candidate;
+    if (candidate) candidates.push(candidate);
   }
   for (const candidateName of candidateNames.staging) {
     const finalName = `${jobId}-${slug}${extname(candidateName) || ".png"}`;
     const candidate = await statDirectionSplitCandidate(join(stagingDir, candidateName), slug, candidateName, finalName, true);
-    if (candidate) return candidate;
+    if (candidate) candidates.push(candidate);
   }
-  return null;
+  return candidates.sort(sortDirectionSplitCandidates)[0] ?? null;
+}
+
+function sortDirectionSplitCandidates(left: DirectionSplitCandidateFile, right: DirectionSplitCandidateFile) {
+  const timeDifference = right.mtimeMs - left.mtimeMs;
+  if (Math.abs(timeDifference) > 1) return timeDifference;
+  if (left.fromStaging !== right.fromStaging) return left.fromStaging ? -1 : 1;
+  return left.name.localeCompare(right.name);
 }
 
 function directionSplitCandidateNames(jobId: string, slug: string) {
@@ -1384,20 +1488,28 @@ async function findDirectionSplitSourceManifest(jobId: string): Promise<Directio
     { path: join(outboxDir, ".staging", jobId, `${jobId}-manifest.json`), name: `${jobId}-manifest.json`, fromStaging: true },
     { path: join(outboxDir, ".staging", jobId, "manifest.json"), name: "manifest.json", fromStaging: true }
   ];
+  const loaded: Array<NonNullable<DirectionSplitSourceManifest>> = [];
   for (const candidate of candidates) {
     try {
       const [text, fileStat] = await Promise.all([readFile(candidate.path, "utf8"), stat(candidate.path)]);
       const parsed = JSON.parse(text) as Record<string, unknown>;
-      return {
+      loaded.push({
         ...candidate,
         parsed,
         mtimeMs: fileStat.mtimeMs
-      };
+      });
     } catch {
       // Try the next manifest candidate.
     }
   }
-  return null;
+  return loaded.sort(sortDirectionSplitManifests)[0] ?? null;
+}
+
+function sortDirectionSplitManifests(left: NonNullable<DirectionSplitSourceManifest>, right: NonNullable<DirectionSplitSourceManifest>) {
+  const timeDifference = right.mtimeMs - left.mtimeMs;
+  if (Math.abs(timeDifference) > 1) return timeDifference;
+  if (left.fromStaging !== right.fromStaging) return left.fromStaging ? 1 : -1;
+  return left.name.localeCompare(right.name);
 }
 
 async function publishVerifiedDirectionSplitArtifact(
@@ -1428,6 +1540,15 @@ async function publishVerifiedDirectionSplitArtifact(
       serverVerified: true,
       verifiedAt: new Date().toISOString(),
       quality: warnings.length > 0 ? "silver" : "gold",
+      qualityGate: makeQualityGate(
+        "usable-final",
+        warnings.length > 0 ? "server verified with warnings" : "server verified",
+        "direction-split-server-verified",
+        true,
+        true,
+        false,
+        warnings
+      ),
       warnings,
       directions: directionSplitNames,
       framesPerDirection: 8,
@@ -1617,6 +1738,152 @@ function matchesAny(value: string, markers: string[]) {
   return markers.some((marker) => value.includes(marker));
 }
 
+function makeQualityGate(
+  classification: CodexResultQualityClassification,
+  reason: string,
+  code: string = classification,
+  historyAllowed = classification === "usable-final",
+  downloadAllowed = classification === "usable-final",
+  retryable = classification !== "usable-final",
+  warnings?: string[]
+): CodexResultQualityGate {
+  return {
+    classification,
+    reason,
+    code,
+    historyAllowed,
+    downloadAllowed,
+    retryable,
+    warnings: warnings && warnings.length > 0 ? warnings : undefined
+  };
+}
+
+function qualityGateFromManifest(manifest: Record<string, unknown>) {
+  const explicitGate = manifest.qualityGate;
+  if (explicitGate && typeof explicitGate === "object") {
+    const gate = explicitGate as Partial<CodexResultQualityGate>;
+    const classification = normalizeQualityClassification(gate.classification);
+    if (classification) {
+      return makeQualityGate(
+        classification,
+        typeof gate.reason === "string" && gate.reason.trim() ? gate.reason : qualityGateDefaultReason(classification),
+        typeof gate.code === "string" ? gate.code : `manifest-${classification}`,
+        gate.historyAllowed === true,
+        gate.downloadAllowed === true,
+        gate.retryable !== false,
+        Array.isArray(gate.warnings) ? gate.warnings.filter((warning): warning is string => typeof warning === "string") : undefined
+      );
+    }
+  }
+
+  const quality = normalizeQualityClassification(manifest.classification ?? manifest.quality ?? manifest.status);
+  if (!quality || quality === "usable-final" || quality === "running") return null;
+  return makeQualityGate(quality, qualityGateDefaultReason(quality), `manifest-${quality}`, false, false, quality !== "debug-artifact");
+}
+
+function manifestQualityGateRecordedMtimeMs(sourceManifest: NonNullable<DirectionSplitSourceManifest>) {
+  const recordedAt = sourceManifest.parsed.qualityGateRecordedAt;
+  const recordedTime = typeof recordedAt === "string" ? Date.parse(recordedAt) : NaN;
+  return Number.isFinite(recordedTime) ? recordedTime : sourceManifest.mtimeMs;
+}
+
+function isSupersededSoftClientQualityGate(qualityGate: CodexResultQualityGate) {
+  if (qualityGate.code !== "client-quality-gate-failed") return false;
+  const reason = qualityGate.reason.toLowerCase();
+  if (!/\bbbox (?:width|height) variation\b/.test(reason)) return false;
+  return !/chroma key removal failed|transparency damage|detached component|blank normalized cell|no primary character|no character pixels|feet touch|top margin|expected \d+x\d+, got|missing direction|could not|decode failed/i.test(reason);
+}
+
+function qualityGateFromRequest(body: CodexResultQualityGateRequest) {
+  const requested = normalizeQualityClassification(body.classification);
+  const classification = requested && requested !== "usable-final" && requested !== "running" ? requested : "quality-failed";
+  const reason =
+    typeof body.reason === "string" && body.reason.trim()
+      ? trimQualityGateText(body.reason, 600)
+      : qualityGateDefaultReason(classification);
+  const code = typeof body.code === "string" && body.code.trim() ? trimQualityGateText(body.code, 120) : `client-${classification}`;
+  const warnings = Array.isArray(body.warnings)
+    ? body.warnings
+      .filter((warning): warning is string => typeof warning === "string" && warning.trim().length > 0)
+      .map((warning) => trimQualityGateText(warning, 220))
+      .slice(0, 12)
+    : undefined;
+  return makeQualityGate(classification, reason, code, false, false, classification !== "debug-artifact", warnings);
+}
+
+function trimQualityGateText(value: string, maxLength: number) {
+  return value.replace(/[\x00-\x08\x0b\x0c\x0e-\x1f]/g, " ").replace(/\s+/g, " ").trim().slice(0, maxLength);
+}
+
+async function writeDirectionSplitQualityGate(jobId: string, qualityGate: CodexResultQualityGate) {
+  const manifestPaths = [
+    join(outboxDir, `${jobId}-manifest.json`),
+    join(outboxDir, ".staging", jobId, `${jobId}-manifest.json`),
+    join(outboxDir, ".staging", jobId, "manifest.json")
+  ];
+  const written: string[] = [];
+  for (const manifestPath of manifestPaths) {
+    const existing = await readManifestObject(manifestPath);
+    if (!existing && written.length > 0) continue;
+    const manifest = existing ?? { schema: directionSplitManifestSchema, jobId };
+    manifest.schema = typeof manifest.schema === "string" ? manifest.schema : directionSplitManifestSchema;
+    manifest.jobId = typeof manifest.jobId === "string" ? manifest.jobId : jobId;
+    manifest.classification = qualityGate.classification;
+    manifest.quality = qualityGate.classification === "quality-failed" || qualityGate.classification === "failed" ? "blocked" : "bronze";
+    manifest.serverVerified = false;
+    manifest.qualityGate = qualityGate;
+    manifest.qualityGateRecordedAt = new Date().toISOString();
+    await mkdir(resolve(manifestPath, ".."), { recursive: true });
+    await writeFile(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`, "utf8");
+    written.push(manifestPath);
+  }
+  if (written.length === 0) {
+    const manifestPath = manifestPaths[0];
+    const manifest = {
+      schema: directionSplitManifestSchema,
+      jobId,
+      classification: qualityGate.classification,
+      quality: qualityGate.classification === "quality-failed" || qualityGate.classification === "failed" ? "blocked" : "bronze",
+      serverVerified: false,
+      qualityGate,
+      qualityGateRecordedAt: new Date().toISOString()
+    };
+    await writeFile(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`, "utf8");
+    written.push(manifestPath);
+  }
+  return { ok: true, jobId, qualityGate, written };
+}
+
+async function readManifestObject(path: string): Promise<Record<string, unknown> | null> {
+  try {
+    await stat(path);
+    const parsed = JSON.parse(await readFile(path, "utf8"));
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed as Record<string, unknown> : {};
+  } catch {
+    return null;
+  }
+}
+
+function normalizeQualityClassification(value: unknown): CodexResultQualityClassification | null {
+  if (typeof value !== "string") return null;
+  const normalized = value.trim().toLowerCase().replace(/[_\s]+/g, "-");
+  if (normalized === "usable-final" || normalized === "gold" || normalized === "silver" || normalized === "verified") return "usable-final";
+  if (normalized === "quality-failed" || normalized === "failed" || normalized === "blocked" || normalized === "rejected") return "quality-failed";
+  if (normalized === "quarantined-candidate" || normalized === "quarantine" || normalized === "quarantined" || normalized === "bronze") return "quarantined-candidate";
+  if (normalized === "debug-artifact" || normalized === "debug") return "debug-artifact";
+  if (normalized === "running" || normalized === "waiting" || normalized === "pending") return "running";
+  return null;
+}
+
+function qualityGateDefaultReason(classification: CodexResultQualityClassification) {
+  if (classification === "quality-failed") return "Animation result failed the material quality gate.";
+  if (classification === "quarantined-candidate") return "Candidate was quarantined and is not a final usable result.";
+  if (classification === "debug-artifact") return "Debug or QA artifact is not a final usable result.";
+  if (classification === "failed") return "Generation failed before producing a usable final result.";
+  if (classification === "running") return "Generation is still waiting for final verified artifacts.";
+  return "Usable final result.";
+}
+
 async function listOutboxResults() {
   const artifactStatuses = await inspectAllDirectionSplitArtifacts();
   const entries = await readdir(outboxDir, { withFileTypes: true });
@@ -1629,19 +1896,47 @@ async function listOutboxResults() {
         if (!mimeType) return null;
         const filePath = join(outboxDir, entry.name);
         const fileStat = await stat(filePath);
+        const artifact = artifactStatuses.get(directionSplitJobIdFromFileName(entry.name) ?? "");
         return {
           name: entry.name,
           path: filePath,
           size: fileStat.size,
           modifiedAt: fileStat.mtime.toISOString(),
           mimeType,
-          artifact: artifactStatuses.get(directionSplitJobIdFromFileName(entry.name) ?? "")
+          qualityGate: qualityGateForOutboxResultName(entry.name, artifact),
+          artifact
         };
       })
   );
   return results
     .filter((result): result is NonNullable<(typeof results)[number]> => Boolean(result))
     .sort((a, b) => Date.parse(b.modifiedAt) - Date.parse(a.modifiedAt));
+}
+
+function qualityGateForOutboxResultName(name: string, artifact?: CodexArtifactStatus): CodexResultQualityGate {
+  const filterName = normalizeOutboxResultNameForFiltering(name);
+  if (filterName.includes("bronze-candidate")) {
+    return makeQualityGate(
+      "quarantined-candidate",
+      "Bronze candidate is available for diagnostics only and is not a final usable result.",
+      "bronze-candidate",
+      false,
+      false,
+      true
+    );
+  }
+  if (artifact?.qualityGate) return artifact.qualityGate;
+  if (directionSplitJobIdFromFileName(name) && !isDirectionSplitManifestFileName(name)) {
+    return makeQualityGate(
+      "quarantined-candidate",
+      "Raw direction image is a component candidate; import the verified direction-split manifest to create the final sheet.",
+      "raw-direction-component",
+      false,
+      false,
+      true
+    );
+  }
+  return makeQualityGate("usable-final", "Usable final result.", "usable-final", true, true, false);
 }
 
 function resolveOutboxFile(name: string) {

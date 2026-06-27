@@ -87,6 +87,7 @@ import type {
   CodexJobStatusResponse,
   CodexOutboxImportResponse,
   CodexOutboxResult,
+  CodexResultQualityClassification,
   CodexRunnerPreflight,
   CodexRunnerPreflightResponse,
   CodexRunnerStatus,
@@ -113,6 +114,7 @@ const ANIMATION_DIRECTION_COUNT = 5;
 const ANIMATION_CELL_SIZE = 256;
 const MIN_ANIMATION_CELL_SIZE = ANIMATION_CELL_SIZE;
 const MAX_ACTIVE_CODEX_JOBS = 3;
+const MAX_ACTIVE_STANDARD_ANIMATION_CODEX_JOBS = 1;
 const CODEX_LOG_POLL_INTERVAL_MS = 2000;
 const CODEX_LOG_TAIL_BYTES = 32768;
 const CODEX_LOG_HISTORY_LIMIT = MAX_ACTIVE_CODEX_JOBS;
@@ -288,6 +290,7 @@ interface DirectionSplitSelection {
   ready: boolean;
   waitingForFinalManifest: boolean;
   waitingForVerifiedArtifacts: boolean;
+  qualityFailed: boolean;
   hasDirectionFiles: boolean;
   bronzeCandidate: boolean;
   artifactStatus?: CodexArtifactStatus;
@@ -3038,6 +3041,34 @@ function isStaticImageResult(result: CodexOutboxResult) {
   return !shouldIgnoreOutboxResultName(result.name) && result.mimeType.startsWith("image/") && result.mimeType !== "image/gif";
 }
 
+function clientQualityGateForOutboxResult(result: Pick<CodexOutboxResult, "name" | "qualityGate">) {
+  if (result.qualityGate) return result.qualityGate;
+  const filterName = normalizeOutboxResultNameForFiltering(result.name);
+  if (filterName.includes("bronze-candidate")) {
+    return {
+      classification: "quarantined-candidate" as const,
+      reason: "Bronze candidate is available for diagnostics only and is not a final usable result.",
+      code: "bronze-candidate",
+      historyAllowed: false,
+      downloadAllowed: false,
+      retryable: true
+    };
+  }
+  return {
+    classification: "usable-final" as const,
+    reason: "Usable final result.",
+    code: "usable-final",
+    historyAllowed: true,
+    downloadAllowed: true,
+    retryable: false
+  };
+}
+
+export function isUsableOutboxResult(result: Pick<CodexOutboxResult, "name" | "qualityGate">) {
+  const gate = clientQualityGateForOutboxResult(result);
+  return gate.classification === "usable-final" && gate.historyAllowed !== false && gate.downloadAllowed !== false;
+}
+
 export function directionSplitJobIdFromOutboxResultName(name: string) {
   const baseName = name.split(/[\\/]/).pop() ?? name;
   if (!baseName.toLowerCase().startsWith("codex-job-")) return "";
@@ -3057,7 +3088,7 @@ export function isDirectionSplitComponentOutboxName(name: string) {
 }
 
 export function isGenericStaticImageResult(result: CodexOutboxResult) {
-  return isStaticImageResult(result) && !isDirectionSplitComponentOutboxName(result.name);
+  return isStaticImageResult(result) && !isDirectionSplitComponentOutboxName(result.name) && isUsableOutboxResult(result);
 }
 
 export function selectDirectionSplitAnimationResults(
@@ -3083,15 +3114,23 @@ export function selectDirectionSplitAnimationResults(
     .filter(Boolean);
   const hasManifest = Boolean(manifestResult || manifest);
   const hasDirectionFiles = byDirection.some(Boolean);
+  const qualityClassification = artifactStatus?.qualityGate?.classification;
+  const qualityFailed = Boolean(
+    artifactStatus?.quality === "blocked" ||
+      qualityClassification === "quality-failed" ||
+      qualityClassification === "failed" ||
+      qualityClassification === "debug-artifact"
+  );
+  const bronzeCandidate = artifactStatus?.quality === "bronze" || qualityClassification === "quarantined-candidate";
   const serverVerified = !artifactStatus || (artifactStatus.ready && artifactStatus.verified);
-  const bronzeCandidate = artifactStatus?.quality === "bronze";
-  const waitingForVerifiedArtifacts = Boolean(artifactStatus?.detected && !artifactStatus.ready && !bronzeCandidate);
-  const ready = hasManifest && missingDirections.length === 0 && serverVerified;
+  const waitingForVerifiedArtifacts = Boolean(artifactStatus?.detected && !artifactStatus.ready && !bronzeCandidate && !qualityFailed);
+  const ready = hasManifest && missingDirections.length === 0 && serverVerified && !bronzeCandidate && !qualityFailed;
   return {
     detected: Boolean(artifactStatus?.detected || hasManifest || hasDirectionFiles),
     ready,
     waitingForFinalManifest: hasDirectionFiles && !hasManifest,
     waitingForVerifiedArtifacts,
+    qualityFailed,
     hasDirectionFiles,
     bronzeCandidate,
     artifactStatus,
@@ -3185,6 +3224,47 @@ function directionSplitAnimationFileSet(jobIdPrefix: string) {
 
 function isStandardDirectionSplitJob(job: Pick<CodexJobQueueItem, "workflowMode" | "spriteVariant">) {
   return job.workflowMode === "sprite-generate" && (job.spriteVariant ?? "standard") === "standard";
+}
+
+function isStandardDirectionSplitDraft(draft: Pick<CodexJobDraft, "resultWorkflowMode" | "resultSpriteVariant">) {
+  return draft.resultWorkflowMode === "sprite-generate" && (draft.resultSpriteVariant ?? "standard") === "standard";
+}
+
+function activeCodexJobCount(jobs: CodexJobQueueItem[], startingQueuedJobIds: Set<string>) {
+  return jobs.filter((job) => job.state === "running" || startingQueuedJobIds.has(job.id)).length;
+}
+
+function activeStandardDirectionSplitJobCount(jobs: CodexJobQueueItem[], startingQueuedJobIds: Set<string>) {
+  return jobs.filter((job) => (job.state === "running" || startingQueuedJobIds.has(job.id)) && isStandardDirectionSplitJob(job)).length;
+}
+
+function canStartCodexJobDraft(draft: CodexJobDraft, jobs: CodexJobQueueItem[], startingQueuedJobIds: Set<string>) {
+  if (activeCodexJobCount(jobs, startingQueuedJobIds) >= MAX_ACTIVE_CODEX_JOBS) return false;
+  if (!isStandardDirectionSplitDraft(draft)) return true;
+  return activeStandardDirectionSplitJobCount(jobs, startingQueuedJobIds) < MAX_ACTIVE_STANDARD_ANIMATION_CODEX_JOBS;
+}
+
+function isSingleDirectionIntermediateSheet(width: number, height: number, cell: SpriteAction["cell"]) {
+  return width === cell.width * DIRECTION_SPLIT_ANIMATION_GRID.columns && height === cell.height * DIRECTION_SPLIT_ANIMATION_GRID.rows;
+}
+
+function isDirectionSplitSourceAspectCompatible(width: number, height: number, expectedWidth: number, expectedHeight: number) {
+  if (width <= 0 || height <= 0 || expectedWidth <= 0 || expectedHeight <= 0) return false;
+  const sourceRatio = width / height;
+  const expectedRatio = expectedWidth / expectedHeight;
+  return Math.abs(sourceRatio - expectedRatio) / expectedRatio <= 0.03;
+}
+
+function normalizeDirectionSplitSourceCanvas(image: HTMLImageElement, expectedWidth: number, expectedHeight: number) {
+  const canvas = document.createElement("canvas");
+  canvas.width = expectedWidth;
+  canvas.height = expectedHeight;
+  const context = canvas.getContext("2d", { willReadFrequently: true });
+  if (!context) throw new Error("Could not normalize direction split source image.");
+  context.clearRect(0, 0, expectedWidth, expectedHeight);
+  context.imageSmoothingEnabled = false;
+  context.drawImage(image, 0, 0, expectedWidth, expectedHeight);
+  return canvas;
 }
 
 function parseDirectionSplitAnimationManifest(imported: CodexOutboxImportResponse) {
@@ -4182,15 +4262,21 @@ function App() {
   }, [codexFailureNotices, language]);
 
   useEffect(() => {
-    const runningCount = codexJobs.filter((job) => job.state === "running").length;
-    const openSlots = MAX_ACTIVE_CODEX_JOBS - runningCount - startingQueuedJobIdsRef.current.size;
-    if (openSlots <= 0) return;
+    if (activeCodexJobCount(codexJobs, startingQueuedJobIdsRef.current) >= MAX_ACTIVE_CODEX_JOBS) return;
 
-    const queuedJobs = codexJobs
+    const queuedJobsToStart: CodexJobQueueItem[] = [];
+    const plannedStartingIds = new Set(startingQueuedJobIdsRef.current);
+    for (const job of codexJobs
       .filter((job) => job.state === "queued" && job.request)
-      .slice(0, openSlots);
+    ) {
+      if (!job.request) continue;
+      if (!canStartCodexJobDraft(job.request, codexJobs, plannedStartingIds)) continue;
+      queuedJobsToStart.push(job);
+      plannedStartingIds.add(job.id);
+      if (activeCodexJobCount(codexJobs, plannedStartingIds) >= MAX_ACTIVE_CODEX_JOBS) break;
+    }
 
-    queuedJobs.forEach((job) => {
+    queuedJobsToStart.forEach((job) => {
       if (!job.request || startingQueuedJobIdsRef.current.has(job.id)) return;
       startingQueuedJobIdsRef.current.add(job.id);
       void submitCodexJobDraft(job.request, job.id).finally(() => {
@@ -4313,9 +4399,7 @@ function App() {
       const draft = await buildCodexJobDraft();
       if (!draft) return;
 
-      const activeCodexJobCount =
-        codexJobs.filter((job) => job.state === "running").length + startingQueuedJobIdsRef.current.size;
-      if (activeCodexJobCount >= MAX_ACTIVE_CODEX_JOBS) {
+      if (!canStartCodexJobDraft(draft, codexJobs, startingQueuedJobIdsRef.current)) {
         enqueueCodexJobDraft(draft);
         return;
       }
@@ -4646,11 +4730,40 @@ function App() {
     return fingerprintOutboxResults(data.results, job.id, job.createdAt);
   }
 
+  async function markCodexArtifactQualityGate(
+    jobId: string,
+    classification: Exclude<CodexResultQualityClassification, "usable-final" | "running">,
+    reason: string,
+    code: string
+  ) {
+    try {
+      const response = await fetch(`/api/codex/artifacts/${encodeURIComponent(jobId)}/quality-gate`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ classification, reason, code })
+      });
+      if (!response.ok) console.warn(`Could not persist Codex quality gate for ${jobId}: ${await response.text()}`);
+    } catch (error) {
+      console.warn(`Could not persist Codex quality gate for ${jobId}`, error);
+    }
+  }
+
   function recordCodexImportFailure(job: CodexJobQueueItem, error: unknown) {
     const reason = summarizeCodexImportFailureReason(error);
     const isReviewCandidate = isStandardDirectionSplitJob(job) && /bronze candidate|needs review|raw direction candidate/i.test(reason);
+    const isQualityGateFailure = isStandardDirectionSplitJob(job) && /quality gate|chroma key|transparency damage|direction split qa failed|quarantined/i.test(reason);
+    if (isReviewCandidate || isQualityGateFailure) {
+      void markCodexArtifactQualityGate(
+        job.id,
+        isReviewCandidate ? "quarantined-candidate" : "quality-failed",
+        reason,
+        isReviewCandidate ? "client-quarantined-candidate" : "client-quality-gate-failed"
+      );
+    }
     const title = isReviewCandidate
       ? (language === "ja" ? "確認が必要な候補" : "Needs review candidate")
+      : isQualityGateFailure
+      ? (language === "ja" ? "素材品質チェックで弾かれました" : "Material quality gate failed")
       : isStandardDirectionSplitJob(job)
       ? copy.codexFailureDirectionSplitImportFailedTitle
       : copy.codexFailureImportFailedTitle;
@@ -4658,6 +4771,10 @@ function App() {
       ? (language === "ja"
           ? "raw候補を確認、ダウンロード、再取り込み、または再生成してください。"
           : "Review or download the raw candidate, retry import, or regenerate the job.")
+      : isQualityGateFailure
+      ? (language === "ja"
+          ? "候補はfinalとして保存せず、diagnosticsを確認して再生成してください。"
+          : "The candidate was not saved as a final result. Review diagnostics and regenerate the job.")
       : copy.codexFailureImportFailedSuggestion;
     const diagnostic: CodexJobDiagnostic = {
       kind: "import_failed",
@@ -5108,6 +5225,9 @@ function App() {
       ? imported.dataUrl
       : await createTransparentSpriteSheetDataUrl(imported.dataUrl, chromaKey);
     const image = await loadImage(transparentSheetDataUrl);
+    if (spriteVariant === "standard" && isSingleDirectionIntermediateSheet(image.width, image.height, spriteCell)) {
+      throw new Error(`Animation quality gate failed: ${imported.name} is a single-direction intermediate sheet (${image.width}x${image.height}), not a final 5-direction animation result.`);
+    }
     const baseName = imported.name.replace(/\.[^.]+$/, "");
     const item: HistoryItem = {
       id: createId("hist"),
@@ -5461,12 +5581,23 @@ function App() {
             setStatus(`${copy.statusCodexJobPending}: ${pendingJob.id} (${reason})`);
             return false;
           }
+          if (directionSplitSelection.qualityFailed) {
+            const reason = directionSplitSelection.artifactStatus?.qualityGate?.reason ?? directionSplitSelection.artifactStatus?.reason ?? "Animation result failed the material quality gate.";
+            const qualityError = new Error(`Animation quality gate failed for ${pendingJob.id}: ${reason}. No history or final download item was added.`);
+            if (options.failOnIncompleteDirectionSplit || options.throwOnError) throw qualityError;
+            const diagnostic = recordCodexImportFailure(pendingJob, qualityError);
+            removeCodexJob(pendingJob.id, "completed");
+            setStatus(`${diagnostic.title}: ${pendingJob.id}`);
+            return false;
+          }
           if (directionSplitSelection.bronzeCandidate) {
             const reason = directionSplitSelection.artifactStatus?.reason ?? "raw direction candidate needs review";
-            if (options.failOnIncompleteDirectionSplit) {
-              throw new Error(`Bronze candidate for ${pendingJob.id}: ${reason}. Raw direction files are still available.`);
+            if (options.failOnIncompleteDirectionSplit || options.throwOnError) {
+              throw new Error(`Bronze candidate quarantined for ${pendingJob.id}: ${reason}. Raw direction files are available for diagnostics, but no final history or download item was added.`);
             }
-            if (!options.quietEmpty) setStatus(`${copy.statusCodexJobPending}: ${pendingJob.id} (${reason})`);
+            const diagnostic = recordCodexImportFailure(pendingJob, new Error(`Bronze candidate quarantined for ${pendingJob.id}: ${reason}. Raw direction files are available for diagnostics, but no final history or download item was added.`));
+            removeCodexJob(pendingJob.id, "completed");
+            if (!options.quietEmpty) setStatus(`${diagnostic.title}: ${pendingJob.id}`);
             return false;
           }
           if (!directionSplitSelection.ready) {
@@ -5484,8 +5615,12 @@ function App() {
             await importDirectionSplitAnimationResults(importedResults, manifest, pendingJob, manifestResult?.name);
             clearCodexFailureNotice(pendingJob.id);
           } catch (error) {
-            await importDirectionSplitBronzeCandidate(importedResults, pendingJob, error);
-            recordCodexImportFailure(pendingJob, new Error(`Bronze candidate for ${pendingJob.id}: ${summarizeCodexImportFailureReason(error)}. Raw direction files are still available.`));
+            const qualityError = new Error(`Animation quality gate failed for ${pendingJob.id}: ${summarizeCodexImportFailureReason(error)}. Candidate files are quarantined; no history or final download item was added.`);
+            if (options.throwOnError) throw qualityError;
+            const diagnostic = recordCodexImportFailure(pendingJob, qualityError);
+            setStatus(`${diagnostic.title}: ${pendingJob.id}`);
+            removeCodexJob(pendingJob.id, "completed");
+            return false;
           }
           removeCodexJob(pendingJob.id, "completed");
           return true;
@@ -5619,7 +5754,7 @@ function App() {
   }
 
   function downloadSelectedImage() {
-    if (!selected || selectedIsAnimationResult) return;
+    if (!selected || selectedIsAnimationResult || !isUsableHistoryDownloadItem(selected)) return;
     const blob = dataUrlToBlob(selected.dataUrl);
     const extension = blob.type.includes("webp") ? "webp" : blob.type.includes("jpeg") ? "jpg" : "png";
     downloadBlob(blob, `${selectedImageSafeBaseName(selected)}.${extension}`);
@@ -6210,8 +6345,12 @@ function App() {
   const activeWorkflowFormCopy = workflowFormCopy[language][workflowMode];
   const codexQueueCopy = codexJobQueueLabels(language);
   const runningCodexJobCount = codexJobs.filter((job) => job.state === "running").length;
-  const shouldQueueCodexJob = providerId === "codex-handoff" && runningCodexJobCount >= MAX_ACTIVE_CODEX_JOBS;
   const isAnimationWorkflow = workflowMode === "sprite-generate";
+  const runningStandardAnimationJobCount = codexJobs.filter((job) => job.state === "running" && isStandardDirectionSplitJob(job)).length;
+  const shouldQueueCodexJob =
+    providerId === "codex-handoff" &&
+    (runningCodexJobCount >= MAX_ACTIVE_CODEX_JOBS ||
+      (isAnimationWorkflow && runningStandardAnimationJobCount >= MAX_ACTIVE_STANDARD_ANIMATION_CODEX_JOBS));
   const isImageEditWorkflow = workflowMode === "image-edit";
   const animationSourceReady = !isAnimationWorkflow || isAnimationSource(animationSource);
   const imageEditSourceReady = !isImageEditWorkflow || Boolean(selected && !selectedIsAnimationResult);
@@ -6237,11 +6376,14 @@ function App() {
       ? copy.hatchPetDownloadBody
       : copy.animationStepDownloadBody;
   const resultDownloadIsAnimation = selectedAnimationExportReady;
-  const selectedImageDownloadReady = Boolean(selected && !resultDownloadIsAnimation);
+  const selectedFinalDownloadAllowed = Boolean(selected && isUsableHistoryDownloadItem(selected));
+  const selectedImageDownloadReady = Boolean(selected && !resultDownloadIsAnimation && selectedFinalDownloadAllowed);
   const resultDownloadReady = resultDownloadIsAnimation ? selectedAnimationExportReady : selectedImageDownloadReady;
   const resultDownloadBody = resultDownloadIsAnimation ? selectedAnimationDownloadBody : copy.imageDownloadBody;
   const resultDownloadStatus = !selected
     ? copy.imageDownloadLocked
+    : !selectedFinalDownloadAllowed
+      ? (language === "ja" ? "品質チェックで隔離された候補はfinalとしてダウンロードできません。" : "Quality-gated candidates cannot be downloaded as final results.")
     : resultDownloadIsAnimation
       ? copy.animationReady
       : copy.imageDownloadReady;
@@ -7661,6 +7803,21 @@ function selectedImageSafeBaseName(item: Pick<HistoryItem, "name">) {
   return baseName.replace(/[<>:"/\\|?*\x00-\x1F]+/g, "-");
 }
 
+function isUsableHistoryDownloadItem(item: Pick<HistoryItem, "name" | "outboxImportKey">) {
+  const name = normalizeOutboxResultNameForFiltering(item.name);
+  const importKey = item.outboxImportKey?.toLowerCase() ?? "";
+  return !(
+    name.includes("bronze-candidate") ||
+    name.includes("candidate-contact") ||
+    name.includes("preview-grid") ||
+    name.includes("contact-sheet") ||
+    hasDebugOutboxResultMarker(name) ||
+    hasQaOutboxResultMarker(name) ||
+    importKey.startsWith("bronze-candidate:") ||
+    importKey.includes(":bronze-candidate")
+  );
+}
+
 function createAnimationPackExportDraft(overrides: Partial<AnimationPackExportDraft> = {}): AnimationPackExportDraft {
   return {
     title: "",
@@ -8657,11 +8814,17 @@ async function composeDirectionSplitAnimationSheet(
 
     const transparentDataUrl = await createTransparentSpriteSheetDataUrl(result.dataUrl, chromaKey);
     const image = await loadImage(transparentDataUrl);
+    let sourceImage: HTMLImageElement | HTMLCanvasElement = image;
     if (image.width !== expectedWidth || image.height !== expectedHeight) {
-      failures.push(`${direction}: expected ${expectedWidth}x${expectedHeight}, got ${image.width}x${image.height}`);
+      if (isDirectionSplitSourceAspectCompatible(image.width, image.height, expectedWidth, expectedHeight)) {
+        sourceImage = normalizeDirectionSplitSourceCanvas(image, expectedWidth, expectedHeight);
+        warnings.push(`${direction}: normalized source image from ${image.width}x${image.height} to ${expectedWidth}x${expectedHeight}`);
+      } else {
+        failures.push(`${direction}: expected ${expectedWidth}x${expectedHeight}, got ${image.width}x${image.height}`);
+      }
     }
 
-    const cells = calculateGridCells(image.width, image.height, DIRECTION_SPLIT_ANIMATION_GRID);
+    const cells = calculateGridCells(sourceImage.width, sourceImage.height, DIRECTION_SPLIT_ANIMATION_GRID);
     const canvas = document.createElement("canvas");
     canvas.width = cell.width;
     canvas.height = cell.height;
@@ -8674,7 +8837,7 @@ async function composeDirectionSplitAnimationSheet(
 
     cells.slice(0, ANIMATION_FRAME_COUNT).forEach((gridCell) => {
       context.clearRect(0, 0, cell.width, cell.height);
-      context.drawImage(image, gridCell.x, gridCell.y, gridCell.width, gridCell.height, 0, 0, cell.width, cell.height);
+      context.drawImage(sourceImage, gridCell.x, gridCell.y, gridCell.width, gridCell.height, 0, 0, cell.width, cell.height);
       preparedCells.push(prepareDirectionSplitCell(canvas, direction, directionIndex, gridCell.index, chromaKey.name));
     });
   }
@@ -8736,6 +8899,12 @@ function prepareDirectionSplitCell(
     copyContext.putImageData(imageData, 0, 0);
     return { direction, directionIndex, frameIndex, sourceCanvas, bounds: null, warnings, failures: [`${label}: no primary character component found`] };
   }
+  const primaryChromaResidueRatio = primary.chromaResidueCount / Math.max(1, primary.count);
+  if (primary.chromaResidueCount >= 48 && primaryChromaResidueRatio >= 0.08) {
+    failures.push(`${label}: Chroma key removal failed (${Math.round(primaryChromaResidueRatio * 100)}% residue in character component)`);
+  } else if (primary.chromaResidueCount >= 24 && primaryChromaResidueRatio >= 0.04) {
+    warnings.push(`${label}: chroma residue ${Math.round(primaryChromaResidueRatio * 100)}%`);
+  }
 
   const keepComponents = new Uint8Array(components.length);
   components.forEach((component) => {
@@ -8770,6 +8939,16 @@ function prepareDirectionSplitCell(
 
   const bounds = findOpaqueBounds(cleaned, width, height);
   if (!bounds || bounds.count < 64) failures.push(`${label}: no character pixels remained after cleanup`);
+  if (bounds) {
+    const hole = largestInteriorTransparentHole(cleaned, width, height, bounds);
+    const boundsArea = Math.max(1, (bounds.maxX - bounds.minX + 1) * (bounds.maxY - bounds.minY + 1));
+    const holeRatio = hole.count / boundsArea;
+    if (hole.count >= 96 && holeRatio >= 0.025) {
+      failures.push(`${label}: Character transparency damage detected (${Math.round(holeRatio * 100)}% interior alpha hole)`);
+    } else if (hole.count >= 48 && holeRatio >= 0.012) {
+      warnings.push(`${label}: possible interior alpha hole ${Math.round(holeRatio * 100)}%`);
+    }
+  }
   copyContext.putImageData(cleaned, 0, 0);
   return { direction, directionIndex, frameIndex, sourceCanvas, bounds, warnings, failures };
 }
@@ -8871,14 +9050,14 @@ function validateDirectionSplitAnimationCells(cells: DirectionSplitNormalizedCel
     }
 
     const widthVariation = variationRatio(metrics.map((metric) => metric.width));
-    if (widthVariation > 0.45) {
+    if (widthVariation > 0.7) {
       failures.push(`${direction}: bbox width variation ${Math.round(widthVariation * 100)}%`);
     } else if (widthVariation > 0.3) {
       warnings.push(`${direction}: bbox width variation ${Math.round(widthVariation * 100)}%`);
     }
 
     const heightVariation = variationRatio(metrics.map((metric) => metric.height));
-    if (heightVariation > 0.35) {
+    if (heightVariation > 0.55) {
       failures.push(`${direction}: bbox height variation ${Math.round(heightVariation * 100)}%`);
     } else if (heightVariation > 0.22) {
       warnings.push(`${direction}: bbox height variation ${Math.round(heightVariation * 100)}%`);
@@ -8896,6 +9075,53 @@ function validateDirectionSplitAnimationCells(cells: DirectionSplitNormalizedCel
 
 function directionSplitCellLabel(direction: string, frameIndex: number) {
   return `${direction} cell ${frameIndex + 1}`;
+}
+
+function largestInteriorTransparentHole(imageData: ImageData, width: number, height: number, bounds: OpaqueBounds) {
+  const data = imageData.data;
+  const visited = new Uint8Array(width * height);
+  const stack: number[] = [];
+  let largest = 0;
+
+  for (let y = bounds.minY; y <= bounds.maxY; y += 1) {
+    for (let x = bounds.minX; x <= bounds.maxX; x += 1) {
+      const start = y * width + x;
+      if (visited[start] || data[start * 4 + 3] > FRAME_ALPHA_THRESHOLD) continue;
+      visited[start] = 1;
+      stack.length = 0;
+      stack.push(start);
+      let count = 0;
+      let touchesBounds = false;
+
+      while (stack.length > 0) {
+        const index = stack.pop();
+        if (index === undefined) break;
+        const cx = index % width;
+        const cy = Math.floor(index / width);
+        count += 1;
+        if (cx <= bounds.minX || cx >= bounds.maxX || cy <= bounds.minY || cy >= bounds.maxY) touchesBounds = true;
+
+        const neighbors = [
+          [cx - 1, cy],
+          [cx + 1, cy],
+          [cx, cy - 1],
+          [cx, cy + 1]
+        ] as const;
+        for (const [nx, ny] of neighbors) {
+          if (nx < bounds.minX || nx > bounds.maxX || ny < bounds.minY || ny > bounds.maxY) continue;
+          const next = ny * width + nx;
+          if (visited[next]) continue;
+          if (data[next * 4 + 3] > FRAME_ALPHA_THRESHOLD) continue;
+          visited[next] = 1;
+          stack.push(next);
+        }
+      }
+
+      if (!touchesBounds) largest = Math.max(largest, count);
+    }
+  }
+
+  return { count: largest };
 }
 
 function componentCenterDistance(left: FrameComponentMetrics, right: FrameComponentMetrics) {

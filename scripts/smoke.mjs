@@ -62,9 +62,16 @@ async function runManualHandoffSmoke() {
     await writeFile(join(handoffDir, "outbox", "manual-debug-preview.png"), tinyPngBytes);
     await writeFile(join(handoffDir, "outbox", "manual-preview-grid.png"), tinyPngBytes);
     await writeFile(join(handoffDir, "outbox", "manual-ab-gallery.png"), tinyPngBytes);
+    await writeFile(join(handoffDir, "outbox", "manual-bronze-candidate-front.png"), tinyPngBytes);
 
     const outboxList = await getJson(port, "/api/codex/results");
-    assert(outboxList.results.some((result) => result.name === "manual-return.png"), "outbox image should be listed");
+    const manualReturn = outboxList.results.find((result) => result.name === "manual-return.png");
+    const manualBronze = outboxList.results.find((result) => result.name === "manual-bronze-candidate-front.png");
+    assert(manualReturn, "outbox image should be listed");
+    assert(manualReturn.qualityGate?.classification === "usable-final", "normal outbox image should be classified usable-final");
+    assert(manualBronze, "bronze candidate should be listed for quarantine diagnostics");
+    assert(manualBronze.qualityGate?.classification === "quarantined-candidate", "bronze candidate should be quarantined");
+    assert(manualBronze.qualityGate?.historyAllowed === false, "bronze candidate should not be history-importable");
     assert(outboxList.results.some((result) => result.name === directionManifestName), "direction split manifest should be listed");
     assert(!outboxList.results.some((result) => result.name === "manual-notes.txt"), "non-image outbox file should be ignored");
     assert(!outboxList.results.some((result) => result.name === "manual-qa.json"), "QA JSON outbox file should be ignored");
@@ -111,9 +118,52 @@ async function runManualHandoffSmoke() {
     const verifiedArtifact = verifiedArtifactList.results.find((result) => result.name === `${artifactJobId}-manifest.json`)?.artifact;
     assert(verifiedArtifact?.ready === true, "complete direction split should become server verified");
     assert(verifiedArtifact?.verified === true, "complete direction split should expose verified=true");
+    assert(verifiedArtifact?.qualityGate?.classification === "usable-final", "complete direction split should pass the quality gate");
     const verifiedManifest = await getJson(port, `/api/codex/results/${artifactJobId}-manifest.json`);
     const verifiedManifestText = Buffer.from(verifiedManifest.dataUrl.split(",")[1], "base64").toString("utf8");
     assert(verifiedManifestText.includes('"serverVerified": true'), "server should rewrite the final direction split manifest");
+    assert(verifiedManifestText.includes('"classification": "usable-final"'), "server manifest should include the quality gate classification");
+    await postJson(port, `/api/codex/artifacts/${encodeURIComponent(artifactJobId)}/quality-gate`, {
+      classification: "quality-failed",
+      reason: "Direction split QA failed: front cell 1: Chroma key removal failed",
+      code: "chroma-key-removal-failed"
+    });
+    const qualityFailedArtifactList = await getJson(port, "/api/codex/results");
+    const qualityFailedArtifact = qualityFailedArtifactList.results.find((result) => result.name === `${artifactJobId}-manifest.json`)?.artifact;
+    assert(qualityFailedArtifact?.ready === false, "client quality gate failure should block the artifact");
+    assert(qualityFailedArtifact?.qualityGate?.classification === "quality-failed", "client quality gate failure should persist to the manifest");
+    assert(qualityFailedArtifact?.qualityGate?.historyAllowed === false, "client quality gate failure should block history import");
+    const qualityFailedManifest = await getJson(port, `/api/codex/results/${artifactJobId}-manifest.json`);
+    const qualityFailedManifestText = Buffer.from(qualityFailedManifest.dataUrl.split(",")[1], "base64").toString("utf8");
+    assert(qualityFailedManifestText.includes('"classification": "quality-failed"'), "quality-failed manifest should be persisted");
+    await new Promise((resolve) => setTimeout(resolve, 120));
+    await writeFile(join(handoffDir, "outbox", `${artifactJobId}-side.png`), tinyPngBytes);
+    const repairedArtifactList = await getJson(port, "/api/codex/results");
+    const repairedArtifact = repairedArtifactList.results.find((result) => result.name === `${artifactJobId}-manifest.json`)?.artifact;
+    assert(repairedArtifact?.ready === true, "newer direction candidates should recover a stale client quality gate failure");
+    assert(repairedArtifact?.qualityGate?.classification === "usable-final", "repaired direction split should become usable-final again");
+
+    const softGateJobId = "codex-job-smoke-soft-bbox-gate-Z";
+    await writeFile(join(handoffDir, "outbox", `${softGateJobId}-manifest.json`), JSON.stringify({
+      schema: "image-cockpit.direction-split-animation.v1",
+      jobId: softGateJobId,
+      files: Object.fromEntries(["front", "front-three-quarter", "side", "back-three-quarter", "back"].map((slug) => [slug, `${softGateJobId}-${slug}.png`]))
+    }, null, 2), "utf8");
+    for (const slug of ["front", "front-three-quarter", "side", "back-three-quarter", "back"]) {
+      await writeFile(join(handoffDir, "outbox", `${softGateJobId}-${slug}.png`), tinyPngBytes);
+    }
+    const softGateVerifiedList = await getJson(port, "/api/codex/results");
+    const softGateVerified = softGateVerifiedList.results.find((result) => result.name === `${softGateJobId}-manifest.json`)?.artifact;
+    assert(softGateVerified?.ready === true, "soft gate fixture should start as server verified");
+    await postJson(port, `/api/codex/artifacts/${encodeURIComponent(softGateJobId)}/quality-gate`, {
+      classification: "quality-failed",
+      reason: "Direction split QA failed: back three-quarter: bbox width variation 47%; back: bbox width variation 48%",
+      code: "client-quality-gate-failed"
+    });
+    const softGateRecoveredList = await getJson(port, "/api/codex/results");
+    const softGateRecovered = softGateRecoveredList.results.find((result) => result.name === `${softGateJobId}-manifest.json`)?.artifact;
+    assert(softGateRecovered?.ready === true, "soft bbox-only client quality gate should be rechecked under current QA policy");
+    assert(softGateRecovered?.qualityGate?.classification === "usable-final", "soft bbox-only quality gate should not remain blocked");
 
     const localImages = await postJson(port, "/api/generate", {
       workflowMode: "image-generate",
