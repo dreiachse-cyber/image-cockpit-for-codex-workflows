@@ -1,0 +1,4182 @@
+{
+  "schema": "image-cockpit.tsugihagi-frame-scores.v1",
+  "generatedAt": "2026-06-27T16:24:15.965Z",
+  "action": "run-cycle",
+  "direction": "side",
+  "scoring": {
+    "method": "frame quality + Viterbi-style transition search",
+    "targetCell": {
+      "width": 256,
+      "height": 256
+    },
+    "targetHeight": 174,
+    "chromaKey": "magenta",
+    "frameSwitchPenalty": 4,
+    "cycleClosePenaltyIncluded": true
+  },
+  "summary": {
+    "candidates": 10,
+    "frames": 80,
+    "selectedScore": 757.8,
+    "bestSingleCandidate": "candidate-08",
+    "bestSingleScore": 757.8,
+    "improvement": 0,
+    "selectedCandidateSwitches": 0
+  },
+  "candidates": [
+    {
+      "candidateId": "candidate-01",
+      "totalScore": -740.01,
+      "selectedAsBaseline": false,
+      "frames": [
+        {
+          "candidateId": "candidate-01",
+          "frameIndex": 0,
+          "qualityScore": -90.53,
+          "sourceName": "candidate-01.png",
+          "bbox": {
+            "minX": 0,
+            "minY": 0,
+            "maxX": 443,
+            "maxY": 443,
+            "count": 197136
+          },
+          "normalizedBbox": {
+            "minX": 41,
+            "minY": 59,
+            "maxX": 214,
+            "maxY": 232,
+            "count": 30276
+          },
+          "edgeTouches": 12236,
+          "opaquePixels": 197136,
+          "warnings": [
+            "source edge contact 12236px",
+            "large opaque coverage after cleanup",
+            "low top padding",
+            "feet/bottom touch source cell"
+          ],
+          "failures": []
+        },
+        {
+          "candidateId": "candidate-01",
+          "frameIndex": 1,
+          "qualityScore": -89.39,
+          "sourceName": "candidate-01.png",
+          "bbox": {
+            "minX": 0,
+            "minY": 0,
+            "maxX": 442,
+            "maxY": 443,
+            "count": 196692
+          },
+          "normalizedBbox": {
+            "minX": 41,
+            "minY": 59,
+            "maxX": 214,
+            "maxY": 232,
+            "count": 30276
+          },
+          "edgeTouches": 12222,
+          "opaquePixels": 196692,
+          "warnings": [
+            "source edge contact 12222px",
+            "large opaque coverage after cleanup",
+            "low top padding",
+            "feet/bottom touch source cell"
+          ],
+          "failures": []
+        },
+        {
+          "candidateId": "candidate-01",
+          "frameIndex": 2,
+          "qualityScore": -90.74,
+          "sourceName": "candidate-01.png",
+          "bbox": {
+            "minX": 0,
+            "minY": 0,
+            "maxX": 443,
+            "maxY": 443,
+            "count": 197136
+          },
+          "normalizedBbox": {
+            "minX": 41,
+            "minY": 59,
+            "maxX": 214,
+            "maxY": 232,
+            "count": 30276
+          },
+          "edgeTouches": 12236,
+          "opaquePixels": 197136,
+          "warnings": [
+            "source edge contact 12236px",
+            "large opaque coverage after cleanup",
+            "low top padding",
+            "feet/bottom touch source cell"
+          ],
+          "failures": []
+        },
+        {
+          "candidateId": "candidate-01",
+          "frameIndex": 3,
+          "qualityScore": -90.59,
+          "sourceName": "candidate-01.png",
+          "bbox": {
+            "minX": 0,
+            "minY": 0,
+            "maxX": 442,
+            "maxY": 443,
+            "count": 196688
+          },
+          "normalizedBbox": {
+            "minX": 41,
+            "minY": 59,
+            "maxX": 214,
+            "maxY": 232,
+            "count": 30274
+          },
+          "edgeTouches": 12222,
+          "opaquePixels": 196688,
+          "warnings": [
+            "source edge contact 12222px",
+            "large opaque coverage after cleanup",
+            "low top padding",
+            "feet/bottom touch source cell"
+          ],
+          "failures": []
+        },
+        {
+          "candidateId": "candidate-01",
+          "frameIndex": 4,
+          "qualityScore": -93.22,
+          "sourceName": "candidate-01.png",
+          "bbox": {
+            "minX": 0,
+            "minY": 0,
+            "maxX": 443,
+            "maxY": 442,
+            "count": 196682
+          },
+          "normalizedBbox": {
+            "minX": 41,
+            "minY": 59,
+            "maxX": 214,
+            "maxY": 232,
+            "count": 30275
+          },
+          "edgeTouches": 12222,
+          "opaquePixels": 196682,
+          "warnings": [
+            "source edge contact 12222px",
+            "large opaque coverage after cleanup",
+            "low top padding",
+            "feet/bottom touch source cell"
+          ],
+          "failures": []
+        },
+        {
+          "candidateId": "candidate-01",
+          "frameIndex": 5,
+          "qualityScore": -94.14,
+          "sourceName": "candidate-01.png",
+          "bbox": {
+            "minX": 0,
+            "minY": 0,
+            "maxX": 442,
+            "maxY": 442,
+            "count": 196249
+          },
+          "normalizedBbox": {
+            "minX": 41,
+            "minY": 59,
+            "maxX": 214,
+            "maxY": 232,
+            "count": 30276
+          },
+          "edgeTouches": 12208,
+          "opaquePixels": 196249,
+          "warnings": [
+            "source edge contact 12208px",
+            "large opaque coverage after cleanup",
+            "low top padding",
+            "feet/bottom touch source cell"
+          ],
+          "failures": []
+        },
+        {
+          "candidateId": "candidate-01",
+          "frameIndex": 6,
+          "qualityScore": -94.69,
+          "sourceName": "candidate-01.png",
+          "bbox": {
+            "minX": 0,
+            "minY": 0,
+            "maxX": 443,
+            "maxY": 442,
+            "count": 196692
+          },
+          "normalizedBbox": {
+            "minX": 41,
+            "minY": 59,
+            "maxX": 214,
+            "maxY": 232,
+            "count": 30276
+          },
+          "edgeTouches": 12222,
+          "opaquePixels": 196692,
+          "warnings": [
+            "source edge contact 12222px",
+            "large opaque coverage after cleanup",
+            "low top padding",
+            "feet/bottom touch source cell"
+          ],
+          "failures": []
+        },
+        {
+          "candidateId": "candidate-01",
+          "frameIndex": 7,
+          "qualityScore": -95.11,
+          "sourceName": "candidate-01.png",
+          "bbox": {
+            "minX": 0,
+            "minY": 0,
+            "maxX": 442,
+            "maxY": 442,
+            "count": 196249
+          },
+          "normalizedBbox": {
+            "minX": 41,
+            "minY": 59,
+            "maxX": 214,
+            "maxY": 232,
+            "count": 30276
+          },
+          "edgeTouches": 12208,
+          "opaquePixels": 196249,
+          "warnings": [
+            "source edge contact 12208px",
+            "large opaque coverage after cleanup",
+            "low top padding",
+            "feet/bottom touch source cell"
+          ],
+          "failures": []
+        }
+      ]
+    },
+    {
+      "candidateId": "candidate-02",
+      "totalScore": 727.16,
+      "selectedAsBaseline": false,
+      "frames": [
+        {
+          "candidateId": "candidate-02",
+          "frameIndex": 0,
+          "qualityScore": 94.4,
+          "sourceName": "candidate-02.png",
+          "bbox": {
+            "minX": 95,
+            "minY": 70,
+            "maxX": 383,
+            "maxY": 378,
+            "count": 43567
+          },
+          "normalizedBbox": {
+            "minX": 47,
+            "minY": 59,
+            "maxX": 209,
+            "maxY": 232,
+            "count": 13838
+          },
+          "edgeTouches": 0,
+          "opaquePixels": 43567,
+          "warnings": [],
+          "failures": []
+        },
+        {
+          "candidateId": "candidate-02",
+          "frameIndex": 1,
+          "qualityScore": 93.23,
+          "sourceName": "candidate-02.png",
+          "bbox": {
+            "minX": 85,
+            "minY": 70,
+            "maxX": 383,
+            "maxY": 375,
+            "count": 43522
+          },
+          "normalizedBbox": {
+            "minX": 43,
+            "minY": 59,
+            "maxX": 212,
+            "maxY": 232,
+            "count": 14100
+          },
+          "edgeTouches": 0,
+          "opaquePixels": 43522,
+          "warnings": [],
+          "failures": []
+        },
+        {
+          "candidateId": "candidate-02",
+          "frameIndex": 2,
+          "qualityScore": 89.98,
+          "sourceName": "candidate-02.png",
+          "bbox": {
+            "minX": 90,
+            "minY": 71,
+            "maxX": 388,
+            "maxY": 358,
+            "count": 43145
+          },
+          "normalizedBbox": {
+            "minX": 38,
+            "minY": 59,
+            "maxX": 218,
+            "maxY": 232,
+            "count": 15797
+          },
+          "edgeTouches": 0,
+          "opaquePixels": 43145,
+          "warnings": [],
+          "failures": []
+        },
+        {
+          "candidateId": "candidate-02",
+          "frameIndex": 3,
+          "qualityScore": 93.46,
+          "sourceName": "candidate-02.png",
+          "bbox": {
+            "minX": 83,
+            "minY": 80,
+            "maxX": 379,
+            "maxY": 383,
+            "count": 41812
+          },
+          "normalizedBbox": {
+            "minX": 43,
+            "minY": 59,
+            "maxX": 212,
+            "maxY": 232,
+            "count": 13691
+          },
+          "edgeTouches": 0,
+          "opaquePixels": 41812,
+          "warnings": [],
+          "failures": []
+        },
+        {
+          "candidateId": "candidate-02",
+          "frameIndex": 4,
+          "qualityScore": 91.52,
+          "sourceName": "candidate-02.png",
+          "bbox": {
+            "minX": 92,
+            "minY": 79,
+            "maxX": 379,
+            "maxY": 378,
+            "count": 41781
+          },
+          "normalizedBbox": {
+            "minX": 45,
+            "minY": 59,
+            "maxX": 211,
+            "maxY": 232,
+            "count": 14069
+          },
+          "edgeTouches": 0,
+          "opaquePixels": 41781,
+          "warnings": [],
+          "failures": []
+        },
+        {
+          "candidateId": "candidate-02",
+          "frameIndex": 5,
+          "qualityScore": 95.94,
+          "sourceName": "candidate-02.png",
+          "bbox": {
+            "minX": 86,
+            "minY": 65,
+            "maxX": 386,
+            "maxY": 364,
+            "count": 42544
+          },
+          "normalizedBbox": {
+            "minX": 41,
+            "minY": 59,
+            "maxX": 215,
+            "maxY": 232,
+            "count": 14353
+          },
+          "edgeTouches": 0,
+          "opaquePixels": 42544,
+          "warnings": [],
+          "failures": []
+        },
+        {
+          "candidateId": "candidate-02",
+          "frameIndex": 6,
+          "qualityScore": 93.44,
+          "sourceName": "candidate-02.png",
+          "bbox": {
+            "minX": 82,
+            "minY": 76,
+            "maxX": 381,
+            "maxY": 374,
+            "count": 43204
+          },
+          "normalizedBbox": {
+            "minX": 41,
+            "minY": 59,
+            "maxX": 215,
+            "maxY": 232,
+            "count": 14672
+          },
+          "edgeTouches": 0,
+          "opaquePixels": 43204,
+          "warnings": [],
+          "failures": []
+        },
+        {
+          "candidateId": "candidate-02",
+          "frameIndex": 7,
+          "qualityScore": 91.58,
+          "sourceName": "candidate-02.png",
+          "bbox": {
+            "minX": 91,
+            "minY": 78,
+            "maxX": 379,
+            "maxY": 377,
+            "count": 42498
+          },
+          "normalizedBbox": {
+            "minX": 44,
+            "minY": 59,
+            "maxX": 211,
+            "maxY": 232,
+            "count": 14335
+          },
+          "edgeTouches": 0,
+          "opaquePixels": 42498,
+          "warnings": [],
+          "failures": []
+        }
+      ]
+    },
+    {
+      "candidateId": "candidate-03",
+      "totalScore": 717.52,
+      "selectedAsBaseline": false,
+      "frames": [
+        {
+          "candidateId": "candidate-03",
+          "frameIndex": 0,
+          "qualityScore": 93.93,
+          "sourceName": "candidate-03.png",
+          "bbox": {
+            "minX": 60,
+            "minY": 120,
+            "maxX": 335,
+            "maxY": 440,
+            "count": 45656
+          },
+          "normalizedBbox": {
+            "minX": 53,
+            "minY": 59,
+            "maxX": 202,
+            "maxY": 232,
+            "count": 13446
+          },
+          "edgeTouches": 0,
+          "opaquePixels": 45656,
+          "warnings": [],
+          "failures": []
+        },
+        {
+          "candidateId": "candidate-03",
+          "frameIndex": 1,
+          "qualityScore": 94.77,
+          "sourceName": "candidate-03.png",
+          "bbox": {
+            "minX": 51,
+            "minY": 111,
+            "maxX": 324,
+            "maxY": 435,
+            "count": 45549
+          },
+          "normalizedBbox": {
+            "minX": 55,
+            "minY": 59,
+            "maxX": 201,
+            "maxY": 232,
+            "count": 13087
+          },
+          "edgeTouches": 0,
+          "opaquePixels": 45549,
+          "warnings": [],
+          "failures": []
+        },
+        {
+          "candidateId": "candidate-03",
+          "frameIndex": 2,
+          "qualityScore": 95.4,
+          "sourceName": "candidate-03.png",
+          "bbox": {
+            "minX": 44,
+            "minY": 116,
+            "maxX": 308,
+            "maxY": 446,
+            "count": 44070
+          },
+          "normalizedBbox": {
+            "minX": 59,
+            "minY": 59,
+            "maxX": 197,
+            "maxY": 232,
+            "count": 12140
+          },
+          "edgeTouches": 0,
+          "opaquePixels": 44070,
+          "warnings": [],
+          "failures": []
+        },
+        {
+          "candidateId": "candidate-03",
+          "frameIndex": 3,
+          "qualityScore": 92.78,
+          "sourceName": "candidate-03.png",
+          "bbox": {
+            "minX": 23,
+            "minY": 108,
+            "maxX": 301,
+            "maxY": 440,
+            "count": 47095
+          },
+          "normalizedBbox": {
+            "minX": 55,
+            "minY": 59,
+            "maxX": 200,
+            "maxY": 232,
+            "count": 12879
+          },
+          "edgeTouches": 0,
+          "opaquePixels": 47095,
+          "warnings": [],
+          "failures": []
+        },
+        {
+          "candidateId": "candidate-03",
+          "frameIndex": 4,
+          "qualityScore": 92.3,
+          "sourceName": "candidate-03.png",
+          "bbox": {
+            "minX": 58,
+            "minY": 48,
+            "maxX": 341,
+            "maxY": 379,
+            "count": 47176
+          },
+          "normalizedBbox": {
+            "minX": 54,
+            "minY": 59,
+            "maxX": 202,
+            "maxY": 232,
+            "count": 12959
+          },
+          "edgeTouches": 0,
+          "opaquePixels": 47176,
+          "warnings": [],
+          "failures": []
+        },
+        {
+          "candidateId": "candidate-03",
+          "frameIndex": 5,
+          "qualityScore": 88.7,
+          "sourceName": "candidate-03.png",
+          "bbox": {
+            "minX": 46,
+            "minY": 61,
+            "maxX": 317,
+            "maxY": 376,
+            "count": 41887
+          },
+          "normalizedBbox": {
+            "minX": 53,
+            "minY": 59,
+            "maxX": 202,
+            "maxY": 232,
+            "count": 12732
+          },
+          "edgeTouches": 0,
+          "opaquePixels": 41887,
+          "warnings": [],
+          "failures": []
+        },
+        {
+          "candidateId": "candidate-03",
+          "frameIndex": 6,
+          "qualityScore": 88.42,
+          "sourceName": "candidate-03.png",
+          "bbox": {
+            "minX": 30,
+            "minY": 57,
+            "maxX": 288,
+            "maxY": 383,
+            "count": 43366
+          },
+          "normalizedBbox": {
+            "minX": 59,
+            "minY": 60,
+            "maxX": 196,
+            "maxY": 232,
+            "count": 12303
+          },
+          "edgeTouches": 0,
+          "opaquePixels": 43366,
+          "warnings": [],
+          "failures": []
+        },
+        {
+          "candidateId": "candidate-03",
+          "frameIndex": 7,
+          "qualityScore": 88.77,
+          "sourceName": "candidate-03.png",
+          "bbox": {
+            "minX": 20,
+            "minY": 73,
+            "maxX": 298,
+            "maxY": 382,
+            "count": 44048
+          },
+          "normalizedBbox": {
+            "minX": 50,
+            "minY": 59,
+            "maxX": 206,
+            "maxY": 232,
+            "count": 13886
+          },
+          "edgeTouches": 0,
+          "opaquePixels": 44048,
+          "warnings": [],
+          "failures": []
+        }
+      ]
+    },
+    {
+      "candidateId": "candidate-04",
+      "totalScore": 666.32,
+      "selectedAsBaseline": false,
+      "frames": [
+        {
+          "candidateId": "candidate-04",
+          "frameIndex": 0,
+          "qualityScore": 79.65,
+          "sourceName": "candidate-04.png",
+          "bbox": {
+            "minX": 66,
+            "minY": 129,
+            "maxX": 383,
+            "maxY": 458,
+            "count": 52562
+          },
+          "normalizedBbox": {
+            "minX": 44,
+            "minY": 59,
+            "maxX": 211,
+            "maxY": 232,
+            "count": 14629
+          },
+          "edgeTouches": 334,
+          "opaquePixels": 52562,
+          "warnings": [
+            "source edge contact 334px"
+          ],
+          "failures": []
+        },
+        {
+          "candidateId": "candidate-04",
+          "frameIndex": 1,
+          "qualityScore": 81.07,
+          "sourceName": "candidate-04.png",
+          "bbox": {
+            "minX": 0,
+            "minY": 129,
+            "maxX": 344,
+            "maxY": 446,
+            "count": 49971
+          },
+          "normalizedBbox": {
+            "minX": 34,
+            "minY": 59,
+            "maxX": 222,
+            "maxY": 232,
+            "count": 14992
+          },
+          "edgeTouches": 228,
+          "opaquePixels": 49971,
+          "warnings": [
+            "source edge contact 228px"
+          ],
+          "failures": []
+        },
+        {
+          "candidateId": "candidate-04",
+          "frameIndex": 2,
+          "qualityScore": 89.51,
+          "sourceName": "candidate-04.png",
+          "bbox": {
+            "minX": 38,
+            "minY": 118,
+            "maxX": 342,
+            "maxY": 434,
+            "count": 49968
+          },
+          "normalizedBbox": {
+            "minX": 45,
+            "minY": 59,
+            "maxX": 211,
+            "maxY": 232,
+            "count": 15005
+          },
+          "edgeTouches": 0,
+          "opaquePixels": 49968,
+          "warnings": [],
+          "failures": []
+        },
+        {
+          "candidateId": "candidate-04",
+          "frameIndex": 3,
+          "qualityScore": 89.42,
+          "sourceName": "candidate-04.png",
+          "bbox": {
+            "minX": 14,
+            "minY": 138,
+            "maxX": 313,
+            "maxY": 464,
+            "count": 49668
+          },
+          "normalizedBbox": {
+            "minX": 48,
+            "minY": 59,
+            "maxX": 207,
+            "maxY": 232,
+            "count": 14098
+          },
+          "edgeTouches": 0,
+          "opaquePixels": 49668,
+          "warnings": [],
+          "failures": []
+        },
+        {
+          "candidateId": "candidate-04",
+          "frameIndex": 4,
+          "qualityScore": 87.99,
+          "sourceName": "candidate-04.png",
+          "bbox": {
+            "minX": 66,
+            "minY": 51,
+            "maxX": 369,
+            "maxY": 382,
+            "count": 50791
+          },
+          "normalizedBbox": {
+            "minX": 49,
+            "minY": 59,
+            "maxX": 207,
+            "maxY": 232,
+            "count": 13931
+          },
+          "edgeTouches": 0,
+          "opaquePixels": 50791,
+          "warnings": [],
+          "failures": []
+        },
+        {
+          "candidateId": "candidate-04",
+          "frameIndex": 5,
+          "qualityScore": 90.76,
+          "sourceName": "candidate-04.png",
+          "bbox": {
+            "minX": 48,
+            "minY": 65,
+            "maxX": 334,
+            "maxY": 387,
+            "count": 48533
+          },
+          "normalizedBbox": {
+            "minX": 51,
+            "minY": 59,
+            "maxX": 205,
+            "maxY": 232,
+            "count": 14089
+          },
+          "edgeTouches": 0,
+          "opaquePixels": 48533,
+          "warnings": [],
+          "failures": []
+        },
+        {
+          "candidateId": "candidate-04",
+          "frameIndex": 6,
+          "qualityScore": 83.07,
+          "sourceName": "candidate-04.png",
+          "bbox": {
+            "minX": 16,
+            "minY": 51,
+            "maxX": 323,
+            "maxY": 361,
+            "count": 49540
+          },
+          "normalizedBbox": {
+            "minX": 42,
+            "minY": 59,
+            "maxX": 213,
+            "maxY": 232,
+            "count": 15491
+          },
+          "edgeTouches": 0,
+          "opaquePixels": 49540,
+          "warnings": [],
+          "failures": []
+        },
+        {
+          "candidateId": "candidate-04",
+          "frameIndex": 7,
+          "qualityScore": 86.15,
+          "sourceName": "candidate-04.png",
+          "bbox": {
+            "minX": 7,
+            "minY": 73,
+            "maxX": 308,
+            "maxY": 387,
+            "count": 47943
+          },
+          "normalizedBbox": {
+            "minX": 45,
+            "minY": 59,
+            "maxX": 211,
+            "maxY": 232,
+            "count": 14650
+          },
+          "edgeTouches": 0,
+          "opaquePixels": 47943,
+          "warnings": [],
+          "failures": []
+        }
+      ]
+    },
+    {
+      "candidateId": "candidate-05",
+      "totalScore": 683.72,
+      "selectedAsBaseline": false,
+      "frames": [
+        {
+          "candidateId": "candidate-05",
+          "frameIndex": 0,
+          "qualityScore": 88.54,
+          "sourceName": "candidate-05.png",
+          "bbox": {
+            "minX": 53,
+            "minY": 123,
+            "maxX": 374,
+            "maxY": 450,
+            "count": 50460
+          },
+          "normalizedBbox": {
+            "minX": 43,
+            "minY": 59,
+            "maxX": 213,
+            "maxY": 232,
+            "count": 14205
+          },
+          "edgeTouches": 0,
+          "opaquePixels": 50460,
+          "warnings": [],
+          "failures": []
+        },
+        {
+          "candidateId": "candidate-05",
+          "frameIndex": 1,
+          "qualityScore": 88.79,
+          "sourceName": "candidate-05.png",
+          "bbox": {
+            "minX": 40,
+            "minY": 123,
+            "maxX": 367,
+            "maxY": 450,
+            "count": 50306
+          },
+          "normalizedBbox": {
+            "minX": 41,
+            "minY": 59,
+            "maxX": 214,
+            "maxY": 232,
+            "count": 14180
+          },
+          "edgeTouches": 0,
+          "opaquePixels": 50306,
+          "warnings": [],
+          "failures": []
+        },
+        {
+          "candidateId": "candidate-05",
+          "frameIndex": 2,
+          "qualityScore": 91.21,
+          "sourceName": "candidate-05.png",
+          "bbox": {
+            "minX": 30,
+            "minY": 126,
+            "maxX": 341,
+            "maxY": 453,
+            "count": 48125
+          },
+          "normalizedBbox": {
+            "minX": 45,
+            "minY": 59,
+            "maxX": 210,
+            "maxY": 232,
+            "count": 13587
+          },
+          "edgeTouches": 0,
+          "opaquePixels": 48125,
+          "warnings": [],
+          "failures": []
+        },
+        {
+          "candidateId": "candidate-05",
+          "frameIndex": 3,
+          "qualityScore": 86.59,
+          "sourceName": "candidate-05.png",
+          "bbox": {
+            "minX": 12,
+            "minY": 126,
+            "maxX": 341,
+            "maxY": 450,
+            "count": 52064
+          },
+          "normalizedBbox": {
+            "minX": 40,
+            "minY": 59,
+            "maxX": 216,
+            "maxY": 232,
+            "count": 14985
+          },
+          "edgeTouches": 0,
+          "opaquePixels": 52064,
+          "warnings": [],
+          "failures": []
+        },
+        {
+          "candidateId": "candidate-05",
+          "frameIndex": 4,
+          "qualityScore": 86.88,
+          "sourceName": "candidate-05.png",
+          "bbox": {
+            "minX": 40,
+            "minY": 57,
+            "maxX": 372,
+            "maxY": 391,
+            "count": 51270
+          },
+          "normalizedBbox": {
+            "minX": 42,
+            "minY": 59,
+            "maxX": 214,
+            "maxY": 232,
+            "count": 13811
+          },
+          "edgeTouches": 0,
+          "opaquePixels": 51270,
+          "warnings": [],
+          "failures": []
+        },
+        {
+          "candidateId": "candidate-05",
+          "frameIndex": 5,
+          "qualityScore": 86.3,
+          "sourceName": "candidate-05.png",
+          "bbox": {
+            "minX": 34,
+            "minY": 58,
+            "maxX": 356,
+            "maxY": 388,
+            "count": 50595
+          },
+          "normalizedBbox": {
+            "minX": 43,
+            "minY": 59,
+            "maxX": 212,
+            "maxY": 232,
+            "count": 14020
+          },
+          "edgeTouches": 0,
+          "opaquePixels": 50595,
+          "warnings": [],
+          "failures": []
+        },
+        {
+          "candidateId": "candidate-05",
+          "frameIndex": 6,
+          "qualityScore": 87.88,
+          "sourceName": "candidate-05.png",
+          "bbox": {
+            "minX": 26,
+            "minY": 61,
+            "maxX": 346,
+            "maxY": 391,
+            "count": 49088
+          },
+          "normalizedBbox": {
+            "minX": 44,
+            "minY": 59,
+            "maxX": 212,
+            "maxY": 232,
+            "count": 13561
+          },
+          "edgeTouches": 0,
+          "opaquePixels": 49088,
+          "warnings": [],
+          "failures": []
+        },
+        {
+          "candidateId": "candidate-05",
+          "frameIndex": 7,
+          "qualityScore": 83.01,
+          "sourceName": "candidate-05.png",
+          "bbox": {
+            "minX": 0,
+            "minY": 64,
+            "maxX": 333,
+            "maxY": 391,
+            "count": 50270
+          },
+          "normalizedBbox": {
+            "minX": 40,
+            "minY": 59,
+            "maxX": 216,
+            "maxY": 232,
+            "count": 14140
+          },
+          "edgeTouches": 52,
+          "opaquePixels": 50270,
+          "warnings": [
+            "source edge contact 52px"
+          ],
+          "failures": []
+        }
+      ]
+    },
+    {
+      "candidateId": "candidate-06",
+      "totalScore": 749.48,
+      "selectedAsBaseline": false,
+      "frames": [
+        {
+          "candidateId": "candidate-06",
+          "frameIndex": 0,
+          "qualityScore": 93.85,
+          "sourceName": "candidate-06.png",
+          "bbox": {
+            "minX": 93,
+            "minY": 100,
+            "maxX": 388,
+            "maxY": 405,
+            "count": 42578
+          },
+          "normalizedBbox": {
+            "minX": 44,
+            "minY": 59,
+            "maxX": 211,
+            "maxY": 232,
+            "count": 13748
+          },
+          "edgeTouches": 0,
+          "opaquePixels": 42578,
+          "warnings": [],
+          "failures": []
+        },
+        {
+          "candidateId": "candidate-06",
+          "frameIndex": 1,
+          "qualityScore": 94.89,
+          "sourceName": "candidate-06.png",
+          "bbox": {
+            "minX": 60,
+            "minY": 97,
+            "maxX": 364,
+            "maxY": 399,
+            "count": 43335
+          },
+          "normalizedBbox": {
+            "minX": 41,
+            "minY": 59,
+            "maxX": 215,
+            "maxY": 232,
+            "count": 14296
+          },
+          "edgeTouches": 0,
+          "opaquePixels": 43335,
+          "warnings": [],
+          "failures": []
+        },
+        {
+          "candidateId": "candidate-06",
+          "frameIndex": 2,
+          "qualityScore": 95.15,
+          "sourceName": "candidate-06.png",
+          "bbox": {
+            "minX": 69,
+            "minY": 100,
+            "maxX": 374,
+            "maxY": 405,
+            "count": 43272
+          },
+          "normalizedBbox": {
+            "minX": 41,
+            "minY": 59,
+            "maxX": 214,
+            "maxY": 232,
+            "count": 14007
+          },
+          "edgeTouches": 0,
+          "opaquePixels": 43272,
+          "warnings": [],
+          "failures": []
+        },
+        {
+          "candidateId": "candidate-06",
+          "frameIndex": 3,
+          "qualityScore": 95.11,
+          "sourceName": "candidate-06.png",
+          "bbox": {
+            "minX": 32,
+            "minY": 100,
+            "maxX": 339,
+            "maxY": 405,
+            "count": 42686
+          },
+          "normalizedBbox": {
+            "minX": 41,
+            "minY": 59,
+            "maxX": 215,
+            "maxY": 232,
+            "count": 13800
+          },
+          "edgeTouches": 0,
+          "opaquePixels": 42686,
+          "warnings": [],
+          "failures": []
+        },
+        {
+          "candidateId": "candidate-06",
+          "frameIndex": 4,
+          "qualityScore": 94.48,
+          "sourceName": "candidate-06.png",
+          "bbox": {
+            "minX": 89,
+            "minY": 66,
+            "maxX": 388,
+            "maxY": 365,
+            "count": 41950
+          },
+          "normalizedBbox": {
+            "minX": 41,
+            "minY": 59,
+            "maxX": 214,
+            "maxY": 232,
+            "count": 14108
+          },
+          "edgeTouches": 0,
+          "opaquePixels": 41950,
+          "warnings": [],
+          "failures": []
+        },
+        {
+          "candidateId": "candidate-06",
+          "frameIndex": 5,
+          "qualityScore": 95.79,
+          "sourceName": "candidate-06.png",
+          "bbox": {
+            "minX": 60,
+            "minY": 68,
+            "maxX": 358,
+            "maxY": 362,
+            "count": 43342
+          },
+          "normalizedBbox": {
+            "minX": 40,
+            "minY": 59,
+            "maxX": 215,
+            "maxY": 232,
+            "count": 15074
+          },
+          "edgeTouches": 0,
+          "opaquePixels": 43342,
+          "warnings": [],
+          "failures": []
+        },
+        {
+          "candidateId": "candidate-06",
+          "frameIndex": 6,
+          "qualityScore": 95.71,
+          "sourceName": "candidate-06.png",
+          "bbox": {
+            "minX": 57,
+            "minY": 61,
+            "maxX": 356,
+            "maxY": 359,
+            "count": 42351
+          },
+          "normalizedBbox": {
+            "minX": 41,
+            "minY": 59,
+            "maxX": 215,
+            "maxY": 232,
+            "count": 14363
+          },
+          "edgeTouches": 0,
+          "opaquePixels": 42351,
+          "warnings": [],
+          "failures": []
+        },
+        {
+          "candidateId": "candidate-06",
+          "frameIndex": 7,
+          "qualityScore": 94.46,
+          "sourceName": "candidate-06.png",
+          "bbox": {
+            "minX": 32,
+            "minY": 72,
+            "maxX": 328,
+            "maxY": 368,
+            "count": 41109
+          },
+          "normalizedBbox": {
+            "minX": 41,
+            "minY": 59,
+            "maxX": 214,
+            "maxY": 232,
+            "count": 14130
+          },
+          "edgeTouches": 0,
+          "opaquePixels": 41109,
+          "warnings": [],
+          "failures": []
+        }
+      ]
+    },
+    {
+      "candidateId": "candidate-07",
+      "totalScore": 734.3,
+      "selectedAsBaseline": false,
+      "frames": [
+        {
+          "candidateId": "candidate-07",
+          "frameIndex": 0,
+          "qualityScore": 91.51,
+          "sourceName": "candidate-07.png",
+          "bbox": {
+            "minX": 65,
+            "minY": 86,
+            "maxX": 401,
+            "maxY": 407,
+            "count": 51052
+          },
+          "normalizedBbox": {
+            "minX": 37,
+            "minY": 59,
+            "maxX": 218,
+            "maxY": 232,
+            "count": 14876
+          },
+          "edgeTouches": 0,
+          "opaquePixels": 51052,
+          "warnings": [],
+          "failures": []
+        },
+        {
+          "candidateId": "candidate-07",
+          "frameIndex": 1,
+          "qualityScore": 91.51,
+          "sourceName": "candidate-07.png",
+          "bbox": {
+            "minX": 39,
+            "minY": 86,
+            "maxX": 377,
+            "maxY": 407,
+            "count": 49218
+          },
+          "normalizedBbox": {
+            "minX": 37,
+            "minY": 59,
+            "maxX": 219,
+            "maxY": 232,
+            "count": 14358
+          },
+          "edgeTouches": 0,
+          "opaquePixels": 49218,
+          "warnings": [],
+          "failures": []
+        },
+        {
+          "candidateId": "candidate-07",
+          "frameIndex": 2,
+          "qualityScore": 91.72,
+          "sourceName": "candidate-07.png",
+          "bbox": {
+            "minX": 39,
+            "minY": 95,
+            "maxX": 372,
+            "maxY": 407,
+            "count": 48381
+          },
+          "normalizedBbox": {
+            "minX": 35,
+            "minY": 59,
+            "maxX": 220,
+            "maxY": 232,
+            "count": 14960
+          },
+          "edgeTouches": 0,
+          "opaquePixels": 48381,
+          "warnings": [],
+          "failures": []
+        },
+        {
+          "candidateId": "candidate-07",
+          "frameIndex": 3,
+          "qualityScore": 94.35,
+          "sourceName": "candidate-07.png",
+          "bbox": {
+            "minX": 21,
+            "minY": 95,
+            "maxX": 330,
+            "maxY": 407,
+            "count": 44917
+          },
+          "normalizedBbox": {
+            "minX": 42,
+            "minY": 59,
+            "maxX": 213,
+            "maxY": 232,
+            "count": 13843
+          },
+          "edgeTouches": 0,
+          "opaquePixels": 44917,
+          "warnings": [],
+          "failures": []
+        },
+        {
+          "candidateId": "candidate-07",
+          "frameIndex": 4,
+          "qualityScore": 95.6,
+          "sourceName": "candidate-07.png",
+          "bbox": {
+            "minX": 75,
+            "minY": 55,
+            "maxX": 402,
+            "maxY": 372,
+            "count": 48676
+          },
+          "normalizedBbox": {
+            "minX": 39,
+            "minY": 59,
+            "maxX": 217,
+            "maxY": 232,
+            "count": 14530
+          },
+          "edgeTouches": 0,
+          "opaquePixels": 48676,
+          "warnings": [],
+          "failures": []
+        },
+        {
+          "candidateId": "candidate-07",
+          "frameIndex": 5,
+          "qualityScore": 94.58,
+          "sourceName": "candidate-07.png",
+          "bbox": {
+            "minX": 60,
+            "minY": 62,
+            "maxX": 385,
+            "maxY": 373,
+            "count": 48945
+          },
+          "normalizedBbox": {
+            "minX": 37,
+            "minY": 59,
+            "maxX": 218,
+            "maxY": 232,
+            "count": 15231
+          },
+          "edgeTouches": 0,
+          "opaquePixels": 48945,
+          "warnings": [],
+          "failures": []
+        },
+        {
+          "candidateId": "candidate-07",
+          "frameIndex": 6,
+          "qualityScore": 94.93,
+          "sourceName": "candidate-07.png",
+          "bbox": {
+            "minX": 42,
+            "minY": 65,
+            "maxX": 370,
+            "maxY": 373,
+            "count": 49640
+          },
+          "normalizedBbox": {
+            "minX": 36,
+            "minY": 59,
+            "maxX": 220,
+            "maxY": 232,
+            "count": 15747
+          },
+          "edgeTouches": 0,
+          "opaquePixels": 49640,
+          "warnings": [],
+          "failures": []
+        },
+        {
+          "candidateId": "candidate-07",
+          "frameIndex": 7,
+          "qualityScore": 92.99,
+          "sourceName": "candidate-07.png",
+          "bbox": {
+            "minX": 6,
+            "minY": 59,
+            "maxX": 335,
+            "maxY": 372,
+            "count": 48498
+          },
+          "normalizedBbox": {
+            "minX": 37,
+            "minY": 59,
+            "maxX": 219,
+            "maxY": 232,
+            "count": 14889
+          },
+          "edgeTouches": 12,
+          "opaquePixels": 48498,
+          "warnings": [
+            "source edge contact 12px"
+          ],
+          "failures": []
+        }
+      ]
+    },
+    {
+      "candidateId": "candidate-08",
+      "totalScore": 757.8,
+      "selectedAsBaseline": true,
+      "frames": [
+        {
+          "candidateId": "candidate-08",
+          "frameIndex": 0,
+          "qualityScore": 98.21,
+          "sourceName": "candidate-08.png",
+          "bbox": {
+            "minX": 86,
+            "minY": 75,
+            "maxX": 392,
+            "maxY": 390,
+            "count": 46476
+          },
+          "normalizedBbox": {
+            "minX": 44,
+            "minY": 59,
+            "maxX": 212,
+            "maxY": 232,
+            "count": 14127
+          },
+          "edgeTouches": 0,
+          "opaquePixels": 46476,
+          "warnings": [],
+          "failures": []
+        },
+        {
+          "candidateId": "candidate-08",
+          "frameIndex": 1,
+          "qualityScore": 96.79,
+          "sourceName": "candidate-08.png",
+          "bbox": {
+            "minX": 71,
+            "minY": 81,
+            "maxX": 381,
+            "maxY": 394,
+            "count": 47058
+          },
+          "normalizedBbox": {
+            "minX": 42,
+            "minY": 59,
+            "maxX": 213,
+            "maxY": 232,
+            "count": 14438
+          },
+          "edgeTouches": 0,
+          "opaquePixels": 47058,
+          "warnings": [],
+          "failures": []
+        },
+        {
+          "candidateId": "candidate-08",
+          "frameIndex": 2,
+          "qualityScore": 98.22,
+          "sourceName": "candidate-08.png",
+          "bbox": {
+            "minX": 64,
+            "minY": 81,
+            "maxX": 378,
+            "maxY": 390,
+            "count": 45321
+          },
+          "normalizedBbox": {
+            "minX": 40,
+            "minY": 59,
+            "maxX": 216,
+            "maxY": 232,
+            "count": 14304
+          },
+          "edgeTouches": 0,
+          "opaquePixels": 45321,
+          "warnings": [],
+          "failures": []
+        },
+        {
+          "candidateId": "candidate-08",
+          "frameIndex": 3,
+          "qualityScore": 97.69,
+          "sourceName": "candidate-08.png",
+          "bbox": {
+            "minX": 61,
+            "minY": 85,
+            "maxX": 367,
+            "maxY": 397,
+            "count": 46137
+          },
+          "normalizedBbox": {
+            "minX": 43,
+            "minY": 59,
+            "maxX": 213,
+            "maxY": 232,
+            "count": 14284
+          },
+          "edgeTouches": 0,
+          "opaquePixels": 46137,
+          "warnings": [],
+          "failures": []
+        },
+        {
+          "candidateId": "candidate-08",
+          "frameIndex": 4,
+          "qualityScore": 95.71,
+          "sourceName": "candidate-08.png",
+          "bbox": {
+            "minX": 60,
+            "minY": 41,
+            "maxX": 378,
+            "maxY": 362,
+            "count": 48145
+          },
+          "normalizedBbox": {
+            "minX": 42,
+            "minY": 59,
+            "maxX": 213,
+            "maxY": 232,
+            "count": 14017
+          },
+          "edgeTouches": 0,
+          "opaquePixels": 48145,
+          "warnings": [],
+          "failures": []
+        },
+        {
+          "candidateId": "candidate-08",
+          "frameIndex": 5,
+          "qualityScore": 95.34,
+          "sourceName": "candidate-08.png",
+          "bbox": {
+            "minX": 48,
+            "minY": 51,
+            "maxX": 359,
+            "maxY": 368,
+            "count": 47296
+          },
+          "normalizedBbox": {
+            "minX": 43,
+            "minY": 59,
+            "maxX": 213,
+            "maxY": 232,
+            "count": 14166
+          },
+          "edgeTouches": 0,
+          "opaquePixels": 47296,
+          "warnings": [],
+          "failures": []
+        },
+        {
+          "candidateId": "candidate-08",
+          "frameIndex": 6,
+          "qualityScore": 95.32,
+          "sourceName": "candidate-08.png",
+          "bbox": {
+            "minX": 50,
+            "minY": 54,
+            "maxX": 362,
+            "maxY": 346,
+            "count": 47646
+          },
+          "normalizedBbox": {
+            "minX": 35,
+            "minY": 59,
+            "maxX": 220,
+            "maxY": 232,
+            "count": 16817
+          },
+          "edgeTouches": 0,
+          "opaquePixels": 47646,
+          "warnings": [],
+          "failures": []
+        },
+        {
+          "candidateId": "candidate-08",
+          "frameIndex": 7,
+          "qualityScore": 96,
+          "sourceName": "candidate-08.png",
+          "bbox": {
+            "minX": 50,
+            "minY": 50,
+            "maxX": 354,
+            "maxY": 363,
+            "count": 45553
+          },
+          "normalizedBbox": {
+            "minX": 44,
+            "minY": 59,
+            "maxX": 212,
+            "maxY": 232,
+            "count": 13972
+          },
+          "edgeTouches": 0,
+          "opaquePixels": 45553,
+          "warnings": [],
+          "failures": []
+        }
+      ]
+    },
+    {
+      "candidateId": "candidate-09",
+      "totalScore": 754.65,
+      "selectedAsBaseline": false,
+      "frames": [
+        {
+          "candidateId": "candidate-09",
+          "frameIndex": 0,
+          "qualityScore": 97.47,
+          "sourceName": "candidate-09.png",
+          "bbox": {
+            "minX": 79,
+            "minY": 71,
+            "maxX": 386,
+            "maxY": 385,
+            "count": 45338
+          },
+          "normalizedBbox": {
+            "minX": 43,
+            "minY": 59,
+            "maxX": 212,
+            "maxY": 232,
+            "count": 13817
+          },
+          "edgeTouches": 0,
+          "opaquePixels": 45338,
+          "warnings": [],
+          "failures": []
+        },
+        {
+          "candidateId": "candidate-09",
+          "frameIndex": 1,
+          "qualityScore": 97.03,
+          "sourceName": "candidate-09.png",
+          "bbox": {
+            "minX": 75,
+            "minY": 71,
+            "maxX": 391,
+            "maxY": 385,
+            "count": 47268
+          },
+          "normalizedBbox": {
+            "minX": 41,
+            "minY": 59,
+            "maxX": 215,
+            "maxY": 232,
+            "count": 14437
+          },
+          "edgeTouches": 0,
+          "opaquePixels": 47268,
+          "warnings": [],
+          "failures": []
+        },
+        {
+          "candidateId": "candidate-09",
+          "frameIndex": 2,
+          "qualityScore": 96.31,
+          "sourceName": "candidate-09.png",
+          "bbox": {
+            "minX": 77,
+            "minY": 74,
+            "maxX": 387,
+            "maxY": 385,
+            "count": 43803
+          },
+          "normalizedBbox": {
+            "minX": 42,
+            "minY": 59,
+            "maxX": 214,
+            "maxY": 232,
+            "count": 13591
+          },
+          "edgeTouches": 0,
+          "opaquePixels": 43803,
+          "warnings": [],
+          "failures": []
+        },
+        {
+          "candidateId": "candidate-09",
+          "frameIndex": 3,
+          "qualityScore": 97.89,
+          "sourceName": "candidate-09.png",
+          "bbox": {
+            "minX": 68,
+            "minY": 86,
+            "maxX": 376,
+            "maxY": 391,
+            "count": 44527
+          },
+          "normalizedBbox": {
+            "minX": 40,
+            "minY": 59,
+            "maxX": 215,
+            "maxY": 232,
+            "count": 14462
+          },
+          "edgeTouches": 0,
+          "opaquePixels": 44527,
+          "warnings": [],
+          "failures": []
+        },
+        {
+          "candidateId": "candidate-09",
+          "frameIndex": 4,
+          "qualityScore": 95.16,
+          "sourceName": "candidate-09.png",
+          "bbox": {
+            "minX": 74,
+            "minY": 52,
+            "maxX": 378,
+            "maxY": 360,
+            "count": 45088
+          },
+          "normalizedBbox": {
+            "minX": 42,
+            "minY": 59,
+            "maxX": 213,
+            "maxY": 232,
+            "count": 14320
+          },
+          "edgeTouches": 0,
+          "opaquePixels": 45088,
+          "warnings": [],
+          "failures": []
+        },
+        {
+          "candidateId": "candidate-09",
+          "frameIndex": 5,
+          "qualityScore": 97.43,
+          "sourceName": "candidate-09.png",
+          "bbox": {
+            "minX": 70,
+            "minY": 54,
+            "maxX": 378,
+            "maxY": 353,
+            "count": 45108
+          },
+          "normalizedBbox": {
+            "minX": 39,
+            "minY": 59,
+            "maxX": 217,
+            "maxY": 232,
+            "count": 15165
+          },
+          "edgeTouches": 0,
+          "opaquePixels": 45108,
+          "warnings": [],
+          "failures": []
+        },
+        {
+          "candidateId": "candidate-09",
+          "frameIndex": 6,
+          "qualityScore": 93.26,
+          "sourceName": "candidate-09.png",
+          "bbox": {
+            "minX": 63,
+            "minY": 53,
+            "maxX": 356,
+            "maxY": 368,
+            "count": 42545
+          },
+          "normalizedBbox": {
+            "minX": 47,
+            "minY": 60,
+            "maxX": 208,
+            "maxY": 232,
+            "count": 12905
+          },
+          "edgeTouches": 0,
+          "opaquePixels": 42545,
+          "warnings": [],
+          "failures": []
+        },
+        {
+          "candidateId": "candidate-09",
+          "frameIndex": 7,
+          "qualityScore": 94.79,
+          "sourceName": "candidate-09.png",
+          "bbox": {
+            "minX": 78,
+            "minY": 59,
+            "maxX": 379,
+            "maxY": 368,
+            "count": 44021
+          },
+          "normalizedBbox": {
+            "minX": 43,
+            "minY": 59,
+            "maxX": 212,
+            "maxY": 232,
+            "count": 13898
+          },
+          "edgeTouches": 0,
+          "opaquePixels": 44021,
+          "warnings": [],
+          "failures": []
+        }
+      ]
+    },
+    {
+      "candidateId": "candidate-10",
+      "totalScore": 754.32,
+      "selectedAsBaseline": false,
+      "frames": [
+        {
+          "candidateId": "candidate-10",
+          "frameIndex": 0,
+          "qualityScore": 95.2,
+          "sourceName": "candidate-10.png",
+          "bbox": {
+            "minX": 57,
+            "minY": 73,
+            "maxX": 362,
+            "maxY": 382,
+            "count": 44405
+          },
+          "normalizedBbox": {
+            "minX": 42,
+            "minY": 59,
+            "maxX": 213,
+            "maxY": 232,
+            "count": 13999
+          },
+          "edgeTouches": 0,
+          "opaquePixels": 44405,
+          "warnings": [],
+          "failures": []
+        },
+        {
+          "candidateId": "candidate-10",
+          "frameIndex": 1,
+          "qualityScore": 96.1,
+          "sourceName": "candidate-10.png",
+          "bbox": {
+            "minX": 49,
+            "minY": 76,
+            "maxX": 367,
+            "maxY": 378,
+            "count": 44079
+          },
+          "normalizedBbox": {
+            "minX": 37,
+            "minY": 59,
+            "maxX": 219,
+            "maxY": 232,
+            "count": 14549
+          },
+          "edgeTouches": 0,
+          "opaquePixels": 44079,
+          "warnings": [],
+          "failures": []
+        },
+        {
+          "candidateId": "candidate-10",
+          "frameIndex": 2,
+          "qualityScore": 95.93,
+          "sourceName": "candidate-10.png",
+          "bbox": {
+            "minX": 55,
+            "minY": 76,
+            "maxX": 375,
+            "maxY": 372,
+            "count": 43676
+          },
+          "normalizedBbox": {
+            "minX": 34,
+            "minY": 59,
+            "maxX": 221,
+            "maxY": 232,
+            "count": 14998
+          },
+          "edgeTouches": 0,
+          "opaquePixels": 43676,
+          "warnings": [],
+          "failures": []
+        },
+        {
+          "candidateId": "candidate-10",
+          "frameIndex": 3,
+          "qualityScore": 97.41,
+          "sourceName": "candidate-10.png",
+          "bbox": {
+            "minX": 58,
+            "minY": 80,
+            "maxX": 369,
+            "maxY": 388,
+            "count": 43371
+          },
+          "normalizedBbox": {
+            "minX": 40,
+            "minY": 59,
+            "maxX": 215,
+            "maxY": 232,
+            "count": 13755
+          },
+          "edgeTouches": 0,
+          "opaquePixels": 43371,
+          "warnings": [],
+          "failures": []
+        },
+        {
+          "candidateId": "candidate-10",
+          "frameIndex": 4,
+          "qualityScore": 94.77,
+          "sourceName": "candidate-10.png",
+          "bbox": {
+            "minX": 60,
+            "minY": 63,
+            "maxX": 367,
+            "maxY": 365,
+            "count": 43418
+          },
+          "normalizedBbox": {
+            "minX": 40,
+            "minY": 59,
+            "maxX": 216,
+            "maxY": 232,
+            "count": 14331
+          },
+          "edgeTouches": 0,
+          "opaquePixels": 43418,
+          "warnings": [],
+          "failures": []
+        },
+        {
+          "candidateId": "candidate-10",
+          "frameIndex": 5,
+          "qualityScore": 97.32,
+          "sourceName": "candidate-10.png",
+          "bbox": {
+            "minX": 63,
+            "minY": 64,
+            "maxX": 373,
+            "maxY": 368,
+            "count": 43810
+          },
+          "normalizedBbox": {
+            "minX": 40,
+            "minY": 59,
+            "maxX": 216,
+            "maxY": 232,
+            "count": 14241
+          },
+          "edgeTouches": 0,
+          "opaquePixels": 43810,
+          "warnings": [],
+          "failures": []
+        },
+        {
+          "candidateId": "candidate-10",
+          "frameIndex": 6,
+          "qualityScore": 96.79,
+          "sourceName": "candidate-10.png",
+          "bbox": {
+            "minX": 50,
+            "minY": 71,
+            "maxX": 375,
+            "maxY": 372,
+            "count": 44624
+          },
+          "normalizedBbox": {
+            "minX": 34,
+            "minY": 59,
+            "maxX": 221,
+            "maxY": 232,
+            "count": 14830
+          },
+          "edgeTouches": 0,
+          "opaquePixels": 44624,
+          "warnings": [],
+          "failures": []
+        },
+        {
+          "candidateId": "candidate-10",
+          "frameIndex": 7,
+          "qualityScore": 97.91,
+          "sourceName": "candidate-10.png",
+          "bbox": {
+            "minX": 54,
+            "minY": 64,
+            "maxX": 366,
+            "maxY": 368,
+            "count": 43963
+          },
+          "normalizedBbox": {
+            "minX": 39,
+            "minY": 59,
+            "maxX": 217,
+            "maxY": 232,
+            "count": 14342
+          },
+          "edgeTouches": 0,
+          "opaquePixels": 43963,
+          "warnings": [],
+          "failures": []
+        }
+      ]
+    }
+  ],
+  "framesByIndex": [
+    [
+      {
+        "candidateId": "candidate-08",
+        "frameIndex": 0,
+        "qualityScore": 98.21,
+        "sourceName": "candidate-08.png",
+        "bbox": {
+          "minX": 86,
+          "minY": 75,
+          "maxX": 392,
+          "maxY": 390,
+          "count": 46476
+        },
+        "normalizedBbox": {
+          "minX": 44,
+          "minY": 59,
+          "maxX": 212,
+          "maxY": 232,
+          "count": 14127
+        },
+        "edgeTouches": 0,
+        "opaquePixels": 46476,
+        "warnings": [],
+        "failures": []
+      },
+      {
+        "candidateId": "candidate-09",
+        "frameIndex": 0,
+        "qualityScore": 97.47,
+        "sourceName": "candidate-09.png",
+        "bbox": {
+          "minX": 79,
+          "minY": 71,
+          "maxX": 386,
+          "maxY": 385,
+          "count": 45338
+        },
+        "normalizedBbox": {
+          "minX": 43,
+          "minY": 59,
+          "maxX": 212,
+          "maxY": 232,
+          "count": 13817
+        },
+        "edgeTouches": 0,
+        "opaquePixels": 45338,
+        "warnings": [],
+        "failures": []
+      },
+      {
+        "candidateId": "candidate-10",
+        "frameIndex": 0,
+        "qualityScore": 95.2,
+        "sourceName": "candidate-10.png",
+        "bbox": {
+          "minX": 57,
+          "minY": 73,
+          "maxX": 362,
+          "maxY": 382,
+          "count": 44405
+        },
+        "normalizedBbox": {
+          "minX": 42,
+          "minY": 59,
+          "maxX": 213,
+          "maxY": 232,
+          "count": 13999
+        },
+        "edgeTouches": 0,
+        "opaquePixels": 44405,
+        "warnings": [],
+        "failures": []
+      },
+      {
+        "candidateId": "candidate-02",
+        "frameIndex": 0,
+        "qualityScore": 94.4,
+        "sourceName": "candidate-02.png",
+        "bbox": {
+          "minX": 95,
+          "minY": 70,
+          "maxX": 383,
+          "maxY": 378,
+          "count": 43567
+        },
+        "normalizedBbox": {
+          "minX": 47,
+          "minY": 59,
+          "maxX": 209,
+          "maxY": 232,
+          "count": 13838
+        },
+        "edgeTouches": 0,
+        "opaquePixels": 43567,
+        "warnings": [],
+        "failures": []
+      },
+      {
+        "candidateId": "candidate-03",
+        "frameIndex": 0,
+        "qualityScore": 93.93,
+        "sourceName": "candidate-03.png",
+        "bbox": {
+          "minX": 60,
+          "minY": 120,
+          "maxX": 335,
+          "maxY": 440,
+          "count": 45656
+        },
+        "normalizedBbox": {
+          "minX": 53,
+          "minY": 59,
+          "maxX": 202,
+          "maxY": 232,
+          "count": 13446
+        },
+        "edgeTouches": 0,
+        "opaquePixels": 45656,
+        "warnings": [],
+        "failures": []
+      },
+      {
+        "candidateId": "candidate-06",
+        "frameIndex": 0,
+        "qualityScore": 93.85,
+        "sourceName": "candidate-06.png",
+        "bbox": {
+          "minX": 93,
+          "minY": 100,
+          "maxX": 388,
+          "maxY": 405,
+          "count": 42578
+        },
+        "normalizedBbox": {
+          "minX": 44,
+          "minY": 59,
+          "maxX": 211,
+          "maxY": 232,
+          "count": 13748
+        },
+        "edgeTouches": 0,
+        "opaquePixels": 42578,
+        "warnings": [],
+        "failures": []
+      },
+      {
+        "candidateId": "candidate-07",
+        "frameIndex": 0,
+        "qualityScore": 91.51,
+        "sourceName": "candidate-07.png",
+        "bbox": {
+          "minX": 65,
+          "minY": 86,
+          "maxX": 401,
+          "maxY": 407,
+          "count": 51052
+        },
+        "normalizedBbox": {
+          "minX": 37,
+          "minY": 59,
+          "maxX": 218,
+          "maxY": 232,
+          "count": 14876
+        },
+        "edgeTouches": 0,
+        "opaquePixels": 51052,
+        "warnings": [],
+        "failures": []
+      },
+      {
+        "candidateId": "candidate-05",
+        "frameIndex": 0,
+        "qualityScore": 88.54,
+        "sourceName": "candidate-05.png",
+        "bbox": {
+          "minX": 53,
+          "minY": 123,
+          "maxX": 374,
+          "maxY": 450,
+          "count": 50460
+        },
+        "normalizedBbox": {
+          "minX": 43,
+          "minY": 59,
+          "maxX": 213,
+          "maxY": 232,
+          "count": 14205
+        },
+        "edgeTouches": 0,
+        "opaquePixels": 50460,
+        "warnings": [],
+        "failures": []
+      },
+      {
+        "candidateId": "candidate-04",
+        "frameIndex": 0,
+        "qualityScore": 79.65,
+        "sourceName": "candidate-04.png",
+        "bbox": {
+          "minX": 66,
+          "minY": 129,
+          "maxX": 383,
+          "maxY": 458,
+          "count": 52562
+        },
+        "normalizedBbox": {
+          "minX": 44,
+          "minY": 59,
+          "maxX": 211,
+          "maxY": 232,
+          "count": 14629
+        },
+        "edgeTouches": 334,
+        "opaquePixels": 52562,
+        "warnings": [
+          "source edge contact 334px"
+        ],
+        "failures": []
+      },
+      {
+        "candidateId": "candidate-01",
+        "frameIndex": 0,
+        "qualityScore": -90.53,
+        "sourceName": "candidate-01.png",
+        "bbox": {
+          "minX": 0,
+          "minY": 0,
+          "maxX": 443,
+          "maxY": 443,
+          "count": 197136
+        },
+        "normalizedBbox": {
+          "minX": 41,
+          "minY": 59,
+          "maxX": 214,
+          "maxY": 232,
+          "count": 30276
+        },
+        "edgeTouches": 12236,
+        "opaquePixels": 197136,
+        "warnings": [
+          "source edge contact 12236px",
+          "large opaque coverage after cleanup",
+          "low top padding",
+          "feet/bottom touch source cell"
+        ],
+        "failures": []
+      }
+    ],
+    [
+      {
+        "candidateId": "candidate-09",
+        "frameIndex": 1,
+        "qualityScore": 97.03,
+        "sourceName": "candidate-09.png",
+        "bbox": {
+          "minX": 75,
+          "minY": 71,
+          "maxX": 391,
+          "maxY": 385,
+          "count": 47268
+        },
+        "normalizedBbox": {
+          "minX": 41,
+          "minY": 59,
+          "maxX": 215,
+          "maxY": 232,
+          "count": 14437
+        },
+        "edgeTouches": 0,
+        "opaquePixels": 47268,
+        "warnings": [],
+        "failures": []
+      },
+      {
+        "candidateId": "candidate-08",
+        "frameIndex": 1,
+        "qualityScore": 96.79,
+        "sourceName": "candidate-08.png",
+        "bbox": {
+          "minX": 71,
+          "minY": 81,
+          "maxX": 381,
+          "maxY": 394,
+          "count": 47058
+        },
+        "normalizedBbox": {
+          "minX": 42,
+          "minY": 59,
+          "maxX": 213,
+          "maxY": 232,
+          "count": 14438
+        },
+        "edgeTouches": 0,
+        "opaquePixels": 47058,
+        "warnings": [],
+        "failures": []
+      },
+      {
+        "candidateId": "candidate-10",
+        "frameIndex": 1,
+        "qualityScore": 96.1,
+        "sourceName": "candidate-10.png",
+        "bbox": {
+          "minX": 49,
+          "minY": 76,
+          "maxX": 367,
+          "maxY": 378,
+          "count": 44079
+        },
+        "normalizedBbox": {
+          "minX": 37,
+          "minY": 59,
+          "maxX": 219,
+          "maxY": 232,
+          "count": 14549
+        },
+        "edgeTouches": 0,
+        "opaquePixels": 44079,
+        "warnings": [],
+        "failures": []
+      },
+      {
+        "candidateId": "candidate-06",
+        "frameIndex": 1,
+        "qualityScore": 94.89,
+        "sourceName": "candidate-06.png",
+        "bbox": {
+          "minX": 60,
+          "minY": 97,
+          "maxX": 364,
+          "maxY": 399,
+          "count": 43335
+        },
+        "normalizedBbox": {
+          "minX": 41,
+          "minY": 59,
+          "maxX": 215,
+          "maxY": 232,
+          "count": 14296
+        },
+        "edgeTouches": 0,
+        "opaquePixels": 43335,
+        "warnings": [],
+        "failures": []
+      },
+      {
+        "candidateId": "candidate-03",
+        "frameIndex": 1,
+        "qualityScore": 94.77,
+        "sourceName": "candidate-03.png",
+        "bbox": {
+          "minX": 51,
+          "minY": 111,
+          "maxX": 324,
+          "maxY": 435,
+          "count": 45549
+        },
+        "normalizedBbox": {
+          "minX": 55,
+          "minY": 59,
+          "maxX": 201,
+          "maxY": 232,
+          "count": 13087
+        },
+        "edgeTouches": 0,
+        "opaquePixels": 45549,
+        "warnings": [],
+        "failures": []
+      },
+      {
+        "candidateId": "candidate-02",
+        "frameIndex": 1,
+        "qualityScore": 93.23,
+        "sourceName": "candidate-02.png",
+        "bbox": {
+          "minX": 85,
+          "minY": 70,
+          "maxX": 383,
+          "maxY": 375,
+          "count": 43522
+        },
+        "normalizedBbox": {
+          "minX": 43,
+          "minY": 59,
+          "maxX": 212,
+          "maxY": 232,
+          "count": 14100
+        },
+        "edgeTouches": 0,
+        "opaquePixels": 43522,
+        "warnings": [],
+        "failures": []
+      },
+      {
+        "candidateId": "candidate-07",
+        "frameIndex": 1,
+        "qualityScore": 91.51,
+        "sourceName": "candidate-07.png",
+        "bbox": {
+          "minX": 39,
+          "minY": 86,
+          "maxX": 377,
+          "maxY": 407,
+          "count": 49218
+        },
+        "normalizedBbox": {
+          "minX": 37,
+          "minY": 59,
+          "maxX": 219,
+          "maxY": 232,
+          "count": 14358
+        },
+        "edgeTouches": 0,
+        "opaquePixels": 49218,
+        "warnings": [],
+        "failures": []
+      },
+      {
+        "candidateId": "candidate-05",
+        "frameIndex": 1,
+        "qualityScore": 88.79,
+        "sourceName": "candidate-05.png",
+        "bbox": {
+          "minX": 40,
+          "minY": 123,
+          "maxX": 367,
+          "maxY": 450,
+          "count": 50306
+        },
+        "normalizedBbox": {
+          "minX": 41,
+          "minY": 59,
+          "maxX": 214,
+          "maxY": 232,
+          "count": 14180
+        },
+        "edgeTouches": 0,
+        "opaquePixels": 50306,
+        "warnings": [],
+        "failures": []
+      },
+      {
+        "candidateId": "candidate-04",
+        "frameIndex": 1,
+        "qualityScore": 81.07,
+        "sourceName": "candidate-04.png",
+        "bbox": {
+          "minX": 0,
+          "minY": 129,
+          "maxX": 344,
+          "maxY": 446,
+          "count": 49971
+        },
+        "normalizedBbox": {
+          "minX": 34,
+          "minY": 59,
+          "maxX": 222,
+          "maxY": 232,
+          "count": 14992
+        },
+        "edgeTouches": 228,
+        "opaquePixels": 49971,
+        "warnings": [
+          "source edge contact 228px"
+        ],
+        "failures": []
+      },
+      {
+        "candidateId": "candidate-01",
+        "frameIndex": 1,
+        "qualityScore": -89.39,
+        "sourceName": "candidate-01.png",
+        "bbox": {
+          "minX": 0,
+          "minY": 0,
+          "maxX": 442,
+          "maxY": 443,
+          "count": 196692
+        },
+        "normalizedBbox": {
+          "minX": 41,
+          "minY": 59,
+          "maxX": 214,
+          "maxY": 232,
+          "count": 30276
+        },
+        "edgeTouches": 12222,
+        "opaquePixels": 196692,
+        "warnings": [
+          "source edge contact 12222px",
+          "large opaque coverage after cleanup",
+          "low top padding",
+          "feet/bottom touch source cell"
+        ],
+        "failures": []
+      }
+    ],
+    [
+      {
+        "candidateId": "candidate-08",
+        "frameIndex": 2,
+        "qualityScore": 98.22,
+        "sourceName": "candidate-08.png",
+        "bbox": {
+          "minX": 64,
+          "minY": 81,
+          "maxX": 378,
+          "maxY": 390,
+          "count": 45321
+        },
+        "normalizedBbox": {
+          "minX": 40,
+          "minY": 59,
+          "maxX": 216,
+          "maxY": 232,
+          "count": 14304
+        },
+        "edgeTouches": 0,
+        "opaquePixels": 45321,
+        "warnings": [],
+        "failures": []
+      },
+      {
+        "candidateId": "candidate-09",
+        "frameIndex": 2,
+        "qualityScore": 96.31,
+        "sourceName": "candidate-09.png",
+        "bbox": {
+          "minX": 77,
+          "minY": 74,
+          "maxX": 387,
+          "maxY": 385,
+          "count": 43803
+        },
+        "normalizedBbox": {
+          "minX": 42,
+          "minY": 59,
+          "maxX": 214,
+          "maxY": 232,
+          "count": 13591
+        },
+        "edgeTouches": 0,
+        "opaquePixels": 43803,
+        "warnings": [],
+        "failures": []
+      },
+      {
+        "candidateId": "candidate-10",
+        "frameIndex": 2,
+        "qualityScore": 95.93,
+        "sourceName": "candidate-10.png",
+        "bbox": {
+          "minX": 55,
+          "minY": 76,
+          "maxX": 375,
+          "maxY": 372,
+          "count": 43676
+        },
+        "normalizedBbox": {
+          "minX": 34,
+          "minY": 59,
+          "maxX": 221,
+          "maxY": 232,
+          "count": 14998
+        },
+        "edgeTouches": 0,
+        "opaquePixels": 43676,
+        "warnings": [],
+        "failures": []
+      },
+      {
+        "candidateId": "candidate-03",
+        "frameIndex": 2,
+        "qualityScore": 95.4,
+        "sourceName": "candidate-03.png",
+        "bbox": {
+          "minX": 44,
+          "minY": 116,
+          "maxX": 308,
+          "maxY": 446,
+          "count": 44070
+        },
+        "normalizedBbox": {
+          "minX": 59,
+          "minY": 59,
+          "maxX": 197,
+          "maxY": 232,
+          "count": 12140
+        },
+        "edgeTouches": 0,
+        "opaquePixels": 44070,
+        "warnings": [],
+        "failures": []
+      },
+      {
+        "candidateId": "candidate-06",
+        "frameIndex": 2,
+        "qualityScore": 95.15,
+        "sourceName": "candidate-06.png",
+        "bbox": {
+          "minX": 69,
+          "minY": 100,
+          "maxX": 374,
+          "maxY": 405,
+          "count": 43272
+        },
+        "normalizedBbox": {
+          "minX": 41,
+          "minY": 59,
+          "maxX": 214,
+          "maxY": 232,
+          "count": 14007
+        },
+        "edgeTouches": 0,
+        "opaquePixels": 43272,
+        "warnings": [],
+        "failures": []
+      },
+      {
+        "candidateId": "candidate-07",
+        "frameIndex": 2,
+        "qualityScore": 91.72,
+        "sourceName": "candidate-07.png",
+        "bbox": {
+          "minX": 39,
+          "minY": 95,
+          "maxX": 372,
+          "maxY": 407,
+          "count": 48381
+        },
+        "normalizedBbox": {
+          "minX": 35,
+          "minY": 59,
+          "maxX": 220,
+          "maxY": 232,
+          "count": 14960
+        },
+        "edgeTouches": 0,
+        "opaquePixels": 48381,
+        "warnings": [],
+        "failures": []
+      },
+      {
+        "candidateId": "candidate-05",
+        "frameIndex": 2,
+        "qualityScore": 91.21,
+        "sourceName": "candidate-05.png",
+        "bbox": {
+          "minX": 30,
+          "minY": 126,
+          "maxX": 341,
+          "maxY": 453,
+          "count": 48125
+        },
+        "normalizedBbox": {
+          "minX": 45,
+          "minY": 59,
+          "maxX": 210,
+          "maxY": 232,
+          "count": 13587
+        },
+        "edgeTouches": 0,
+        "opaquePixels": 48125,
+        "warnings": [],
+        "failures": []
+      },
+      {
+        "candidateId": "candidate-02",
+        "frameIndex": 2,
+        "qualityScore": 89.98,
+        "sourceName": "candidate-02.png",
+        "bbox": {
+          "minX": 90,
+          "minY": 71,
+          "maxX": 388,
+          "maxY": 358,
+          "count": 43145
+        },
+        "normalizedBbox": {
+          "minX": 38,
+          "minY": 59,
+          "maxX": 218,
+          "maxY": 232,
+          "count": 15797
+        },
+        "edgeTouches": 0,
+        "opaquePixels": 43145,
+        "warnings": [],
+        "failures": []
+      },
+      {
+        "candidateId": "candidate-04",
+        "frameIndex": 2,
+        "qualityScore": 89.51,
+        "sourceName": "candidate-04.png",
+        "bbox": {
+          "minX": 38,
+          "minY": 118,
+          "maxX": 342,
+          "maxY": 434,
+          "count": 49968
+        },
+        "normalizedBbox": {
+          "minX": 45,
+          "minY": 59,
+          "maxX": 211,
+          "maxY": 232,
+          "count": 15005
+        },
+        "edgeTouches": 0,
+        "opaquePixels": 49968,
+        "warnings": [],
+        "failures": []
+      },
+      {
+        "candidateId": "candidate-01",
+        "frameIndex": 2,
+        "qualityScore": -90.74,
+        "sourceName": "candidate-01.png",
+        "bbox": {
+          "minX": 0,
+          "minY": 0,
+          "maxX": 443,
+          "maxY": 443,
+          "count": 197136
+        },
+        "normalizedBbox": {
+          "minX": 41,
+          "minY": 59,
+          "maxX": 214,
+          "maxY": 232,
+          "count": 30276
+        },
+        "edgeTouches": 12236,
+        "opaquePixels": 197136,
+        "warnings": [
+          "source edge contact 12236px",
+          "large opaque coverage after cleanup",
+          "low top padding",
+          "feet/bottom touch source cell"
+        ],
+        "failures": []
+      }
+    ],
+    [
+      {
+        "candidateId": "candidate-09",
+        "frameIndex": 3,
+        "qualityScore": 97.89,
+        "sourceName": "candidate-09.png",
+        "bbox": {
+          "minX": 68,
+          "minY": 86,
+          "maxX": 376,
+          "maxY": 391,
+          "count": 44527
+        },
+        "normalizedBbox": {
+          "minX": 40,
+          "minY": 59,
+          "maxX": 215,
+          "maxY": 232,
+          "count": 14462
+        },
+        "edgeTouches": 0,
+        "opaquePixels": 44527,
+        "warnings": [],
+        "failures": []
+      },
+      {
+        "candidateId": "candidate-08",
+        "frameIndex": 3,
+        "qualityScore": 97.69,
+        "sourceName": "candidate-08.png",
+        "bbox": {
+          "minX": 61,
+          "minY": 85,
+          "maxX": 367,
+          "maxY": 397,
+          "count": 46137
+        },
+        "normalizedBbox": {
+          "minX": 43,
+          "minY": 59,
+          "maxX": 213,
+          "maxY": 232,
+          "count": 14284
+        },
+        "edgeTouches": 0,
+        "opaquePixels": 46137,
+        "warnings": [],
+        "failures": []
+      },
+      {
+        "candidateId": "candidate-10",
+        "frameIndex": 3,
+        "qualityScore": 97.41,
+        "sourceName": "candidate-10.png",
+        "bbox": {
+          "minX": 58,
+          "minY": 80,
+          "maxX": 369,
+          "maxY": 388,
+          "count": 43371
+        },
+        "normalizedBbox": {
+          "minX": 40,
+          "minY": 59,
+          "maxX": 215,
+          "maxY": 232,
+          "count": 13755
+        },
+        "edgeTouches": 0,
+        "opaquePixels": 43371,
+        "warnings": [],
+        "failures": []
+      },
+      {
+        "candidateId": "candidate-06",
+        "frameIndex": 3,
+        "qualityScore": 95.11,
+        "sourceName": "candidate-06.png",
+        "bbox": {
+          "minX": 32,
+          "minY": 100,
+          "maxX": 339,
+          "maxY": 405,
+          "count": 42686
+        },
+        "normalizedBbox": {
+          "minX": 41,
+          "minY": 59,
+          "maxX": 215,
+          "maxY": 232,
+          "count": 13800
+        },
+        "edgeTouches": 0,
+        "opaquePixels": 42686,
+        "warnings": [],
+        "failures": []
+      },
+      {
+        "candidateId": "candidate-07",
+        "frameIndex": 3,
+        "qualityScore": 94.35,
+        "sourceName": "candidate-07.png",
+        "bbox": {
+          "minX": 21,
+          "minY": 95,
+          "maxX": 330,
+          "maxY": 407,
+          "count": 44917
+        },
+        "normalizedBbox": {
+          "minX": 42,
+          "minY": 59,
+          "maxX": 213,
+          "maxY": 232,
+          "count": 13843
+        },
+        "edgeTouches": 0,
+        "opaquePixels": 44917,
+        "warnings": [],
+        "failures": []
+      },
+      {
+        "candidateId": "candidate-02",
+        "frameIndex": 3,
+        "qualityScore": 93.46,
+        "sourceName": "candidate-02.png",
+        "bbox": {
+          "minX": 83,
+          "minY": 80,
+          "maxX": 379,
+          "maxY": 383,
+          "count": 41812
+        },
+        "normalizedBbox": {
+          "minX": 43,
+          "minY": 59,
+          "maxX": 212,
+          "maxY": 232,
+          "count": 13691
+        },
+        "edgeTouches": 0,
+        "opaquePixels": 41812,
+        "warnings": [],
+        "failures": []
+      },
+      {
+        "candidateId": "candidate-03",
+        "frameIndex": 3,
+        "qualityScore": 92.78,
+        "sourceName": "candidate-03.png",
+        "bbox": {
+          "minX": 23,
+          "minY": 108,
+          "maxX": 301,
+          "maxY": 440,
+          "count": 47095
+        },
+        "normalizedBbox": {
+          "minX": 55,
+          "minY": 59,
+          "maxX": 200,
+          "maxY": 232,
+          "count": 12879
+        },
+        "edgeTouches": 0,
+        "opaquePixels": 47095,
+        "warnings": [],
+        "failures": []
+      },
+      {
+        "candidateId": "candidate-04",
+        "frameIndex": 3,
+        "qualityScore": 89.42,
+        "sourceName": "candidate-04.png",
+        "bbox": {
+          "minX": 14,
+          "minY": 138,
+          "maxX": 313,
+          "maxY": 464,
+          "count": 49668
+        },
+        "normalizedBbox": {
+          "minX": 48,
+          "minY": 59,
+          "maxX": 207,
+          "maxY": 232,
+          "count": 14098
+        },
+        "edgeTouches": 0,
+        "opaquePixels": 49668,
+        "warnings": [],
+        "failures": []
+      },
+      {
+        "candidateId": "candidate-05",
+        "frameIndex": 3,
+        "qualityScore": 86.59,
+        "sourceName": "candidate-05.png",
+        "bbox": {
+          "minX": 12,
+          "minY": 126,
+          "maxX": 341,
+          "maxY": 450,
+          "count": 52064
+        },
+        "normalizedBbox": {
+          "minX": 40,
+          "minY": 59,
+          "maxX": 216,
+          "maxY": 232,
+          "count": 14985
+        },
+        "edgeTouches": 0,
+        "opaquePixels": 52064,
+        "warnings": [],
+        "failures": []
+      },
+      {
+        "candidateId": "candidate-01",
+        "frameIndex": 3,
+        "qualityScore": -90.59,
+        "sourceName": "candidate-01.png",
+        "bbox": {
+          "minX": 0,
+          "minY": 0,
+          "maxX": 442,
+          "maxY": 443,
+          "count": 196688
+        },
+        "normalizedBbox": {
+          "minX": 41,
+          "minY": 59,
+          "maxX": 214,
+          "maxY": 232,
+          "count": 30274
+        },
+        "edgeTouches": 12222,
+        "opaquePixels": 196688,
+        "warnings": [
+          "source edge contact 12222px",
+          "large opaque coverage after cleanup",
+          "low top padding",
+          "feet/bottom touch source cell"
+        ],
+        "failures": []
+      }
+    ],
+    [
+      {
+        "candidateId": "candidate-08",
+        "frameIndex": 4,
+        "qualityScore": 95.71,
+        "sourceName": "candidate-08.png",
+        "bbox": {
+          "minX": 60,
+          "minY": 41,
+          "maxX": 378,
+          "maxY": 362,
+          "count": 48145
+        },
+        "normalizedBbox": {
+          "minX": 42,
+          "minY": 59,
+          "maxX": 213,
+          "maxY": 232,
+          "count": 14017
+        },
+        "edgeTouches": 0,
+        "opaquePixels": 48145,
+        "warnings": [],
+        "failures": []
+      },
+      {
+        "candidateId": "candidate-07",
+        "frameIndex": 4,
+        "qualityScore": 95.6,
+        "sourceName": "candidate-07.png",
+        "bbox": {
+          "minX": 75,
+          "minY": 55,
+          "maxX": 402,
+          "maxY": 372,
+          "count": 48676
+        },
+        "normalizedBbox": {
+          "minX": 39,
+          "minY": 59,
+          "maxX": 217,
+          "maxY": 232,
+          "count": 14530
+        },
+        "edgeTouches": 0,
+        "opaquePixels": 48676,
+        "warnings": [],
+        "failures": []
+      },
+      {
+        "candidateId": "candidate-09",
+        "frameIndex": 4,
+        "qualityScore": 95.16,
+        "sourceName": "candidate-09.png",
+        "bbox": {
+          "minX": 74,
+          "minY": 52,
+          "maxX": 378,
+          "maxY": 360,
+          "count": 45088
+        },
+        "normalizedBbox": {
+          "minX": 42,
+          "minY": 59,
+          "maxX": 213,
+          "maxY": 232,
+          "count": 14320
+        },
+        "edgeTouches": 0,
+        "opaquePixels": 45088,
+        "warnings": [],
+        "failures": []
+      },
+      {
+        "candidateId": "candidate-10",
+        "frameIndex": 4,
+        "qualityScore": 94.77,
+        "sourceName": "candidate-10.png",
+        "bbox": {
+          "minX": 60,
+          "minY": 63,
+          "maxX": 367,
+          "maxY": 365,
+          "count": 43418
+        },
+        "normalizedBbox": {
+          "minX": 40,
+          "minY": 59,
+          "maxX": 216,
+          "maxY": 232,
+          "count": 14331
+        },
+        "edgeTouches": 0,
+        "opaquePixels": 43418,
+        "warnings": [],
+        "failures": []
+      },
+      {
+        "candidateId": "candidate-06",
+        "frameIndex": 4,
+        "qualityScore": 94.48,
+        "sourceName": "candidate-06.png",
+        "bbox": {
+          "minX": 89,
+          "minY": 66,
+          "maxX": 388,
+          "maxY": 365,
+          "count": 41950
+        },
+        "normalizedBbox": {
+          "minX": 41,
+          "minY": 59,
+          "maxX": 214,
+          "maxY": 232,
+          "count": 14108
+        },
+        "edgeTouches": 0,
+        "opaquePixels": 41950,
+        "warnings": [],
+        "failures": []
+      },
+      {
+        "candidateId": "candidate-03",
+        "frameIndex": 4,
+        "qualityScore": 92.3,
+        "sourceName": "candidate-03.png",
+        "bbox": {
+          "minX": 58,
+          "minY": 48,
+          "maxX": 341,
+          "maxY": 379,
+          "count": 47176
+        },
+        "normalizedBbox": {
+          "minX": 54,
+          "minY": 59,
+          "maxX": 202,
+          "maxY": 232,
+          "count": 12959
+        },
+        "edgeTouches": 0,
+        "opaquePixels": 47176,
+        "warnings": [],
+        "failures": []
+      },
+      {
+        "candidateId": "candidate-02",
+        "frameIndex": 4,
+        "qualityScore": 91.52,
+        "sourceName": "candidate-02.png",
+        "bbox": {
+          "minX": 92,
+          "minY": 79,
+          "maxX": 379,
+          "maxY": 378,
+          "count": 41781
+        },
+        "normalizedBbox": {
+          "minX": 45,
+          "minY": 59,
+          "maxX": 211,
+          "maxY": 232,
+          "count": 14069
+        },
+        "edgeTouches": 0,
+        "opaquePixels": 41781,
+        "warnings": [],
+        "failures": []
+      },
+      {
+        "candidateId": "candidate-04",
+        "frameIndex": 4,
+        "qualityScore": 87.99,
+        "sourceName": "candidate-04.png",
+        "bbox": {
+          "minX": 66,
+          "minY": 51,
+          "maxX": 369,
+          "maxY": 382,
+          "count": 50791
+        },
+        "normalizedBbox": {
+          "minX": 49,
+          "minY": 59,
+          "maxX": 207,
+          "maxY": 232,
+          "count": 13931
+        },
+        "edgeTouches": 0,
+        "opaquePixels": 50791,
+        "warnings": [],
+        "failures": []
+      },
+      {
+        "candidateId": "candidate-05",
+        "frameIndex": 4,
+        "qualityScore": 86.88,
+        "sourceName": "candidate-05.png",
+        "bbox": {
+          "minX": 40,
+          "minY": 57,
+          "maxX": 372,
+          "maxY": 391,
+          "count": 51270
+        },
+        "normalizedBbox": {
+          "minX": 42,
+          "minY": 59,
+          "maxX": 214,
+          "maxY": 232,
+          "count": 13811
+        },
+        "edgeTouches": 0,
+        "opaquePixels": 51270,
+        "warnings": [],
+        "failures": []
+      },
+      {
+        "candidateId": "candidate-01",
+        "frameIndex": 4,
+        "qualityScore": -93.22,
+        "sourceName": "candidate-01.png",
+        "bbox": {
+          "minX": 0,
+          "minY": 0,
+          "maxX": 443,
+          "maxY": 442,
+          "count": 196682
+        },
+        "normalizedBbox": {
+          "minX": 41,
+          "minY": 59,
+          "maxX": 214,
+          "maxY": 232,
+          "count": 30275
+        },
+        "edgeTouches": 12222,
+        "opaquePixels": 196682,
+        "warnings": [
+          "source edge contact 12222px",
+          "large opaque coverage after cleanup",
+          "low top padding",
+          "feet/bottom touch source cell"
+        ],
+        "failures": []
+      }
+    ],
+    [
+      {
+        "candidateId": "candidate-09",
+        "frameIndex": 5,
+        "qualityScore": 97.43,
+        "sourceName": "candidate-09.png",
+        "bbox": {
+          "minX": 70,
+          "minY": 54,
+          "maxX": 378,
+          "maxY": 353,
+          "count": 45108
+        },
+        "normalizedBbox": {
+          "minX": 39,
+          "minY": 59,
+          "maxX": 217,
+          "maxY": 232,
+          "count": 15165
+        },
+        "edgeTouches": 0,
+        "opaquePixels": 45108,
+        "warnings": [],
+        "failures": []
+      },
+      {
+        "candidateId": "candidate-10",
+        "frameIndex": 5,
+        "qualityScore": 97.32,
+        "sourceName": "candidate-10.png",
+        "bbox": {
+          "minX": 63,
+          "minY": 64,
+          "maxX": 373,
+          "maxY": 368,
+          "count": 43810
+        },
+        "normalizedBbox": {
+          "minX": 40,
+          "minY": 59,
+          "maxX": 216,
+          "maxY": 232,
+          "count": 14241
+        },
+        "edgeTouches": 0,
+        "opaquePixels": 43810,
+        "warnings": [],
+        "failures": []
+      },
+      {
+        "candidateId": "candidate-02",
+        "frameIndex": 5,
+        "qualityScore": 95.94,
+        "sourceName": "candidate-02.png",
+        "bbox": {
+          "minX": 86,
+          "minY": 65,
+          "maxX": 386,
+          "maxY": 364,
+          "count": 42544
+        },
+        "normalizedBbox": {
+          "minX": 41,
+          "minY": 59,
+          "maxX": 215,
+          "maxY": 232,
+          "count": 14353
+        },
+        "edgeTouches": 0,
+        "opaquePixels": 42544,
+        "warnings": [],
+        "failures": []
+      },
+      {
+        "candidateId": "candidate-06",
+        "frameIndex": 5,
+        "qualityScore": 95.79,
+        "sourceName": "candidate-06.png",
+        "bbox": {
+          "minX": 60,
+          "minY": 68,
+          "maxX": 358,
+          "maxY": 362,
+          "count": 43342
+        },
+        "normalizedBbox": {
+          "minX": 40,
+          "minY": 59,
+          "maxX": 215,
+          "maxY": 232,
+          "count": 15074
+        },
+        "edgeTouches": 0,
+        "opaquePixels": 43342,
+        "warnings": [],
+        "failures": []
+      },
+      {
+        "candidateId": "candidate-08",
+        "frameIndex": 5,
+        "qualityScore": 95.34,
+        "sourceName": "candidate-08.png",
+        "bbox": {
+          "minX": 48,
+          "minY": 51,
+          "maxX": 359,
+          "maxY": 368,
+          "count": 47296
+        },
+        "normalizedBbox": {
+          "minX": 43,
+          "minY": 59,
+          "maxX": 213,
+          "maxY": 232,
+          "count": 14166
+        },
+        "edgeTouches": 0,
+        "opaquePixels": 47296,
+        "warnings": [],
+        "failures": []
+      },
+      {
+        "candidateId": "candidate-07",
+        "frameIndex": 5,
+        "qualityScore": 94.58,
+        "sourceName": "candidate-07.png",
+        "bbox": {
+          "minX": 60,
+          "minY": 62,
+          "maxX": 385,
+          "maxY": 373,
+          "count": 48945
+        },
+        "normalizedBbox": {
+          "minX": 37,
+          "minY": 59,
+          "maxX": 218,
+          "maxY": 232,
+          "count": 15231
+        },
+        "edgeTouches": 0,
+        "opaquePixels": 48945,
+        "warnings": [],
+        "failures": []
+      },
+      {
+        "candidateId": "candidate-04",
+        "frameIndex": 5,
+        "qualityScore": 90.76,
+        "sourceName": "candidate-04.png",
+        "bbox": {
+          "minX": 48,
+          "minY": 65,
+          "maxX": 334,
+          "maxY": 387,
+          "count": 48533
+        },
+        "normalizedBbox": {
+          "minX": 51,
+          "minY": 59,
+          "maxX": 205,
+          "maxY": 232,
+          "count": 14089
+        },
+        "edgeTouches": 0,
+        "opaquePixels": 48533,
+        "warnings": [],
+        "failures": []
+      },
+      {
+        "candidateId": "candidate-03",
+        "frameIndex": 5,
+        "qualityScore": 88.7,
+        "sourceName": "candidate-03.png",
+        "bbox": {
+          "minX": 46,
+          "minY": 61,
+          "maxX": 317,
+          "maxY": 376,
+          "count": 41887
+        },
+        "normalizedBbox": {
+          "minX": 53,
+          "minY": 59,
+          "maxX": 202,
+          "maxY": 232,
+          "count": 12732
+        },
+        "edgeTouches": 0,
+        "opaquePixels": 41887,
+        "warnings": [],
+        "failures": []
+      },
+      {
+        "candidateId": "candidate-05",
+        "frameIndex": 5,
+        "qualityScore": 86.3,
+        "sourceName": "candidate-05.png",
+        "bbox": {
+          "minX": 34,
+          "minY": 58,
+          "maxX": 356,
+          "maxY": 388,
+          "count": 50595
+        },
+        "normalizedBbox": {
+          "minX": 43,
+          "minY": 59,
+          "maxX": 212,
+          "maxY": 232,
+          "count": 14020
+        },
+        "edgeTouches": 0,
+        "opaquePixels": 50595,
+        "warnings": [],
+        "failures": []
+      },
+      {
+        "candidateId": "candidate-01",
+        "frameIndex": 5,
+        "qualityScore": -94.14,
+        "sourceName": "candidate-01.png",
+        "bbox": {
+          "minX": 0,
+          "minY": 0,
+          "maxX": 442,
+          "maxY": 442,
+          "count": 196249
+        },
+        "normalizedBbox": {
+          "minX": 41,
+          "minY": 59,
+          "maxX": 214,
+          "maxY": 232,
+          "count": 30276
+        },
+        "edgeTouches": 12208,
+        "opaquePixels": 196249,
+        "warnings": [
+          "source edge contact 12208px",
+          "large opaque coverage after cleanup",
+          "low top padding",
+          "feet/bottom touch source cell"
+        ],
+        "failures": []
+      }
+    ],
+    [
+      {
+        "candidateId": "candidate-10",
+        "frameIndex": 6,
+        "qualityScore": 96.79,
+        "sourceName": "candidate-10.png",
+        "bbox": {
+          "minX": 50,
+          "minY": 71,
+          "maxX": 375,
+          "maxY": 372,
+          "count": 44624
+        },
+        "normalizedBbox": {
+          "minX": 34,
+          "minY": 59,
+          "maxX": 221,
+          "maxY": 232,
+          "count": 14830
+        },
+        "edgeTouches": 0,
+        "opaquePixels": 44624,
+        "warnings": [],
+        "failures": []
+      },
+      {
+        "candidateId": "candidate-06",
+        "frameIndex": 6,
+        "qualityScore": 95.71,
+        "sourceName": "candidate-06.png",
+        "bbox": {
+          "minX": 57,
+          "minY": 61,
+          "maxX": 356,
+          "maxY": 359,
+          "count": 42351
+        },
+        "normalizedBbox": {
+          "minX": 41,
+          "minY": 59,
+          "maxX": 215,
+          "maxY": 232,
+          "count": 14363
+        },
+        "edgeTouches": 0,
+        "opaquePixels": 42351,
+        "warnings": [],
+        "failures": []
+      },
+      {
+        "candidateId": "candidate-08",
+        "frameIndex": 6,
+        "qualityScore": 95.32,
+        "sourceName": "candidate-08.png",
+        "bbox": {
+          "minX": 50,
+          "minY": 54,
+          "maxX": 362,
+          "maxY": 346,
+          "count": 47646
+        },
+        "normalizedBbox": {
+          "minX": 35,
+          "minY": 59,
+          "maxX": 220,
+          "maxY": 232,
+          "count": 16817
+        },
+        "edgeTouches": 0,
+        "opaquePixels": 47646,
+        "warnings": [],
+        "failures": []
+      },
+      {
+        "candidateId": "candidate-07",
+        "frameIndex": 6,
+        "qualityScore": 94.93,
+        "sourceName": "candidate-07.png",
+        "bbox": {
+          "minX": 42,
+          "minY": 65,
+          "maxX": 370,
+          "maxY": 373,
+          "count": 49640
+        },
+        "normalizedBbox": {
+          "minX": 36,
+          "minY": 59,
+          "maxX": 220,
+          "maxY": 232,
+          "count": 15747
+        },
+        "edgeTouches": 0,
+        "opaquePixels": 49640,
+        "warnings": [],
+        "failures": []
+      },
+      {
+        "candidateId": "candidate-02",
+        "frameIndex": 6,
+        "qualityScore": 93.44,
+        "sourceName": "candidate-02.png",
+        "bbox": {
+          "minX": 82,
+          "minY": 76,
+          "maxX": 381,
+          "maxY": 374,
+          "count": 43204
+        },
+        "normalizedBbox": {
+          "minX": 41,
+          "minY": 59,
+          "maxX": 215,
+          "maxY": 232,
+          "count": 14672
+        },
+        "edgeTouches": 0,
+        "opaquePixels": 43204,
+        "warnings": [],
+        "failures": []
+      },
+      {
+        "candidateId": "candidate-09",
+        "frameIndex": 6,
+        "qualityScore": 93.26,
+        "sourceName": "candidate-09.png",
+        "bbox": {
+          "minX": 63,
+          "minY": 53,
+          "maxX": 356,
+          "maxY": 368,
+          "count": 42545
+        },
+        "normalizedBbox": {
+          "minX": 47,
+          "minY": 60,
+          "maxX": 208,
+          "maxY": 232,
+          "count": 12905
+        },
+        "edgeTouches": 0,
+        "opaquePixels": 42545,
+        "warnings": [],
+        "failures": []
+      },
+      {
+        "candidateId": "candidate-03",
+        "frameIndex": 6,
+        "qualityScore": 88.42,
+        "sourceName": "candidate-03.png",
+        "bbox": {
+          "minX": 30,
+          "minY": 57,
+          "maxX": 288,
+          "maxY": 383,
+          "count": 43366
+        },
+        "normalizedBbox": {
+          "minX": 59,
+          "minY": 60,
+          "maxX": 196,
+          "maxY": 232,
+          "count": 12303
+        },
+        "edgeTouches": 0,
+        "opaquePixels": 43366,
+        "warnings": [],
+        "failures": []
+      },
+      {
+        "candidateId": "candidate-05",
+        "frameIndex": 6,
+        "qualityScore": 87.88,
+        "sourceName": "candidate-05.png",
+        "bbox": {
+          "minX": 26,
+          "minY": 61,
+          "maxX": 346,
+          "maxY": 391,
+          "count": 49088
+        },
+        "normalizedBbox": {
+          "minX": 44,
+          "minY": 59,
+          "maxX": 212,
+          "maxY": 232,
+          "count": 13561
+        },
+        "edgeTouches": 0,
+        "opaquePixels": 49088,
+        "warnings": [],
+        "failures": []
+      },
+      {
+        "candidateId": "candidate-04",
+        "frameIndex": 6,
+        "qualityScore": 83.07,
+        "sourceName": "candidate-04.png",
+        "bbox": {
+          "minX": 16,
+          "minY": 51,
+          "maxX": 323,
+          "maxY": 361,
+          "count": 49540
+        },
+        "normalizedBbox": {
+          "minX": 42,
+          "minY": 59,
+          "maxX": 213,
+          "maxY": 232,
+          "count": 15491
+        },
+        "edgeTouches": 0,
+        "opaquePixels": 49540,
+        "warnings": [],
+        "failures": []
+      },
+      {
+        "candidateId": "candidate-01",
+        "frameIndex": 6,
+        "qualityScore": -94.69,
+        "sourceName": "candidate-01.png",
+        "bbox": {
+          "minX": 0,
+          "minY": 0,
+          "maxX": 443,
+          "maxY": 442,
+          "count": 196692
+        },
+        "normalizedBbox": {
+          "minX": 41,
+          "minY": 59,
+          "maxX": 214,
+          "maxY": 232,
+          "count": 30276
+        },
+        "edgeTouches": 12222,
+        "opaquePixels": 196692,
+        "warnings": [
+          "source edge contact 12222px",
+          "large opaque coverage after cleanup",
+          "low top padding",
+          "feet/bottom touch source cell"
+        ],
+        "failures": []
+      }
+    ],
+    [
+      {
+        "candidateId": "candidate-10",
+        "frameIndex": 7,
+        "qualityScore": 97.91,
+        "sourceName": "candidate-10.png",
+        "bbox": {
+          "minX": 54,
+          "minY": 64,
+          "maxX": 366,
+          "maxY": 368,
+          "count": 43963
+        },
+        "normalizedBbox": {
+          "minX": 39,
+          "minY": 59,
+          "maxX": 217,
+          "maxY": 232,
+          "count": 14342
+        },
+        "edgeTouches": 0,
+        "opaquePixels": 43963,
+        "warnings": [],
+        "failures": []
+      },
+      {
+        "candidateId": "candidate-08",
+        "frameIndex": 7,
+        "qualityScore": 96,
+        "sourceName": "candidate-08.png",
+        "bbox": {
+          "minX": 50,
+          "minY": 50,
+          "maxX": 354,
+          "maxY": 363,
+          "count": 45553
+        },
+        "normalizedBbox": {
+          "minX": 44,
+          "minY": 59,
+          "maxX": 212,
+          "maxY": 232,
+          "count": 13972
+        },
+        "edgeTouches": 0,
+        "opaquePixels": 45553,
+        "warnings": [],
+        "failures": []
+      },
+      {
+        "candidateId": "candidate-09",
+        "frameIndex": 7,
+        "qualityScore": 94.79,
+        "sourceName": "candidate-09.png",
+        "bbox": {
+          "minX": 78,
+          "minY": 59,
+          "maxX": 379,
+          "maxY": 368,
+          "count": 44021
+        },
+        "normalizedBbox": {
+          "minX": 43,
+          "minY": 59,
+          "maxX": 212,
+          "maxY": 232,
+          "count": 13898
+        },
+        "edgeTouches": 0,
+        "opaquePixels": 44021,
+        "warnings": [],
+        "failures": []
+      },
+      {
+        "candidateId": "candidate-06",
+        "frameIndex": 7,
+        "qualityScore": 94.46,
+        "sourceName": "candidate-06.png",
+        "bbox": {
+          "minX": 32,
+          "minY": 72,
+          "maxX": 328,
+          "maxY": 368,
+          "count": 41109
+        },
+        "normalizedBbox": {
+          "minX": 41,
+          "minY": 59,
+          "maxX": 214,
+          "maxY": 232,
+          "count": 14130
+        },
+        "edgeTouches": 0,
+        "opaquePixels": 41109,
+        "warnings": [],
+        "failures": []
+      },
+      {
+        "candidateId": "candidate-07",
+        "frameIndex": 7,
+        "qualityScore": 92.99,
+        "sourceName": "candidate-07.png",
+        "bbox": {
+          "minX": 6,
+          "minY": 59,
+          "maxX": 335,
+          "maxY": 372,
+          "count": 48498
+        },
+        "normalizedBbox": {
+          "minX": 37,
+          "minY": 59,
+          "maxX": 219,
+          "maxY": 232,
+          "count": 14889
+        },
+        "edgeTouches": 12,
+        "opaquePixels": 48498,
+        "warnings": [
+          "source edge contact 12px"
+        ],
+        "failures": []
+      },
+      {
+        "candidateId": "candidate-02",
+        "frameIndex": 7,
+        "qualityScore": 91.58,
+        "sourceName": "candidate-02.png",
+        "bbox": {
+          "minX": 91,
+          "minY": 78,
+          "maxX": 379,
+          "maxY": 377,
+          "count": 42498
+        },
+        "normalizedBbox": {
+          "minX": 44,
+          "minY": 59,
+          "maxX": 211,
+          "maxY": 232,
+          "count": 14335
+        },
+        "edgeTouches": 0,
+        "opaquePixels": 42498,
+        "warnings": [],
+        "failures": []
+      },
+      {
+        "candidateId": "candidate-03",
+        "frameIndex": 7,
+        "qualityScore": 88.77,
+        "sourceName": "candidate-03.png",
+        "bbox": {
+          "minX": 20,
+          "minY": 73,
+          "maxX": 298,
+          "maxY": 382,
+          "count": 44048
+        },
+        "normalizedBbox": {
+          "minX": 50,
+          "minY": 59,
+          "maxX": 206,
+          "maxY": 232,
+          "count": 13886
+        },
+        "edgeTouches": 0,
+        "opaquePixels": 44048,
+        "warnings": [],
+        "failures": []
+      },
+      {
+        "candidateId": "candidate-04",
+        "frameIndex": 7,
+        "qualityScore": 86.15,
+        "sourceName": "candidate-04.png",
+        "bbox": {
+          "minX": 7,
+          "minY": 73,
+          "maxX": 308,
+          "maxY": 387,
+          "count": 47943
+        },
+        "normalizedBbox": {
+          "minX": 45,
+          "minY": 59,
+          "maxX": 211,
+          "maxY": 232,
+          "count": 14650
+        },
+        "edgeTouches": 0,
+        "opaquePixels": 47943,
+        "warnings": [],
+        "failures": []
+      },
+      {
+        "candidateId": "candidate-05",
+        "frameIndex": 7,
+        "qualityScore": 83.01,
+        "sourceName": "candidate-05.png",
+        "bbox": {
+          "minX": 0,
+          "minY": 64,
+          "maxX": 333,
+          "maxY": 391,
+          "count": 50270
+        },
+        "normalizedBbox": {
+          "minX": 40,
+          "minY": 59,
+          "maxX": 216,
+          "maxY": 232,
+          "count": 14140
+        },
+        "edgeTouches": 52,
+        "opaquePixels": 50270,
+        "warnings": [
+          "source edge contact 52px"
+        ],
+        "failures": []
+      },
+      {
+        "candidateId": "candidate-01",
+        "frameIndex": 7,
+        "qualityScore": -95.11,
+        "sourceName": "candidate-01.png",
+        "bbox": {
+          "minX": 0,
+          "minY": 0,
+          "maxX": 442,
+          "maxY": 442,
+          "count": 196249
+        },
+        "normalizedBbox": {
+          "minX": 41,
+          "minY": 59,
+          "maxX": 214,
+          "maxY": 232,
+          "count": 30276
+        },
+        "edgeTouches": 12208,
+        "opaquePixels": 196249,
+        "warnings": [
+          "source edge contact 12208px",
+          "large opaque coverage after cleanup",
+          "low top padding",
+          "feet/bottom touch source cell"
+        ],
+        "failures": []
+      }
+    ]
+  ],
+  "selectedTransitions": [
+    {
+      "fromFrame": 1,
+      "toFrame": 2,
+      "closing": false,
+      "fromCandidate": "candidate-08",
+      "toCandidate": "candidate-08",
+      "totalPenalty": 1.01,
+      "baseline": 0,
+      "center": 0.07,
+      "width": 0.41,
+      "height": 0,
+      "color": 0.12,
+      "silhouette": 0.41,
+      "switchPenalty": 0,
+      "blankPenalty": 0
+    },
+    {
+      "fromFrame": 2,
+      "toFrame": 3,
+      "closing": false,
+      "fromCandidate": "candidate-08",
+      "toCandidate": "candidate-08",
+      "totalPenalty": 1.92,
+      "baseline": 0,
+      "center": 0.07,
+      "width": 0.68,
+      "height": 0,
+      "color": 0.04,
+      "silhouette": 1.13,
+      "switchPenalty": 0,
+      "blankPenalty": 0
+    },
+    {
+      "fromFrame": 3,
+      "toFrame": 4,
+      "closing": false,
+      "fromCandidate": "candidate-08",
+      "toCandidate": "candidate-08",
+      "totalPenalty": 2.02,
+      "baseline": 0,
+      "center": 0,
+      "width": 0.82,
+      "height": 0,
+      "color": 0.07,
+      "silhouette": 1.12,
+      "switchPenalty": 0,
+      "blankPenalty": 0
+    },
+    {
+      "fromFrame": 4,
+      "toFrame": 5,
+      "closing": false,
+      "fromCandidate": "candidate-08",
+      "toCandidate": "candidate-08",
+      "totalPenalty": 1.48,
+      "baseline": 0,
+      "center": 0.07,
+      "width": 0.14,
+      "height": 0,
+      "color": 0.23,
+      "silhouette": 1.04,
+      "switchPenalty": 0,
+      "blankPenalty": 0
+    },
+    {
+      "fromFrame": 5,
+      "toFrame": 6,
+      "closing": false,
+      "fromCandidate": "candidate-08",
+      "toCandidate": "candidate-08",
+      "totalPenalty": 0.89,
+      "baseline": 0,
+      "center": 0.07,
+      "width": 0.14,
+      "height": 0,
+      "color": 0.07,
+      "silhouette": 0.62,
+      "switchPenalty": 0,
+      "blankPenalty": 0
+    },
+    {
+      "fromFrame": 6,
+      "toFrame": 7,
+      "closing": false,
+      "fromCandidate": "candidate-08",
+      "toCandidate": "candidate-08",
+      "totalPenalty": 3.68,
+      "baseline": 0,
+      "center": 0.07,
+      "width": 2.05,
+      "height": 0,
+      "color": 0.08,
+      "silhouette": 1.48,
+      "switchPenalty": 0,
+      "blankPenalty": 0
+    },
+    {
+      "fromFrame": 7,
+      "toFrame": 8,
+      "closing": false,
+      "fromCandidate": "candidate-08",
+      "toCandidate": "candidate-08",
+      "totalPenalty": 3.93,
+      "baseline": 0,
+      "center": 0.07,
+      "width": 2.32,
+      "height": 0,
+      "color": 0.15,
+      "silhouette": 1.39,
+      "switchPenalty": 0,
+      "blankPenalty": 0
+    },
+    {
+      "fromFrame": 8,
+      "toFrame": 1,
+      "closing": true,
+      "fromCandidate": "candidate-08",
+      "toCandidate": "candidate-08",
+      "totalPenalty": 0.55,
+      "baseline": 0,
+      "center": 0,
+      "width": 0,
+      "height": 0,
+      "color": 0.04,
+      "silhouette": 0.51,
+      "switchPenalty": 0,
+      "blankPenalty": 0
+    }
+  ]
+}

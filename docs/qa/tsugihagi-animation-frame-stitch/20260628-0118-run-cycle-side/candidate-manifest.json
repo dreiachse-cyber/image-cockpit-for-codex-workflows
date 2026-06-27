@@ -1,0 +1,141 @@
+{
+  "schema": "image-cockpit.tsugihagi-candidate-manifest.v1",
+  "generatedAt": "2026-06-27T16:24:15.967Z",
+  "action": "run-cycle",
+  "direction": "side",
+  "inputDir": "docs\\qa\\tsugihagi-animation-frame-stitch\\20260628-0118-run-cycle-side\\candidates",
+  "outputDir": "docs\\qa\\tsugihagi-animation-frame-stitch\\20260628-0118-run-cycle-side",
+  "candidateCount": 10,
+  "sourceGrid": {
+    "columns": 4,
+    "rows": 2,
+    "frames": 8
+  },
+  "targetCell": {
+    "width": 256,
+    "height": 256
+  },
+  "chromaKey": "magenta",
+  "candidates": [
+    {
+      "candidateId": "candidate-01",
+      "sourceName": "candidate-01.png",
+      "sourcePath": "docs\\qa\\tsugihagi-animation-frame-stitch\\20260628-0118-run-cycle-side\\candidates\\candidate-01.png",
+      "width": 1774,
+      "height": 887,
+      "cellSizeApprox": {
+        "width": 444,
+        "height": 444
+      },
+      "frameCount": 8
+    },
+    {
+      "candidateId": "candidate-02",
+      "sourceName": "candidate-02.png",
+      "sourcePath": "docs\\qa\\tsugihagi-animation-frame-stitch\\20260628-0118-run-cycle-side\\candidates\\candidate-02.png",
+      "width": 1774,
+      "height": 887,
+      "cellSizeApprox": {
+        "width": 444,
+        "height": 444
+      },
+      "frameCount": 8
+    },
+    {
+      "candidateId": "candidate-03",
+      "sourceName": "candidate-03.png",
+      "sourcePath": "docs\\qa\\tsugihagi-animation-frame-stitch\\20260628-0118-run-cycle-side\\candidates\\candidate-03.png",
+      "width": 1536,
+      "height": 1024,
+      "cellSizeApprox": {
+        "width": 384,
+        "height": 512
+      },
+      "frameCount": 8
+    },
+    {
+      "candidateId": "candidate-04",
+      "sourceName": "candidate-04.png",
+      "sourcePath": "docs\\qa\\tsugihagi-animation-frame-stitch\\20260628-0118-run-cycle-side\\candidates\\candidate-04.png",
+      "width": 1536,
+      "height": 1024,
+      "cellSizeApprox": {
+        "width": 384,
+        "height": 512
+      },
+      "frameCount": 8
+    },
+    {
+      "candidateId": "candidate-05",
+      "sourceName": "candidate-05.png",
+      "sourcePath": "docs\\qa\\tsugihagi-animation-frame-stitch\\20260628-0118-run-cycle-side\\candidates\\candidate-05.png",
+      "width": 1536,
+      "height": 1024,
+      "cellSizeApprox": {
+        "width": 384,
+        "height": 512
+      },
+      "frameCount": 8
+    },
+    {
+      "candidateId": "candidate-06",
+      "sourceName": "candidate-06.png",
+      "sourcePath": "docs\\qa\\tsugihagi-animation-frame-stitch\\20260628-0118-run-cycle-side\\candidates\\candidate-06.png",
+      "width": 1774,
+      "height": 887,
+      "cellSizeApprox": {
+        "width": 444,
+        "height": 444
+      },
+      "frameCount": 8
+    },
+    {
+      "candidateId": "candidate-07",
+      "sourceName": "candidate-07.png",
+      "sourcePath": "docs\\qa\\tsugihagi-animation-frame-stitch\\20260628-0118-run-cycle-side\\candidates\\candidate-07.png",
+      "width": 1774,
+      "height": 887,
+      "cellSizeApprox": {
+        "width": 444,
+        "height": 444
+      },
+      "frameCount": 8
+    },
+    {
+      "candidateId": "candidate-08",
+      "sourceName": "candidate-08.png",
+      "sourcePath": "docs\\qa\\tsugihagi-animation-frame-stitch\\20260628-0118-run-cycle-side\\candidates\\candidate-08.png",
+      "width": 1774,
+      "height": 887,
+      "cellSizeApprox": {
+        "width": 444,
+        "height": 444
+      },
+      "frameCount": 8
+    },
+    {
+      "candidateId": "candidate-09",
+      "sourceName": "candidate-09.png",
+      "sourcePath": "docs\\qa\\tsugihagi-animation-frame-stitch\\20260628-0118-run-cycle-side\\candidates\\candidate-09.png",
+      "width": 1774,
+      "height": 887,
+      "cellSizeApprox": {
+        "width": 444,
+        "height": 444
+      },
+      "frameCount": 8
+    },
+    {
+      "candidateId": "candidate-10",
+      "sourceName": "candidate-10.png",
+      "sourcePath": "docs\\qa\\tsugihagi-animation-frame-stitch\\20260628-0118-run-cycle-side\\candidates\\candidate-10.png",
+      "width": 1774,
+      "height": 887,
+      "cellSizeApprox": {
+        "width": 444,
+        "height": 444
+      },
+      "frameCount": 8
+    }
+  ]
+}

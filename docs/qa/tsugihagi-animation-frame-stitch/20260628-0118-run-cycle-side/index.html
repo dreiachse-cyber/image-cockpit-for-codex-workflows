@@ -1,0 +1,167 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Tsugihagi Frame Stitch QA</title>
+  <style>
+    :root { color-scheme: light; font-family: system-ui, -apple-system, Segoe UI, sans-serif; color: #17202a; background: #f7f8f3; }
+    body { margin: 0; padding: 24px; }
+    main { max-width: 1280px; margin: 0 auto; }
+    h1, h2 { margin: 0 0 12px; }
+    section { margin: 0 0 28px; }
+    .summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 8px; margin: 16px 0; }
+    .metric { border: 1px solid #cbd5d1; background: #ffffff; border-radius: 6px; padding: 10px 12px; }
+    .metric strong { display: block; font-size: 13px; color: #59635f; }
+    .compare { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px; align-items: start; }
+    .panel { border: 1px solid #cbd5d1; background: #ffffff; border-radius: 6px; padding: 12px; }
+    .panel img { image-rendering: pixelated; max-width: 100%; background: linear-gradient(45deg, #d9ddd9 25%, transparent 25%), linear-gradient(-45deg, #d9ddd9 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #d9ddd9 75%), linear-gradient(-45deg, transparent 75%, #d9ddd9 75%); background-size: 16px 16px; background-position: 0 0, 0 8px, 8px -8px, -8px 0; }
+    .candidate-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
+    figure { margin: 0; border: 1px solid #cbd5d1; background: #ffffff; border-radius: 6px; padding: 8px; }
+    figure img { max-width: 100%; display: block; }
+    figcaption { font-size: 12px; color: #59635f; margin-top: 6px; }
+    table { width: 100%; border-collapse: collapse; background: #ffffff; border: 1px solid #cbd5d1; }
+    th, td { border-bottom: 1px solid #dfe5e2; padding: 8px; text-align: left; vertical-align: top; }
+    th { background: #e7ece8; }
+    td img { width: 96px; height: 96px; object-fit: contain; image-rendering: pixelated; background: #eef1ee; }
+    code { background: #e7ece8; padding: 2px 4px; border-radius: 4px; }
+  </style>
+</head>
+<body>
+<main>
+  <h1>Tsugihagi Frame Stitch QA</h1>
+  <section class="summary">
+    <div class="metric"><strong>Action</strong>run-cycle / side</div>
+    <div class="metric"><strong>Candidates</strong>10</div>
+    <div class="metric"><strong>Selected score</strong>757.8</div>
+    <div class="metric"><strong>Best single</strong>candidate-08 / 757.8</div>
+    <div class="metric"><strong>Improvement</strong>0</div>
+    <div class="metric"><strong>Switches</strong>0</div>
+  </section>
+
+  <section class="compare">
+    <div class="panel">
+      <h2>Tsugihagi GIF</h2>
+      <img src="tsugihagi-run-cycle-side.gif" alt="Tsugihagi GIF">
+      <p><code>tsugihagi-run-cycle-side-sheet.png</code></p>
+      <img src="tsugihagi-run-cycle-side-sheet.png" alt="Tsugihagi sheet">
+    </div>
+    <div class="panel">
+      <h2>Best Single Baseline</h2>
+      <img src="best-single-baseline.gif" alt="Best single baseline GIF">
+      <p><code>best-single-baseline-sheet.png</code></p>
+      <img src="best-single-baseline-sheet.png" alt="Best single baseline sheet">
+    </div>
+  </section>
+
+  <section>
+    <h2>Selected Sequence</h2>
+    <table>
+      <thead><tr><th>Frame</th><th>Candidate</th><th>Quality</th><th>Frame</th><th>Warnings</th></tr></thead>
+      <tbody>
+        <tr>
+          <td>1</td>
+          <td>candidate-08</td>
+          <td>98.21</td>
+          <td><img src="frames/candidate-08-frame-01.png" alt="candidate-08 frame 1"></td>
+          <td>-</td>
+        </tr>
+        <tr>
+          <td>2</td>
+          <td>candidate-08</td>
+          <td>96.79</td>
+          <td><img src="frames/candidate-08-frame-02.png" alt="candidate-08 frame 2"></td>
+          <td>-</td>
+        </tr>
+        <tr>
+          <td>3</td>
+          <td>candidate-08</td>
+          <td>98.22</td>
+          <td><img src="frames/candidate-08-frame-03.png" alt="candidate-08 frame 3"></td>
+          <td>-</td>
+        </tr>
+        <tr>
+          <td>4</td>
+          <td>candidate-08</td>
+          <td>97.69</td>
+          <td><img src="frames/candidate-08-frame-04.png" alt="candidate-08 frame 4"></td>
+          <td>-</td>
+        </tr>
+        <tr>
+          <td>5</td>
+          <td>candidate-08</td>
+          <td>95.71</td>
+          <td><img src="frames/candidate-08-frame-05.png" alt="candidate-08 frame 5"></td>
+          <td>-</td>
+        </tr>
+        <tr>
+          <td>6</td>
+          <td>candidate-08</td>
+          <td>95.34</td>
+          <td><img src="frames/candidate-08-frame-06.png" alt="candidate-08 frame 6"></td>
+          <td>-</td>
+        </tr>
+        <tr>
+          <td>7</td>
+          <td>candidate-08</td>
+          <td>95.32</td>
+          <td><img src="frames/candidate-08-frame-07.png" alt="candidate-08 frame 7"></td>
+          <td>-</td>
+        </tr>
+        <tr>
+          <td>8</td>
+          <td>candidate-08</td>
+          <td>96</td>
+          <td><img src="frames/candidate-08-frame-08.png" alt="candidate-08 frame 8"></td>
+          <td>-</td>
+        </tr></tbody>
+    </table>
+  </section>
+
+  <section>
+    <h2>Candidate Sheets</h2>
+    <div class="candidate-grid">
+        <figure>
+          <img src="candidates/candidate-01.png" alt="candidate-01">
+          <figcaption>candidate-01<br>1774x887</figcaption>
+        </figure>
+        <figure>
+          <img src="candidates/candidate-02.png" alt="candidate-02">
+          <figcaption>candidate-02<br>1774x887</figcaption>
+        </figure>
+        <figure>
+          <img src="candidates/candidate-03.png" alt="candidate-03">
+          <figcaption>candidate-03<br>1536x1024</figcaption>
+        </figure>
+        <figure>
+          <img src="candidates/candidate-04.png" alt="candidate-04">
+          <figcaption>candidate-04<br>1536x1024</figcaption>
+        </figure>
+        <figure>
+          <img src="candidates/candidate-05.png" alt="candidate-05">
+          <figcaption>candidate-05<br>1536x1024</figcaption>
+        </figure>
+        <figure>
+          <img src="candidates/candidate-06.png" alt="candidate-06">
+          <figcaption>candidate-06<br>1774x887</figcaption>
+        </figure>
+        <figure>
+          <img src="candidates/candidate-07.png" alt="candidate-07">
+          <figcaption>candidate-07<br>1774x887</figcaption>
+        </figure>
+        <figure>
+          <img src="candidates/candidate-08.png" alt="candidate-08">
+          <figcaption>candidate-08<br>1774x887</figcaption>
+        </figure>
+        <figure>
+          <img src="candidates/candidate-09.png" alt="candidate-09">
+          <figcaption>candidate-09<br>1774x887</figcaption>
+        </figure>
+        <figure>
+          <img src="candidates/candidate-10.png" alt="candidate-10">
+          <figcaption>candidate-10<br>1774x887</figcaption>
+        </figure></div>
+  </section>
+</main>
+</body>
+</html>

@@ -1,0 +1,72 @@
+﻿[
+    {
+        "candidateId":  "candidate-01",
+        "copiedTo":  "candidates/candidate-01.png",
+        "sourcePath":  "$CODEX_HOME/generated_images/019f09cb-8ec6-7f10-b56f-660b51d102dc/ig_087d2bf799a4503c016a3ff42ef0388191b7d8afbab9cac9fb.png",
+        "sourceLastWriteTime":  "2026-06-28T01:05:02",
+        "bytes":  1550205
+    },
+    {
+        "candidateId":  "candidate-02",
+        "copiedTo":  "candidates/candidate-02.png",
+        "sourcePath":  "$CODEX_HOME/generated_images/019f09ce-123d-7423-9410-540e26999ba5/ig_0ddc94aaad5ece22016a3ff4b3cc1481919107563b94b0e163.png",
+        "sourceLastWriteTime":  "2026-06-28T01:06:51",
+        "bytes":  1548214
+    },
+    {
+        "candidateId":  "candidate-03",
+        "copiedTo":  "candidates/candidate-03.png",
+        "sourcePath":  "$CODEX_HOME/generated_images/019f09ce-123d-7423-9410-540e26999ba5/ig_0ddc94aaad5ece22016a3ff51d59ac81918353e37593bf6c60.png",
+        "sourceLastWriteTime":  "2026-06-28T01:07:55",
+        "bytes":  1715446
+    },
+    {
+        "candidateId":  "candidate-04",
+        "copiedTo":  "candidates/candidate-04.png",
+        "sourcePath":  "$CODEX_HOME/generated_images/019f09ce-123d-7423-9410-540e26999ba5/ig_0ddc94aaad5ece22016a3ff55cc7a08191a87be07ea5fbd1de.png",
+        "sourceLastWriteTime":  "2026-06-28T01:10:11",
+        "bytes":  1774261
+    },
+    {
+        "candidateId":  "candidate-05",
+        "copiedTo":  "candidates/candidate-05.png",
+        "sourcePath":  "$CODEX_HOME/generated_images/019f09ce-123d-7423-9410-540e26999ba5/ig_0ddc94aaad5ece22016a3ff5e46db48191a257f87d80017f17.png",
+        "sourceLastWriteTime":  "2026-06-28T01:12:13",
+        "bytes":  1739352
+    },
+    {
+        "candidateId":  "candidate-06",
+        "copiedTo":  "candidates/candidate-06.png",
+        "sourcePath":  "$CODEX_HOME/generated_images/019f09ce-123d-7423-9410-540e26999ba5/ig_0f2d5283c2379d3a016a3ff68abbe881918d0f92ab96811a55.png",
+        "sourceLastWriteTime":  "2026-06-28T01:13:44",
+        "bytes":  1604647
+    },
+    {
+        "candidateId":  "candidate-07",
+        "copiedTo":  "candidates/candidate-07.png",
+        "sourcePath":  "$CODEX_HOME/generated_images/019f09ce-123d-7423-9410-540e26999ba5/ig_0f2d5283c2379d3a016a3ff6b9456c8191bdba38e9ee193002.png",
+        "sourceLastWriteTime":  "2026-06-28T01:14:44",
+        "bytes":  1681238
+    },
+    {
+        "candidateId":  "candidate-08",
+        "copiedTo":  "candidates/candidate-08.png",
+        "sourcePath":  "$CODEX_HOME/generated_images/019f09ce-123d-7423-9410-540e26999ba5/ig_0f2d5283c2379d3a016a3ff6f3f6948191b06b84cb1ce1bf5d.png",
+        "sourceLastWriteTime":  "2026-06-28T01:15:39",
+        "bytes":  1608803
+    },
+    {
+        "candidateId":  "candidate-09",
+        "copiedTo":  "candidates/candidate-09.png",
+        "sourcePath":  "$CODEX_HOME/generated_images/019f09ce-123d-7423-9410-540e26999ba5/ig_0f2d5283c2379d3a016a3ff72b29e081919fb40ccee8a63cd4.png",
+        "sourceLastWriteTime":  "2026-06-28T01:16:34",
+        "bytes":  1586241
+    },
+    {
+        "candidateId":  "candidate-10",
+        "copiedTo":  "candidates/candidate-10.png",
+        "sourcePath":  "$CODEX_HOME/generated_images/019f09ce-123d-7423-9410-540e26999ba5/ig_0f2d5283c2379d3a016a3ff76265b881919520413a283b1095.png",
+        "sourceLastWriteTime":  "2026-06-28T01:17:22",
+        "bytes":  1576355
+    }
+]

@@ -1,0 +1,382 @@
+{
+  "schema": "image-cockpit.tsugihagi-selected-sequence.v1",
+  "generatedAt": "2026-06-27T16:24:15.966Z",
+  "outputDir": "docs\\qa\\tsugihagi-animation-frame-stitch\\20260628-0118-run-cycle-side",
+  "selectedScore": 757.8,
+  "bestSingleScore": 757.8,
+  "bestSingleCandidate": "candidate-08",
+  "improvement": 0,
+  "selectedCandidateSwitches": 0,
+  "selectedFrames": [
+    {
+      "candidateId": "candidate-08",
+      "frameIndex": 0,
+      "sourceName": "candidate-08.png",
+      "qualityScore": 98.21,
+      "normalizedFramePath": "frames/candidate-08-frame-01.png",
+      "warnings": [],
+      "failures": [],
+      "bbox": {
+        "minX": 86,
+        "minY": 75,
+        "maxX": 392,
+        "maxY": 390,
+        "count": 46476
+      },
+      "normalizedBbox": {
+        "minX": 44,
+        "minY": 59,
+        "maxX": 212,
+        "maxY": 232,
+        "count": 14127
+      }
+    },
+    {
+      "candidateId": "candidate-08",
+      "frameIndex": 1,
+      "sourceName": "candidate-08.png",
+      "qualityScore": 96.79,
+      "normalizedFramePath": "frames/candidate-08-frame-02.png",
+      "warnings": [],
+      "failures": [],
+      "bbox": {
+        "minX": 71,
+        "minY": 81,
+        "maxX": 381,
+        "maxY": 394,
+        "count": 47058
+      },
+      "normalizedBbox": {
+        "minX": 42,
+        "minY": 59,
+        "maxX": 213,
+        "maxY": 232,
+        "count": 14438
+      }
+    },
+    {
+      "candidateId": "candidate-08",
+      "frameIndex": 2,
+      "sourceName": "candidate-08.png",
+      "qualityScore": 98.22,
+      "normalizedFramePath": "frames/candidate-08-frame-03.png",
+      "warnings": [],
+      "failures": [],
+      "bbox": {
+        "minX": 64,
+        "minY": 81,
+        "maxX": 378,
+        "maxY": 390,
+        "count": 45321
+      },
+      "normalizedBbox": {
+        "minX": 40,
+        "minY": 59,
+        "maxX": 216,
+        "maxY": 232,
+        "count": 14304
+      }
+    },
+    {
+      "candidateId": "candidate-08",
+      "frameIndex": 3,
+      "sourceName": "candidate-08.png",
+      "qualityScore": 97.69,
+      "normalizedFramePath": "frames/candidate-08-frame-04.png",
+      "warnings": [],
+      "failures": [],
+      "bbox": {
+        "minX": 61,
+        "minY": 85,
+        "maxX": 367,
+        "maxY": 397,
+        "count": 46137
+      },
+      "normalizedBbox": {
+        "minX": 43,
+        "minY": 59,
+        "maxX": 213,
+        "maxY": 232,
+        "count": 14284
+      }
+    },
+    {
+      "candidateId": "candidate-08",
+      "frameIndex": 4,
+      "sourceName": "candidate-08.png",
+      "qualityScore": 95.71,
+      "normalizedFramePath": "frames/candidate-08-frame-05.png",
+      "warnings": [],
+      "failures": [],
+      "bbox": {
+        "minX": 60,
+        "minY": 41,
+        "maxX": 378,
+        "maxY": 362,
+        "count": 48145
+      },
+      "normalizedBbox": {
+        "minX": 42,
+        "minY": 59,
+        "maxX": 213,
+        "maxY": 232,
+        "count": 14017
+      }
+    },
+    {
+      "candidateId": "candidate-08",
+      "frameIndex": 5,
+      "sourceName": "candidate-08.png",
+      "qualityScore": 95.34,
+      "normalizedFramePath": "frames/candidate-08-frame-06.png",
+      "warnings": [],
+      "failures": [],
+      "bbox": {
+        "minX": 48,
+        "minY": 51,
+        "maxX": 359,
+        "maxY": 368,
+        "count": 47296
+      },
+      "normalizedBbox": {
+        "minX": 43,
+        "minY": 59,
+        "maxX": 213,
+        "maxY": 232,
+        "count": 14166
+      }
+    },
+    {
+      "candidateId": "candidate-08",
+      "frameIndex": 6,
+      "sourceName": "candidate-08.png",
+      "qualityScore": 95.32,
+      "normalizedFramePath": "frames/candidate-08-frame-07.png",
+      "warnings": [],
+      "failures": [],
+      "bbox": {
+        "minX": 50,
+        "minY": 54,
+        "maxX": 362,
+        "maxY": 346,
+        "count": 47646
+      },
+      "normalizedBbox": {
+        "minX": 35,
+        "minY": 59,
+        "maxX": 220,
+        "maxY": 232,
+        "count": 16817
+      }
+    },
+    {
+      "candidateId": "candidate-08",
+      "frameIndex": 7,
+      "sourceName": "candidate-08.png",
+      "qualityScore": 96,
+      "normalizedFramePath": "frames/candidate-08-frame-08.png",
+      "warnings": [],
+      "failures": [],
+      "bbox": {
+        "minX": 50,
+        "minY": 50,
+        "maxX": 354,
+        "maxY": 363,
+        "count": 45553
+      },
+      "normalizedBbox": {
+        "minX": 44,
+        "minY": 59,
+        "maxX": 212,
+        "maxY": 232,
+        "count": 13972
+      }
+    }
+  ],
+  "baselineFrames": [
+    {
+      "candidateId": "candidate-08",
+      "frameIndex": 0,
+      "sourceName": "candidate-08.png",
+      "qualityScore": 98.21,
+      "normalizedFramePath": "frames/candidate-08-frame-01.png",
+      "warnings": [],
+      "failures": [],
+      "bbox": {
+        "minX": 86,
+        "minY": 75,
+        "maxX": 392,
+        "maxY": 390,
+        "count": 46476
+      },
+      "normalizedBbox": {
+        "minX": 44,
+        "minY": 59,
+        "maxX": 212,
+        "maxY": 232,
+        "count": 14127
+      }
+    },
+    {
+      "candidateId": "candidate-08",
+      "frameIndex": 1,
+      "sourceName": "candidate-08.png",
+      "qualityScore": 96.79,
+      "normalizedFramePath": "frames/candidate-08-frame-02.png",
+      "warnings": [],
+      "failures": [],
+      "bbox": {
+        "minX": 71,
+        "minY": 81,
+        "maxX": 381,
+        "maxY": 394,
+        "count": 47058
+      },
+      "normalizedBbox": {
+        "minX": 42,
+        "minY": 59,
+        "maxX": 213,
+        "maxY": 232,
+        "count": 14438
+      }
+    },
+    {
+      "candidateId": "candidate-08",
+      "frameIndex": 2,
+      "sourceName": "candidate-08.png",
+      "qualityScore": 98.22,
+      "normalizedFramePath": "frames/candidate-08-frame-03.png",
+      "warnings": [],
+      "failures": [],
+      "bbox": {
+        "minX": 64,
+        "minY": 81,
+        "maxX": 378,
+        "maxY": 390,
+        "count": 45321
+      },
+      "normalizedBbox": {
+        "minX": 40,
+        "minY": 59,
+        "maxX": 216,
+        "maxY": 232,
+        "count": 14304
+      }
+    },
+    {
+      "candidateId": "candidate-08",
+      "frameIndex": 3,
+      "sourceName": "candidate-08.png",
+      "qualityScore": 97.69,
+      "normalizedFramePath": "frames/candidate-08-frame-04.png",
+      "warnings": [],
+      "failures": [],
+      "bbox": {
+        "minX": 61,
+        "minY": 85,
+        "maxX": 367,
+        "maxY": 397,
+        "count": 46137
+      },
+      "normalizedBbox": {
+        "minX": 43,
+        "minY": 59,
+        "maxX": 213,
+        "maxY": 232,
+        "count": 14284
+      }
+    },
+    {
+      "candidateId": "candidate-08",
+      "frameIndex": 4,
+      "sourceName": "candidate-08.png",
+      "qualityScore": 95.71,
+      "normalizedFramePath": "frames/candidate-08-frame-05.png",
+      "warnings": [],
+      "failures": [],
+      "bbox": {
+        "minX": 60,
+        "minY": 41,
+        "maxX": 378,
+        "maxY": 362,
+        "count": 48145
+      },
+      "normalizedBbox": {
+        "minX": 42,
+        "minY": 59,
+        "maxX": 213,
+        "maxY": 232,
+        "count": 14017
+      }
+    },
+    {
+      "candidateId": "candidate-08",
+      "frameIndex": 5,
+      "sourceName": "candidate-08.png",
+      "qualityScore": 95.34,
+      "normalizedFramePath": "frames/candidate-08-frame-06.png",
+      "warnings": [],
+      "failures": [],
+      "bbox": {
+        "minX": 48,
+        "minY": 51,
+        "maxX": 359,
+        "maxY": 368,
+        "count": 47296
+      },
+      "normalizedBbox": {
+        "minX": 43,
+        "minY": 59,
+        "maxX": 213,
+        "maxY": 232,
+        "count": 14166
+      }
+    },
+    {
+      "candidateId": "candidate-08",
+      "frameIndex": 6,
+      "sourceName": "candidate-08.png",
+      "qualityScore": 95.32,
+      "normalizedFramePath": "frames/candidate-08-frame-07.png",
+      "warnings": [],
+      "failures": [],
+      "bbox": {
+        "minX": 50,
+        "minY": 54,
+        "maxX": 362,
+        "maxY": 346,
+        "count": 47646
+      },
+      "normalizedBbox": {
+        "minX": 35,
+        "minY": 59,
+        "maxX": 220,
+        "maxY": 232,
+        "count": 16817
+      }
+    },
+    {
+      "candidateId": "candidate-08",
+      "frameIndex": 7,
+      "sourceName": "candidate-08.png",
+      "qualityScore": 96,
+      "normalizedFramePath": "frames/candidate-08-frame-08.png",
+      "warnings": [],
+      "failures": [],
+      "bbox": {
+        "minX": 50,
+        "minY": 50,
+        "maxX": 354,
+        "maxY": 363,
+        "count": 45553
+      },
+      "normalizedBbox": {
+        "minX": 44,
+        "minY": 59,
+        "maxX": 212,
+        "maxY": 232,
+        "count": 13972
+      }
+    }
+  ]
+}
