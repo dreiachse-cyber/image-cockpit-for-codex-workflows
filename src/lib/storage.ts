@@ -42,6 +42,25 @@ export interface LocalStateSummary {
   retentionPolicy: string;
 }
 
+export interface LocalInboxHistoryDedupeResult {
+  history: HistoryItem[];
+  removedCount: number;
+  idReplacements: Record<string, string>;
+}
+
+export interface LocalInboxHistoryInsertResult {
+  history: HistoryItem[];
+  item: HistoryItem;
+  added: boolean;
+  duplicate?: HistoryItem;
+}
+
+export interface PersistedLocalInboxHistoryDedupeResult extends LocalInboxHistoryDedupeResult {
+  frames: SpriteFrame[];
+  frameSourceReplacements: number;
+  saved: boolean;
+}
+
 export interface LocalStateStoragePreflight {
   pressure: LocalStateStoragePressure;
   estimate: StorageEstimate | null;
@@ -262,6 +281,128 @@ export function applyFrameRetention(
   }
 
   return frames.filter((frame) => retainedIds.has(frame.id));
+}
+
+export function localInboxHistoryDedupeKey(item: HistoryItem) {
+  if (item.provider !== "local-inbox") return null;
+  const importKey = normalizeOutboxImportKeyForDedupe(item.outboxImportKey);
+  if (importKey) return importKey;
+  return localInboxHistoryExactDedupeKey(item);
+}
+
+function localInboxHistoryExactDedupeKey(item: HistoryItem) {
+  if (item.provider !== "local-inbox") return null;
+  if (!item.name || !item.size || !item.dataUrl) return null;
+  return `exact:${item.name}\u0000${item.size}\u0000${item.dataUrl}`;
+}
+
+export function findLocalInboxHistoryDuplicate(history: HistoryItem[], item: HistoryItem) {
+  const key = localInboxHistoryDedupeKey(item);
+  const exactKey = localInboxHistoryExactDedupeKey(item);
+  if (!key && !exactKey) return undefined;
+  return history.find((existing) =>
+    (key ? localInboxHistoryDedupeKey(existing) === key : false) ||
+    (exactKey ? localInboxHistoryExactDedupeKey(existing) === exactKey : false)
+  );
+}
+
+export function prependHistoryItemWithDedupe(history: HistoryItem[], item: HistoryItem): LocalInboxHistoryInsertResult {
+  const duplicate = findLocalInboxHistoryDuplicate(history, item);
+  if (duplicate) {
+    return { history, item: duplicate, added: false, duplicate };
+  }
+  return { history: [item, ...history], item, added: true };
+}
+
+export function dedupeLocalInboxHistory(history: HistoryItem[]): LocalInboxHistoryDedupeResult {
+  const seen = new Map<string, HistoryItem>();
+  const idReplacements: Record<string, string> = {};
+  const deduped: HistoryItem[] = [];
+
+  for (const item of history) {
+    const keys = [localInboxHistoryDedupeKey(item), localInboxHistoryExactDedupeKey(item)].filter(
+      (key): key is string => Boolean(key)
+    );
+    if (keys.length === 0) {
+      deduped.push(item);
+      continue;
+    }
+
+    const duplicateOf = keys.map((key) => seen.get(key)).find(Boolean);
+    if (duplicateOf) {
+      idReplacements[item.id] = duplicateOf.id;
+      continue;
+    }
+
+    keys.forEach((key) => seen.set(key, item));
+    deduped.push(item);
+  }
+
+  return {
+    history: deduped,
+    removedCount: history.length - deduped.length,
+    idReplacements
+  };
+}
+
+export function remapFrameSourceIds(frames: SpriteFrame[], idReplacements: Record<string, string>) {
+  let changedCount = 0;
+  const remapped = frames.map((frame) => {
+    if (!frame.sourceId) return frame;
+    const replacement = idReplacements[frame.sourceId];
+    if (!replacement || replacement === frame.sourceId) return frame;
+    changedCount += 1;
+    return { ...frame, sourceId: replacement };
+  });
+  return { frames: remapped, changedCount };
+}
+
+export async function dedupePersistedLocalInboxHistory(): Promise<PersistedLocalInboxHistoryDedupeResult> {
+  const [history, frames] = await Promise.all([
+    loadIndexedJson<HistoryItem[]>(HISTORY_KEY, loadHistory()),
+    loadIndexedJson<SpriteFrame[]>(FRAMES_KEY, loadFrames())
+  ]);
+  const deduped = dedupeLocalInboxHistory(history);
+  const remapped = remapFrameSourceIds(frames, deduped.idReplacements);
+
+  if (deduped.removedCount === 0 && remapped.changedCount === 0) {
+    return {
+      ...deduped,
+      frames: remapped.frames,
+      frameSourceReplacements: 0,
+      saved: true
+    };
+  }
+
+  await saveLargeState(HISTORY_KEY, HISTORY_SUMMARY_KEY, history.length, {
+    retainedValue: deduped.history,
+    persistedCount: deduped.history.length,
+    droppedCount: deduped.removedCount,
+    retentionPolicy: `deduped exact local-inbox imports, then latest ${HISTORY_RETENTION_LIMIT} results plus adopted/selected results`
+  });
+
+  if (remapped.changedCount > 0) {
+    await saveLargeState(FRAMES_KEY, FRAMES_SUMMARY_KEY, remapped.frames.length, {
+      retainedValue: remapped.frames,
+      persistedCount: remapped.frames.length,
+      droppedCount: 0,
+      retentionPolicy: `sourceId remap after local-inbox history dedupe, then latest ${FRAME_RETENTION_LIMIT} frames plus selected/action frames`
+    });
+  }
+
+  return {
+    ...deduped,
+    frames: remapped.frames,
+    frameSourceReplacements: remapped.changedCount,
+    saved: true
+  };
+}
+
+function normalizeOutboxImportKeyForDedupe(value: string | undefined) {
+  if (!value) return null;
+  const bronzeCandidateMatch = value.match(/^bronze-candidate:([^:]+)(?::|$)/);
+  if (bronzeCandidateMatch?.[1]) return `outbox:bronze-candidate:${bronzeCandidateMatch[1]}`;
+  return `outbox:${value}`;
 }
 
 export function approximateJsonBytes(value: unknown) {

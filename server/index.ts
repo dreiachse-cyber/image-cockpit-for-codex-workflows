@@ -171,6 +171,28 @@ const server = createServer(async (request, response) => {
     const requestUrl = new URL(request.url ?? "/", `http://${request.headers.host ?? "127.0.0.1"}`);
     const pathname = requestUrl.pathname;
 
+    if (request.method === "GET" && pathname === "/api/health") {
+      const runner = await checkCodexRunnerPreflight();
+      sendJson(response, 200, {
+        app: "image-cockpit",
+        version: "0.1.1",
+        role: "api",
+        port,
+        handoffRoot,
+        inboxReadable: await isDirectoryReadable(inboxDir),
+        outboxReadable: await isDirectoryReadable(outboxDir),
+        statusReadable: await isDirectoryReadable(statusDir),
+        logsReadable: await isDirectoryReadable(logsDir),
+        runner: {
+          state: runner.state,
+          message: runner.message,
+          checkedAt: runner.checkedAt,
+          autorun: runner.autorun
+        }
+      });
+      return;
+    }
+
     if (request.method === "GET" && pathname === "/api/providers") {
       sendJson(response, 200, {
         providers: [
@@ -265,9 +287,11 @@ const server = createServer(async (request, response) => {
     }
 
     if (request.method === "GET" && pathname === "/api/codex/results") {
+      const requestedLimit = Number(requestUrl.searchParams.get("limit") ?? 20);
+      const limit = Number.isFinite(requestedLimit) ? Math.min(Math.max(Math.floor(requestedLimit), 1), 200) : 20;
       sendJson(response, 200, {
         outboxPath: outboxDir,
-        results: (await listOutboxResults()).slice(0, 20)
+        results: (await listOutboxResults()).slice(0, limit)
       });
       return;
     }
@@ -380,6 +404,15 @@ async function ensureHandoffDirs() {
   await mkdir(assetsDir, { recursive: true });
   await mkdir(statusDir, { recursive: true });
   await mkdir(logsDir, { recursive: true });
+}
+
+async function isDirectoryReadable(path: string) {
+  try {
+    await readdir(path);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 async function writeSelectedImageAsset(jobId: string, body: CodexJobRequest) {

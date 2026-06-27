@@ -146,6 +146,7 @@ try {
   );
 
   await assertInitialWorkspace();
+  await assertCockpitHealthAndDedupeControls();
   await assertSafeModeRecovery();
   await assertStoragePreflightRecovery();
   await assertResetLocalStatePage();
@@ -221,6 +222,31 @@ async function assertInitialWorkspace() {
   assert(snapshot.resultDownloadGridButtonsInWorkspace === 0, "Initial workspace should not expose detailed download buttons under the preview");
   assert(snapshot.resultDownloadPanelHeight <= 110, `Initial download panel should stay compact, got ${snapshot.resultDownloadPanelHeight}`);
   await maybeCapture("initial-workspace");
+}
+
+async function assertCockpitHealthAndDedupeControls() {
+  await waitForEval(
+    () => `Boolean(document.querySelector(".cockpit-health-panel")) && document.body.innerText.includes("Cockpit:")`,
+    "Cockpit health panel"
+  );
+  const snapshot = await pageSnapshot();
+  assert(snapshot.text.includes("Recover Results"), "Cockpit health panel should expose Recover Results");
+  assert(snapshot.text.includes("Dedupe History"), "History panel should expose Dedupe History");
+  assert(snapshot.text.includes("Diagnose"), "Cockpit health panel should expose Diagnose");
+  const healthState = await evaluate(`(() => {
+    const panel = document.querySelector(".cockpit-health-panel");
+    return {
+      hasOkOrWarning: panel?.classList.contains("state-ok") || panel?.classList.contains("state-warning") || panel?.classList.contains("state-checking"),
+      repairButton: Array.from(document.querySelectorAll("button")).some((button) => button.innerText.includes("Repair Cockpit")),
+      recoverButton: Array.from(document.querySelectorAll("button")).some((button) => button.innerText.includes("Recover Results")),
+      dedupeButton: Array.from(document.querySelectorAll("button")).some((button) => button.innerText.includes("Dedupe History"))
+    };
+  })()`);
+  assert(healthState.hasOkOrWarning, "Cockpit health panel should render a non-broken initial state");
+  assert(healthState.repairButton, "Cockpit health panel should render the fixed Repair Cockpit action");
+  assert(healthState.recoverButton, "Cockpit health panel should render the fixed Recover Results action");
+  assert(healthState.dedupeButton, "History panel should render duplicate history cleanup action");
+  await assertNoBrowserErrors("Cockpit health and dedupe controls");
 }
 
 async function assertSafeModeRecovery() {

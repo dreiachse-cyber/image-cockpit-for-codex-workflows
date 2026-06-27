@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   annotationImageCoordinates,
+  buildOutboxImportKey,
+  fingerprintOutboxResults,
   getNextHistoryRenderLimit,
   getVisibleHistoryCount,
   HISTORY_RENDER_BATCH_SIZE,
@@ -23,11 +25,14 @@ import {
   applyFrameRetention,
   applyHistoryRetention,
   classifyStorageUsageBytes,
+  dedupeLocalInboxHistory,
   FRAME_RETENTION_LIMIT,
   HISTORY_RETENTION_LIMIT,
   IMAGE_COCKPIT_LOCAL_STATE_KEYS,
   isStorageSafeModeSearch,
   PENDING_CODEX_JOB_STORAGE_KEY,
+  prependHistoryItemWithDedupe,
+  remapFrameSourceIds,
   STORAGE_AUTO_SAFE_BYTES,
   STORAGE_HARD_BLOCK_BYTES,
   STORAGE_WARNING_BYTES
@@ -198,6 +203,136 @@ describe("local state safe mode and retention", () => {
 
   it("includes pending Codex jobs in the formal local reset key list", () => {
     expect(IMAGE_COCKPIT_LOCAL_STATE_KEYS).toContain(PENDING_CODEX_JOB_STORAGE_KEY);
+  });
+});
+
+describe("Local Inbox import dedupe", () => {
+  it("does not prepend the same outboxImportKey twice", () => {
+    const key = buildOutboxImportKey("single", "manual-return.png");
+    const first = makeHistoryItem("hist-1", {
+      provider: "local-inbox",
+      source: "inbox",
+      name: "manual-return.png",
+      outboxImportKey: key
+    });
+    const second = makeHistoryItem("hist-2", {
+      provider: "local-inbox",
+      source: "inbox",
+      name: "manual-return.png",
+      outboxImportKey: key
+    });
+
+    const inserted = prependHistoryItemWithDedupe([first], second);
+
+    expect(inserted.added).toBe(false);
+    expect(inserted.item.id).toBe(first.id);
+    expect(inserted.history).toHaveLength(1);
+  });
+
+  it("keeps one bronze candidate per job even when candidate filenames differ", () => {
+    const jobId = "codex-job-2026-06-27T00-57-56-534Z";
+    const first = makeHistoryItem("bronze-1", {
+      provider: "local-inbox",
+      source: "inbox",
+      name: `${jobId}-bronze-candidate-${jobId}-front.png`,
+      outboxImportKey: buildOutboxImportKey("bronze-candidate", { jobId, filenames: [`${jobId}-front.png`] })
+    });
+    const second = makeHistoryItem("bronze-2", {
+      provider: "local-inbox",
+      source: "inbox",
+      name: `${jobId}-bronze-candidate-${jobId}-side.png`,
+      outboxImportKey: buildOutboxImportKey("bronze-candidate", { jobId, filenames: [`${jobId}-side.png`] })
+    });
+
+    const inserted = prependHistoryItemWithDedupe([first], second);
+
+    expect(inserted.added).toBe(false);
+    expect(inserted.item.id).toBe(first.id);
+  });
+
+  it("dedupes legacy exact duplicate local-inbox entries without touching user imports", () => {
+    const localInboxA = makeHistoryItem("local-inbox-a", {
+      provider: "local-inbox",
+      source: "inbox",
+      name: "same-bronze.png",
+      size: "1024x512",
+      dataUrl: "data:image/png;base64,bronze"
+    });
+    const localInboxB = makeHistoryItem("local-inbox-b", {
+      provider: "local-inbox",
+      source: "inbox",
+      name: "same-bronze.png",
+      size: "1024x512",
+      dataUrl: "data:image/png;base64,bronze"
+    });
+    const userImport = makeHistoryItem("user-import", {
+      provider: "local-file",
+      source: "import",
+      name: "same-bronze.png",
+      size: "1024x512",
+      dataUrl: "data:image/png;base64,bronze"
+    });
+
+    const result = dedupeLocalInboxHistory([localInboxA, localInboxB, userImport]);
+
+    expect(result.removedCount).toBe(1);
+    expect(result.history.map((item) => item.id)).toEqual(["local-inbox-a", "user-import"]);
+    expect(result.idReplacements["local-inbox-b"]).toBe("local-inbox-a");
+  });
+
+  it("remaps frame source ids when exact duplicate history is removed", () => {
+    const remapped = remapFrameSourceIds(
+      [
+        makeFrame("frame-a", { sourceId: "duplicate-history" }),
+        makeFrame("frame-b", { sourceId: "kept-history" })
+      ],
+      { "duplicate-history": "kept-history" }
+    );
+
+    expect(remapped.changedCount).toBe(1);
+    expect(remapped.frames.map((frame) => frame.sourceId)).toEqual(["kept-history", "kept-history"]);
+  });
+
+  it("allows a final direction-split import after a bronze candidate for the same job", () => {
+    const jobId = "codex-job-2026-06-27T00-57-56-534Z";
+    const bronze = makeHistoryItem("bronze", {
+      provider: "local-inbox",
+      source: "inbox",
+      outboxImportKey: buildOutboxImportKey("bronze-candidate", { jobId, filenames: [`${jobId}-front.png`] })
+    });
+    const finalSheet = makeHistoryItem("final-sheet", {
+      provider: "local-inbox",
+      source: "inbox",
+      outboxImportKey: buildOutboxImportKey("direction-split", {
+        jobId,
+        filenames: [
+          `${jobId}-front.png`,
+          `${jobId}-front-three-quarter.png`,
+          `${jobId}-side.png`,
+          `${jobId}-back-three-quarter.png`,
+          `${jobId}-back.png`
+        ],
+        manifestName: `${jobId}-manifest.json`
+      })
+    });
+
+    const inserted = prependHistoryItemWithDedupe([bronze], finalSheet);
+
+    expect(inserted.added).toBe(true);
+    expect(inserted.history.map((item) => item.id)).toEqual(["final-sheet", "bronze"]);
+  });
+
+  it("fingerprints outbox changes with name, size, and modified time", () => {
+    const jobId = "codex-job-2026-06-27T00-57-56-534Z";
+    const initial = fingerprintOutboxResults([makeOutboxResult(`${jobId}-front.png`)], jobId, "2026-06-26T00:00:00.000Z");
+    const changed = fingerprintOutboxResults(
+      [{ ...makeOutboxResult(`${jobId}-front.png`), modifiedAt: "2026-06-27T00:01:00.000Z" }],
+      jobId,
+      "2026-06-26T00:00:00.000Z"
+    );
+
+    expect(initial).not.toBe("");
+    expect(changed).not.toBe(initial);
   });
 });
 

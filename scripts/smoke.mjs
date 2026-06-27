@@ -33,6 +33,11 @@ async function runManualHandoffSmoke() {
     assert(providers.providers.some((provider) => provider.id === "local-generator"), "local-generator provider missing");
     assert(providers.providers.some((provider) => provider.id === "codex-handoff"), "codex-handoff provider missing");
 
+    const health = await getJson(port, "/api/health");
+    assert(health.app === "image-cockpit", "health response should identify Image Cockpit");
+    assert(health.role === "api", "health response should identify the API role");
+    assert(health.outboxReadable === true, "health response should confirm outbox readability");
+
     const runnerPreflight = await getJson(port, "/api/codex/runner");
     assert(runnerPreflight.runner?.state === "disabled", "autorun-off preflight should report disabled runner state");
     assert(runnerPreflight.runner?.autorun === false, "autorun-off preflight should include autorun=false");

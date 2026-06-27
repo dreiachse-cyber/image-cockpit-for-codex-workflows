@@ -14,6 +14,8 @@ Stability, recovery, and animation workflow update after the v0.1.0 public basel
 - Basic, profession-oriented, and monster prompt examples with generated preview assets.
 - Pixel-art-to-animation workflow with selected source images, motion presets, 5-direction previews, GIF/WebP/sprite-sheet downloads, and direction-split artifact handling.
 - Official animation preset coverage expanded to 16 sample sheets with QA galleries, transparency audits, mechanical QA artifacts, and direction GIFs.
+- Cockpit health diagnostics and loopback-only dev supervisor repair actions for local API/Vite target mismatches.
+- Recover Results and Local Inbox dedupe controls for outbox imports and polluted browser history.
 - Local animation library pack import/export foundations.
 - Public launch materials, refreshed README screenshots, current demo GIF, and X/Twitter launch copy.
 - `POST /api/generate` local generation endpoint and optional real imagegen smoke through `npm run imagegen:smoke`.
@@ -37,6 +39,8 @@ Stability, recovery, and animation workflow update after the v0.1.0 public basel
 - Direction-split imports now wait for usable manifests and verified artifacts instead of treating partial files as complete.
 - Temporary, staging, contact-sheet, debug, work, and QA artifacts are filtered out from normal Local Inbox imports.
 - Image Editing now keeps full-body source images visible, records source-image annotation coordinates, and reinforces no-crop / no-zoom handoff prompts.
+- Local Inbox imports now use stable import keys and exact duplicate cleanup, preventing unchanged bronze-candidate snapshots from being imported repeatedly.
+- Dev supervisor repair skips API restart when a running Codex job is present.
 - Static result previews, animation persistence, exports, chroma-key handling, and walk/run sample alignment were tightened.
 
 ### Recovery
@@ -51,7 +55,7 @@ Stability, recovery, and animation workflow update after the v0.1.0 public basel
 - Image generation and image editing still depend on the local Codex/imagegen environment available to the user.
 - Direct OpenAI API, ComfyUI, AUTOMATIC1111, Replicate, and other provider adapters are still not part of the shipped baseline.
 - Advanced game-engine exporters, full background removal, and deeper sprite QC remain future work.
-- Dev-supervisor repair controls and stronger duplicate bronze-candidate import prevention from 027/028 are not included in this v0.1.1 draft unless those branches are merged before the final tag approval.
+- The dev supervisor is limited to local development repair operations and is not part of packaged builds.
 
 ## 0.1.0 - 2026-06-23
 

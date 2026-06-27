@@ -15,6 +15,7 @@ export interface HistoryItem {
   source: "sample" | "import" | "generate" | "annotated" | "inbox";
   derivedFromId?: string;
   derivedFromName?: string;
+  outboxImportKey?: string;
 }
 
 export interface SpriteFrame {
@@ -186,6 +187,48 @@ export interface CodexRunnerPreflight {
 
 export interface CodexRunnerPreflightResponse {
   runner: CodexRunnerPreflight;
+}
+
+export interface ImageCockpitApiHealth {
+  app: "image-cockpit";
+  version: string;
+  role: "api";
+  port: number;
+  handoffRoot: string;
+  inboxReadable: boolean;
+  outboxReadable: boolean;
+  statusReadable: boolean;
+  logsReadable: boolean;
+  runner: Pick<CodexRunnerPreflight, "state" | "message" | "checkedAt" | "autorun">;
+}
+
+export interface ImageCockpitDevSupervisorHealth {
+  app: "image-cockpit";
+  role: "supervisor";
+  devOnly: true;
+  checkedAt: string;
+  supervisor: {
+    port: number;
+    pid: number;
+    state: "running";
+  };
+  vite: {
+    port: number;
+    pid: number | null;
+    state: "running" | "starting" | "stopped" | "exited";
+    lastExitCode?: number | null;
+    lastSignal?: string | null;
+  };
+  api: {
+    port: number;
+    pid: number | null;
+    state: "running" | "starting" | "stopped" | "exited";
+    lastExitCode?: number | null;
+    lastSignal?: string | null;
+  };
+  apiTarget: string;
+  handoffRoot: string;
+  mismatches: string[];
 }
 
 export type CodexArtifactQuality = "gold" | "silver" | "bronze" | "blocked" | "waiting";
