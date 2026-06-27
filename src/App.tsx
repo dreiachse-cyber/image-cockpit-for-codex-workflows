@@ -9050,16 +9050,12 @@ function validateDirectionSplitAnimationCells(cells: DirectionSplitNormalizedCel
     }
 
     const widthVariation = variationRatio(metrics.map((metric) => metric.width));
-    if (widthVariation > 0.7) {
-      failures.push(`${direction}: bbox width variation ${Math.round(widthVariation * 100)}%`);
-    } else if (widthVariation > 0.3) {
+    if (widthVariation > 0.3) {
       warnings.push(`${direction}: bbox width variation ${Math.round(widthVariation * 100)}%`);
     }
 
     const heightVariation = variationRatio(metrics.map((metric) => metric.height));
-    if (heightVariation > 0.55) {
-      failures.push(`${direction}: bbox height variation ${Math.round(heightVariation * 100)}%`);
-    } else if (heightVariation > 0.22) {
+    if (heightVariation > 0.22) {
       warnings.push(`${direction}: bbox height variation ${Math.round(heightVariation * 100)}%`);
     }
 
