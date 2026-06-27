@@ -19,6 +19,7 @@ import {
   isGenericStaticImageResult,
   isOutboxResultForJob,
   isLikelyFrameGarbageComponent,
+  isUsableOutboxResult,
   resolveInitialLanguage,
   redactEnvironmentReportText,
   selectDirectionSplitAnimationResults,
@@ -559,6 +560,15 @@ describe("Codex outbox job result matching", () => {
     expect(isGenericStaticImageResult(makeOutboxResult(`${jobId}-final-sheet.png`))).toBe(true);
   });
 
+  it("quarantines bronze candidate names instead of treating them as final generic imports", () => {
+    const jobId = "codex-job-2026-06-27T02-11-47-290Z";
+    const candidate = makeOutboxResult(`${jobId}-bronze-candidate-front.png`);
+
+    expect(shouldIgnoreOutboxResultName(candidate.name)).toBe(false);
+    expect(isUsableOutboxResult(candidate)).toBe(false);
+    expect(isGenericStaticImageResult(candidate)).toBe(false);
+  });
+
   it("requires the direction split manifest plus all five direction images before import is ready", () => {
     const jobId = "codex-job-2026-06-25T13-01-42-060Z";
     const results = [
@@ -638,6 +648,42 @@ describe("Codex outbox job result matching", () => {
 
     expect(selection.waitingForVerifiedArtifacts).toBe(false);
     expect(selection.ready).toBe(true);
+  });
+
+  it("blocks direction split import when the server quality gate marks the artifact failed", () => {
+    const jobId = "codex-job-2026-06-25T13-01-42-060Z";
+    const artifact = makeDirectionSplitArtifact(jobId, {
+      ready: false,
+      verified: false,
+      quality: "blocked",
+      reason: "Chroma key removal failed",
+      qualityGate: {
+        classification: "quality-failed",
+        reason: "Chroma key removal failed",
+        code: "chroma-key-removal-failed",
+        historyAllowed: false,
+        downloadAllowed: false,
+        retryable: true
+      }
+    });
+    const results = [
+      makeOutboxResult(`${jobId}-manifest.json`, "application/json", artifact),
+      makeOutboxResult(`${jobId}-front.png`, "image/png", artifact),
+      makeOutboxResult(`${jobId}-front-three-quarter.png`, "image/png", artifact),
+      makeOutboxResult(`${jobId}-side.png`, "image/png", artifact),
+      makeOutboxResult(`${jobId}-back-three-quarter.png`, "image/png", artifact),
+      makeOutboxResult(`${jobId}-back.png`, "image/png", artifact)
+    ];
+
+    const selection = selectDirectionSplitAnimationResults(results, jobId, {
+      schema: "image-cockpit.direction-split-animation.v1",
+      files: Object.fromEntries(["front", "front-three-quarter", "side", "back-three-quarter", "back"].map((slug) => [slug, `${jobId}-${slug}.png`]))
+    });
+
+    expect(selection.qualityFailed).toBe(true);
+    expect(selection.waitingForVerifiedArtifacts).toBe(false);
+    expect(selection.ready).toBe(false);
+    expect(findReadyDirectionSplitArtifacts(results)).toHaveLength(0);
   });
 
   it("finds ready direction split artifacts without a pending job", () => {

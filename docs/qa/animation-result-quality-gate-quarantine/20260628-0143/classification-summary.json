@@ -1,0 +1,44 @@
+{
+  "qaId": "animation-result-quality-gate-quarantine-20260628-0143",
+  "recordedAtJst": "2026-06-28T01:43:00+09:00",
+  "branch": "codex/animation-result-quality-gate-quarantine",
+  "fixtureClassification": {
+    "manual-return.png": {
+      "classification": "usable-final",
+      "historyAllowed": true,
+      "downloadAllowed": true
+    },
+    "manual-bronze-candidate-front.png": {
+      "classification": "quarantined-candidate",
+      "historyAllowed": false,
+      "downloadAllowed": false
+    },
+    "complete-direction-split-before-client-qa": {
+      "classification": "usable-final",
+      "historyAllowed": true,
+      "downloadAllowed": true
+    },
+    "complete-direction-split-after-client-qa": {
+      "classification": "quality-failed",
+      "reason": "Direction split QA failed: front bbox width variation 71%",
+      "historyAllowed": false,
+      "downloadAllowed": false
+    }
+  },
+  "realBrowserRun": {
+    "jobId": "codex-job-2026-06-27T16-23-26-684Z",
+    "runnerState": "completed",
+    "startedAtUtc": "2026-06-27T16:23:26.695Z",
+    "finishedAtUtc": "2026-06-27T16:33:17.327Z",
+    "uiFailureTitle": "素材品質チェックで弾かれました",
+    "uiFailureReason": "Animation quality gate failed for codex-job-2026-06-27T16-23-26-684Z: Direction split QA failed: front: bbox width variation 71%. Candidate files are quarantined; no history or final download item was added.",
+    "apiClassification": "quality-failed",
+    "apiReason": "Direction split QA failed: front bbox width variation 71%",
+    "historyAllowed": false,
+    "downloadAllowed": false,
+    "reloadHadUnimportedWarning": false
+  },
+  "evidence": {
+    "screenshot": "browser-no-unimported-after-quality-failed-reload.png"
+  }
+}

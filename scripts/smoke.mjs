@@ -62,9 +62,16 @@ async function runManualHandoffSmoke() {
     await writeFile(join(handoffDir, "outbox", "manual-debug-preview.png"), tinyPngBytes);
     await writeFile(join(handoffDir, "outbox", "manual-preview-grid.png"), tinyPngBytes);
     await writeFile(join(handoffDir, "outbox", "manual-ab-gallery.png"), tinyPngBytes);
+    await writeFile(join(handoffDir, "outbox", "manual-bronze-candidate-front.png"), tinyPngBytes);
 
     const outboxList = await getJson(port, "/api/codex/results");
-    assert(outboxList.results.some((result) => result.name === "manual-return.png"), "outbox image should be listed");
+    const manualReturn = outboxList.results.find((result) => result.name === "manual-return.png");
+    const manualBronze = outboxList.results.find((result) => result.name === "manual-bronze-candidate-front.png");
+    assert(manualReturn, "outbox image should be listed");
+    assert(manualReturn.qualityGate?.classification === "usable-final", "normal outbox image should be classified usable-final");
+    assert(manualBronze, "bronze candidate should be listed for quarantine diagnostics");
+    assert(manualBronze.qualityGate?.classification === "quarantined-candidate", "bronze candidate should be quarantined");
+    assert(manualBronze.qualityGate?.historyAllowed === false, "bronze candidate should not be history-importable");
     assert(outboxList.results.some((result) => result.name === directionManifestName), "direction split manifest should be listed");
     assert(!outboxList.results.some((result) => result.name === "manual-notes.txt"), "non-image outbox file should be ignored");
     assert(!outboxList.results.some((result) => result.name === "manual-qa.json"), "QA JSON outbox file should be ignored");
@@ -111,9 +118,24 @@ async function runManualHandoffSmoke() {
     const verifiedArtifact = verifiedArtifactList.results.find((result) => result.name === `${artifactJobId}-manifest.json`)?.artifact;
     assert(verifiedArtifact?.ready === true, "complete direction split should become server verified");
     assert(verifiedArtifact?.verified === true, "complete direction split should expose verified=true");
+    assert(verifiedArtifact?.qualityGate?.classification === "usable-final", "complete direction split should pass the quality gate");
     const verifiedManifest = await getJson(port, `/api/codex/results/${artifactJobId}-manifest.json`);
     const verifiedManifestText = Buffer.from(verifiedManifest.dataUrl.split(",")[1], "base64").toString("utf8");
     assert(verifiedManifestText.includes('"serverVerified": true'), "server should rewrite the final direction split manifest");
+    assert(verifiedManifestText.includes('"classification": "usable-final"'), "server manifest should include the quality gate classification");
+    await postJson(port, `/api/codex/artifacts/${encodeURIComponent(artifactJobId)}/quality-gate`, {
+      classification: "quality-failed",
+      reason: "Direction split QA failed: front bbox width variation 71%",
+      code: "client-quality-gate-failed"
+    });
+    const qualityFailedArtifactList = await getJson(port, "/api/codex/results");
+    const qualityFailedArtifact = qualityFailedArtifactList.results.find((result) => result.name === `${artifactJobId}-manifest.json`)?.artifact;
+    assert(qualityFailedArtifact?.ready === false, "client quality gate failure should block the artifact");
+    assert(qualityFailedArtifact?.qualityGate?.classification === "quality-failed", "client quality gate failure should persist to the manifest");
+    assert(qualityFailedArtifact?.qualityGate?.historyAllowed === false, "client quality gate failure should block history import");
+    const qualityFailedManifest = await getJson(port, `/api/codex/results/${artifactJobId}-manifest.json`);
+    const qualityFailedManifestText = Buffer.from(qualityFailedManifest.dataUrl.split(",")[1], "base64").toString("utf8");
+    assert(qualityFailedManifestText.includes('"classification": "quality-failed"'), "quality-failed manifest should be persisted");
 
     const localImages = await postJson(port, "/api/generate", {
       workflowMode: "image-generate",

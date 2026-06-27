@@ -46,6 +46,7 @@ const mockRunnerPath = join(tempRoot, "mock-codex-runner.mjs");
 const mockAnimationPackPath = join(tempRoot, "mock-run-cycle.image-cockpit-animation.zip");
 const mockFullBodySourcePath = join(tempRoot, "mock-full-body-source.png");
 const mockImportFailureMarkerPath = join(tempRoot, "mock-direction-split-import-failure.flag");
+const mockQualityGateFailureMarkerPath = join(tempRoot, "mock-direction-split-quality-gate-failure.flag");
 const mockPartialDirectionSplitMarkerPath = join(tempRoot, "mock-partial-direction-split-recovery.flag");
 const mockManifestFirstDirectionSplitMarkerPath = join(tempRoot, "mock-manifest-first-direction-split-recovery.flag");
 const apiPort = await getOpenPort();
@@ -169,6 +170,7 @@ try {
   await assertPartialDirectionSplitRecovery();
   await assertManifestFirstDirectionSplitRecovery();
   await assertCompletedDirectionSplitImportFailure();
+  await assertQualityGateDirectionSplitFailure();
   await assertDetachedDirectionSplitRecoverResults();
   await assertCodexQueue();
   await assertImageEditing();
@@ -990,6 +992,33 @@ async function assertCompletedDirectionSplitImportFailure() {
   assert(snapshot.text.includes("Raw direction files"), "Completed direction split import failure should tell the user raw files remain available");
   await assertNoBrowserErrors("completed direction split import failure");
   await maybeCapture("completed-direction-split-import-failure");
+  await selectWorkflowTab("Pixel Art Generation");
+}
+
+async function assertQualityGateDirectionSplitFailure() {
+  await selectWorkflowTab("Pixel Art Generation");
+  await setPromptValue("quality gate direction split failure setup");
+  await writeFile(mockQualityGateFailureMarkerPath, "1", "utf8");
+  await selectWorkflowTab("Animation Generation");
+  await waitForEval(() => `document.body.innerText.includes("Animation Generation")`, "Animation Generation for quality gate failure");
+  const before = await pageSnapshot();
+
+  await clickButtonByText("Generate Animation");
+  await waitForEval(
+    () => `document.body.innerText.includes("Material quality gate failed") && document.body.innerText.includes("Chroma key removal failed")`,
+    "quality gate direction split failure notice",
+    25000
+  );
+  const snapshot = await pageSnapshot();
+  assert(snapshot.codexJobRows === 0, "Quality gate failure should release the active job slot");
+  assert(
+    snapshot.codexFailureCards === before.codexFailureCards + 1,
+    `Quality gate failure should add one failure card, got ${snapshot.codexFailureCards}`
+  );
+  assert(snapshot.historyItems === before.historyItems, "Quality gate failure should not add a quarantined history item");
+  assert(snapshot.text.toLowerCase().includes("no history or final download item was added"), "Quality gate failure should explain that no final item was added");
+  await assertNoBrowserErrors("quality gate direction split failure");
+  await maybeCapture("quality-gate-direction-split-failure");
   await selectWorkflowTab("Pixel Art Generation");
 }
 
@@ -2328,6 +2357,33 @@ if (job.spriteContext?.variant === "standard") {
       files: Object.fromEntries(directionSlugs.map((slug, index) => [directionNames[index], \`\${jobId}-\${slug}.png\`]))
     }, null, 2), "utf8");
     console.log(\`mock partial direction split recovered \${jobId}\`);
+    process.exit(0);
+  }
+  if (existsSync(${JSON.stringify(mockQualityGateFailureMarkerPath)})) {
+    await rm(${JSON.stringify(mockQualityGateFailureMarkerPath)}, { force: true });
+    for (const [index, slug] of directionSlugs.entries()) {
+      const png = makeSpriteSheetPng(cellWidth * 4, cellHeight * 2, 4, 2, cellWidth, cellHeight, chroma, index);
+      await writeFile(join(outboxDir, \`\${jobId}-\${slug}.png\`), png);
+    }
+    await writeFile(join(outboxDir, \`\${jobId}-manifest.json\`), JSON.stringify({
+      schema: "image-cockpit.direction-split-animation.v1",
+      jobId,
+      action: job.spriteContext?.action || "idle",
+      directions: directionNames,
+      framesPerDirection: 8,
+      grid: { columns: 4, rows: 2, gutter: 0 },
+      cell: { width: cellWidth, height: cellHeight },
+      files: Object.fromEntries(directionSlugs.map((slug, index) => [directionNames[index], \`\${jobId}-\${slug}.png\`])),
+      qualityGate: {
+        classification: "quality-failed",
+        reason: "Chroma key removal failed",
+        code: "chroma-key-removal-failed",
+        historyAllowed: false,
+        downloadAllowed: false,
+        retryable: true
+      }
+    }, null, 2), "utf8");
+    console.log(\`mock quality gate direction split failure \${jobId}\`);
     process.exit(0);
   }
   if (existsSync(${JSON.stringify(mockImportFailureMarkerPath)})) {
