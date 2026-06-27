@@ -41,6 +41,7 @@ const requiredFiles = [
   "docs/qa/cockpit-health-repair-supervisor.md",
   "docs/qa/deduplicate-bronze-candidate-import-retry.md",
   "docs/qa/settings-recovery-environment-report.md",
+  "docs/qa/animation-direction-split-completion-hotfix.md",
   "public/reset-local-state.html",
   "public/samples/idle-breathing-sheet.png",
   "public/samples/walk-cycle-sheet.png",
@@ -1099,6 +1100,7 @@ function checkPendingJobCoverage() {
   const cockpitHealthQaText = readText("docs/qa/cockpit-health-repair-supervisor.md");
   const dedupeQaText = readText("docs/qa/deduplicate-bronze-candidate-import-retry.md");
   const settingsQaText = readText("docs/qa/settings-recovery-environment-report.md");
+  const directionSplitHotfixQaText = readText("docs/qa/animation-direction-split-completion-hotfix.md");
   [
     "assertCompletedDirectionSplitImportFailure",
     "assertPartialDirectionSplitRecovery",
@@ -1327,6 +1329,52 @@ function checkPendingJobCoverage() {
   ].forEach((marker) => {
     if (!settingsQaText?.includes(marker)) {
       failures.push(`Settings recovery/report QA doc is missing marker: ${marker}`);
+    }
+  });
+
+  [
+    "findReadyDirectionSplitArtifacts",
+    "findLatestReadyDirectionSplitArtifact",
+    "directionSplitJobIdFromOutboxResultName",
+    "isDirectionSplitComponentOutboxName",
+    "isGenericStaticImageResult",
+    "isDirectionSplitArtifactAlreadyImported",
+    "importReadyDirectionSplitArtifact",
+    "directionSplitRecoveryJobFromArtifact",
+    "direction-split-animation-sheet.png"
+  ].forEach((marker) => {
+    if (!appText.includes(marker)) {
+      failures.push(`Direction split completion hotfix app marker is missing: ${marker}`);
+    }
+  });
+
+  [
+    "assertDetachedDirectionSplitRecoverResults",
+    "writeDetachedDirectionSplitFixture",
+    "makeDirectionSplitFixturePng",
+    "Detached direction split final sheet should be 2048x1280",
+    "Detached direction split recovery should not add raw front direction file as history",
+    "Detached direction split recovery should not duplicate the final sheet"
+  ].forEach((marker) => {
+    if (!uiSmokeText.includes(marker)) {
+      failures.push(`Direction split completion hotfix UI smoke marker is missing: ${marker}`);
+    }
+  });
+
+  [
+    "Animation Direction Split Completion Hotfix QA",
+    "032 hotfix",
+    "image-cockpit.direction-split-animation.v1",
+    "pending job",
+    "Recover Results",
+    "2048x1280",
+    "1024x512",
+    "raw direction",
+    "ui-smoke",
+    "main merge前"
+  ].forEach((marker) => {
+    if (!directionSplitHotfixQaText?.includes(marker)) {
+      failures.push(`Direction split completion hotfix QA doc is missing marker: ${marker}`);
     }
   });
 }

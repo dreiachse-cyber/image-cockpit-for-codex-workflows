@@ -169,6 +169,7 @@ try {
   await assertPartialDirectionSplitRecovery();
   await assertManifestFirstDirectionSplitRecovery();
   await assertCompletedDirectionSplitImportFailure();
+  await assertDetachedDirectionSplitRecoverResults();
   await assertCodexQueue();
   await assertImageEditing();
   await assertWorkflow({
@@ -990,6 +991,66 @@ async function assertCompletedDirectionSplitImportFailure() {
   await assertNoBrowserErrors("completed direction split import failure");
   await maybeCapture("completed-direction-split-import-failure");
   await selectWorkflowTab("Pixel Art Generation");
+}
+
+async function assertDetachedDirectionSplitRecoverResults() {
+  const jobId = "codex-job-ui-smoke-detached-direction-split";
+  await writeDetachedDirectionSplitFixture(jobId);
+  await selectWorkflowTab("Pixel Art Generation");
+  const before = await pageSnapshot();
+
+  await clickButtonByText("Recover Results");
+  await waitForEval(
+    () => `document.body.innerText.includes("${jobId}-direction-split-animation-sheet.png")`,
+    "detached direction split recovers final sheet",
+    20000
+  );
+  let snapshot = await pageSnapshot();
+  assert(snapshot.historyItems === before.historyItems + 1, `Detached direction split should add one final sheet, got ${snapshot.historyItems - before.historyItems}`);
+  assert(snapshot.canvasPreviewName === `${jobId}-direction-split-animation-sheet.png`, `Detached direction split should select final sheet, got ${snapshot.canvasPreviewName}`);
+  assert(snapshot.text.includes("direction-split manifest ok"), "Detached direction split recovery should confirm manifest use");
+  assert(!snapshot.text.includes(`${jobId}-front.png`), "Detached direction split recovery should not add raw front direction file as history");
+  const alpha = await inspectImageAlpha(`document.querySelector(".result-preview-image")?.src || ""`);
+  assert(alpha.width === 2048 && alpha.height === 1280, `Detached direction split final sheet should be 2048x1280, got ${alpha.width}x${alpha.height}`);
+  assert(alpha.transparentPixels > 0 && alpha.opaquePixels > 0, "Detached direction split final sheet should preserve transparent character pixels");
+
+  await assertDownloadModal({
+    expectedButtons: ["Animated GIF", "Animated WebP", "Sprite Sheet", "Export Animation Pack"],
+    absentButtons: ["PNG"],
+    label: "detached direction split download modal"
+  });
+
+  await clickButtonByText("Recover Results");
+  await delay(500);
+  snapshot = await pageSnapshot();
+  assert(snapshot.historyItems === before.historyItems + 1, "Detached direction split recovery should not duplicate the final sheet");
+  await assertNoBrowserErrors("detached direction split recover results");
+  await maybeCapture("detached-direction-split-recover-results");
+  await selectWorkflowTab("Pixel Art Generation");
+}
+
+async function writeDetachedDirectionSplitFixture(jobId) {
+  const directionSlugs = ["front", "front-three-quarter", "side", "back-three-quarter", "back"];
+  const directionNames = ["front", "front three-quarter", "side", "back three-quarter", "back"];
+  for (const [index, slug] of directionSlugs.entries()) {
+    await writeFile(
+      join(handoffDir, "outbox", `${jobId}-${slug}.png`),
+      makeDirectionSplitFixturePng(index)
+    );
+  }
+  await writeFile(join(handoffDir, "outbox", `${jobId}-manifest.json`), JSON.stringify({
+    schema: "image-cockpit.direction-split-animation.v1",
+    jobId,
+    serverVerified: true,
+    quality: "gold",
+    warnings: [],
+    directions: directionNames,
+    framesPerDirection: 8,
+    grid: { columns: 4, rows: 2, gutter: 0 },
+    cell: { width: 256, height: 256 },
+    files: Object.fromEntries(directionSlugs.map((slug, index) => [directionNames[index], `${jobId}-${slug}.png`])),
+    chromaKey: { name: "green" }
+  }, null, 2), "utf8");
 }
 
 async function assertImageEditing() {
@@ -2037,6 +2098,45 @@ function makeFullBodySourcePng() {
         raw[offset] = body ? 34 : 26;
         raw[offset + 1] = body ? 122 : 82;
         raw[offset + 2] = body ? 95 : 70;
+        raw[offset + 3] = 255;
+      }
+    }
+  }
+  return makePng(width, height, raw);
+}
+
+function makeDirectionSplitFixturePng(directionIndex = 0) {
+  const columns = 4;
+  const rows = 2;
+  const cellWidth = 256;
+  const cellHeight = 256;
+  const width = columns * cellWidth;
+  const height = rows * cellHeight;
+  const bytesPerPixel = 4;
+  const stride = 1 + width * bytesPerPixel;
+  const raw = Buffer.alloc(stride * height);
+  for (let y = 0; y < height; y += 1) {
+    const rowOffset = y * stride;
+    raw[rowOffset] = 0;
+    for (let x = 0; x < width; x += 1) {
+      const offset = rowOffset + 1 + x * bytesPerPixel;
+      raw[offset] = 0;
+      raw[offset + 1] = 255;
+      raw[offset + 2] = 0;
+      raw[offset + 3] = 255;
+      const column = Math.floor(x / cellWidth);
+      const row = Math.floor(y / cellHeight);
+      const localX = x % cellWidth;
+      const localY = y % cellHeight;
+      const centerX = Math.round(cellWidth / 2 + Math.sin(column / Math.max(1, columns - 1) * Math.PI * 2) * 24);
+      const centerY = Math.round(cellHeight * 0.58 + row * 3 + directionIndex);
+      const body = Math.abs(localX - centerX) < 50 && Math.abs(localY - centerY) < 72;
+      const head = (localX - centerX) ** 2 + (localY - (centerY - 78)) ** 2 < 38 ** 2;
+      const feet = Math.abs(localX - centerX) < 68 && Math.abs(localY - (centerY + 84)) < 10;
+      if (body || head || feet) {
+        raw[offset] = 38 + row * 24 + directionIndex * 18;
+        raw[offset + 1] = 44 + column * 8;
+        raw[offset + 2] = 88 + row * 16;
         raw[offset + 3] = 255;
       }
     }

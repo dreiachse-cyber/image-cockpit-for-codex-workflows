@@ -280,6 +280,7 @@ interface DirectionSplitAnimationManifest {
   grid?: GridSettings;
   cell?: SpriteAction["cell"];
   files?: Record<string, string> | Array<{ direction?: string; file?: string; name?: string; path?: string }>;
+  chromaKey?: string | { name?: string };
 }
 
 interface DirectionSplitSelection {
@@ -294,6 +295,20 @@ interface DirectionSplitSelection {
   directionResults: CodexOutboxResult[];
   missingDirections: string[];
 }
+
+interface ReadyDirectionSplitArtifact {
+  jobId: string;
+  manifestResult: CodexOutboxResult;
+  directionResults: CodexOutboxResult[];
+  jobResults: CodexOutboxResult[];
+  selection: DirectionSplitSelection;
+  modifiedAt: string;
+}
+
+type DirectionSplitImportContext = Pick<
+  CodexJobQueueItem,
+  "id" | "actionName" | "cell" | "chromaKey" | "sourceImageId" | "sourceImageName"
+>;
 
 interface DirectionSplitPreparedCell {
   direction: string;
@@ -3023,6 +3038,28 @@ function isStaticImageResult(result: CodexOutboxResult) {
   return !shouldIgnoreOutboxResultName(result.name) && result.mimeType.startsWith("image/") && result.mimeType !== "image/gif";
 }
 
+export function directionSplitJobIdFromOutboxResultName(name: string) {
+  const baseName = name.split(/[\\/]/).pop() ?? name;
+  if (!baseName.toLowerCase().startsWith("codex-job-")) return "";
+  if (/-manifest\.json$/i.test(baseName)) return baseName.replace(/-manifest\.json$/i, "");
+  const withoutExtension = baseName.replace(/\.[^.]+$/, "");
+  const matchedSlug = DIRECTION_SPLIT_ANIMATION_FILE_SLUGS
+    .slice()
+    .sort((left, right) => right.length - left.length)
+    .find((slug) => withoutExtension.toLowerCase().endsWith(`-${slug}`));
+  return matchedSlug ? withoutExtension.slice(0, -(matchedSlug.length + 1)) : "";
+}
+
+export function isDirectionSplitComponentOutboxName(name: string) {
+  const baseName = name.split(/[\\/]/).pop() ?? name;
+  if (/-manifest\.json$/i.test(baseName)) return false;
+  return Boolean(directionSplitJobIdFromOutboxResultName(baseName));
+}
+
+export function isGenericStaticImageResult(result: CodexOutboxResult) {
+  return isStaticImageResult(result) && !isDirectionSplitComponentOutboxName(result.name);
+}
+
 export function selectDirectionSplitAnimationResults(
   results: CodexOutboxResult[],
   jobId: string,
@@ -3062,6 +3099,49 @@ export function selectDirectionSplitAnimationResults(
     directionResults: byDirection.filter((result): result is CodexOutboxResult => Boolean(result)),
     missingDirections
   };
+}
+
+export function findReadyDirectionSplitArtifacts(results: CodexOutboxResult[]): ReadyDirectionSplitArtifact[] {
+  const manifests = results
+    .filter((result) => !shouldIgnoreOutboxResultName(result.name))
+    .filter((result) => /-manifest\.json$/i.test(result.name))
+    .slice()
+    .sort((left, right) => outboxResultModifiedTime(right) - outboxResultModifiedTime(left));
+  const seenJobIds = new Set<string>();
+
+  return manifests.flatMap((manifestResult) => {
+    const jobId = directionSplitJobIdFromOutboxResultName(manifestResult.name);
+    if (!jobId || seenJobIds.has(jobId)) return [];
+    seenJobIds.add(jobId);
+
+    const jobResults = results.filter((result) => !shouldIgnoreOutboxResultName(result.name) && isOutboxResultForJob(result.name, jobId));
+    const selection = selectDirectionSplitAnimationResults(jobResults, jobId);
+    if (!selection.ready || !selection.manifestResult || selection.directionResults.length !== DIRECTION_SPLIT_ANIMATION_RESULT_COUNT) {
+      return [];
+    }
+
+    const modifiedAtTime = Math.max(
+      outboxResultModifiedTime(selection.manifestResult),
+      ...selection.directionResults.map(outboxResultModifiedTime)
+    );
+    return [{
+      jobId,
+      manifestResult: selection.manifestResult,
+      directionResults: selection.directionResults,
+      jobResults,
+      selection,
+      modifiedAt: new Date(Number.isFinite(modifiedAtTime) ? modifiedAtTime : Date.now()).toISOString()
+    }];
+  });
+}
+
+export function findLatestReadyDirectionSplitArtifact(results: CodexOutboxResult[]) {
+  return findReadyDirectionSplitArtifacts(results)[0];
+}
+
+function outboxResultModifiedTime(result: Pick<CodexOutboxResult, "modifiedAt">) {
+  const value = Date.parse(result.modifiedAt);
+  return Number.isFinite(value) ? value : 0;
 }
 
 function directionSplitResultDirectionIndex(resultName: string, jobId: string) {
@@ -4715,13 +4795,7 @@ function App() {
   }
 
   function isRecoverableOutboxImageResult(result: CodexOutboxResult) {
-    return isStaticImageResult(result) && !isDirectionSplitComponentOutboxName(result.name);
-  }
-
-  function isDirectionSplitComponentOutboxName(name: string) {
-    const lower = name.toLowerCase();
-    if (!lower.startsWith("codex-job-")) return false;
-    return DIRECTION_SPLIT_ANIMATION_FILE_SLUGS.some((slug) => lower.endsWith(`-${slug}.png`) || lower.endsWith(`-${slug}.webp`));
+    return isGenericStaticImageResult(result);
   }
 
   function isOutboxResultAlreadyImported(result: CodexOutboxResult) {
@@ -4735,19 +4809,59 @@ function App() {
     );
   }
 
+  function directionSplitArtifactImportKey(artifact: ReadyDirectionSplitArtifact) {
+    return buildOutboxImportKey("direction-split", {
+      jobId: artifact.jobId,
+      filenames: artifact.directionResults.map((result) => result.name),
+      manifestName: artifact.manifestResult.name
+    });
+  }
+
+  function findImportedDirectionSplitArtifact(artifact: ReadyDirectionSplitArtifact) {
+    const importKey = directionSplitArtifactImportKey(artifact);
+    const finalName = `${artifact.jobId}-direction-split-animation-sheet.png`;
+    return historyRef.current.find(
+      (item) =>
+        item.provider === "local-inbox" &&
+        (item.outboxImportKey === importKey || item.name === finalName)
+    );
+  }
+
+  function isDirectionSplitArtifactAlreadyImported(artifact: ReadyDirectionSplitArtifact) {
+    return Boolean(findImportedDirectionSplitArtifact(artifact));
+  }
+
   function countUnimportedOutboxResults(results: CodexOutboxResult[]) {
-    return results.filter(isRecoverableOutboxImageResult).filter((result) => !isOutboxResultAlreadyImported(result)).length;
+    const directionSplitCount = findReadyDirectionSplitArtifacts(results).filter(
+      (artifact) => !isDirectionSplitArtifactAlreadyImported(artifact)
+    ).length;
+    const imageCount = results
+      .filter(isRecoverableOutboxImageResult)
+      .filter((result) => !isOutboxResultAlreadyImported(result))
+      .length;
+    return directionSplitCount + imageCount;
   }
 
   async function recoverUnimportedOutboxResults() {
     setIsRecoveringOutboxResults(true);
     try {
       const listData = await loadOutboxResults(200);
+      const directionSplitCandidates = findReadyDirectionSplitArtifacts(listData.results)
+        .filter((artifact) => !isDirectionSplitArtifactAlreadyImported(artifact))
+        .slice(0, 50);
       const candidates = listData.results
         .filter(isRecoverableOutboxImageResult)
         .filter((result) => !isOutboxResultAlreadyImported(result))
-        .slice(0, 50);
+        .slice(0, Math.max(0, 50 - directionSplitCandidates.length));
       let recoveredCount = 0;
+      let recoveredDirectionSplitCount = 0;
+      for (const candidate of directionSplitCandidates) {
+        const imported = await importReadyDirectionSplitArtifact(candidate);
+        if (imported.added) {
+          recoveredCount += 1;
+          recoveredDirectionSplitCount += 1;
+        }
+      }
       for (const candidate of candidates) {
         const imported = await fetchOutboxResult(candidate.name);
         const image = await loadImage(imported.dataUrl);
@@ -4767,10 +4881,13 @@ function App() {
         const inserted = addLocalInboxHistoryItem(item);
         if (inserted.added) recoveredCount += 1;
       }
-      const skippedCount = Math.max(0, listData.results.filter(isRecoverableOutboxImageResult).length - recoveredCount);
+      const recoverableCount =
+        directionSplitCandidates.length +
+        listData.results.filter(isRecoverableOutboxImageResult).filter((result) => !isOutboxResultAlreadyImported(result)).length;
+      const skippedCount = Math.max(0, recoverableCount - recoveredCount);
       setStatus(
         recoveredCount > 0
-          ? `Recovered ${recoveredCount} outbox result${recoveredCount === 1 ? "" : "s"}. ${skippedCount} already imported or not recoverable.`
+          ? `Recovered ${recoveredCount} outbox result${recoveredCount === 1 ? "" : "s"}. ${skippedCount} already imported or not recoverable.${recoveredDirectionSplitCount > 0 ? " direction-split manifest ok." : ""}`
           : "Recover Results complete: no new formal outbox images were found."
       );
       await runCockpitHealthCheck({ quiet: true });
@@ -5093,18 +5210,82 @@ function App() {
     setStatus(`${copy.statusAnimationGenerated}: ${item.name}. ${formatFramesAddedStatus(newFrames.length, actionName, language)}`);
   }
 
+  function manifestChromaKeyName(manifest: DirectionSplitAnimationManifest | null, fallback: AnimationChromaKeyName) {
+    const raw = typeof manifest?.chromaKey === "string" ? manifest.chromaKey : manifest?.chromaKey?.name;
+    return raw === "green" || raw === "magenta" ? raw : fallback;
+  }
+
+  function manifestActionName(manifest: DirectionSplitAnimationManifest | null) {
+    const action = manifest?.action;
+    return action && actions.some((item) => item.name === action) ? action : activeAction.name;
+  }
+
+  function directionSplitImportContextFromArtifact(
+    artifact: ReadyDirectionSplitArtifact,
+    manifest: DirectionSplitAnimationManifest | null
+  ): DirectionSplitImportContext {
+    return {
+      id: artifact.jobId,
+      actionName: manifestActionName(manifest),
+      cell: manifest?.cell ?? STANDARD_ANIMATION_CELL,
+      chromaKey: manifestChromaKeyName(manifest, animationChromaKey)
+    };
+  }
+
+  function directionSplitRecoveryJobFromArtifact(
+    artifact: ReadyDirectionSplitArtifact,
+    manifest: DirectionSplitAnimationManifest | null
+  ): CodexJobQueueItem {
+    const context = directionSplitImportContextFromArtifact(artifact, manifest);
+    return {
+      id: context.id,
+      state: "running",
+      label: "Direction split recovery",
+      createdAt: artifact.modifiedAt,
+      workflowMode: "sprite-generate",
+      spriteVariant: "standard",
+      actionName: context.actionName,
+      cell: context.cell,
+      chromaKey: context.chromaKey,
+      sourceImageId: context.sourceImageId,
+      sourceImageName: context.sourceImageName
+    };
+  }
+
+  async function importReadyDirectionSplitArtifact(artifact: ReadyDirectionSplitArtifact) {
+    let manifest: DirectionSplitAnimationManifest | null = null;
+    try {
+      manifest = parseDirectionSplitAnimationManifest(await fetchOutboxResult(artifact.manifestResult.name));
+      const selection = selectDirectionSplitAnimationResults(artifact.jobResults, artifact.jobId, manifest);
+      if (!selection.ready || selection.directionResults.length !== DIRECTION_SPLIT_ANIMATION_RESULT_COUNT) {
+        const missing = selection.missingDirections.join(", ") || "direction images";
+        throw new Error(`Direction split import failed for ${artifact.jobId}: missing ${missing}. Outbox files are still available.`);
+      }
+      const importedResults = await Promise.all(selection.directionResults.map((result) => fetchOutboxResult(result.name)));
+      return await importDirectionSplitAnimationResults(
+        importedResults,
+        manifest,
+        directionSplitImportContextFromArtifact(artifact, manifest),
+        artifact.manifestResult.name
+      );
+    } catch (error) {
+      recordCodexImportFailure(directionSplitRecoveryJobFromArtifact(artifact, manifest), error);
+      throw error;
+    }
+  }
+
   async function importDirectionSplitAnimationResults(
     importedResults: CodexOutboxImportResponse[],
     manifest: DirectionSplitAnimationManifest | null,
-    pendingJob: CodexJobQueueItem,
+    importContext: DirectionSplitImportContext,
     manifestName = ""
   ) {
-    const actionName = pendingJob.actionName ?? activeAction.name;
-    const spriteCell = pendingJob.cell ?? STANDARD_ANIMATION_CELL;
-    const chromaKey = animationChromaKeys[pendingJob.chromaKey ?? animationChromaKey];
+    const actionName = importContext.actionName ?? manifestActionName(manifest);
+    const spriteCell = importContext.cell ?? manifest?.cell ?? STANDARD_ANIMATION_CELL;
+    const chromaKey = animationChromaKeys[importContext.chromaKey ?? manifestChromaKeyName(manifest, animationChromaKey)];
     const composed = await composeDirectionSplitAnimationSheet(importedResults, chromaKey, spriteCell);
     const image = await loadImage(composed.dataUrl);
-    const itemName = `${pendingJob.id}-direction-split-animation-sheet.png`;
+    const itemName = `${importContext.id}-direction-split-animation-sheet.png`;
     const item: HistoryItem = {
       id: createId("hist"),
       name: itemName,
@@ -5116,10 +5297,10 @@ function App() {
       createdAt: new Date().toISOString(),
       adopted: false,
       source: "generate",
-      derivedFromId: pendingJob.sourceImageId,
-      derivedFromName: pendingJob.sourceImageName,
+      derivedFromId: importContext.sourceImageId,
+      derivedFromName: importContext.sourceImageName,
       outboxImportKey: buildOutboxImportKey("direction-split", {
-        jobId: pendingJob.id,
+        jobId: importContext.id,
         filenames: importedResults.map((result) => result.name),
         manifestName
       })
@@ -5129,7 +5310,7 @@ function App() {
       setSelectedId(duplicate.item.id);
       setSelectedFrameId("");
       setStatus(`${copy.statusInboxImported}: ${item.name} (already imported)`);
-      return;
+      return { added: false, item: duplicate.item, frameCount: 0 };
     }
     const newFrames = await splitImageIntoFrames(composed.dataUrl, itemName.replace(/\.[^.]+$/, ""), ANIMATION_SHEET_GRID, item.id, spriteCell);
     if (newFrames.length === 0) throw new Error("Returned direction split animation could not be split into frames.");
@@ -5152,6 +5333,7 @@ function App() {
     const manifestSuffix = manifest?.schema === DIRECTION_SPLIT_ANIMATION_SCHEMA ? " direction-split manifest ok." : "";
     const warningSuffix = composed.warnings.length > 0 ? ` QA warnings: ${composed.warnings.length}.` : "";
     setStatus(`${copy.statusAnimationGenerated}: ${item.name}. ${formatFramesAddedStatus(newFrames.length, actionName, language)}${manifestSuffix}${warningSuffix}`);
+    return { added: true, item, frameCount: newFrames.length };
   }
 
   async function importDirectionSplitBronzeCandidate(
@@ -5322,7 +5504,22 @@ function App() {
         return true;
       }
 
-      const latest = jobResults.find(isStaticImageResult);
+      if (!pendingJob) {
+        const directionSplitArtifact = findLatestReadyDirectionSplitArtifact(jobResults);
+        if (directionSplitArtifact) {
+          const imported = findImportedDirectionSplitArtifact(directionSplitArtifact);
+          if (imported) {
+            setSelectedId(imported.id);
+            setSelectedFrameId("");
+            setStatus(`${copy.statusInboxImported}: ${imported.name} (already imported)`);
+            return true;
+          }
+          await importReadyDirectionSplitArtifact(directionSplitArtifact);
+          return true;
+        }
+      }
+
+      const latest = jobResults.find(isGenericStaticImageResult);
       if (!latest) {
         if (!options.quietEmpty) setStatus(`${copy.statusInboxEmpty}: ${listData.outboxPath}`);
         return false;

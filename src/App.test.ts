@@ -3,6 +3,9 @@ import {
   annotationImageCoordinates,
   buildOutboxImportKey,
   buildImageCockpitEnvironmentReport,
+  directionSplitJobIdFromOutboxResultName,
+  findLatestReadyDirectionSplitArtifact,
+  findReadyDirectionSplitArtifacts,
   fingerprintOutboxResults,
   getNextHistoryRenderLimit,
   getVisibleHistoryCount,
@@ -11,7 +14,9 @@ import {
   INITIAL_HISTORY_RENDER_COUNT,
   isCharacterGreenPixel,
   isDirectionSplitAnimationManifestName,
+  isDirectionSplitComponentOutboxName,
   isFrameChromaResiduePixel,
+  isGenericStaticImageResult,
   isOutboxResultForJob,
   isLikelyFrameGarbageComponent,
   resolveInitialLanguage,
@@ -543,6 +548,17 @@ describe("Codex outbox job result matching", () => {
     expect(selection.directionResults.map((result) => result.name)).toEqual(directionNames);
   });
 
+  it("does not treat direction split raw direction files as generic static image imports", () => {
+    const jobId = "codex-job-2026-06-27T02-11-47-290Z";
+
+    expect(directionSplitJobIdFromOutboxResultName(`${jobId}-front.png`)).toBe(jobId);
+    expect(directionSplitJobIdFromOutboxResultName(`${jobId}-manifest.json`)).toBe(jobId);
+    expect(isDirectionSplitComponentOutboxName(`${jobId}-front.png`)).toBe(true);
+    expect(isDirectionSplitComponentOutboxName(`${jobId}-manifest.json`)).toBe(false);
+    expect(isGenericStaticImageResult(makeOutboxResult(`${jobId}-front.png`))).toBe(false);
+    expect(isGenericStaticImageResult(makeOutboxResult(`${jobId}-final-sheet.png`))).toBe(true);
+  });
+
   it("requires the direction split manifest plus all five direction images before import is ready", () => {
     const jobId = "codex-job-2026-06-25T13-01-42-060Z";
     const results = [
@@ -622,6 +638,51 @@ describe("Codex outbox job result matching", () => {
 
     expect(selection.waitingForVerifiedArtifacts).toBe(false);
     expect(selection.ready).toBe(true);
+  });
+
+  it("finds ready direction split artifacts without a pending job", () => {
+    const olderJobId = "codex-job-2026-06-27T01-11-47-290Z";
+    const newerJobId = "codex-job-2026-06-27T02-11-47-290Z";
+    const readyArtifact = makeDirectionSplitArtifact(newerJobId, {
+      ready: true,
+      verified: true,
+      quality: "gold",
+      reason: "server verified"
+    });
+    const waitingArtifact = makeDirectionSplitArtifact(olderJobId, {
+      ready: false,
+      verified: false,
+      quality: "waiting",
+      reason: "missing side",
+      missingDirections: ["side"]
+    });
+    const readyResults = [
+      makeOutboxResult(`${newerJobId}-manifest.json`, "application/json", readyArtifact),
+      makeOutboxResult(`${newerJobId}-front.png`, "image/png", readyArtifact),
+      makeOutboxResult(`${newerJobId}-front-three-quarter.png`, "image/png", readyArtifact),
+      makeOutboxResult(`${newerJobId}-side.png`, "image/png", readyArtifact),
+      makeOutboxResult(`${newerJobId}-back-three-quarter.png`, "image/png", readyArtifact),
+      makeOutboxResult(`${newerJobId}-back.png`, "image/png", readyArtifact)
+    ];
+    const waitingResults = [
+      makeOutboxResult(`${olderJobId}-manifest.json`, "application/json", waitingArtifact),
+      makeOutboxResult(`${olderJobId}-front.png`, "image/png", waitingArtifact),
+      makeOutboxResult(`${olderJobId}-front-three-quarter.png`, "image/png", waitingArtifact)
+    ];
+
+    const artifacts = findReadyDirectionSplitArtifacts([...waitingResults, ...readyResults]);
+    const latest = findLatestReadyDirectionSplitArtifact([...waitingResults, ...readyResults]);
+
+    expect(artifacts).toHaveLength(1);
+    expect(latest?.jobId).toBe(newerJobId);
+    expect(latest?.manifestResult.name).toBe(`${newerJobId}-manifest.json`);
+    expect(latest?.directionResults.map((result) => result.name)).toEqual([
+      `${newerJobId}-front.png`,
+      `${newerJobId}-front-three-quarter.png`,
+      `${newerJobId}-side.png`,
+      `${newerJobId}-back-three-quarter.png`,
+      `${newerJobId}-back.png`
+    ]);
   });
 });
 
