@@ -1,0 +1,19 @@
+{
+  "createdAt": "2026-06-27T19:06:03.964Z",
+  "sourceImage": "monster-baby-dragon.png",
+  "note": "Raw runner handoff/log folders were omitted from the committed QA artifact. Selected manifests, raw PNGs, GIFs, blocked sidecars, alpha QA, and browser evidence are copied into this directory.",
+  "records": [
+    {
+      "label": "direct-transparent-d-color-preserve",
+      "jobId": "codex-job-2026-06-27T19-02-13-046Z",
+      "backgroundMode": "direct-transparent",
+      "prompt": "Direct transparent experiment variant D: use the uploaded source character image to create five separate direction PNG files for an idle-breathing 4x2 animation set. Preserve the full-color pixel art appearance, facial features, original color palette, outfit or body markings, equipment, weapons, props, outlines, and shading from the source image; do not turn the character into a black silhouette, shadow, mask, monochrome cutout, or flat color stamp. Use real alpha transparency outside each character only: transparent alpha 0 background, no checkerboard, no green screen, no white/black/gray backdrop, no scenery, no floor, no shadow, no text, no labels, no UI.",
+      "jobNotes": "Direct transparent variant D checks whether native alpha can preserve full-color sprite detail. Silhouette or mask-like output should not be accepted as production-quality direct transparent output.",
+      "runnerState": "completed",
+      "exitCode": 0,
+      "resultNames": [],
+      "manifestName": null,
+      "qaStatus": "blocked"
+    }
+  ]
+}

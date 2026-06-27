@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang='en'>
+<head>
+  <meta charset='utf-8'>
+  <meta name='viewport' content='width=device-width, initial-scale=1'>
+  <title>Direct Transparent D Additional Character QA</title>
+  <style>
+    :root { font-family: Inter, Segoe UI, sans-serif; color: #16202a; background: #f6f7f9; }
+    body { margin: 0; padding: 24px; }
+    main { max-width: 1280px; margin: 0 auto; }
+    table { border-collapse: collapse; width: 100%; background: white; margin: 16px 0 28px; }
+    th, td { border: 1px solid #d9dee7; padding: 8px; text-align: left; vertical-align: top; }
+    th { background: #eef2f7; }
+    section { margin: 28px 0 40px; }
+    .source { width: 160px; height: 160px; object-fit: contain; background: #111; border: 1px solid #cfd6e2; margin-bottom: 12px; }
+    .sheet { display: block; max-width: 100%; border: 1px solid #cfd6e2; background: repeating-conic-gradient(#d8dde6 0% 25%, #fff 0% 50%) 50% / 24px 24px; }
+    .gif-table img { width: 112px; height: 112px; object-fit: contain; background: repeating-conic-gradient(#d8dde6 0% 25%, #fff 0% 50%) 50% / 16px 16px; }
+    pre { white-space: pre-wrap; background: #17202a; color: #f6f7f9; padding: 12px; overflow: auto; }
+  </style>
+</head>
+<body>
+<main>
+  <h1>Direct Transparent D Additional Character QA</h1>
+  <p>D prompt was tested on three additional source characters. Blocked rows mean the runner refused to accept opaque RGB/checkerboard output as direct transparent success.</p>
+  <table><thead><tr><th>Character</th><th>Job ID</th><th>Status</th><th>Near transparent ratio</th><th>Edge opaque ratio</th></tr></thead><tbody><tr><td>Basic Young Male Hero</td><td>codex-job-2026-06-27T18-48-08-090Z</td><td>blocked</td><td>---</td><td>---</td></tr><tr><td>Profession Young Female Ninja</td><td>codex-job-2026-06-27T18-51-29-686Z</td><td>alpha-pass</td><td>0.7469-0.8196</td><td>0.0374-0.0518</td></tr><tr><td>Monster Baby Dragon</td><td>codex-job-2026-06-27T19-02-13-046Z</td><td>blocked</td><td>---</td><td>---</td></tr></tbody></table>
+  <section><h2>Basic Young Male Hero</h2><img class='source' src='basic-young-male-hero/basic-young-male-hero.png' alt='Basic Young Male Hero source'><pre>{
+  &quot;status&quot;: &quot;blocked&quot;,
+  &quot;reasonKind&quot;: &quot;unknown&quot;,
+  &quot;userMessage&quot;: &quot;Built-in image generation produced an RGB image with a drawn transparency preview instead of native alpha, so the direct-transparent sprite contract could not be satisfied.&quot;,
+  &quot;suggestion&quot;: &quot;Retry with an image generation path that supports true alpha output, or explicitly allow chroma-key generation plus local alpha removal.&quot;
+}</pre></section><section><h2>Profession Young Female Ninja</h2><img class='source' src='profession-young-female-ninja/profession-young-female-ninja.png' alt='Profession Young Female Ninja source'><img class='sheet' src='profession-young-female-ninja/composed-sheet.png' alt='Profession Young Female Ninja D sheet'><table class='gif-table'><thead><tr><th>front</th><th>front three-quarter</th><th>side</th><th>back three-quarter</th><th>back</th></tr></thead><tbody><tr><td><img src='profession-young-female-ninja/gifs/front.gif' alt='front'></td><td><img src='profession-young-female-ninja/gifs/front-three-quarter.gif' alt='front three-quarter'></td><td><img src='profession-young-female-ninja/gifs/side.gif' alt='side'></td><td><img src='profession-young-female-ninja/gifs/back-three-quarter.gif' alt='back three-quarter'></td><td><img src='profession-young-female-ninja/gifs/back.gif' alt='back'></td></tr></tbody></table></section><section><h2>Monster Baby Dragon</h2><img class='source' src='monster-baby-dragon/monster-baby-dragon.png' alt='Monster Baby Dragon source'><pre>{
+  &quot;status&quot;: &quot;blocked&quot;,
+  &quot;reasonKind&quot;: &quot;unknown&quot;,
+  &quot;userMessage&quot;: &quot;The available built-in image generation path produced opaque RGB PNGs instead of direct transparent alpha sprites, so the direct-transparent contract could not be satisfied.&quot;,
+  &quot;suggestion&quot;: &quot;Retry with a generator path that supports native transparent PNG alpha for sprite sheets, or change the job to allow an explicit chroma-key/background-removal workflow.&quot;
+}</pre></section>
+</main>
+</body>
+</html>

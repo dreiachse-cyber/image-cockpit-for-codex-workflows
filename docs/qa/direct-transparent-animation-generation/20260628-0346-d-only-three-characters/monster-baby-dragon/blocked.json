@@ -1,0 +1,6 @@
+﻿{
+    "status":  "blocked",
+    "reasonKind":  "unknown",
+    "userMessage":  "The available built-in image generation path produced opaque RGB PNGs instead of direct transparent alpha sprites, so the direct-transparent contract could not be satisfied.",
+    "suggestion":  "Retry with a generator path that supports native transparent PNG alpha for sprite sheets, or change the job to allow an explicit chroma-key/background-removal workflow."
+}

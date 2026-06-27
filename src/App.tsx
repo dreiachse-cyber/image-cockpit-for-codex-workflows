@@ -8520,7 +8520,7 @@ function buildAnimationCodexPrompt({
 }) {
   const motion = motionPrompt.trim() || actionName;
   const backgroundLine = backgroundMode === "direct-transparent"
-    ? "Create every returned direction image as a transparent PNG with a real alpha channel. The canvas outside the character is empty transparent alpha. Each frame contains only the character sprite, with no drawn background, no preview pattern, no guide grid, no floor, and no backdrop. If true alpha output is unavailable, do not silently use a chroma-key or opaque background as a successful result."
+    ? "Create every returned direction image as a transparent PNG with a real alpha channel. The canvas outside the character is empty transparent alpha. Each frame contains only the character sprite, with no drawn background, no preview pattern, no guide grid, no floor, and no backdrop. Preserve the full-color pixel art appearance, facial features, original palette, outfit or body markings, equipment, props, outlines, and shading from the source image; do not turn the character into a black silhouette, shadow, mask, monochrome cutout, or flat color stamp. If true alpha output is unavailable, do not silently use a chroma-key or opaque background as a successful result."
     : `Prefer a transparent background in every cell. If true transparency is not available during generation, use a flat ${chromaKey.label} background (${chromaKey.hex}) in every cell; do not use black, white, gradients, scenery, shadows, UI, text, logos, watermarks, letters, or numbers.`;
   const guideLine = backgroundMode === "direct-transparent"
     ? "Do not add guide grids, labels, UI borders, preview patterns, or background swatches to direct transparent output."
@@ -8566,6 +8566,7 @@ function buildAnimationCodexNotes({
     ? [
         "Animation sprite workflow: generate five source-image-driven direction images through Codex imagegen / built-in image_gen as direct transparent PNGs. Image Cockpit will not run chroma-key removal on direct transparent output; it will only validate alpha, slice cells, normalize the character, and compose the final sheet.",
         "Direct transparent contract: the canvas outside each character must be real alpha 0, with no drawn background, no preview pattern, no guide grid, no floor, no opaque white/black/green/magenta field, and no background swatch.",
+        "Visual preservation contract: preserve the full-color pixel art appearance, original palette, outfit or body markings, equipment, props, outlines, and shading; do not turn the character into a black silhouette, shadow, mask, monochrome cutout, or flat color stamp.",
         "If direct transparent generation fails, do not silently fallback to a successful chroma-key result. Mark the manifest alphaValidation as failed or return a blocked/needs-review sidecar so the app can surface the failure."
       ]
     : [

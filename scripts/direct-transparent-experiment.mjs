@@ -12,6 +12,7 @@ const outputRoot = resolve(
 );
 const handoffDir = join(outputRoot, "handoff");
 const sourceImagePath = resolve(process.env.IMAGE_COCKPIT_DIRECT_TRANSPARENT_SOURCE ?? "public/prompt-examples/forest-mage-idle.png");
+const jobFilter = parseJobFilter(process.env.IMAGE_COCKPIT_DIRECT_TRANSPARENT_JOB_FILTER);
 const port = Number(process.env.IMAGE_COCKPIT_DIRECT_TRANSPARENT_API_PORT ?? await getOpenPort());
 const server = startServer({ port, handoffDir });
 const jobs = [
@@ -19,7 +20,7 @@ const jobs = [
     label: "baseline-chroma-key",
     backgroundMode: "chroma-key",
     prompt:
-      "Baseline experiment: use the uploaded forest mage source image to create five separate direction PNG files for an idle-breathing 4x2 animation set. Use a perfectly flat #00ff00 chroma-key background in every cell, no drawn scenery, no shadows, no labels, no numbers, no UI.",
+      "Baseline experiment: use the uploaded source character image to create five separate direction PNG files for an idle-breathing 4x2 animation set. Use a perfectly flat #00ff00 chroma-key background in every cell, no drawn scenery, no shadows, no labels, no numbers, no UI.",
     jobNotes:
       "Baseline chroma-key run for Direct Transparent Animation Generation experiment. Return five direction PNG files and a manifest. Keep background flat green for postprocessing."
   },
@@ -27,7 +28,7 @@ const jobs = [
     label: "direct-transparent-a-empty-alpha",
     backgroundMode: "direct-transparent",
     prompt:
-      "Direct transparent experiment variant A: use the uploaded forest mage source image to create five separate direction PNG files for an idle-breathing 4x2 animation set. Create real transparent PNG output with an alpha channel; the canvas outside the character is empty alpha 0. Each frame contains only the character sprite, no drawn background, no preview pattern, no guide grid, no floor, no backdrop, no labels, no numbers, no UI.",
+      "Direct transparent experiment variant A: use the uploaded source character image to create five separate direction PNG files for an idle-breathing 4x2 animation set. Create real transparent PNG output with an alpha channel; the canvas outside the character is empty alpha 0. Each frame contains only the character sprite, no drawn background, no preview pattern, no guide grid, no floor, no backdrop, no labels, no numbers, no UI.",
     jobNotes:
       "Direct transparent variant A. Do not silently fallback to chroma key. If alpha output cannot be produced, return a blocked or failed alphaValidation sidecar/manifest instead of a fake success."
   },
@@ -35,7 +36,7 @@ const jobs = [
     label: "direct-transparent-b-no-checkerboard",
     backgroundMode: "direct-transparent",
     prompt:
-      "Direct transparent experiment variant B: use the uploaded forest mage source image to create five separate direction PNG files for an idle-breathing 4x2 animation set as game-ready transparent PNGs. Use real alpha transparency outside each character. Do not draw a checkerboard, UI preview background, grid, floor, solid color backdrop, white background, black background, green screen, text, labels, or numbers.",
+      "Direct transparent experiment variant B: use the uploaded source character image to create five separate direction PNG files for an idle-breathing 4x2 animation set as game-ready transparent PNGs. Use real alpha transparency outside each character. Do not draw a checkerboard, UI preview background, grid, floor, solid color backdrop, white background, black background, green screen, text, labels, or numbers.",
     jobNotes:
       "Direct transparent variant B explicitly negates checkerboard/preview-background language. Do not treat chroma-key or opaque output as successful direct transparent output."
   },
@@ -43,7 +44,7 @@ const jobs = [
     label: "direct-transparent-c-alpha-contract",
     backgroundMode: "direct-transparent",
     prompt:
-      "Direct transparent experiment variant C: use the uploaded forest mage source image to create five separate direction PNG files for an idle-breathing 4x2 animation set. The final PNG files must have a real alpha channel: every pixel outside the character silhouette is alpha 0 transparent, not white, black, green, checkerboard, gray, scenery, floor, shadow, or a preview pattern. Preserve the character body, face, clothes, staff, and silhouette without internal transparent holes. No labels, no numbers, no UI.",
+      "Direct transparent experiment variant C: use the uploaded source character image to create five separate direction PNG files for an idle-breathing 4x2 animation set. The final PNG files must have a real alpha channel: every pixel outside the character silhouette is alpha 0 transparent, not white, black, green, checkerboard, gray, scenery, floor, shadow, or a preview pattern. Preserve the character body, face, clothes, equipment, props, and silhouette without internal transparent holes. No labels, no numbers, no UI.",
     jobNotes:
       "Direct transparent variant C restates the alpha contract and body-integrity requirement. Do not silently fallback to chroma key or opaque-background output."
   },
@@ -51,7 +52,7 @@ const jobs = [
     label: "direct-transparent-d-color-preserve",
     backgroundMode: "direct-transparent",
     prompt:
-      "Direct transparent experiment variant D: use the uploaded forest mage source image to create five separate direction PNG files for an idle-breathing 4x2 animation set. Preserve the full-color pixel art appearance, facial features, green cloak, brown boots, wooden staff, glowing crystal, outlines, and shading from the source image; do not turn the character into a black silhouette or mask. Use real alpha transparency outside each character only: transparent alpha 0 background, no checkerboard, no green screen, no white/black/gray backdrop, no scenery, no floor, no shadow, no text, no labels, no UI.",
+      "Direct transparent experiment variant D: use the uploaded source character image to create five separate direction PNG files for an idle-breathing 4x2 animation set. Preserve the full-color pixel art appearance, facial features, original color palette, outfit or body markings, equipment, weapons, props, outlines, and shading from the source image; do not turn the character into a black silhouette, shadow, mask, monochrome cutout, or flat color stamp. Use real alpha transparency outside each character only: transparent alpha 0 background, no checkerboard, no green screen, no white/black/gray backdrop, no scenery, no floor, no shadow, no text, no labels, no UI.",
     jobNotes:
       "Direct transparent variant D checks whether native alpha can preserve full-color sprite detail. Silhouette or mask-like output should not be accepted as production-quality direct transparent output."
   }
@@ -69,7 +70,9 @@ try {
   const selectedImageDataUrl = await imageDataUrl(sourceImagePath);
   const records = await readExistingRecords();
   const completedLabels = new Set(records.map((record) => record.label));
-  for (const jobSpec of jobs) {
+  const selectedJobs = jobs.filter((jobSpec) => jobFilter.size === 0 || jobFilter.has(jobSpec.label));
+  assert(selectedJobs.length > 0, `No experiment jobs matched filter: ${Array.from(jobFilter).join(", ")}`);
+  for (const jobSpec of selectedJobs) {
     if (completedLabels.has(jobSpec.label)) {
       console.log(`Skipping existing experiment record: ${jobSpec.label}`);
       continue;
@@ -283,4 +286,9 @@ function timestampSlug() {
     pad(date.getMinutes()),
     pad(date.getSeconds())
   ].join("");
+}
+
+function parseJobFilter(value) {
+  if (!value?.trim()) return new Set();
+  return new Set(value.split(",").map((item) => item.trim()).filter(Boolean));
 }

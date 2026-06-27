@@ -1,0 +1,6 @@
+﻿{
+    "status":  "blocked",
+    "reasonKind":  "unknown",
+    "userMessage":  "Built-in image generation produced an RGB image with a drawn transparency preview instead of native alpha, so the direct-transparent sprite contract could not be satisfied.",
+    "suggestion":  "Retry with an image generation path that supports true alpha output, or explicitly allow chroma-key generation plus local alpha removal."
+}

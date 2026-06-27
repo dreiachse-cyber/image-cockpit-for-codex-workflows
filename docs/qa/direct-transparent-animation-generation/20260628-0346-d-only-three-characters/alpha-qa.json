@@ -1,0 +1,146 @@
+{
+  "createdAt": "2026-06-28T04:10:00+09:00",
+  "variant": "direct-transparent-d-color-preserve",
+  "characters": [
+    {
+      "slug": "basic-young-male-hero",
+      "title": "Basic Young Male Hero",
+      "sourceImage": "basic-young-male-hero/basic-young-male-hero.png",
+      "jobId": "codex-job-2026-06-27T18-48-08-090Z",
+      "backgroundMode": "direct-transparent",
+      "runnerState": "completed",
+      "resultNames": [],
+      "status": "blocked",
+      "blocked": {
+        "status": "blocked",
+        "reasonKind": "unknown",
+        "userMessage": "Built-in image generation produced an RGB image with a drawn transparency preview instead of native alpha, so the direct-transparent sprite contract could not be satisfied.",
+        "suggestion": "Retry with an image generation path that supports true alpha output, or explicitly allow chroma-key generation plus local alpha removal."
+      }
+    },
+    {
+      "slug": "profession-young-female-ninja",
+      "title": "Profession Young Female Ninja",
+      "sourceImage": "profession-young-female-ninja/profession-young-female-ninja.png",
+      "jobId": "codex-job-2026-06-27T18-51-29-686Z",
+      "backgroundMode": "direct-transparent",
+      "runnerState": "completed",
+      "resultNames": [
+        "codex-job-2026-06-27T18-51-29-686Z-manifest.json",
+        "codex-job-2026-06-27T18-51-29-686Z-back.png",
+        "codex-job-2026-06-27T18-51-29-686Z-back-three-quarter.png",
+        "codex-job-2026-06-27T18-51-29-686Z-side.png",
+        "codex-job-2026-06-27T18-51-29-686Z-front-three-quarter.png",
+        "codex-job-2026-06-27T18-51-29-686Z-front.png"
+      ],
+      "status": "alpha-pass",
+      "directions": [
+        {
+          "direction": "front",
+          "mode": "RGBA",
+          "size": [
+            1024,
+            512
+          ],
+          "alphaExtrema": [
+            0,
+            255
+          ],
+          "nearTransparentPixelRatio": 0.7469,
+          "opaquePixelRatio": 0.2299,
+          "edgeOpaqueRatio": 0.0518,
+          "passed": true
+        },
+        {
+          "direction": "front three-quarter",
+          "mode": "RGBA",
+          "size": [
+            1024,
+            512
+          ],
+          "alphaExtrema": [
+            0,
+            255
+          ],
+          "nearTransparentPixelRatio": 0.7486,
+          "opaquePixelRatio": 0.2297,
+          "edgeOpaqueRatio": 0.0511,
+          "passed": true
+        },
+        {
+          "direction": "side",
+          "mode": "RGBA",
+          "size": [
+            1024,
+            512
+          ],
+          "alphaExtrema": [
+            0,
+            255
+          ],
+          "nearTransparentPixelRatio": 0.8196,
+          "opaquePixelRatio": 0.1645,
+          "edgeOpaqueRatio": 0.0416,
+          "passed": true
+        },
+        {
+          "direction": "back three-quarter",
+          "mode": "RGBA",
+          "size": [
+            1024,
+            512
+          ],
+          "alphaExtrema": [
+            0,
+            255
+          ],
+          "nearTransparentPixelRatio": 0.7548,
+          "opaquePixelRatio": 0.224,
+          "edgeOpaqueRatio": 0.0437,
+          "passed": true
+        },
+        {
+          "direction": "back",
+          "mode": "RGBA",
+          "size": [
+            1024,
+            512
+          ],
+          "alphaExtrema": [
+            0,
+            255
+          ],
+          "nearTransparentPixelRatio": 0.7717,
+          "opaquePixelRatio": 0.2081,
+          "edgeOpaqueRatio": 0.0374,
+          "passed": true
+        }
+      ],
+      "nearTransparentRange": [
+        0.7469,
+        0.8196
+      ],
+      "edgeOpaqueRange": [
+        0.0374,
+        0.0518
+      ],
+      "composedSheet": "profession-young-female-ninja/composed-sheet.png"
+    },
+    {
+      "slug": "monster-baby-dragon",
+      "title": "Monster Baby Dragon",
+      "sourceImage": "monster-baby-dragon/monster-baby-dragon.png",
+      "jobId": "codex-job-2026-06-27T19-02-13-046Z",
+      "backgroundMode": "direct-transparent",
+      "runnerState": "completed",
+      "resultNames": [],
+      "status": "blocked",
+      "blocked": {
+        "status": "blocked",
+        "reasonKind": "unknown",
+        "userMessage": "The available built-in image generation path produced opaque RGB PNGs instead of direct transparent alpha sprites, so the direct-transparent contract could not be satisfied.",
+        "suggestion": "Retry with a generator path that supports native transparent PNG alpha for sprite sheets, or change the job to allow an explicit chroma-key/background-removal workflow."
+      }
+    }
+  ]
+}
