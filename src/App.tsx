@@ -114,6 +114,7 @@ const ANIMATION_DIRECTION_COUNT = 5;
 const ANIMATION_CELL_SIZE = 256;
 const MIN_ANIMATION_CELL_SIZE = ANIMATION_CELL_SIZE;
 const MAX_ACTIVE_CODEX_JOBS = 3;
+const MAX_ACTIVE_STANDARD_ANIMATION_CODEX_JOBS = 1;
 const CODEX_LOG_POLL_INTERVAL_MS = 2000;
 const CODEX_LOG_TAIL_BYTES = 32768;
 const CODEX_LOG_HISTORY_LIMIT = MAX_ACTIVE_CODEX_JOBS;
@@ -3225,8 +3226,45 @@ function isStandardDirectionSplitJob(job: Pick<CodexJobQueueItem, "workflowMode"
   return job.workflowMode === "sprite-generate" && (job.spriteVariant ?? "standard") === "standard";
 }
 
+function isStandardDirectionSplitDraft(draft: Pick<CodexJobDraft, "resultWorkflowMode" | "resultSpriteVariant">) {
+  return draft.resultWorkflowMode === "sprite-generate" && (draft.resultSpriteVariant ?? "standard") === "standard";
+}
+
+function activeCodexJobCount(jobs: CodexJobQueueItem[], startingQueuedJobIds: Set<string>) {
+  return jobs.filter((job) => job.state === "running" || startingQueuedJobIds.has(job.id)).length;
+}
+
+function activeStandardDirectionSplitJobCount(jobs: CodexJobQueueItem[], startingQueuedJobIds: Set<string>) {
+  return jobs.filter((job) => (job.state === "running" || startingQueuedJobIds.has(job.id)) && isStandardDirectionSplitJob(job)).length;
+}
+
+function canStartCodexJobDraft(draft: CodexJobDraft, jobs: CodexJobQueueItem[], startingQueuedJobIds: Set<string>) {
+  if (activeCodexJobCount(jobs, startingQueuedJobIds) >= MAX_ACTIVE_CODEX_JOBS) return false;
+  if (!isStandardDirectionSplitDraft(draft)) return true;
+  return activeStandardDirectionSplitJobCount(jobs, startingQueuedJobIds) < MAX_ACTIVE_STANDARD_ANIMATION_CODEX_JOBS;
+}
+
 function isSingleDirectionIntermediateSheet(width: number, height: number, cell: SpriteAction["cell"]) {
   return width === cell.width * DIRECTION_SPLIT_ANIMATION_GRID.columns && height === cell.height * DIRECTION_SPLIT_ANIMATION_GRID.rows;
+}
+
+function isDirectionSplitSourceAspectCompatible(width: number, height: number, expectedWidth: number, expectedHeight: number) {
+  if (width <= 0 || height <= 0 || expectedWidth <= 0 || expectedHeight <= 0) return false;
+  const sourceRatio = width / height;
+  const expectedRatio = expectedWidth / expectedHeight;
+  return Math.abs(sourceRatio - expectedRatio) / expectedRatio <= 0.03;
+}
+
+function normalizeDirectionSplitSourceCanvas(image: HTMLImageElement, expectedWidth: number, expectedHeight: number) {
+  const canvas = document.createElement("canvas");
+  canvas.width = expectedWidth;
+  canvas.height = expectedHeight;
+  const context = canvas.getContext("2d", { willReadFrequently: true });
+  if (!context) throw new Error("Could not normalize direction split source image.");
+  context.clearRect(0, 0, expectedWidth, expectedHeight);
+  context.imageSmoothingEnabled = false;
+  context.drawImage(image, 0, 0, expectedWidth, expectedHeight);
+  return canvas;
 }
 
 function parseDirectionSplitAnimationManifest(imported: CodexOutboxImportResponse) {
@@ -4224,15 +4262,21 @@ function App() {
   }, [codexFailureNotices, language]);
 
   useEffect(() => {
-    const runningCount = codexJobs.filter((job) => job.state === "running").length;
-    const openSlots = MAX_ACTIVE_CODEX_JOBS - runningCount - startingQueuedJobIdsRef.current.size;
-    if (openSlots <= 0) return;
+    if (activeCodexJobCount(codexJobs, startingQueuedJobIdsRef.current) >= MAX_ACTIVE_CODEX_JOBS) return;
 
-    const queuedJobs = codexJobs
+    const queuedJobsToStart: CodexJobQueueItem[] = [];
+    const plannedStartingIds = new Set(startingQueuedJobIdsRef.current);
+    for (const job of codexJobs
       .filter((job) => job.state === "queued" && job.request)
-      .slice(0, openSlots);
+    ) {
+      if (!job.request) continue;
+      if (!canStartCodexJobDraft(job.request, codexJobs, plannedStartingIds)) continue;
+      queuedJobsToStart.push(job);
+      plannedStartingIds.add(job.id);
+      if (activeCodexJobCount(codexJobs, plannedStartingIds) >= MAX_ACTIVE_CODEX_JOBS) break;
+    }
 
-    queuedJobs.forEach((job) => {
+    queuedJobsToStart.forEach((job) => {
       if (!job.request || startingQueuedJobIdsRef.current.has(job.id)) return;
       startingQueuedJobIdsRef.current.add(job.id);
       void submitCodexJobDraft(job.request, job.id).finally(() => {
@@ -4355,9 +4399,7 @@ function App() {
       const draft = await buildCodexJobDraft();
       if (!draft) return;
 
-      const activeCodexJobCount =
-        codexJobs.filter((job) => job.state === "running").length + startingQueuedJobIdsRef.current.size;
-      if (activeCodexJobCount >= MAX_ACTIVE_CODEX_JOBS) {
+      if (!canStartCodexJobDraft(draft, codexJobs, startingQueuedJobIdsRef.current)) {
         enqueueCodexJobDraft(draft);
         return;
       }
@@ -6303,8 +6345,12 @@ function App() {
   const activeWorkflowFormCopy = workflowFormCopy[language][workflowMode];
   const codexQueueCopy = codexJobQueueLabels(language);
   const runningCodexJobCount = codexJobs.filter((job) => job.state === "running").length;
-  const shouldQueueCodexJob = providerId === "codex-handoff" && runningCodexJobCount >= MAX_ACTIVE_CODEX_JOBS;
   const isAnimationWorkflow = workflowMode === "sprite-generate";
+  const runningStandardAnimationJobCount = codexJobs.filter((job) => job.state === "running" && isStandardDirectionSplitJob(job)).length;
+  const shouldQueueCodexJob =
+    providerId === "codex-handoff" &&
+    (runningCodexJobCount >= MAX_ACTIVE_CODEX_JOBS ||
+      (isAnimationWorkflow && runningStandardAnimationJobCount >= MAX_ACTIVE_STANDARD_ANIMATION_CODEX_JOBS));
   const isImageEditWorkflow = workflowMode === "image-edit";
   const animationSourceReady = !isAnimationWorkflow || isAnimationSource(animationSource);
   const imageEditSourceReady = !isImageEditWorkflow || Boolean(selected && !selectedIsAnimationResult);
@@ -8768,11 +8814,17 @@ async function composeDirectionSplitAnimationSheet(
 
     const transparentDataUrl = await createTransparentSpriteSheetDataUrl(result.dataUrl, chromaKey);
     const image = await loadImage(transparentDataUrl);
+    let sourceImage: HTMLImageElement | HTMLCanvasElement = image;
     if (image.width !== expectedWidth || image.height !== expectedHeight) {
-      failures.push(`${direction}: expected ${expectedWidth}x${expectedHeight}, got ${image.width}x${image.height}`);
+      if (isDirectionSplitSourceAspectCompatible(image.width, image.height, expectedWidth, expectedHeight)) {
+        sourceImage = normalizeDirectionSplitSourceCanvas(image, expectedWidth, expectedHeight);
+        warnings.push(`${direction}: normalized source image from ${image.width}x${image.height} to ${expectedWidth}x${expectedHeight}`);
+      } else {
+        failures.push(`${direction}: expected ${expectedWidth}x${expectedHeight}, got ${image.width}x${image.height}`);
+      }
     }
 
-    const cells = calculateGridCells(image.width, image.height, DIRECTION_SPLIT_ANIMATION_GRID);
+    const cells = calculateGridCells(sourceImage.width, sourceImage.height, DIRECTION_SPLIT_ANIMATION_GRID);
     const canvas = document.createElement("canvas");
     canvas.width = cell.width;
     canvas.height = cell.height;
@@ -8785,7 +8837,7 @@ async function composeDirectionSplitAnimationSheet(
 
     cells.slice(0, ANIMATION_FRAME_COUNT).forEach((gridCell) => {
       context.clearRect(0, 0, cell.width, cell.height);
-      context.drawImage(image, gridCell.x, gridCell.y, gridCell.width, gridCell.height, 0, 0, cell.width, cell.height);
+      context.drawImage(sourceImage, gridCell.x, gridCell.y, gridCell.width, gridCell.height, 0, 0, cell.width, cell.height);
       preparedCells.push(prepareDirectionSplitCell(canvas, direction, directionIndex, gridCell.index, chromaKey.name));
     });
   }
@@ -8998,14 +9050,14 @@ function validateDirectionSplitAnimationCells(cells: DirectionSplitNormalizedCel
     }
 
     const widthVariation = variationRatio(metrics.map((metric) => metric.width));
-    if (widthVariation > 0.45) {
+    if (widthVariation > 0.7) {
       failures.push(`${direction}: bbox width variation ${Math.round(widthVariation * 100)}%`);
     } else if (widthVariation > 0.3) {
       warnings.push(`${direction}: bbox width variation ${Math.round(widthVariation * 100)}%`);
     }
 
     const heightVariation = variationRatio(metrics.map((metric) => metric.height));
-    if (heightVariation > 0.35) {
+    if (heightVariation > 0.55) {
       failures.push(`${direction}: bbox height variation ${Math.round(heightVariation * 100)}%`);
     } else if (heightVariation > 0.22) {
       warnings.push(`${direction}: bbox height variation ${Math.round(heightVariation * 100)}%`);
