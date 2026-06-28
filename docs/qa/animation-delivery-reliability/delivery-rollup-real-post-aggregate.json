@@ -1,0 +1,53 @@
+{
+  "schema": "image-cockpit.animation-delivery-rollup.v1",
+  "createdAt": "2026-06-28T19:34:22.947Z",
+  "qaDir": "docs/qa/animation-delivery-reliability",
+  "runnerMode": "real",
+  "filters": {
+    "createdAtFrom": "2026-06-28T18:13:00.000Z"
+  },
+  "minRate": 0.9,
+  "minTrials": 10,
+  "gateStatus": "insufficient_trials",
+  "baselineCount": 3,
+  "totalTrials": 6,
+  "passedTrials": 6,
+  "failedTrials": 0,
+  "browserDeliveryRate": 1,
+  "falseSuccessCount": 0,
+  "stuckRunningCount": 0,
+  "baselines": [
+    {
+      "baselineDir": "docs/qa/animation-delivery-reliability/baseline-2026-06-28T17-57-43-118Z-real-idle-aggregate",
+      "createdAt": "2026-06-28T18:13:42.004Z",
+      "runnerMode": "real",
+      "totalTrials": 1,
+      "passedTrials": 1,
+      "browserDeliveryRate": 1,
+      "falseSuccessCount": 0,
+      "stuckRunningCount": 0
+    },
+    {
+      "baselineDir": "docs/qa/animation-delivery-reliability/baseline-2026-06-28T18-22-39-703Z-real-batch4-post-aggregate",
+      "createdAt": "2026-06-28T19:14:36.472Z",
+      "runnerMode": "real",
+      "totalTrials": 4,
+      "passedTrials": 4,
+      "browserDeliveryRate": 1,
+      "falseSuccessCount": 0,
+      "stuckRunningCount": 0
+    },
+    {
+      "baselineDir": "docs/qa/animation-delivery-reliability/baseline-2026-06-28T19-17-06-056Z-real-prompt-isolation",
+      "createdAt": "2026-06-28T19:33:55.824Z",
+      "runnerMode": "real",
+      "totalTrials": 1,
+      "passedTrials": 1,
+      "browserDeliveryRate": 1,
+      "falseSuccessCount": 0,
+      "stuckRunningCount": 0
+    }
+  ],
+  "failureClasses": [],
+  "failures": []
+}

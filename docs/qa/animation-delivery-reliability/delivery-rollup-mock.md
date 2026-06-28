@@ -1,10 +1,11 @@
 # Animation Delivery Rollup
 
-Created: 2026-06-28T18:14:10.987Z
+Created: 2026-06-28T19:34:22.938Z
 
 ## Gate
 
 - runnerMode: mock
+- filters.createdAtFrom: none
 - gateStatus: pass
 - minTrials: 1
 - minRate: 0.9

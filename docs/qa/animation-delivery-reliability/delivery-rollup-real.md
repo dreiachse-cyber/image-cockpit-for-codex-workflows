@@ -1,17 +1,18 @@
 # Animation Delivery Rollup
 
-Created: 2026-06-28T18:14:10.995Z
+Created: 2026-06-28T19:34:22.962Z
 
 ## Gate
 
 - runnerMode: real
-- gateStatus: insufficient_trials
+- filters.createdAtFrom: none
+- gateStatus: below_rate
 - minTrials: 10
 - minRate: 0.9
-- totalTrials: 6
-- passedTrials: 2
+- totalTrials: 11
+- passedTrials: 7
 - failedTrials: 4
-- browserDeliveryRate: 0.3333333333333333
+- browserDeliveryRate: 0.6363636363636364
 - falseSuccessCount: 0
 - stuckRunningCount: 0
 
@@ -21,6 +22,8 @@ Created: 2026-06-28T18:14:10.995Z
 - docs/qa/animation-delivery-reliability/baseline-2026-06-28T16-31-30-892Z-real-batch3: 0/3, rate=0
 - docs/qa/animation-delivery-reliability/baseline-2026-06-28T17-34-22-420Z-real-idle-profile: 0/1, rate=0
 - docs/qa/animation-delivery-reliability/baseline-2026-06-28T17-57-43-118Z-real-idle-aggregate: 1/1, rate=1
+- docs/qa/animation-delivery-reliability/baseline-2026-06-28T18-22-39-703Z-real-batch4-post-aggregate: 4/4, rate=1
+- docs/qa/animation-delivery-reliability/baseline-2026-06-28T19-17-06-056Z-real-prompt-isolation: 1/1, rate=1
 
 ## Failure Classes
 

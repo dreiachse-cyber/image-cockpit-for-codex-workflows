@@ -7,6 +7,7 @@ const minRate = Number(process.env.IMAGE_COCKPIT_ANIMATION_DELIVERY_ROLLUP_MIN_R
 const minTrials = Math.max(1, Number(process.env.IMAGE_COCKPIT_ANIMATION_DELIVERY_ROLLUP_MIN_TRIALS ?? (runnerMode === "real" ? "10" : "1")));
 const writeReports = process.env.IMAGE_COCKPIT_ANIMATION_DELIVERY_ROLLUP_WRITE !== "0";
 const outputPrefix = process.env.IMAGE_COCKPIT_ANIMATION_DELIVERY_ROLLUP_OUTPUT_PREFIX || `delivery-rollup-${runnerMode}`;
+const createdAtFrom = parseOptionalDate(process.env.IMAGE_COCKPIT_ANIMATION_DELIVERY_ROLLUP_CREATED_AT_FROM);
 
 const baselines = await readBaselines();
 const summary = summarize(baselines);
@@ -38,6 +39,7 @@ async function readBaselines() {
   for (const baselineDir of baselineDirs) {
     const summary = await readJson(join(baselineDir, "delivery-rate-summary.json")).catch(() => null);
     if (!summary || (runnerMode !== "all" && String(summary.runnerMode || "").toLowerCase() !== runnerMode)) continue;
+    if (createdAtFrom && !isAtOrAfter(summary.createdAt, createdAtFrom)) continue;
     const trials = await readJson(join(baselineDir, "browser-trials.json")).catch(() => []);
     records.push({
       baselineDir: toReportPath(baselineDir),
@@ -82,6 +84,9 @@ function summarize(records) {
     createdAt: new Date().toISOString(),
     qaDir: toReportPath(qaDir),
     runnerMode,
+    filters: {
+      createdAtFrom: createdAtFrom?.toISOString() ?? null
+    },
     minRate,
     minTrials,
     gateStatus,
@@ -127,6 +132,21 @@ function classifyFailures(failedTrials) {
     .map(([code, count]) => ({ code, count }));
 }
 
+function parseOptionalDate(value) {
+  if (!value) return null;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    console.error(`Ignoring invalid IMAGE_COCKPIT_ANIMATION_DELIVERY_ROLLUP_CREATED_AT_FROM: ${value}`);
+    return null;
+  }
+  return date;
+}
+
+function isAtOrAfter(value, threshold) {
+  const date = new Date(value);
+  return !Number.isNaN(date.getTime()) && date.getTime() >= threshold.getTime();
+}
+
 function classifyFailureReason(reason) {
   const text = String(reason).toLowerCase();
   if (text.includes("usage limit")) return "usage_limit";
@@ -154,6 +174,7 @@ Created: ${summary.createdAt}
 ## Gate
 
 - runnerMode: ${summary.runnerMode}
+- filters.createdAtFrom: ${summary.filters.createdAtFrom ?? "none"}
 - gateStatus: ${summary.gateStatus}
 - minTrials: ${summary.minTrials}
 - minRate: ${summary.minRate}
