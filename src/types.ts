@@ -145,6 +145,7 @@ export type CodexRunnerState = "running" | "completed" | "failed" | "unavailable
 export type CodexRunnerPreflightState = "ready" | "disabled" | "unavailable";
 export type CodexFailureKind =
   | "policy_or_safety"
+  | "usage_limit"
   | "imagegen_unavailable"
   | "runner_failed"
   | "import_failed"

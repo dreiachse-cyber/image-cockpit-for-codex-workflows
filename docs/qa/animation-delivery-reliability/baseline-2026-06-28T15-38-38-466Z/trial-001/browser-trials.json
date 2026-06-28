@@ -1,0 +1,357 @@
+[
+  {
+    "id": "browser-delivery-2026-06-28T15-38-38-550Z",
+    "sourceType": "browser file upload from public prompt example",
+    "sourceName": "animation-delivery-source.png",
+    "motionPreset": "default standard animation",
+    "startedAt": "2026-06-28T15:38:38.581Z",
+    "finishedAt": "2026-06-28T15:56:16.846Z",
+    "browserUrl": "http://127.0.0.1:53047/",
+    "resultStatus": "pass",
+    "qualityRank": "silver-or-better",
+    "deliveredToHistory": true,
+    "deliveredToPreview": true,
+    "downloadableFinal": true,
+    "outboxFinalPresent": true,
+    "falseSuccess": false,
+    "stuckRunning": false,
+    "failureCodes": [],
+    "failureReason": "",
+    "uiFailureText": "",
+    "artifactPaths": {
+      "screenshot": "D:\\codex\\image-cockpit-for-codex-workflows\\slot5\\docs\\qa\\animation-delivery-reliability\\baseline-2026-06-28T15-38-38-466Z\\trial-001\\browser-final-1280x720.png",
+      "reportDir": "D:\\codex\\image-cockpit-for-codex-workflows\\slot5\\docs\\qa\\animation-delivery-reliability\\baseline-2026-06-28T15-38-38-466Z\\trial-001",
+      "handoffDir": "D:\\codex\\image-cockpit-for-codex-workflows\\slot5\\docs\\qa\\animation-delivery-reliability\\baseline-2026-06-28T15-38-38-466Z\\trial-001\\handoff"
+    },
+    "browserSnapshot": {
+      "text": "Image Cockpit for Codex Workflows Animation Generation v0.1.1 Language 日本語 English 简体中文 繁體中文 한국어 Русский Español Português (Brasil) Deutsch Français Bahasa Indonesia Türkçe Tiếng Việt Polski Italiano 1. Workflow Current workflow Animation Generation Upload or select pixel art, then ask Codex for a 5-direction animation sprite sheet. Route: Codex Handoff Codex runner: ready Cockpit: OK Cockpit OK. API 53046 / Runner ready / Supervisor off Diagnose Recover Results Repair Cockpit Pixel Art Generation Image Editing Animation Generation 1. Upload Pixel Art Use a pixel-art image you generated or imported as the animation source. Upload Pixel Art Selected source animation-delivery-source.png 1024x1024 / import 2. Choose Motion Pick one locked animation preset. Selected animation Idle Breathing Stable 8-frame ready stance with planted feet, subtle breathing, and readable five-direction views. Core Choose Animation 3. Generate Send the uploaded source to Codex and generate a 5-direction chroma-key sprite sheet. Fixed cells: 256 x 256 px. Output sheet: 2048 x 1280 px. Generate Animation 2. Preview Directional Previews GIF Preview Front Front 3/4 Side Back 3/4 Back Sprite Sheet Preview Preview: codex-job-2026-06-28T15-38-42-651Z-np20gb-direction-split-animation-sheet.png Generated from animation-delivery-source.png Size: 2048x1280 Anchor: 128, 236 Zoom: fit 4. Download codex-job-2026-06-28T15-38-42-651Z-np20gb-direction-split-animation-sheet.png Animation frames ready Download 3. Results Recover Results Dedupe History codex-job-2026-06-28T15-38-42-651Z-np20gb-direction-split-animation-sheet.png 6月29日 00:56 • Local Inbox 2048x1280 • generate animation-delivery-source.png 6月29日 00:38 • Local File 1024x1024 • import forest-mage-sheet.png 6月29日 00:38 • Local File 1774x887 • sample Codex Log stdout / stderr tail 0/3 Collapse logs completed Animation: idle / Locked animation preset: Idle Breathing. Preset motion (candidate 3/3) codex-job-2026-06-28T15-38-42-679Z-j4brab Elapsed: 17:33 Updated: 6月29日 00:55 Showing latest log tail GREEN=(0,255,0) def comps(cell): im=cell.convert('RGB'); w,h=im.size; pix=im.load() raw=[[pix[x,y]\"'!=GREEN for x in range(w)] for y in range(h)] seen=[[False]*w for _ in range(h)]; out=[] for y0 in range(h): for x0 in range(w): if not raw[y0][x0] or seen[y0][x0]: continue q=deque([(x0,y0)]); seen[y0][x0]=True; pts=[] while q: x,y=q.popleft(); pts.append((x,y)) for nx,ny in ((x+1,y),(x-1,y),(x,y+1),(x,y-1)): if 0<=nx<w and 0<=ny<h and raw[ny][nx] and not seen[ny][nx]: seen[ny][nx]=True; q.append((nx,ny)) xs=[p[0] for p in pts]; ys=[p[1] for p in pts] out.append({'\"'area':len(pts),'bbox':(min(xs),min(ys),max(xs)+1,max(ys)+1)}) return sorted(out, key=lambda c:c['area'], reverse=True) qa={'status':'pass','directions':{}} for direction in ['front','front-three-quarter','side','back-three-quarter','back']: p=staging/f'{job_id}-{direction}-normalized.png' im=Image.open(p).convert('RGB') entry={'size':im.size,'cells':[]} if im.size\"'!=(1024,512): qa['\"'status']='fail'; entry['sizeError']=True for i in range(8): r,c=divmod(i,4) cell=im.crop((c*256,r*256,(c+1)*256,(r+1)*256)) cs=comps(cell) if len(cs)\"'!=1: qa['\"'status']='fail' bbox=cs[0]['bbox'] if cs else None pad=None if bbox: left,top,right,bottom=bbox pad={'left':left,'top':top,'right':256-right,'bottom':256-bottom} if min(pad.values()) < 24: qa['status']='fail' entry['cells'].append({'frame':i+1,'components':len(cs),'largestArea':cs[0]['area'] if cs else 0,'bbox':bbox,'padding':pad}) qa['directions'][direction]=entry (staging/'cell-qa.json').write_text(json.dumps(qa,ensure_ascii=False,indent=2),encoding='utf-8') print(json.dumps({'status':qa['status'], 'sizes':{d:qa['directions'][d]['size'] for d in qa['directions']}, 'minPadding':{d:min(min(cell['padding'].values()) for cell in qa['directions'][d]['cells']) for d in qa['directions']}}, ensure_ascii=False, indent=2)) '@ | python -\" in D:\\codex\\image-cockpit-for-codex-workflows\\slot5 succeeded in 1298ms: { \"status\": \"pass\", \"sizes\": { \"front\": [ 1024, 512 ], \"front-three-quarter\": [ 1024, 512 ], \"side\": [ 1024, 512 ], \"back-three-quarter\": [ 1024, 512 ], \"back\": [ 1024, 512 ] }, \"minPadding\": { \"front\": 25, \"front-three-quarter\": 25, \"side\": 25, \"back-three-quarter\": 25, \"back\": 25 } } 2026-06-28T15:54:22.950621Z WARN codex_core_plugins::manifest: ignoring interface.defaultPrompt: maximum of 3 prompts is supported path=~\\.cache\\codex-runtimes\\codex-primary-runtime\\plugins\\openai-primary-runtime\\plugins\\template-creator\\.codex-plugin/plugin.json 2026-06-28T15:54:22.979909Z WARN codex_core_plugins::manifest: ignoring interface.defaultPrompt[0]: prompt must be at most 128 characters path=~\\.codex\\.tmp\\plugins\\plugins\\ngs-analysis\\.codex-plugin/plugin.json codex 機械QAはpassで、全5枚が1024x512、各セル1成分、最小余白25pxだったニャ。これから最終ファイル5枚をoutbox直下へ公開し、manifestを最後に書くニャ。 exec \"C:\\\\WINDOWS\\\\System32\\\\WindowsPowerShell\\\\v1.0\\\\powershell.exe\" -Command '$out='\"'D:\\\\codex\\\\image-cockpit-for-codex-workflows\\\\slot5\\\\docs\\\\qa\\\\animation-delivery-reliability\\\\baseline-2026-06-28T15-38-38-466Z\\\\trial-001\\\\handoff\\\\outbox\\\\.tournaments\\\\anim-tournament_21dgbu_mqxyelhd\\\\codex-job-2026-06-28T15-38-42-679Z-j4brab' New-Item -ItemType Directory -Force -Path \"'$out | Out-Null Get-ChildItem -LiteralPath $out -File | Select-Object Name,Length' in D:\\codex\\image-cockpit-for-codex-workflows\\slot5 succeeded in 590ms: 2026-06-28T15:54:36.492625Z WARN codex_core_plugins::manifest: ignoring interface.defaultPrompt: maximum of 3 prompts is supported path=~\\.cache\\codex-runtimes\\codex-primary-runtime\\plugins\\openai-primary-runtime\\plugins\\template-creator\\.codex-plugin/plugin.json 2026-06-28T15:54:36.516130Z WARN codex_core_plugins::manifest: ignoring interface.defaultPrompt[0]: prompt must be at most 128 characters path=~\\.codex\\.tmp\\plugins\\plugins\\ngs-analysis\\.codex-plugin/plugin.json exec \"C:\\\\WINDOWS\\\\System32\\\\WindowsPowerShell\\\\v1.0\\\\powershell.exe\" -Command \"@' from pathlib import Path import shutil, json job_id='codex-job-2026-06-28T15-38-42-679Z-j4brab' out=Path(r'D:\\\\codex\\\\image-cockpit-for-codex-workflows\\\\slot5\\\\docs\\\\qa\\\\animation-delivery-reliability\\\\baseline-2026-06-28T15-38-38-466Z\\\\trial-001\\\\handoff\\\\outbox\\\\.tournaments\\\\anim-tournament_21dgbu_mqxyelhd\\\\codex-job-2026-06-28T15-38-42-679Z-j4brab') staging=out/'.staging'/job_id directions=['front','front-three-quarter','side','back-three-quarter','back'] files=[] for direction in directions: src=staging/f'{job_id}-{direction}-normalized.png' dst=out/f'{job_id}-{direction}.png' if not src.exists(): raise FileNotFoundError(src) shutil.copy2(src,dst) files.append({'direction':direction,'file':dst.name}) manifest={ 'schema':'image-cockpit.direction-split-animation.v1', 'jobId':job_id, 'workflowMode':'sprite-generate', 'variant':'standard', 'framesPerDirection':8, 'grid':{'columns':4,'rows':2,'gutter':0}, 'cell':{'width':256,'height':256}, 'background':{'type':'chroma-key','color':'#00ff00'}, 'directions':directions, 'files':files, 'fillOrder':'left-to-right row 1, then left-to-right row 2' } (out/f'{job_id}-manifest.json').write_text(json.dumps(manifest,ensure_ascii=False,indent=2),encoding='utf-8') print('published') for p in [out/f'{job_id}-{d}.png' for d in directions]+[out/f'{job_id}-manifest.json']: print(p.name, p.stat().st_size) '@ | python -\" in D:\\codex\\image-cockpit-for-codex-workflows\\slot5 succeeded in 799ms: published codex-job-2026-06-28T15-38-42-679Z-j4brab-front.png 298374 codex-job-2026-06-28T15-38-42-679Z-j4brab-front-three-quarter.png 251205 codex-job-2026-06-28T15-38-42-679Z-j4brab-side.png 226082 codex-job-2026-06-28T15-38-42-679Z-j4brab-back-three-quarter.png 276100 codex-job-2026-06-28T15-38-42-679Z-j4brab-back.png 258043 codex-job-2026-06-28T15-38-42-679Z-j4brab-manifest.json 1233 2026-06-28T15:54:56.781197Z WARN codex_core_plugins::manifest: ignoring interface.defaultPrompt: maximum of 3 prompts is supported path=~\\.cache\\codex-runtimes\\codex-primary-runtime\\plugins\\openai-primary-runtime\\plugins\\template-creator\\.codex-plugin/plugin.json 2026-06-28T15:54:56.816818Z WARN codex_core_plugins::manifest: ignoring interface.defaultPrompt[0]: prompt must be at most 128 characters path=~\\.codex\\.tmp\\plugins\\plugins\\ngs-analysis\\.codex-plugin/plugin.json codex 最終5枚とmanifestをroot outboxへ公開したニャ。最後に公開先のファイル名、寸法、manifest内容を確認するニャ。 exec \"C:\\\\WINDOWS\\\\System32\\\\WindowsPowerShell\\\\v1.0\\\\powershell.exe\" -Command \"@' from PIL import Image from pathlib import Path import json job_id='codex-job-2026-06-28T15-38-42-679Z-j4brab' out=Path(r'D:\\\\codex\\\\image-cockpit-for-codex-workflows\\\\slot5\\\\docs\\\\qa\\\\animation-delivery-reliability\\\\baseline-2026-06-28T15-38-38-466Z\\\\trial-001\\\\handoff\\\\outbox\\\\.tournaments\\\\anim-tournament_21dgbu_mqxyelhd\\\\codex-job-2026-06-28T15-38-42-679Z-j4brab') directions=['front','front-three-quarter','side','back-three-quarter','back'] summary={} for d in directions: p=out/f'{job_id}-{d}.png' im=Image.open(p) summary[d]={'exists':p.exists(),'size':im.size,'mode':im.mode,'format':im.format} man=json.loads((out/f'{job_id}-manifest.json').read_text(encoding='utf-8')) print(json.dumps({'rootFiles':sorted(p.name for p in out.iterdir() if p.is_file()),'images':summary,'manifestSchema':man.get('schema'),'framesPerDirection':man.get('framesPerDirection'),'grid':man.get('grid'),'cell':man.get('cell')},ensure_ascii=False,indent=2)) '@ | python -\" in D:\\codex\\image-cockpit-for-codex-workflows\\slot5 succeeded in 747ms: { \"rootFiles\": [ \"codex-job-2026-06-28T15-38-42-679Z-j4brab-back-three-quarter.png\", \"codex-job-2026-06-28T15-38-42-679Z-j4brab-back.png\", \"codex-job-2026-06-28T15-38-42-679Z-j4brab-front-three-quarter.png\", \"codex-job-2026-06-28T15-38-42-679Z-j4brab-front.png\", \"codex-job-2026-06-28T15-38-42-679Z-j4brab-manifest.json\", \"codex-job-2026-06-28T15-38-42-679Z-j4brab-side.png\" ], \"images\": { \"front\": { \"exists\": true, \"size\": [ 1024, 512 ], \"mode\": \"RGB\", \"format\": \"PNG\" }, \"front-three-quarter\": { \"exists\": true, \"size\": [ 1024, 512 ], \"mode\": \"RGB\", \"format\": \"PNG\" }, \"side\": { \"exists\": true, \"size\": [ 1024, 512 ], \"mode\": \"RGB\", \"format\": \"PNG\" }, \"back-three-quarter\": { \"exists\": true, \"size\": [ 1024, 512 ], \"mode\": \"RGB\", \"format\": \"PNG\" }, \"back\": { \"exists\": true, \"size\": [ 1024, 512 ], \"mode\": \"RGB\", \"format\": \"PNG\" } }, \"manifestSchema\": \"image-cockpit.direction-split-animation.v1\", \"framesPerDirection\": 8, \"grid\": { \"columns\": 4, \"rows\": 2, \"gutter\": 0 }, \"cell\": { \"width\": 256, \"height\": 256 } } 2026-06-28T15:55:10.821192Z WARN codex_core_plugins::manifest: ignoring interface.defaultPrompt: maximum of 3 prompts is supported path=~\\.cache\\codex-runtimes\\codex-primary-runtime\\plugins\\openai-primary-runtime\\plugins\\template-creator\\.codex-plugin/plugin.json 2026-06-28T15:55:10.852348Z WARN codex_core_plugins::manifest: ignoring interface.defaultPrompt[0]: prompt must be at most 128 characters path=~\\.codex\\.tmp\\plugins\\plugins\\ngs-analysis\\.codex-plugin/plugin.json codex ご主人、ユレットが完了したニャ。 built-in `image_gen`で生成し、参照画像を確認したうえで5方向のPNGとmanifestをoutbox直下へ公開したニャ。全画像は`1024x512`、`4x2`、`256px`セル、純緑`#00ff00`背景で、セルQAはpassしたニャ。 出力先は `<handoff>\\outbox\\.tournaments\\anim-tournament_21dgbu_mqxyelhd\\codex-job-2026-06-28T15-38-42-679Z-j4brab` ニャ。 公開ファイルは `front`、`front-three-quarter`、`side`、`back-three-quarter`、`back` の5枚と `codex-job-2026-06-28T15-38-42-679Z-j4brab-manifest.json` ニャ。 tokens used 201,076 ご主人、ユレットが完了したニャ。 built-in `image_gen`で生成し、参照画像を確認したうえで5方向のPNGとmanifestをoutbox直下へ公開したニャ。全画像は`1024x512`、`4x2`、`256px`セル、純緑`#00ff00`背景で、セルQAはpassしたニャ。 出力先は `<handoff>\\outbox\\.tournaments\\anim-tournament_21dgbu_mqxyelhd\\codex-job-2026-06-28T15-38-42-679Z-j4brab` ニャ。 公開ファイルは `front`、`front-three-quarter`、`side`、`back-three-quarter`、`back` の5枚と `codex-job-2026-06-28T15-38-42-679Z-j4brab-manifest.json` ニャ。 [2026-06-28T15:55:26.027Z] Codex exec completed completed Animation: idle / Locked animation preset: Idle Breathing. Preset motion (candidate 1/3) codex-job-2026-06-28T15-38-42-651Z-np20gb Elapsed: 17:33 Updated: 6月29日 00:56 Showing latest log tail \"baselineMaxDeltaPx\": 1, \"topMin\": 24, \"heightMaxDeltaPx\": 0 }, \"back\": { \"warnings\": [], \"baselineMaxDeltaPx\": 0, \"topMin\": 14, \"heightMaxDeltaPx\": 1 } } 2026-06-28T15:54:47.273090Z WARN codex_core_plugins::manifest: ignoring interface.defaultPrompt: maximum of 3 prompts is supported path=~\\.cache\\codex-runtimes\\codex-primary-runtime\\plugins\\openai-primary-runtime\\plugins\\template-creator\\.codex-plugin/plugin.json 2026-06-28T15:54:47.300047Z WARN codex_core_plugins::manifest: ignoring interface.defaultPrompt[0]: prompt must be at most 128 characters path=~\\.codex\\.tmp\\plugins\\plugins\\ngs-analysis\\.codex-plugin/plugin.json 2026-06-28T15:54:56.124887Z WARN codex_core_plugins::manifest: ignoring interface.defaultPrompt: maximum of 3 prompts is supported path=~\\.cache\\codex-runtimes\\codex-primary-runtime\\plugins\\openai-primary-runtime\\plugins\\template-creator\\.codex-plugin/plugin.json 2026-06-28T15:54:56.166353Z WARN codex_core_plugins::manifest: ignoring interface.defaultPrompt[0]: prompt must be at most 128 characters path=~\\.codex\\.tmp\\plugins\\plugins\\ngs-analysis\\.codex-plugin/plugin.json codex 5方向とも再QAで size 1024x512、baseline delta 0-1px、警告なしになったニャ。これで再生成は不要と判断して、最後に root outbox へ5枚を公開し、manifest を最後に書くニャ。 exec \"C:\\\\WINDOWS\\\\System32\\\\WindowsPowerShell\\\\v1.0\\\\powershell.exe\" -Command \"@' from pathlib import Path from PIL import Image import json, shutil job='codex-job-2026-06-28T15-38-42-651Z-np20gb' outbox=Path(r'D:\\\\codex\\\\image-cockpit-for-codex-workflows\\\\slot5\\\\docs\\\\qa\\\\animation-delivery-reliability\\\\baseline-2026-06-28T15-38-38-466Z\\\\trial-001\\\\handoff\\\\outbox\\\\.tournaments\\\\anim-tournament_21dgbu_mqxyelhd\\\\codex-job-2026-06-28T15-38-42-651Z-np20gb') staging=outbox/'.staging'/job normalized=staging/'normalized' directions=['front','front-three-quarter','side','back-three-quarter','back'] outbox.mkdir(parents=True, exist_ok=True) manifest_dirs=[] for direction in directions: src=normalized/f'{job}-{direction}.png' dest=outbox/f'{job}-{direction}.png' shutil.copy2(src,dest) im=Image.open(dest) if im.size \"'!= (1024,512): raise SystemExit(f'\"'bad size {dest}: {im.size}') manifest_dirs.append({ 'name': direction.replace('-', ' '), 'suffix': direction, 'file': f'{job}-{direction}.png', 'grid': {'columns': 4, 'rows': 2, 'gutter': 0}, 'cell': {'width': 256, 'height': 256}, 'frames': 8, 'layout': 'row-major' }) manifest={ 'schema': 'image-cockpit.direction-split-animation.v1', 'jobId': job, 'workflowMode': 'sprite-generate', 'variant': 'standard', 'sourceReference': 'selectedImage.assetPath inspected before generation', 'spriteContext': { 'action': 'idle', 'preset': 'idle-breathing', 'framesPerDirection': 8, 'directions': ['front','front three-quarter','side','back three-quarter','back'], 'cell': {'width': 256, 'height': 256}, 'directionImageGrid': {'columns': 4, 'rows': 2, 'gutter': 0}, 'finalSheetGrid': {'columns': 8, 'rows': 5, 'gutter': 0}, 'chromaKey': {'name': 'green', 'color': '#00ff00'}, 'temporaryGuideGrid': {'color': '#00ffff', 'widthPx': 1, 'cellBoundariesOnly': True} }, 'framesPerDirection': 8, 'directions': manifest_dirs, 'files': [d['file'] for d in manifest_dirs], 'qualityGate': { 'selfChecked': True, 'cellCount': 40, 'sizeChecked': True, 'cellBoundsChecked': True, 'baselineChecked': True, 'flatChromaKeyChecked': True, 'notes': 'Generated with built-in image_gen, normalized to strict 4x2 direction images, and self-checked before publishing.' } } # manifest written last (outbox/f'{job}-manifest.json').write_text(json.dumps(manifest, ensure_ascii=False, indent=2), encoding='utf-8') summary=[] for direction in directions: p=outbox/f'{job}-{direction}.png' im=Image.open(p) summary.append({'file': p.name, 'size': im.size, 'mode': im.mode, 'bytes': p.stat().st_size}) summary.append({'file': f'{job}-manifest.json', 'bytes': (outbox/f'{job}-manifest.json').stat().st_size}) print(json.dumps(summary, ensure_ascii=False, indent=2)) '@ | python -\" in D:\\codex\\image-cockpit-for-codex-workflows\\slot5 succeeded in 755ms: [ { \"file\": \"codex-job-2026-06-28T15-38-42-651Z-np20gb-front.png\", \"size\": [ 1024, 512 ], \"mode\": \"RGB\", \"bytes\": 356446 }, { \"file\": \"codex-job-2026-06-28T15-38-42-651Z-np20gb-front-three-quarter.png\", \"size\": [ 1024, 512 ], \"mode\": \"RGB\", \"bytes\": 315761 }, { \"file\": \"codex-job-2026-06-28T15-38-42-651Z-np20gb-side.png\", \"size\": [ 1024, 512 ], \"mode\": \"RGB\", \"bytes\": 228973 }, { \"file\": \"codex-job-2026-06-28T15-38-42-651Z-np20gb-back-three-quarter.png\", \"size\": [ 1024, 512 ], \"mode\": \"RGB\", \"bytes\": 303660 }, { \"file\": \"codex-job-2026-06-28T15-38-42-651Z-np20gb-back.png\", \"size\": [ 1024, 512 ], \"mode\": \"RGB\", \"bytes\": 300842 }, { \"file\": \"codex-job-2026-06-28T15-38-42-651Z-np20gb-manifest.json\", \"bytes\": 3492 } ] 2026-06-28T15:55:31.319544Z WARN codex_core_plugins::manifest: ignoring interface.defaultPrompt: maximum of 3 prompts is supported path=~\\.cache\\codex-runtimes\\codex-primary-runtime\\plugins\\openai-primary-runtime\\plugins\\template-creator\\.codex-plugin/plugin.json 2026-06-28T15:55:31.347035Z WARN codex_core_plugins::manifest: ignoring interface.defaultPrompt[0]: prompt must be at most 128 characters path=~\\.codex\\.tmp\\plugins\\plugins\\ngs-analysis\\.codex-plugin/plugin.json codex 公開済みファイルを root outbox から読み直して、5枚と manifest の存在・サイズを最終確認するニャ。 exec \"C:\\\\WINDOWS\\\\System32\\\\WindowsPowerShell\\\\v1.0\\\\powershell.exe\" -Command \"@' from pathlib import Path from PIL import Image import json job='codex-job-2026-06-28T15-38-42-651Z-np20gb' outbox=Path(r'D:\\\\codex\\\\image-cockpit-for-codex-workflows\\\\slot5\\\\docs\\\\qa\\\\animation-delivery-reliability\\\\baseline-2026-06-28T15-38-38-466Z\\\\trial-001\\\\handoff\\\\outbox\\\\.tournaments\\\\anim-tournament_21dgbu_mqxyelhd\\\\codex-job-2026-06-28T15-38-42-651Z-np20gb') expected=[f'{job}-front.png',f'{job}-front-three-quarter.png',f'{job}-side.png',f'{job}-back-three-quarter.png',f'{job}-back.png',f'{job}-manifest.json'] missing=[name for name in expected if not (outbox/name).exists()] if missing: raise SystemExit('missing '+json.dumps(missing)) manifest=json.loads((outbox/f'{job}-manifest.json').read_text(encoding='utf-8')) summary={'schema':manifest.get('schema'),'files':[]} for name in expected[:-1]: im=Image.open(outbox/name) summary['files'].append({'name':name,'size':im.size,'mode':im.mode}) print(json.dumps(summary, ensure_ascii=False, indent=2)) '@ | python -\" in D:\\codex\\image-cockpit-for-codex-workflows\\slot5 succeeded in 758ms: { \"schema\": \"image-cockpit.direction-split-animation.v1\", \"files\": [ { \"name\": \"codex-job-2026-06-28T15-38-42-651Z-np20gb-front.png\", \"size\": [ 1024, 512 ], \"mode\": \"RGB\" }, { \"name\": \"codex-job-2026-06-28T15-38-42-651Z-np20gb-front-three-quarter.png\", \"size\": [ 1024, 512 ], \"mode\": \"RGB\" }, { \"name\": \"codex-job-2026-06-28T15-38-42-651Z-np20gb-side.png\", \"size\": [ 1024, 512 ], \"mode\": \"RGB\" }, { \"name\": \"codex-job-2026-06-28T15-38-42-651Z-np20gb-back-three-quarter.png\", \"size\": [ 1024, 512 ], \"mode\": \"RGB\" }, { \"name\": \"codex-job-2026-06-28T15-38-42-651Z-np20gb-back.png\", \"size\": [ 1024, 512 ], \"mode\": \"RGB\" } ] } 2026-06-28T15:55:52.057608Z WARN codex_core_plugins::manifest: ignoring interface.defaultPrompt: maximum of 3 prompts is supported path=~\\.cache\\codex-runtimes\\codex-primary-runtime\\plugins\\openai-primary-runtime\\plugins\\template-creator\\.codex-plugin/plugin.json 2026-06-28T15:55:52.094111Z WARN codex_core_plugins::manifest: ignoring interface.defaultPrompt[0]: prompt must be at most 128 characters path=~\\.codex\\.tmp\\plugins\\plugins\\ngs-analysis\\.codex-plugin/plugin.json codex ご主人、完了したニャ。 source PNG を確認して built-in `image_gen` で5方向を生成し、最終 outbox root に以下を公開したニャ。 - `codex-job-2026-06-28T15-38-42-651Z-np20gb-front.png` ニャ - `codex-job-2026-06-28T15-38-42-651Z-np20gb-front-three-quarter.png` ニャ - `codex-job-2026-06-28T15-38-42-651Z-np20gb-side.png` ニャ - `codex-job-2026-06-28T15-38-42-651Z-np20gb-back-three-quarter.png` ニャ - `codex-job-2026-06-28T15-38-42-651Z-np20gb-back.png` ニャ - `codex-job-2026-06-28T15-38-42-651Z-np20gb-manifest.json` ニャ 最終確認では5枚すべて 1024x512、schema は `image-cockpit.direction-split-animation.v1` で確認済みニャ。プロジェクト source / docs / git metadata / config は変更していないニャ。 tokens used 163,057 ご主人、完了したニャ。 source PNG を確認して built-in `image_gen` で5方向を生成し、最終 outbox root に以下を公開したニャ。 - `codex-job-2026-06-28T15-38-42-651Z-np20gb-front.png` ニャ - `codex-job-2026-06-28T15-38-42-651Z-np20gb-front-three-quarter.png` ニャ - `codex-job-2026-06-28T15-38-42-651Z-np20gb-side.png` ニャ - `codex-job-2026-06-28T15-38-42-651Z-np20gb-back-three-quarter.png` ニャ - `codex-job-2026-06-28T15-38-42-651Z-np20gb-back.png` ニャ - `codex-job-2026-06-28T15-38-42-651Z-np20gb-manifest.json` ニャ 最終確認では5枚すべて 1024x512、schema は `image-cockpit.direction-split-animation.v1` で確認済みニャ。プロジェクト source / docs / git metadata / config は変更していないニャ。 [2026-06-28T15:56:12.429Z] Codex exec completed completed Animation: idle / Locked animation preset: Idle Breathing. Preset motion (candidate 2/3) codex-job-2026-06-28T15-38-42-669Z-m1ai01 Elapsed: 17:33 Updated: 6月29日 00:53 Showing latest log tail thumbs=[] for d in selected: im=Image.open(staging/f'{job_id}-{d}-normalized.png').convert('RGB') thumb=im.copy(); thumb.thumbnail((360,180),Image.Resampling.LANCZOS) canvas=Image.new('RGB',(420,230),'white'); canvas.paste(thumb,((420-thumb.width)//2,18)); ImageDraw.Draw(canvas).text((12,205),d,fill='black'); thumbs.append(canvas) contact=Image.new('RGB',(420,230*len(thumbs)),'white') for i,t in enumerate(thumbs): contact.paste(t,(0,i*230)) contact.save(staging/'normalized-direction-contact.png') (staging/'normalized-qa.json').write_text(json.dumps(qa,indent=2),encoding='utf-8') summary={} for k,v in qa.items(): margins=[f.get('margins') for f in v['frames'] if f.get('margins')] summary[k]={'scale':v['scale'],'maxOriginalWidth':v['maxOriginalWidth'],'maxOriginalHeight':v['maxOriginalHeight'],'minMargins':{m:min(mm[m] for mm in margins) for m in ['left','top','right','bottom']}} print(json.dumps(summary,indent=2)) '@ | python -\" in D:\\codex\\image-cockpit-for-codex-workflows\\slot5 succeeded in 5086ms: { \"front\": { \"scale\": 0.9162995594713657, \"maxOriginalWidth\": 206, \"maxOriginalHeight\": 227, \"minMargins\": { \"left\": 33, \"top\": 24, \"right\": 34, \"bottom\": 24 } }, \"front-three-quarter\": { \"scale\": 0.9904761904761905, \"maxOriginalWidth\": 175, \"maxOriginalHeight\": 210, \"minMargins\": { \"left\": 41, \"top\": 24, \"right\": 42, \"bottom\": 24 } }, \"side\": { \"scale\": 0.9541284403669725, \"maxOriginalWidth\": 157, \"maxOriginalHeight\": 218, \"minMargins\": { \"left\": 53, \"top\": 24, \"right\": 53, \"bottom\": 24 } }, \"back-three-quarter\": { \"scale\": 0.9811320754716981, \"maxOriginalWidth\": 194, \"maxOriginalHeight\": 212, \"minMargins\": { \"left\": 33, \"top\": 24, \"right\": 33, \"bottom\": 24 } }, \"back\": { \"scale\": 1.0, \"maxOriginalWidth\": 159, \"maxOriginalHeight\": 187, \"minMargins\": { \"left\": 48, \"top\": 45, \"right\": 49, \"bottom\": 24 } } } 2026-06-28T15:52:54.245797Z WARN codex_core_plugins::manifest: ignoring interface.defaultPrompt: maximum of 3 prompts is supported path=~\\.cache\\codex-runtimes\\codex-primary-runtime\\plugins\\openai-primary-runtime\\plugins\\template-creator\\.codex-plugin/plugin.json 2026-06-28T15:52:54.267973Z WARN codex_core_plugins::manifest: ignoring interface.defaultPrompt[0]: prompt must be at most 128 characters path=~\\.codex\\.tmp\\plugins\\plugins\\ngs-analysis\\.codex-plugin/plugin.json codex 微小ノイズ除去後、side方向も正常なbboxになりましたニャ。全方向の見た目をもう一度確認し、問題なければ最終5PNGとmanifestをroot outboxへ最後に書きますニャ。 2026-06-28T15:53:03.076506Z WARN codex_core_plugins::manifest: ignoring interface.defaultPrompt: maximum of 3 prompts is supported path=~\\.cache\\codex-runtimes\\codex-primary-runtime\\plugins\\openai-primary-runtime\\plugins\\template-creator\\.codex-plugin/plugin.json 2026-06-28T15:53:03.098257Z WARN codex_core_plugins::manifest: ignoring interface.defaultPrompt[0]: prompt must be at most 128 characters path=~\\.codex\\.tmp\\plugins\\plugins\\ngs-analysis\\.codex-plugin/plugin.json codex 検査済みのstaging正規化画像を最終成果物としてroot outboxへ公開しますニャ。manifestは要求どおり画像5枚のあとに最後へ書きますニャ。 exec \"C:\\\\WINDOWS\\\\System32\\\\WindowsPowerShell\\\\v1.0\\\\powershell.exe\" -Command \"@' from pathlib import Path import shutil, json job_id='codex-job-2026-06-28T15-38-42-669Z-m1ai01' outbox=Path(r'D:\\\\codex\\\\image-cockpit-for-codex-workflows\\\\slot5\\\\docs\\\\qa\\\\animation-delivery-reliability\\\\baseline-2026-06-28T15-38-38-466Z\\\\trial-001\\\\handoff\\\\outbox\\\\.tournaments\\\\anim-tournament_21dgbu_mqxyelhd\\\\codex-job-2026-06-28T15-38-42-669Z-m1ai01') staging=outbox/'.staging'/job_id outbox.mkdir(parents=True, exist_ok=True) directions=['front','front-three-quarter','side','back-three-quarter','back'] files={} for direction in directions: src=staging/f'{job_id}-{direction}-normalized.png' dest=outbox/f'{job_id}-{direction}.png' if not src.exists(): raise SystemExit(f'missing staging file: {src}') shutil.copy2(src,dest) files[direction]=dest.name manifest={ 'schema':'image-cockpit.direction-split-animation.v1', 'jobId':job_id, 'workflowMode':'sprite-generate', 'variant':'standard', 'framesPerDirection':8, 'grid':{'columns':4,'rows':2,'gutter':0}, 'cell':{'width':256,'height':256}, 'sheet':{'width':1024,'height':512}, 'chromaKey':{'type':'rgb','hex':'#00ff00','name':'green'}, 'files':files, 'directions':[{'id':d,'file':files[d],'columns':4,'rows':2,'frames':8} for d in directions], 'qa':{'status':'self_checked','checks':['five direction files present','1024x512 each','4x2 grid with 256x256 cells','flat chroma-key green background','one full-body character per cell visually checked','head, hair, hands, sword, clothing, and feet visible']} } manifest_path=outbox/f'{job_id}-manifest.json' manifest_path.write_text(json.dumps(manifest,indent=2),encoding='utf-8') print('published') for d in directions: print(outbox/f'{job_id}-{d}.png') print(manifest_path) '@ | python -\" in D:\\codex\\image-cockpit-for-codex-workflows\\slot5 succeeded in 607ms: published <handoff>\\outbox\\.tournaments\\anim-tournament_21dgbu_mqxyelhd\\codex-job-2026-06-28T15-38-42-669Z-m1ai01\\codex-job-2026-06-28T15-38-42-669Z-m1ai01-front.png <handoff>\\outbox\\.tournaments\\anim-tournament_21dgbu_mqxyelhd\\codex-job-2026-06-28T15-38-42-669Z-m1ai01\\codex-job-2026-06-28T15-38-42-669Z-m1ai01-front-three-quarter.png <handoff>\\outbox\\.tournaments\\anim-tournament_21dgbu_mqxyelhd\\codex-job-2026-06-28T15-38-42-669Z-m1ai01\\codex-job-2026-06-28T15-38-42-669Z-m1ai01-side.png <handoff>\\outbox\\.tournaments\\anim-tournament_21dgbu_mqxyelhd\\codex-job-2026-06-28T15-38-42-669Z-m1ai01\\codex-job-2026-06-28T15-38-42-669Z-m1ai01-back-three-quarter.png <handoff>\\outbox\\.tournaments\\anim-tournament_21dgbu_mqxyelhd\\codex-job-2026-06-28T15-38-42-669Z-m1ai01\\codex-job-2026-06-28T15-38-42-669Z-m1ai01-back.png <handoff>\\outbox\\.tournaments\\anim-tournament_21dgbu_mqxyelhd\\codex-job-2026-06-28T15-38-42-669Z-m1ai01\\codex-job-2026-06-28T15-38-42-669Z-m1ai01-manifest.json 2026-06-28T15:53:30.505960Z WARN codex_core_plugins::manifest: ignoring interface.defaultPrompt: maximum of 3 prompts is supported path=~\\.cache\\codex-runtimes\\codex-primary-runtime\\plugins\\openai-primary-runtime\\plugins\\template-creator\\.codex-plugin/plugin.json 2026-06-28T15:53:30.529720Z WARN codex_core_plugins::manifest: ignoring interface.defaultPrompt[0]: prompt must be at most 128 characters path=~\\.codex\\.tmp\\plugins\\plugins\\ngs-analysis\\.codex-plugin/plugin.json codex 最終5PNGとmanifestを書き込みましたニャ。最後にroot outboxの成果物だけを検査して、寸法・セル数・manifestの存在を確認しますニャ。 exec \"C:\\\\WINDOWS\\\\System32\\\\WindowsPowerShell\\\\v1.0\\\\powershell.exe\" -Command \"@' from pathlib import Path from PIL import Image import json job_id='codex-job-2026-06-28T15-38-42-669Z-m1ai01' outbox=Path(r'D:\\\\codex\\\\image-cockpit-for-codex-workflows\\\\slot5\\\\docs\\\\qa\\\\animation-delivery-reliability\\\\baseline-2026-06-28T15-38-38-466Z\\\\trial-001\\\\handoff\\\\outbox\\\\.tournaments\\\\anim-tournament_21dgbu_mqxyelhd\\\\codex-job-2026-06-28T15-38-42-669Z-m1ai01') directions=['front','front-three-quarter','side','back-three-quarter','back'] summary=[] for d in directions: p=outbox/f'{job_id}-{d}.png' with Image.open(p) as im: rgb=im.convert('RGB') bg=sum(1 for pix in rgb.getdata() if pix==(0,255,0)) total=rgb.width*rgb.height summary.append({'file':p.name,'size':im.size,'mode':im.mode,'greenPixelRatio':round(bg/total,4)}) manifest=json.loads((outbox/f'{job_id}-manifest.json').read_text(encoding='utf-8')) root_files=sorted([p.name for p in outbox.iterdir() if p.is_file()]) print(json.dumps({'rootFiles':root_files,'images':summary,'manifestSchema':manifest.get('schema'),'manifestDirections':[d.get('id') for d in manifest.get('directions',[])]},indent=2)) '@ | python -\" in D:\\codex\\image-cockpit-for-codex-workflows\\slot5 succeeded in 905ms: { \"rootFiles\": [ \"codex-job-2026-06-28T15-38-42-669Z-m1ai01-back-three-quarter.png\", \"codex-job-2026-06-28T15-38-42-669Z-m1ai01-back.png\", \"codex-job-2026-06-28T15-38-42-669Z-m1ai01-front-three-quarter.png\", \"codex-job-2026-06-28T15-38-42-669Z-m1ai01-front.png\", \"codex-job-2026-06-28T15-38-42-669Z-m1ai01-manifest.json\", \"codex-job-2026-06-28T15-38-42-669Z-m1ai01-side.png\" ], \"images\": [ { \"file\": \"codex-job-2026-06-28T15-38-42-669Z-m1ai01-front.png\", \"size\": [ 1024, 512 ], \"mode\": \"RGB\", \"greenPixelRatio\": 0.799 }, { \"file\": \"codex-job-2026-06-28T15-38-42-669Z-m1ai01-front-three-quarter.png\", \"size\": [ 1024, 512 ], \"mode\": \"RGB\", \"greenPixelRatio\": 0.7873 }, { \"file\": \"codex-job-2026-06-28T15-38-42-669Z-m1ai01-side.png\", \"size\": [ 1024, 512 ], \"mode\": \"RGB\", \"greenPixelRatio\": 0.8458 }, { \"file\": \"codex-job-2026-06-28T15-38-42-669Z-m1ai01-back-three-quarter.png\", \"size\": [ 1024, 512 ], \"mode\": \"RGB\", \"greenPixelRatio\": 0.7851 }, { \"file\": \"codex-job-2026-06-28T15-38-42-669Z-m1ai01-back.png\", \"size\": [ 1024, 512 ], \"mode\": \"RGB\", \"greenPixelRatio\": 0.8199 } ], \"manifestSchema\": \"image-cockpit.direction-split-animation.v1\", \"manifestDirections\": [ \"front\", \"front-three-quarter\", \"side\", \"back-three-quarter\", \"back\" ] } 2026-06-28T15:53:43.959658Z WARN codex_core_plugins::manifest: ignoring interface.defaultPrompt: maximum of 3 prompts is supported path=~\\.cache\\codex-runtimes\\codex-primary-runtime\\plugins\\openai-primary-runtime\\plugins\\template-creator\\.codex-plugin/plugin.json 2026-06-28T15:53:43.990273Z WARN codex_core_plugins::manifest: ignoring interface.defaultPrompt[0]: prompt must be at most 128 characters path=~\\.codex\\.tmp\\plugins\\plugins\\ngs-analysis\\.codex-plugin/plugin.json codex ご主人、ユレットがソース画像を確認し、built-in image_genで生成した5方向PNGをroot outboxへ配置しましたニャ。 検査結果は5枚すべて `1024x512`、4x2セル、manifest schemaは `image-cockpit.direction-split-animation.v1` ですニャ。 root outboxには5方向PNGと `codex-job-2026-06-28T15-38-42-669Z-m1ai01-manifest.json` だけを公開済みですニャ。 プロジェクトソース、package、docs、git metadataは変更していませんニャ。 tokens used 194,741 ご主人、ユレットがソース画像を確認し、built-in image_genで生成した5方向PNGをroot outboxへ配置しましたニャ。 検査結果は5枚すべて `1024x512`、4x2セル、manifest schemaは `image-cockpit.direction-split-animation.v1` ですニャ。 root outboxには5方向PNGと `codex-job-2026-06-28T15-38-42-669Z-m1ai01-manifest.json` だけを公開済みですニャ。 プロジェクトソース、package、docs、git metadataは変更していませんニャ。 [2026-06-28T15:53:55.670Z] Codex exec completed Animation generated: tournament winner candidate 1/3 (codex-job-2026-06-28T15-38-42-651Z-np20gb), score 3250, warnings 6. Compared 2 usable candidates and cancelled 0 remaining runners. direction-split manifest ok. Local workspace Download Choose the file to export from the selected preview. codex-job-2026-06-28T15-38-42-651Z-np20gb-direction-split-animation-sheet.png Preview and export the transparent animated GIF, animated WebP, and sprite sheet. Animation frames ready Animated GIF Animated WebP Sprite Sheet Export Animation Pack",
+      "buttons": [
+        "Diagnose",
+        "Recover Results",
+        "Repair Cockpit",
+        "Pixel Art Generation",
+        "Image Editing",
+        "Animation Generation",
+        "Upload Pixel Art",
+        "Choose Animation",
+        "Generate Animation",
+        "Generated from animation-delivery-source.png",
+        "Download",
+        "Recover Results",
+        "Dedupe History",
+        "codex-job-2026-06-28T15-38-42-651Z-np20gb-direction-split-animation-sheet.png 6月29日 00:56 • Local Inbox 2048x1280 • generate",
+        "animation-delivery-source.png 6月29日 00:38 • Local File 1024x1024 • import",
+        "forest-mage-sheet.png 6月29日 00:38 • Local File 1774x887 • sample",
+        "Collapse logs",
+        "Animated GIF",
+        "Animated WebP",
+        "Sprite Sheet",
+        "Export Animation Pack"
+      ],
+      "disabledButtons": [
+        "Repair Cockpit"
+      ],
+      "historyItems": 3,
+      "codexJobRows": 0,
+      "codexFailureCards": 0,
+      "codexFailureTexts": [],
+      "codexLogCards": 3,
+      "canvasPreviewMode": "result",
+      "canvasPreviewName": "codex-job-2026-06-28T15-38-42-651Z-np20gb-direction-split-animation-sheet.png",
+      "resultPreviewImages": 1,
+      "resultPreviewLoaded": true,
+      "animationPreviewImages": 6,
+      "directionPreviewRows": 5,
+      "resultDownloadPanelComplete": true,
+      "downloadModalVisible": true,
+      "downloadModalButtons": [
+        "Animated GIF",
+        "Animated WebP",
+        "Sprite Sheet",
+        "Export Animation Pack"
+      ],
+      "animationSourceStatus": "Generated from\nanimation-delivery-source.png",
+      "animationSourceCard": "Selected source animation-delivery-source.png 1024x1024 / import",
+      "browserErrors": []
+    },
+    "outboxResults": [
+      {
+        "name": "codex-job-2026-06-28T15-38-42-651Z-np20gb-manifest.json",
+        "path": "D:\\codex\\image-cockpit-for-codex-workflows\\slot5\\docs\\qa\\animation-delivery-reliability\\baseline-2026-06-28T15-38-38-466Z\\trial-001\\handoff\\outbox\\codex-job-2026-06-28T15-38-42-651Z-np20gb-manifest.json",
+        "mimeType": "application/json",
+        "qualityGate": {
+          "classification": "usable-final",
+          "reason": "server verified",
+          "code": "direction-split-server-verified",
+          "historyAllowed": true,
+          "downloadAllowed": true,
+          "retryable": false
+        },
+        "artifact": {
+          "jobId": "codex-job-2026-06-28T15-38-42-651Z-np20gb",
+          "artifactKind": "direction-split",
+          "detected": true,
+          "ready": true,
+          "verified": true,
+          "quality": "gold",
+          "reason": "server verified",
+          "missingDirections": [],
+          "warnings": [],
+          "files": [
+            "codex-job-2026-06-28T15-38-42-651Z-np20gb-front.png",
+            "codex-job-2026-06-28T15-38-42-651Z-np20gb-front-three-quarter.png",
+            "codex-job-2026-06-28T15-38-42-651Z-np20gb-side.png",
+            "codex-job-2026-06-28T15-38-42-651Z-np20gb-back-three-quarter.png",
+            "codex-job-2026-06-28T15-38-42-651Z-np20gb-back.png"
+          ],
+          "manifestName": "codex-job-2026-06-28T15-38-42-651Z-np20gb-manifest.json",
+          "stable": true,
+          "candidateCount": 6,
+          "qualityGate": {
+            "classification": "usable-final",
+            "reason": "server verified",
+            "code": "direction-split-server-verified",
+            "historyAllowed": true,
+            "downloadAllowed": true,
+            "retryable": false
+          },
+          "chromaKey": {
+            "expected": "green",
+            "manifest": "green"
+          }
+        }
+      },
+      {
+        "name": "codex-job-2026-06-28T15-38-42-651Z-np20gb-back.png",
+        "path": "D:\\codex\\image-cockpit-for-codex-workflows\\slot5\\docs\\qa\\animation-delivery-reliability\\baseline-2026-06-28T15-38-38-466Z\\trial-001\\handoff\\outbox\\codex-job-2026-06-28T15-38-42-651Z-np20gb-back.png",
+        "mimeType": "image/png",
+        "qualityGate": {
+          "classification": "usable-final",
+          "reason": "server verified",
+          "code": "direction-split-server-verified",
+          "historyAllowed": true,
+          "downloadAllowed": true,
+          "retryable": false
+        },
+        "artifact": {
+          "jobId": "codex-job-2026-06-28T15-38-42-651Z-np20gb",
+          "artifactKind": "direction-split",
+          "detected": true,
+          "ready": true,
+          "verified": true,
+          "quality": "gold",
+          "reason": "server verified",
+          "missingDirections": [],
+          "warnings": [],
+          "files": [
+            "codex-job-2026-06-28T15-38-42-651Z-np20gb-front.png",
+            "codex-job-2026-06-28T15-38-42-651Z-np20gb-front-three-quarter.png",
+            "codex-job-2026-06-28T15-38-42-651Z-np20gb-side.png",
+            "codex-job-2026-06-28T15-38-42-651Z-np20gb-back-three-quarter.png",
+            "codex-job-2026-06-28T15-38-42-651Z-np20gb-back.png"
+          ],
+          "manifestName": "codex-job-2026-06-28T15-38-42-651Z-np20gb-manifest.json",
+          "stable": true,
+          "candidateCount": 6,
+          "qualityGate": {
+            "classification": "usable-final",
+            "reason": "server verified",
+            "code": "direction-split-server-verified",
+            "historyAllowed": true,
+            "downloadAllowed": true,
+            "retryable": false
+          },
+          "chromaKey": {
+            "expected": "green",
+            "manifest": "green"
+          }
+        }
+      },
+      {
+        "name": "codex-job-2026-06-28T15-38-42-651Z-np20gb-back-three-quarter.png",
+        "path": "D:\\codex\\image-cockpit-for-codex-workflows\\slot5\\docs\\qa\\animation-delivery-reliability\\baseline-2026-06-28T15-38-38-466Z\\trial-001\\handoff\\outbox\\codex-job-2026-06-28T15-38-42-651Z-np20gb-back-three-quarter.png",
+        "mimeType": "image/png",
+        "qualityGate": {
+          "classification": "usable-final",
+          "reason": "server verified",
+          "code": "direction-split-server-verified",
+          "historyAllowed": true,
+          "downloadAllowed": true,
+          "retryable": false
+        },
+        "artifact": {
+          "jobId": "codex-job-2026-06-28T15-38-42-651Z-np20gb",
+          "artifactKind": "direction-split",
+          "detected": true,
+          "ready": true,
+          "verified": true,
+          "quality": "gold",
+          "reason": "server verified",
+          "missingDirections": [],
+          "warnings": [],
+          "files": [
+            "codex-job-2026-06-28T15-38-42-651Z-np20gb-front.png",
+            "codex-job-2026-06-28T15-38-42-651Z-np20gb-front-three-quarter.png",
+            "codex-job-2026-06-28T15-38-42-651Z-np20gb-side.png",
+            "codex-job-2026-06-28T15-38-42-651Z-np20gb-back-three-quarter.png",
+            "codex-job-2026-06-28T15-38-42-651Z-np20gb-back.png"
+          ],
+          "manifestName": "codex-job-2026-06-28T15-38-42-651Z-np20gb-manifest.json",
+          "stable": true,
+          "candidateCount": 6,
+          "qualityGate": {
+            "classification": "usable-final",
+            "reason": "server verified",
+            "code": "direction-split-server-verified",
+            "historyAllowed": true,
+            "downloadAllowed": true,
+            "retryable": false
+          },
+          "chromaKey": {
+            "expected": "green",
+            "manifest": "green"
+          }
+        }
+      },
+      {
+        "name": "codex-job-2026-06-28T15-38-42-651Z-np20gb-side.png",
+        "path": "D:\\codex\\image-cockpit-for-codex-workflows\\slot5\\docs\\qa\\animation-delivery-reliability\\baseline-2026-06-28T15-38-38-466Z\\trial-001\\handoff\\outbox\\codex-job-2026-06-28T15-38-42-651Z-np20gb-side.png",
+        "mimeType": "image/png",
+        "qualityGate": {
+          "classification": "usable-final",
+          "reason": "server verified",
+          "code": "direction-split-server-verified",
+          "historyAllowed": true,
+          "downloadAllowed": true,
+          "retryable": false
+        },
+        "artifact": {
+          "jobId": "codex-job-2026-06-28T15-38-42-651Z-np20gb",
+          "artifactKind": "direction-split",
+          "detected": true,
+          "ready": true,
+          "verified": true,
+          "quality": "gold",
+          "reason": "server verified",
+          "missingDirections": [],
+          "warnings": [],
+          "files": [
+            "codex-job-2026-06-28T15-38-42-651Z-np20gb-front.png",
+            "codex-job-2026-06-28T15-38-42-651Z-np20gb-front-three-quarter.png",
+            "codex-job-2026-06-28T15-38-42-651Z-np20gb-side.png",
+            "codex-job-2026-06-28T15-38-42-651Z-np20gb-back-three-quarter.png",
+            "codex-job-2026-06-28T15-38-42-651Z-np20gb-back.png"
+          ],
+          "manifestName": "codex-job-2026-06-28T15-38-42-651Z-np20gb-manifest.json",
+          "stable": true,
+          "candidateCount": 6,
+          "qualityGate": {
+            "classification": "usable-final",
+            "reason": "server verified",
+            "code": "direction-split-server-verified",
+            "historyAllowed": true,
+            "downloadAllowed": true,
+            "retryable": false
+          },
+          "chromaKey": {
+            "expected": "green",
+            "manifest": "green"
+          }
+        }
+      },
+      {
+        "name": "codex-job-2026-06-28T15-38-42-651Z-np20gb-front-three-quarter.png",
+        "path": "D:\\codex\\image-cockpit-for-codex-workflows\\slot5\\docs\\qa\\animation-delivery-reliability\\baseline-2026-06-28T15-38-38-466Z\\trial-001\\handoff\\outbox\\codex-job-2026-06-28T15-38-42-651Z-np20gb-front-three-quarter.png",
+        "mimeType": "image/png",
+        "qualityGate": {
+          "classification": "usable-final",
+          "reason": "server verified",
+          "code": "direction-split-server-verified",
+          "historyAllowed": true,
+          "downloadAllowed": true,
+          "retryable": false
+        },
+        "artifact": {
+          "jobId": "codex-job-2026-06-28T15-38-42-651Z-np20gb",
+          "artifactKind": "direction-split",
+          "detected": true,
+          "ready": true,
+          "verified": true,
+          "quality": "gold",
+          "reason": "server verified",
+          "missingDirections": [],
+          "warnings": [],
+          "files": [
+            "codex-job-2026-06-28T15-38-42-651Z-np20gb-front.png",
+            "codex-job-2026-06-28T15-38-42-651Z-np20gb-front-three-quarter.png",
+            "codex-job-2026-06-28T15-38-42-651Z-np20gb-side.png",
+            "codex-job-2026-06-28T15-38-42-651Z-np20gb-back-three-quarter.png",
+            "codex-job-2026-06-28T15-38-42-651Z-np20gb-back.png"
+          ],
+          "manifestName": "codex-job-2026-06-28T15-38-42-651Z-np20gb-manifest.json",
+          "stable": true,
+          "candidateCount": 6,
+          "qualityGate": {
+            "classification": "usable-final",
+            "reason": "server verified",
+            "code": "direction-split-server-verified",
+            "historyAllowed": true,
+            "downloadAllowed": true,
+            "retryable": false
+          },
+          "chromaKey": {
+            "expected": "green",
+            "manifest": "green"
+          }
+        }
+      },
+      {
+        "name": "codex-job-2026-06-28T15-38-42-651Z-np20gb-front.png",
+        "path": "D:\\codex\\image-cockpit-for-codex-workflows\\slot5\\docs\\qa\\animation-delivery-reliability\\baseline-2026-06-28T15-38-38-466Z\\trial-001\\handoff\\outbox\\codex-job-2026-06-28T15-38-42-651Z-np20gb-front.png",
+        "mimeType": "image/png",
+        "qualityGate": {
+          "classification": "usable-final",
+          "reason": "server verified",
+          "code": "direction-split-server-verified",
+          "historyAllowed": true,
+          "downloadAllowed": true,
+          "retryable": false
+        },
+        "artifact": {
+          "jobId": "codex-job-2026-06-28T15-38-42-651Z-np20gb",
+          "artifactKind": "direction-split",
+          "detected": true,
+          "ready": true,
+          "verified": true,
+          "quality": "gold",
+          "reason": "server verified",
+          "missingDirections": [],
+          "warnings": [],
+          "files": [
+            "codex-job-2026-06-28T15-38-42-651Z-np20gb-front.png",
+            "codex-job-2026-06-28T15-38-42-651Z-np20gb-front-three-quarter.png",
+            "codex-job-2026-06-28T15-38-42-651Z-np20gb-side.png",
+            "codex-job-2026-06-28T15-38-42-651Z-np20gb-back-three-quarter.png",
+            "codex-job-2026-06-28T15-38-42-651Z-np20gb-back.png"
+          ],
+          "manifestName": "codex-job-2026-06-28T15-38-42-651Z-np20gb-manifest.json",
+          "stable": true,
+          "candidateCount": 6,
+          "qualityGate": {
+            "classification": "usable-final",
+            "reason": "server verified",
+            "code": "direction-split-server-verified",
+            "historyAllowed": true,
+            "downloadAllowed": true,
+            "retryable": false
+          },
+          "chromaKey": {
+            "expected": "green",
+            "manifest": "green"
+          }
+        }
+      }
+    ],
+    "outboxError": ""
+  }
+]

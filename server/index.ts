@@ -32,6 +32,7 @@ const codexExecArgs = parseJsonStringArray("IMAGE_COCKPIT_CODEX_EXEC_ARGS_JSON",
 ]);
 const runnerStaleTimeoutMs = parsePositiveNumber("IMAGE_COCKPIT_CODEX_STALE_MS", 15 * 60 * 1000);
 const runnerStaleLogIdleMs = parsePositiveNumber("IMAGE_COCKPIT_CODEX_STALE_LOG_IDLE_MS", 5 * 60 * 1000);
+const runnerCapacityCooldownMs = parsePositiveNumber("IMAGE_COCKPIT_CODEX_CAPACITY_COOLDOWN_MS", 15 * 60 * 1000);
 const runnerLogTailDefaultBytes = 24 * 1024;
 const runnerLogTailMaxBytes = 96 * 1024;
 const resultRoutePrefix = "/api/codex/results/";
@@ -44,6 +45,7 @@ const artifactStableMs = parsePositiveNumber("IMAGE_COCKPIT_ARTIFACT_STABLE_MS",
 const runnerStatuses = new Map<string, CodexRunnerStatus>();
 const runnerProcesses = new Map<string, ReturnType<typeof spawn>>();
 const cancellingRunnerJobIds = new Set<string>();
+let cachedRunnerCapacityBlock: RunnerCapacityBlock | null = null;
 
 type CodexJobRequest = {
   workflowMode?: string;
@@ -76,6 +78,7 @@ type CodexRunnerState = "running" | "completed" | "failed" | "unavailable" | "di
 type CodexRunnerPreflightState = "ready" | "disabled" | "unavailable";
 type CodexFailureKind =
   | "policy_or_safety"
+  | "usage_limit"
   | "imagegen_unavailable"
   | "runner_failed"
   | "no_image_returned"
@@ -104,6 +107,16 @@ type CodexRunnerStatus = {
   statusPath?: string;
   outboxDir?: string;
   diagnostic?: CodexJobDiagnostic;
+};
+
+type RunnerCapacityBlock = {
+  kind: Extract<CodexFailureKind, "usage_limit">;
+  title: string;
+  userMessage: string;
+  suggestion?: string;
+  jobId?: string;
+  seenAt: string;
+  expiresAt: string;
 };
 
 type CodexArtifactQuality = "gold" | "silver" | "bronze" | "blocked" | "waiting";
@@ -678,6 +691,27 @@ async function startCodexRunner(job: { id: string; createdAt: string; path: stri
     return status;
   }
 
+  const capacityBlock = await getRunnerCapacityBlock();
+  if (capacityBlock) {
+    const finishedAt = new Date().toISOString();
+    const status: CodexRunnerStatus = {
+      jobId: job.id,
+      state: "unavailable",
+      message: capacityBlock.userMessage,
+      statusPath,
+      logPath,
+      finishedAt,
+      diagnostic: diagnosticFromRunnerCapacityBlock(capacityBlock)
+    };
+    await writeFile(
+      logPath,
+      `[${finishedAt}] Codex runner was not started: ${capacityBlock.title}: ${capacityBlock.userMessage}\n`,
+      "utf8"
+    );
+    await writeRunnerStatus(status);
+    return status;
+  }
+
   const startedAt = new Date().toISOString();
   const status: CodexRunnerStatus = {
     jobId: job.id,
@@ -784,6 +818,17 @@ async function checkCodexRunnerPreflight(): Promise<CodexRunnerPreflight> {
       state: "disabled",
       message: "Codex autorun is disabled. Jobs will be written for manual pickup.",
       setupHint: "Set IMAGE_COCKPIT_CODEX_AUTORUN=1 to let Image Cockpit try to start codex exec."
+    };
+  }
+
+  const capacityBlock = await getRunnerCapacityBlock();
+  if (capacityBlock) {
+    return {
+      ...base,
+      state: "unavailable",
+      message: capacityBlock.userMessage,
+      errorCode: capacityBlock.kind,
+      setupHint: capacityBlock.suggestion
     };
   }
 
@@ -1031,8 +1076,75 @@ async function writeRunnerStatus(status: CodexRunnerStatus) {
   runnerStatuses.set(status.jobId, status);
   const enrichedStatus = await enrichRunnerStatus(status);
   runnerStatuses.set(enrichedStatus.jobId, enrichedStatus);
+  rememberRunnerCapacityBlock(enrichedStatus);
   const statusPath = enrichedStatus.statusPath ?? join(statusDir, `${enrichedStatus.jobId}.json`);
   await writeFile(statusPath, JSON.stringify(enrichedStatus, null, 2), "utf8");
+}
+
+async function getRunnerCapacityBlock(): Promise<RunnerCapacityBlock | null> {
+  if (isRunnerCapacityBlockActive(cachedRunnerCapacityBlock)) return cachedRunnerCapacityBlock;
+  cachedRunnerCapacityBlock = null;
+  if (runnerCapacityCooldownMs <= 0) return null;
+
+  let latestBlock: RunnerCapacityBlock | null = null;
+  try {
+    const names = (await readdir(statusDir)).filter((name) => name.endsWith(".json"));
+    await Promise.all(
+      names.map(async (name) => {
+        try {
+          const status = parseJsonText<CodexRunnerStatus>(await readFile(join(statusDir, name), "utf8"));
+          const block = runnerCapacityBlockFromStatus(status);
+          if (!block) return;
+          if (!latestBlock || Date.parse(block.seenAt) > Date.parse(latestBlock.seenAt)) latestBlock = block;
+        } catch {
+          // Ignore unreadable historical status files; preflight should still work.
+        }
+      })
+    );
+  } catch {
+    return null;
+  }
+  cachedRunnerCapacityBlock = latestBlock;
+  return latestBlock;
+}
+
+function rememberRunnerCapacityBlock(status: CodexRunnerStatus) {
+  const block = runnerCapacityBlockFromStatus(status);
+  if (block) {
+    cachedRunnerCapacityBlock = block;
+    return;
+  }
+  if (status.state === "completed" && !status.diagnostic) cachedRunnerCapacityBlock = null;
+}
+
+function runnerCapacityBlockFromStatus(status: CodexRunnerStatus): RunnerCapacityBlock | null {
+  if (runnerCapacityCooldownMs <= 0 || status.diagnostic?.kind !== "usage_limit") return null;
+  const seenAt = status.finishedAt ?? status.startedAt ?? new Date().toISOString();
+  const seenAtMs = Date.parse(seenAt);
+  if (!Number.isFinite(seenAtMs)) return null;
+  const block: RunnerCapacityBlock = {
+    kind: "usage_limit",
+    title: status.diagnostic.title,
+    userMessage: status.diagnostic.userMessage,
+    suggestion: status.diagnostic.suggestion,
+    jobId: status.jobId,
+    seenAt,
+    expiresAt: new Date(seenAtMs + runnerCapacityCooldownMs).toISOString()
+  };
+  return isRunnerCapacityBlockActive(block) ? block : null;
+}
+
+function isRunnerCapacityBlockActive(block: RunnerCapacityBlock | null): block is RunnerCapacityBlock {
+  return Boolean(block && Date.parse(block.expiresAt) > Date.now());
+}
+
+function diagnosticFromRunnerCapacityBlock(block: RunnerCapacityBlock): CodexJobDiagnostic {
+  return {
+    kind: block.kind,
+    title: block.title,
+    userMessage: block.userMessage,
+    suggestion: block.suggestion
+  };
 }
 
 async function cancelCodexRunner(jobId: string) {
@@ -1075,7 +1187,7 @@ async function getRunnerStatus(jobId: string): Promise<CodexRunnerStatus> {
 
   const statusPath = join(statusDir, `${jobId}.json`);
   try {
-    return enrichRunnerStatus(await normalizeRunningStatus(JSON.parse(await readFile(statusPath, "utf8")) as CodexRunnerStatus));
+    return enrichRunnerStatus(await normalizeRunningStatus(parseJsonText<CodexRunnerStatus>(await readFile(statusPath, "utf8"))));
   } catch {
     return enrichRunnerStatus({
       jobId,
@@ -1134,7 +1246,7 @@ async function isRunnerStatusActivelyRunning(jobId: string) {
   let status = runnerStatuses.get(jobId);
   if (!status) {
     try {
-      status = JSON.parse(await readFile(join(statusDir, `${jobId}.json`), "utf8")) as CodexRunnerStatus;
+      status = parseJsonText<CodexRunnerStatus>(await readFile(join(statusDir, `${jobId}.json`), "utf8"));
     } catch {
       return false;
     }
@@ -1185,11 +1297,29 @@ function classifyFailureKind(status: CodexRunnerStatus, text: string, hasReturne
   ) {
     return "no_image_returned";
   }
+  if (matchesAny(text, ["usage limit", "you've hit your usage limit", "try again at"])) {
+    return "usage_limit";
+  }
+  if (
+    matchesAny(text, [
+      "imagegen unavailable",
+      "imagegen is unavailable",
+      "imagegen / image_gen is unavailable",
+      "image generation unavailable",
+      "image generation is not available",
+      "built-in image generation is not available",
+      "built-in image_gen unavailable",
+      "built-in image_gen is unavailable",
+      "tool unavailable",
+      "image_gen unavailable",
+      "image_gen is unavailable",
+      "unavailable imagegen capability"
+    ])
+  ) {
+    return "imagegen_unavailable";
+  }
   if (matchesAny(text, ["policy", "safety", "content policy", "disallowed", "not allowed", "blocked", "moderation", "cannot comply", "can't help"])) {
     return "policy_or_safety";
-  }
-  if (matchesAny(text, ["imagegen unavailable", "image generation unavailable", "built-in image_gen unavailable", "tool unavailable", "image_gen unavailable"])) {
-    return "imagegen_unavailable";
   }
   if (status.state === "failed" || status.state === "unavailable") return "runner_failed";
   if (status.state === "unknown") return "unknown";
@@ -1211,6 +1341,14 @@ function diagnosticForKind(kind: CodexFailureKind): Omit<CodexJobDiagnostic, "si
       title: "Image generation unavailable",
       userMessage: "Image generation is not available in this Codex environment.",
       suggestion: "Use manual handoff or another local provider, then return an image to the outbox."
+    };
+  }
+  if (kind === "usage_limit") {
+    return {
+      kind,
+      title: "Codex usage limit reached",
+      userMessage: "Codex could not run this generation because the configured account hit its usage limit.",
+      suggestion: "Wait for the usage window to reset, upgrade the account, or switch to a runner/provider with available capacity."
     };
   }
   if (kind === "runner_failed") {
@@ -2141,9 +2279,9 @@ async function resolveJobOutboxDir(jobId: string) {
   if (liveOutbox) return liveOutbox;
 
   try {
-    const parsed = JSON.parse(await readFile(join(inboxDir, `${jobId}.json`), "utf8")) as {
+    const parsed = parseJsonText<{
       returnTo?: { outboxDir?: unknown };
-    };
+    }>(await readFile(join(inboxDir, `${jobId}.json`), "utf8"));
     return resolveSafeOutboxSubdir(parsed.returnTo?.outboxDir) ?? outboxDir;
   } catch {
     return null;
@@ -2296,6 +2434,10 @@ function extensionForMimeType(mimeType: string) {
   return null;
 }
 
+function parseJsonText<T = unknown>(text: string): T {
+  return JSON.parse(text.replace(/^\uFEFF/, "")) as T;
+}
+
 function readJson(request: IncomingMessage) {
   return new Promise<unknown>((resolve, reject) => {
     const chunks: Buffer[] = [];
@@ -2303,7 +2445,7 @@ function readJson(request: IncomingMessage) {
     request.on("end", () => {
       try {
         const text = Buffer.concat(chunks).toString("utf8");
-        resolve(text ? JSON.parse(text) : {});
+        resolve(text ? parseJsonText(text) : {});
       } catch (error) {
         reject(error);
       }

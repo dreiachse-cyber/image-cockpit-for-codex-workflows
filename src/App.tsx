@@ -703,6 +703,9 @@ const baseUiCopy = {
     codexFailureImagegenUnavailableTitle: "Image generation unavailable",
     codexFailureImagegenUnavailableMessage: "Image generation is not available in this Codex environment.",
     codexFailureImagegenUnavailableSuggestion: "Use manual handoff or another provider, then return an image to the outbox.",
+    codexFailureUsageLimitTitle: "Codex usage limit reached",
+    codexFailureUsageLimitMessage: "Codex could not run this generation because the configured account hit its usage limit.",
+    codexFailureUsageLimitSuggestion: "Wait for the usage window to reset, upgrade the account, or switch to a runner/provider with available capacity.",
     codexFailureRunnerFailedTitle: "Codex runner failed",
     codexFailureRunnerFailedMessage: "Codex runner failed before returning an image.",
     codexFailureRunnerFailedSuggestion: "Check the runner setup or retry with a simpler prompt.",
@@ -931,6 +934,9 @@ const baseUiCopy = {
     codexFailureImagegenUnavailableTitle: "imagegenを利用できません",
     codexFailureImagegenUnavailableMessage: "このCodex環境ではimagegenを利用できません。",
     codexFailureImagegenUnavailableSuggestion: "手動handoffまたは別providerを使い、outboxへ画像を戻してください。",
+    codexFailureUsageLimitTitle: "Codex利用上限に達しました",
+    codexFailureUsageLimitMessage: "設定中のアカウントが利用上限に達しているため、Codexがこの生成を実行できませんでした。",
+    codexFailureUsageLimitSuggestion: "利用枠のリセットを待つか、アカウントをアップグレードするか、利用可能な別runner/providerへ切り替えてください。",
     codexFailureRunnerFailedTitle: "Codex runnerが失敗しました",
     codexFailureRunnerFailedMessage: "Codex runnerが画像を返す前に失敗しました。",
     codexFailureRunnerFailedSuggestion: "runner設定を確認するか、promptを簡単にして再試行してください。",
@@ -4309,13 +4315,21 @@ function App() {
     if (!winner) {
       const primary = evaluations[0];
       if (primary) {
-        const reasons = evaluations
-          .map((evaluation) => {
-            const candidateIndex = evaluation.job.tournamentCandidateIndex ?? 0;
-            const candidateCount = evaluation.job.tournamentCandidateCount ?? expectedCount;
-            return `${tournamentCandidateLabel(candidateIndex, candidateCount)}: ${evaluation.error ?? "no usable final result"}`;
-          })
-          .join("; ");
+        const sharedDiagnosticKind = evaluations.every((evaluation) => evaluation.status.diagnostic?.kind && evaluation.status.diagnostic.kind === primary.status.diagnostic?.kind)
+          ? primary.status.diagnostic?.kind
+          : "";
+        const reasons = sharedDiagnosticKind
+          ? (() => {
+              const failure = codexFailureDisplay(sharedDiagnosticKind, copy, primary.status.diagnostic);
+              return `all ${evaluations.length}/${expectedCount} candidates: ${failure.title}: ${failure.message}`;
+            })()
+          : evaluations
+              .map((evaluation) => {
+                const candidateIndex = evaluation.job.tournamentCandidateIndex ?? 0;
+                const candidateCount = evaluation.job.tournamentCandidateCount ?? expectedCount;
+                return `${tournamentCandidateLabel(candidateIndex, candidateCount)}: ${evaluation.error ?? "no usable final result"}`;
+              })
+              .join("; ");
         const hasQualityGateFailure = /quality gate|chroma key|direction split qa failed|transparency damage|quarantined/i.test(reasons);
         recordCodexImportFailure(
           primary.job,
@@ -4733,8 +4747,14 @@ function App() {
       setStatus(`Animation tournament queued: ${tournamentDrafts.length} candidates.`);
       return;
     }
-    await Promise.all(tournamentDrafts.map((candidateDraft) => submitCodexJobDraft(candidateDraft)));
-    setStatus(`Animation tournament started: ${tournamentDrafts.length} candidates.`);
+    const runnerStatuses = await Promise.all(tournamentDrafts.map((candidateDraft) => submitCodexJobDraft(candidateDraft)));
+    const startedCount = runnerStatuses.filter((runnerStatus) => shouldWaitForCodexRunner(runnerStatus ?? undefined)).length;
+    if (startedCount > 0) {
+      setStatus(`Animation tournament started: ${startedCount}/${tournamentDrafts.length} candidates.`);
+      return;
+    }
+    const terminalStatus = runnerStatuses.find((runnerStatus): runnerStatus is CodexRunnerStatus => Boolean(runnerStatus));
+    setStatus(terminalStatus ? runnerStatusMessage(terminalStatus, copy) : copy.statusCodexJobError);
   }
 
   function enqueueCodexJobDraft(draft: CodexJobDraft) {
@@ -4765,7 +4785,7 @@ function App() {
     setStatus(`${labels.queuedStatus}: ${draft.label}`);
   }
 
-  async function submitCodexJobDraft(draft: CodexJobDraft, queuedJobId?: string) {
+  async function submitCodexJobDraft(draft: CodexJobDraft, queuedJobId?: string): Promise<CodexRunnerStatus | null> {
     setIsBusy(true);
     try {
       const response = await fetch("/api/codex/jobs", {
@@ -4833,9 +4853,11 @@ function App() {
       }
 
       setStatus(`${copy.statusCodexJobWritten}: ${data.path}. ${runnerStatusMessage(data.runner, copy)}.`);
+      return data.runner ?? null;
     } catch (error) {
       if (queuedJobId) removeCodexJob(queuedJobId);
       setStatus(error instanceof Error ? error.message : copy.statusCodexJobError);
+      return null;
     } finally {
       setIsBusy(false);
     }
@@ -5642,6 +5664,12 @@ function App() {
       importedResults: []
     };
     if (terminalStatus.state !== "completed") {
+      return {
+        ...emptyEvaluation,
+        error: runnerStatusMessage(terminalStatus, copy)
+      };
+    }
+    if (terminalStatus.diagnostic) {
       return {
         ...emptyEvaluation,
         error: runnerStatusMessage(terminalStatus, copy)
@@ -8585,6 +8613,13 @@ function codexFailureDisplay(kind: CodexFailureKind, copy: Record<string, string
       title: copy.codexFailureImagegenUnavailableTitle,
       message: copy.codexFailureImagegenUnavailableMessage,
       suggestion: copy.codexFailureImagegenUnavailableSuggestion
+    };
+  }
+  if (kind === "usage_limit") {
+    return {
+      title: copy.codexFailureUsageLimitTitle || diagnostic?.title || copy.codexFailureRunnerFailedTitle,
+      message: copy.codexFailureUsageLimitMessage || diagnostic?.userMessage || copy.codexFailureRunnerFailedMessage,
+      suggestion: copy.codexFailureUsageLimitSuggestion || diagnostic?.suggestion || copy.codexFailureRunnerFailedSuggestion
     };
   }
   if (kind === "runner_failed") {

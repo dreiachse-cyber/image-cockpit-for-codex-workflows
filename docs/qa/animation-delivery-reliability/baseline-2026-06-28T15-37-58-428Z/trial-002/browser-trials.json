@@ -1,0 +1,357 @@
+[
+  {
+    "id": "browser-delivery-2026-06-28T15-38-13-366Z",
+    "sourceType": "browser file upload from public prompt example",
+    "sourceName": "animation-delivery-source.png",
+    "motionPreset": "default standard animation",
+    "startedAt": "2026-06-28T15:38:13.397Z",
+    "finishedAt": "2026-06-28T15:38:26.249Z",
+    "browserUrl": "http://127.0.0.1:53685/",
+    "resultStatus": "pass",
+    "qualityRank": "silver-or-better",
+    "deliveredToHistory": true,
+    "deliveredToPreview": true,
+    "downloadableFinal": true,
+    "outboxFinalPresent": true,
+    "falseSuccess": false,
+    "stuckRunning": false,
+    "failureCodes": [],
+    "failureReason": "",
+    "uiFailureText": "",
+    "artifactPaths": {
+      "screenshot": "D:\\codex\\image-cockpit-for-codex-workflows\\slot5\\docs\\qa\\animation-delivery-reliability\\baseline-2026-06-28T15-37-58-428Z\\trial-002\\browser-final-1280x720.png",
+      "reportDir": "D:\\codex\\image-cockpit-for-codex-workflows\\slot5\\docs\\qa\\animation-delivery-reliability\\baseline-2026-06-28T15-37-58-428Z\\trial-002",
+      "handoffDir": "D:\\codex\\image-cockpit-for-codex-workflows\\slot5\\docs\\qa\\animation-delivery-reliability\\baseline-2026-06-28T15-37-58-428Z\\trial-002\\handoff"
+    },
+    "browserSnapshot": {
+      "text": "Image Cockpit for Codex Workflows Animation Generation v0.1.1 Language 日本語 English 简体中文 繁體中文 한국어 Русский Español Português (Brasil) Deutsch Français Bahasa Indonesia Türkçe Tiếng Việt Polski Italiano 1. Workflow Current workflow Animation Generation Upload or select pixel art, then ask Codex for a 5-direction animation sprite sheet. Route: Codex Handoff Codex runner: ready Cockpit: OK Cockpit OK. API 53684 / Runner ready / Supervisor off Diagnose Recover Results Repair Cockpit Pixel Art Generation Image Editing Animation Generation 1. Upload Pixel Art Use a pixel-art image you generated or imported as the animation source. Upload Pixel Art Selected source animation-delivery-source.png 1024x1024 / import 2. Choose Motion Pick one locked animation preset. Selected animation Idle Breathing Stable 8-frame ready stance with planted feet, subtle breathing, and readable five-direction views. Core Choose Animation 3. Generate Send the uploaded source to Codex and generate a 5-direction chroma-key sprite sheet. Fixed cells: 256 x 256 px. Output sheet: 2048 x 1280 px. Generate Animation 2. Preview Directional Previews GIF Preview Front Front 3/4 Side Back 3/4 Back Sprite Sheet Preview Preview: codex-job-2026-06-28T15-38-17-159Z-e6svd8-direction-split-animation-sheet.png Generated from animation-delivery-source.png Size: 2048x1280 Anchor: 128, 236 Zoom: fit 4. Download codex-job-2026-06-28T15-38-17-159Z-e6svd8-direction-split-animation-sheet.png Animation frames ready Download 3. Results Recover Results Dedupe History codex-job-2026-06-28T15-38-17-159Z-e6svd8-direction-split-animation-sheet.png 6月29日 00:38 • Local Inbox 2048x1280 • generate animation-delivery-source.png 6月29日 00:38 • Local File 1024x1024 • import forest-mage-sheet.png 6月29日 00:38 • Local File 1774x887 • sample Codex Log stdout / stderr tail 0/3 Collapse logs completed Animation: idle / Locked animation preset: Idle Breathing. Preset motion (candidate 3/3) codex-job-2026-06-28T15-38-17-203Z-yhcfhz Elapsed: 00:08 Updated: 6月29日 00:38 [2026-06-28T15:38:17.222Z] Starting ~\\.cache\\codex-runtimes\\codex-primary-runtime\\dependencies\\node\\bin\\node.exe exec for codex-job-2026-06-28T15-38-17-203Z-yhcfhz Job path: <handoff>\\inbox\\codex-job-2026-06-28T15-38-17-203Z-yhcfhz.json Outbox: <handoff>\\outbox\\.tournaments\\anim-tournament_5hhj3z_mqxye1th\\codex-job-2026-06-28T15-38-17-203Z-yhcfhz mock animation delivery accepted codex-job-2026-06-28T15-38-17-203Z-yhcfhz mock direction split sprite sheet completed codex-job-2026-06-28T15-38-17-203Z-yhcfhz [2026-06-28T15:38:18.536Z] Codex exec completed completed Animation: idle / Locked animation preset: Idle Breathing. Preset motion (candidate 2/3) codex-job-2026-06-28T15-38-17-177Z-dvqu2k Elapsed: 00:08 Updated: 6月29日 00:38 [2026-06-28T15:38:17.208Z] Starting ~\\.cache\\codex-runtimes\\codex-primary-runtime\\dependencies\\node\\bin\\node.exe exec for codex-job-2026-06-28T15-38-17-177Z-dvqu2k Job path: <handoff>\\inbox\\codex-job-2026-06-28T15-38-17-177Z-dvqu2k.json Outbox: <handoff>\\outbox\\.tournaments\\anim-tournament_5hhj3z_mqxye1th\\codex-job-2026-06-28T15-38-17-177Z-dvqu2k mock animation delivery accepted codex-job-2026-06-28T15-38-17-177Z-dvqu2k mock direction split sprite sheet completed codex-job-2026-06-28T15-38-17-177Z-dvqu2k [2026-06-28T15:38:18.523Z] Codex exec completed completed Animation: idle / Locked animation preset: Idle Breathing. Preset motion (candidate 1/3) codex-job-2026-06-28T15-38-17-159Z-e6svd8 Elapsed: 00:08 Updated: 6月29日 00:38 [2026-06-28T15:38:17.173Z] Starting ~\\.cache\\codex-runtimes\\codex-primary-runtime\\dependencies\\node\\bin\\node.exe exec for codex-job-2026-06-28T15-38-17-159Z-e6svd8 Job path: <handoff>\\inbox\\codex-job-2026-06-28T15-38-17-159Z-e6svd8.json Outbox: <handoff>\\outbox\\.tournaments\\anim-tournament_5hhj3z_mqxye1th\\codex-job-2026-06-28T15-38-17-159Z-e6svd8 mock animation delivery accepted codex-job-2026-06-28T15-38-17-159Z-e6svd8 mock direction split sprite sheet completed codex-job-2026-06-28T15-38-17-159Z-e6svd8 [2026-06-28T15:38:18.502Z] Codex exec completed Animation generated: tournament winner candidate 1/3 (codex-job-2026-06-28T15-38-17-159Z-e6svd8), score 3275, warnings 5. Compared 2 usable candidates and cancelled 0 remaining runners. direction-split manifest ok. Local workspace Download Choose the file to export from the selected preview. codex-job-2026-06-28T15-38-17-159Z-e6svd8-direction-split-animation-sheet.png Preview and export the transparent animated GIF, animated WebP, and sprite sheet. Animation frames ready Animated GIF Animated WebP Sprite Sheet Export Animation Pack",
+      "buttons": [
+        "Diagnose",
+        "Recover Results",
+        "Repair Cockpit",
+        "Pixel Art Generation",
+        "Image Editing",
+        "Animation Generation",
+        "Upload Pixel Art",
+        "Choose Animation",
+        "Generate Animation",
+        "Generated from animation-delivery-source.png",
+        "Download",
+        "Recover Results",
+        "Dedupe History",
+        "codex-job-2026-06-28T15-38-17-159Z-e6svd8-direction-split-animation-sheet.png 6月29日 00:38 • Local Inbox 2048x1280 • generate",
+        "animation-delivery-source.png 6月29日 00:38 • Local File 1024x1024 • import",
+        "forest-mage-sheet.png 6月29日 00:38 • Local File 1774x887 • sample",
+        "Collapse logs",
+        "Animated GIF",
+        "Animated WebP",
+        "Sprite Sheet",
+        "Export Animation Pack"
+      ],
+      "disabledButtons": [
+        "Repair Cockpit"
+      ],
+      "historyItems": 3,
+      "codexJobRows": 0,
+      "codexFailureCards": 0,
+      "codexFailureTexts": [],
+      "codexLogCards": 3,
+      "canvasPreviewMode": "result",
+      "canvasPreviewName": "codex-job-2026-06-28T15-38-17-159Z-e6svd8-direction-split-animation-sheet.png",
+      "resultPreviewImages": 1,
+      "resultPreviewLoaded": true,
+      "animationPreviewImages": 6,
+      "directionPreviewRows": 5,
+      "resultDownloadPanelComplete": true,
+      "downloadModalVisible": true,
+      "downloadModalButtons": [
+        "Animated GIF",
+        "Animated WebP",
+        "Sprite Sheet",
+        "Export Animation Pack"
+      ],
+      "animationSourceStatus": "Generated from\nanimation-delivery-source.png",
+      "animationSourceCard": "Selected source animation-delivery-source.png 1024x1024 / import",
+      "browserErrors": []
+    },
+    "outboxResults": [
+      {
+        "name": "codex-job-2026-06-28T15-38-17-159Z-e6svd8-manifest.json",
+        "path": "D:\\codex\\image-cockpit-for-codex-workflows\\slot5\\docs\\qa\\animation-delivery-reliability\\baseline-2026-06-28T15-37-58-428Z\\trial-002\\handoff\\outbox\\codex-job-2026-06-28T15-38-17-159Z-e6svd8-manifest.json",
+        "mimeType": "application/json",
+        "qualityGate": {
+          "classification": "usable-final",
+          "reason": "server verified",
+          "code": "direction-split-server-verified",
+          "historyAllowed": true,
+          "downloadAllowed": true,
+          "retryable": false
+        },
+        "artifact": {
+          "jobId": "codex-job-2026-06-28T15-38-17-159Z-e6svd8",
+          "artifactKind": "direction-split",
+          "detected": true,
+          "ready": true,
+          "verified": true,
+          "quality": "gold",
+          "reason": "server verified",
+          "missingDirections": [],
+          "warnings": [],
+          "files": [
+            "codex-job-2026-06-28T15-38-17-159Z-e6svd8-front.png",
+            "codex-job-2026-06-28T15-38-17-159Z-e6svd8-front-three-quarter.png",
+            "codex-job-2026-06-28T15-38-17-159Z-e6svd8-side.png",
+            "codex-job-2026-06-28T15-38-17-159Z-e6svd8-back-three-quarter.png",
+            "codex-job-2026-06-28T15-38-17-159Z-e6svd8-back.png"
+          ],
+          "manifestName": "codex-job-2026-06-28T15-38-17-159Z-e6svd8-manifest.json",
+          "stable": true,
+          "candidateCount": 6,
+          "qualityGate": {
+            "classification": "usable-final",
+            "reason": "server verified",
+            "code": "direction-split-server-verified",
+            "historyAllowed": true,
+            "downloadAllowed": true,
+            "retryable": false
+          },
+          "chromaKey": {
+            "expected": "green",
+            "manifest": "green"
+          }
+        }
+      },
+      {
+        "name": "codex-job-2026-06-28T15-38-17-159Z-e6svd8-back.png",
+        "path": "D:\\codex\\image-cockpit-for-codex-workflows\\slot5\\docs\\qa\\animation-delivery-reliability\\baseline-2026-06-28T15-37-58-428Z\\trial-002\\handoff\\outbox\\codex-job-2026-06-28T15-38-17-159Z-e6svd8-back.png",
+        "mimeType": "image/png",
+        "qualityGate": {
+          "classification": "usable-final",
+          "reason": "server verified",
+          "code": "direction-split-server-verified",
+          "historyAllowed": true,
+          "downloadAllowed": true,
+          "retryable": false
+        },
+        "artifact": {
+          "jobId": "codex-job-2026-06-28T15-38-17-159Z-e6svd8",
+          "artifactKind": "direction-split",
+          "detected": true,
+          "ready": true,
+          "verified": true,
+          "quality": "gold",
+          "reason": "server verified",
+          "missingDirections": [],
+          "warnings": [],
+          "files": [
+            "codex-job-2026-06-28T15-38-17-159Z-e6svd8-front.png",
+            "codex-job-2026-06-28T15-38-17-159Z-e6svd8-front-three-quarter.png",
+            "codex-job-2026-06-28T15-38-17-159Z-e6svd8-side.png",
+            "codex-job-2026-06-28T15-38-17-159Z-e6svd8-back-three-quarter.png",
+            "codex-job-2026-06-28T15-38-17-159Z-e6svd8-back.png"
+          ],
+          "manifestName": "codex-job-2026-06-28T15-38-17-159Z-e6svd8-manifest.json",
+          "stable": true,
+          "candidateCount": 6,
+          "qualityGate": {
+            "classification": "usable-final",
+            "reason": "server verified",
+            "code": "direction-split-server-verified",
+            "historyAllowed": true,
+            "downloadAllowed": true,
+            "retryable": false
+          },
+          "chromaKey": {
+            "expected": "green",
+            "manifest": "green"
+          }
+        }
+      },
+      {
+        "name": "codex-job-2026-06-28T15-38-17-159Z-e6svd8-back-three-quarter.png",
+        "path": "D:\\codex\\image-cockpit-for-codex-workflows\\slot5\\docs\\qa\\animation-delivery-reliability\\baseline-2026-06-28T15-37-58-428Z\\trial-002\\handoff\\outbox\\codex-job-2026-06-28T15-38-17-159Z-e6svd8-back-three-quarter.png",
+        "mimeType": "image/png",
+        "qualityGate": {
+          "classification": "usable-final",
+          "reason": "server verified",
+          "code": "direction-split-server-verified",
+          "historyAllowed": true,
+          "downloadAllowed": true,
+          "retryable": false
+        },
+        "artifact": {
+          "jobId": "codex-job-2026-06-28T15-38-17-159Z-e6svd8",
+          "artifactKind": "direction-split",
+          "detected": true,
+          "ready": true,
+          "verified": true,
+          "quality": "gold",
+          "reason": "server verified",
+          "missingDirections": [],
+          "warnings": [],
+          "files": [
+            "codex-job-2026-06-28T15-38-17-159Z-e6svd8-front.png",
+            "codex-job-2026-06-28T15-38-17-159Z-e6svd8-front-three-quarter.png",
+            "codex-job-2026-06-28T15-38-17-159Z-e6svd8-side.png",
+            "codex-job-2026-06-28T15-38-17-159Z-e6svd8-back-three-quarter.png",
+            "codex-job-2026-06-28T15-38-17-159Z-e6svd8-back.png"
+          ],
+          "manifestName": "codex-job-2026-06-28T15-38-17-159Z-e6svd8-manifest.json",
+          "stable": true,
+          "candidateCount": 6,
+          "qualityGate": {
+            "classification": "usable-final",
+            "reason": "server verified",
+            "code": "direction-split-server-verified",
+            "historyAllowed": true,
+            "downloadAllowed": true,
+            "retryable": false
+          },
+          "chromaKey": {
+            "expected": "green",
+            "manifest": "green"
+          }
+        }
+      },
+      {
+        "name": "codex-job-2026-06-28T15-38-17-159Z-e6svd8-side.png",
+        "path": "D:\\codex\\image-cockpit-for-codex-workflows\\slot5\\docs\\qa\\animation-delivery-reliability\\baseline-2026-06-28T15-37-58-428Z\\trial-002\\handoff\\outbox\\codex-job-2026-06-28T15-38-17-159Z-e6svd8-side.png",
+        "mimeType": "image/png",
+        "qualityGate": {
+          "classification": "usable-final",
+          "reason": "server verified",
+          "code": "direction-split-server-verified",
+          "historyAllowed": true,
+          "downloadAllowed": true,
+          "retryable": false
+        },
+        "artifact": {
+          "jobId": "codex-job-2026-06-28T15-38-17-159Z-e6svd8",
+          "artifactKind": "direction-split",
+          "detected": true,
+          "ready": true,
+          "verified": true,
+          "quality": "gold",
+          "reason": "server verified",
+          "missingDirections": [],
+          "warnings": [],
+          "files": [
+            "codex-job-2026-06-28T15-38-17-159Z-e6svd8-front.png",
+            "codex-job-2026-06-28T15-38-17-159Z-e6svd8-front-three-quarter.png",
+            "codex-job-2026-06-28T15-38-17-159Z-e6svd8-side.png",
+            "codex-job-2026-06-28T15-38-17-159Z-e6svd8-back-three-quarter.png",
+            "codex-job-2026-06-28T15-38-17-159Z-e6svd8-back.png"
+          ],
+          "manifestName": "codex-job-2026-06-28T15-38-17-159Z-e6svd8-manifest.json",
+          "stable": true,
+          "candidateCount": 6,
+          "qualityGate": {
+            "classification": "usable-final",
+            "reason": "server verified",
+            "code": "direction-split-server-verified",
+            "historyAllowed": true,
+            "downloadAllowed": true,
+            "retryable": false
+          },
+          "chromaKey": {
+            "expected": "green",
+            "manifest": "green"
+          }
+        }
+      },
+      {
+        "name": "codex-job-2026-06-28T15-38-17-159Z-e6svd8-front-three-quarter.png",
+        "path": "D:\\codex\\image-cockpit-for-codex-workflows\\slot5\\docs\\qa\\animation-delivery-reliability\\baseline-2026-06-28T15-37-58-428Z\\trial-002\\handoff\\outbox\\codex-job-2026-06-28T15-38-17-159Z-e6svd8-front-three-quarter.png",
+        "mimeType": "image/png",
+        "qualityGate": {
+          "classification": "usable-final",
+          "reason": "server verified",
+          "code": "direction-split-server-verified",
+          "historyAllowed": true,
+          "downloadAllowed": true,
+          "retryable": false
+        },
+        "artifact": {
+          "jobId": "codex-job-2026-06-28T15-38-17-159Z-e6svd8",
+          "artifactKind": "direction-split",
+          "detected": true,
+          "ready": true,
+          "verified": true,
+          "quality": "gold",
+          "reason": "server verified",
+          "missingDirections": [],
+          "warnings": [],
+          "files": [
+            "codex-job-2026-06-28T15-38-17-159Z-e6svd8-front.png",
+            "codex-job-2026-06-28T15-38-17-159Z-e6svd8-front-three-quarter.png",
+            "codex-job-2026-06-28T15-38-17-159Z-e6svd8-side.png",
+            "codex-job-2026-06-28T15-38-17-159Z-e6svd8-back-three-quarter.png",
+            "codex-job-2026-06-28T15-38-17-159Z-e6svd8-back.png"
+          ],
+          "manifestName": "codex-job-2026-06-28T15-38-17-159Z-e6svd8-manifest.json",
+          "stable": true,
+          "candidateCount": 6,
+          "qualityGate": {
+            "classification": "usable-final",
+            "reason": "server verified",
+            "code": "direction-split-server-verified",
+            "historyAllowed": true,
+            "downloadAllowed": true,
+            "retryable": false
+          },
+          "chromaKey": {
+            "expected": "green",
+            "manifest": "green"
+          }
+        }
+      },
+      {
+        "name": "codex-job-2026-06-28T15-38-17-159Z-e6svd8-front.png",
+        "path": "D:\\codex\\image-cockpit-for-codex-workflows\\slot5\\docs\\qa\\animation-delivery-reliability\\baseline-2026-06-28T15-37-58-428Z\\trial-002\\handoff\\outbox\\codex-job-2026-06-28T15-38-17-159Z-e6svd8-front.png",
+        "mimeType": "image/png",
+        "qualityGate": {
+          "classification": "usable-final",
+          "reason": "server verified",
+          "code": "direction-split-server-verified",
+          "historyAllowed": true,
+          "downloadAllowed": true,
+          "retryable": false
+        },
+        "artifact": {
+          "jobId": "codex-job-2026-06-28T15-38-17-159Z-e6svd8",
+          "artifactKind": "direction-split",
+          "detected": true,
+          "ready": true,
+          "verified": true,
+          "quality": "gold",
+          "reason": "server verified",
+          "missingDirections": [],
+          "warnings": [],
+          "files": [
+            "codex-job-2026-06-28T15-38-17-159Z-e6svd8-front.png",
+            "codex-job-2026-06-28T15-38-17-159Z-e6svd8-front-three-quarter.png",
+            "codex-job-2026-06-28T15-38-17-159Z-e6svd8-side.png",
+            "codex-job-2026-06-28T15-38-17-159Z-e6svd8-back-three-quarter.png",
+            "codex-job-2026-06-28T15-38-17-159Z-e6svd8-back.png"
+          ],
+          "manifestName": "codex-job-2026-06-28T15-38-17-159Z-e6svd8-manifest.json",
+          "stable": true,
+          "candidateCount": 6,
+          "qualityGate": {
+            "classification": "usable-final",
+            "reason": "server verified",
+            "code": "direction-split-server-verified",
+            "historyAllowed": true,
+            "downloadAllowed": true,
+            "retryable": false
+          },
+          "chromaKey": {
+            "expected": "green",
+            "manifest": "green"
+          }
+        }
+      }
+    ],
+    "outboxError": ""
+  }
+]
