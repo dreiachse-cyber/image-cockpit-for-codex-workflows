@@ -551,6 +551,7 @@ function checkWorkflowIds() {
     "Image Editing should hide animated WebP download for non-animation results",
     "PNG",
     "policy_or_safety",
+    "usage_limit",
     "Generation failed",
     "生成できませんでした",
     "codex-failure-card",
@@ -994,6 +995,7 @@ function checkWorkflowIds() {
     "reasonKind",
     '"status": "blocked"',
     "Do not include hidden policy text",
+    "usage limit",
     "no_image_returned"
   ].forEach((marker) => {
     if (!serverText?.includes(marker)) {
@@ -1277,7 +1279,7 @@ function checkPendingJobCoverage() {
   [
     "procedural, SVG, canvas, diagram, geometric, or placeholder image",
     "reasonKind=imagegen_unavailable",
-    '"reasonKind": "policy_or_safety" | "imagegen_unavailable" | "unknown"'
+    '"reasonKind": "policy_or_safety" | "usage_limit" | "imagegen_unavailable" | "unknown"'
   ].forEach((marker) => {
     if (!serverText.includes(marker)) {
       failures.push(`Server imagegen-unavailable guard marker is missing: ${marker}`);

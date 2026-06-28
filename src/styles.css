@@ -2113,6 +2113,11 @@ button:disabled {
   background: #fff6f5;
 }
 
+.codex-failure-card.usage_limit {
+  border-color: #d8c38a;
+  background: #fffbea;
+}
+
 .codex-failure-icon {
   width: 40px;
   height: 40px;

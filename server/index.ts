@@ -76,6 +76,7 @@ type CodexRunnerState = "running" | "completed" | "failed" | "unavailable" | "di
 type CodexRunnerPreflightState = "ready" | "disabled" | "unavailable";
 type CodexFailureKind =
   | "policy_or_safety"
+  | "usage_limit"
   | "imagegen_unavailable"
   | "runner_failed"
   | "no_image_returned"
@@ -1020,7 +1021,7 @@ function buildCodexRunnerPrompt(job: { id: string; path: string; outboxDir: stri
     "- Prefer PNG or WebP for still images. If you produce notes, write them as a small Markdown sidecar in the outbox. Do not place *-qa.json, work files, .tmp files, candidate-contact sheets, contact sheets, preview grids, AB galleries, or debug images in the outbox root.",
     "- If image generation/editing is blocked by safety, policy, or unavailable imagegen capability, do not create a placeholder image.",
     "- Write a small JSON blocker sidecar only, using this schema:",
-    '{ "status": "blocked", "reasonKind": "policy_or_safety" | "imagegen_unavailable" | "unknown", "userMessage": "A short user-safe reason.", "suggestion": "A short retry suggestion." }',
+    '{ "status": "blocked", "reasonKind": "policy_or_safety" | "usage_limit" | "imagegen_unavailable" | "unknown", "userMessage": "A short user-safe reason.", "suggestion": "A short retry suggestion." }',
     "- Do not include hidden policy text, internal traces, API keys, access tokens, local absolute paths, or the full prompt in the blocker sidecar.",
     "",
     "When finished, make sure all required usable image files are present in the outbox if generation/editing succeeded."
@@ -1185,6 +1186,9 @@ function classifyFailureKind(status: CodexRunnerStatus, text: string, hasReturne
   ) {
     return "no_image_returned";
   }
+  if (matchesAny(text, ["you've hit your usage limit", "you have hit your usage limit", "hit your usage limit", "usage limit", "upgrade to plus"])) {
+    return "usage_limit";
+  }
   if (matchesAny(text, ["policy", "safety", "content policy", "disallowed", "not allowed", "blocked", "moderation", "cannot comply", "can't help"])) {
     return "policy_or_safety";
   }
@@ -1211,6 +1215,14 @@ function diagnosticForKind(kind: CodexFailureKind): Omit<CodexJobDiagnostic, "si
       title: "Image generation unavailable",
       userMessage: "Image generation is not available in this Codex environment.",
       suggestion: "Use manual handoff or another local provider, then return an image to the outbox."
+    };
+  }
+  if (kind === "usage_limit") {
+    return {
+      kind,
+      title: "Codex usage limit reached",
+      userMessage: "Codex runner could not start generation because this Codex environment has reached its usage limit.",
+      suggestion: "Wait until the reset time shown in the Codex log, then retry the job."
     };
   }
   if (kind === "runner_failed") {
@@ -1901,6 +1913,7 @@ function sanitizeRunnerLogText(text: string) {
 function normalizeFailureKind(value: unknown): CodexFailureKind | null {
   if (
     value === "policy_or_safety" ||
+    value === "usage_limit" ||
     value === "imagegen_unavailable" ||
     value === "runner_failed" ||
     value === "no_image_returned" ||

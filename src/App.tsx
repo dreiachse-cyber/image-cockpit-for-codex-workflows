@@ -3977,7 +3977,9 @@ function App() {
     const hasStorageProblem = storageScreen.mode === "safe" || storageScreen.mode === "recovery" || storageScreen.mode === "reset";
     const hasApiProblem = cockpitHealth.state === "broken";
     const hasImagegenProblem = codexFailureNotices.some((notice) =>
-      notice.diagnostic.kind === "imagegen_unavailable" || notice.diagnostic.kind === "no_image_returned"
+      notice.diagnostic.kind === "imagegen_unavailable" ||
+      notice.diagnostic.kind === "usage_limit" ||
+      notice.diagnostic.kind === "no_image_returned"
     );
     if (hasStorageProblem) {
       setSettingsTab("recovery");
@@ -8585,6 +8587,13 @@ function codexFailureDisplay(kind: CodexFailureKind, copy: Record<string, string
       title: copy.codexFailureImagegenUnavailableTitle,
       message: copy.codexFailureImagegenUnavailableMessage,
       suggestion: copy.codexFailureImagegenUnavailableSuggestion
+    };
+  }
+  if (kind === "usage_limit") {
+    return {
+      title: diagnostic?.title || "Codex usage limit reached",
+      message: diagnostic?.userMessage || "Codex runner could not start generation because this Codex environment has reached its usage limit.",
+      suggestion: diagnostic?.suggestion || "Wait until the reset time shown in the Codex log, then retry the job."
     };
   }
   if (kind === "runner_failed") {

@@ -508,6 +508,20 @@ async function runMockAutorunSmoke() {
     assert(failedStatus.status.state === "failed", "policy stderr job should fail runner");
     assert(failedStatus.status.diagnostic?.kind === "policy_or_safety", "policy stderr should return policy_or_safety diagnostic");
 
+    const usageLimitJob = await postJson(port, "/api/codex/jobs", {
+      workflowMode: "image-generate",
+      prompt: "Smoke test usage limit runner failed",
+      negativePrompt: "text",
+      jobNotes: "Trigger usage_limit diagnostic.",
+      annotations: [],
+      grid: { columns: 1, rows: 1, gutter: 0 },
+      action: "",
+      frames: 0
+    });
+    const usageLimitStatus = await waitForJobDiagnostic(port, usageLimitJob.id, "usage_limit");
+    assert(usageLimitStatus.status.state === "failed", "usage-limit stderr job should fail runner");
+    assert(usageLimitStatus.status.diagnostic?.kind === "usage_limit", "usage-limit stderr should return usage_limit diagnostic");
+
     const noImageJob = await postJson(port, "/api/codex/jobs", {
       workflowMode: "image-generate",
       prompt: "Smoke test no image returned",
@@ -689,6 +703,11 @@ if (job.prompt.includes("imagegen unavailable sidecar")) {
 
 if (job.prompt.includes("policy runner failed")) {
   console.error("content policy safety blocked by image generation");
+  process.exit(12);
+}
+
+if (job.prompt.includes("usage limit runner failed")) {
+  console.error("ERROR: You've hit your usage limit. Upgrade to Plus to continue using Codex (https://chatgpt.com/explore/plus), or try again at Jul 28th, 2026 12:13 PM.");
   process.exit(12);
 }
 

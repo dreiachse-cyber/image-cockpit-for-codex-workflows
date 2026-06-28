@@ -166,6 +166,7 @@ try {
   await assertAnimationLibraryHidden();
   await assertCodexFailureNotice();
   await assertImagegenUnavailableSidecar();
+  await assertUsageLimitFailureNotice();
   await assertTempCandidateContactImportFilter();
   await assertPartialDirectionSplitRecovery();
   await assertManifestFirstDirectionSplitRecovery();
@@ -877,6 +878,26 @@ async function assertImagegenUnavailableSidecar() {
   assert(after.historyItems === before.historyItems, "Imagegen unavailable sidecar should not create a fake history image");
   assert(after.codexJobRows === 0, "Imagegen unavailable sidecar should release the active job slot");
   await assertNoBrowserErrors("imagegen unavailable sidecar");
+}
+
+async function assertUsageLimitFailureNotice() {
+  await selectWorkflowTab("Pixel Art Generation");
+  await waitForEval(() => `document.body.innerText.includes("Pixel Art Generation")`, "Pixel Art Generation for usage limit");
+  const before = await pageSnapshot();
+  await setPromptValue("usage limit ui smoke");
+
+  await clickButtonByText("Generate Pixel Art");
+  await waitForEval(
+    () => `Array.from(document.querySelectorAll(".codex-failure-card.usage_limit")).some((card) => card.innerText.includes("Codex usage limit reached"))`,
+    "usage-limit Codex failure notice",
+    20000
+  );
+  const after = await pageSnapshot();
+  assert(after.codexFailureCards === before.codexFailureCards + 1, `Usage-limit failure should add one failure card, got ${after.codexFailureCards}`);
+  assert(after.text.includes("Codex runner could not start generation because this Codex environment has reached its usage limit."), "Usage-limit failure should show explicit diagnostic copy");
+  assert(after.historyItems === before.historyItems, "Usage-limit failure should not create a fake history image");
+  assert(after.codexJobRows === 0, "Usage-limit failure should release the active job slot");
+  await assertNoBrowserErrors("usage-limit failure notice");
 }
 
 async function assertTempCandidateContactImportFilter() {
@@ -2331,6 +2352,17 @@ if (job.prompt.includes("imagegen unavailable ui smoke")) {
     suggestion: "Use manual handoff or another provider."
   }, null, 2), "utf8");
   console.log(\`mock imagegen unavailable sidecar \${jobId}\`);
+  process.exit(0);
+}
+
+if (job.prompt.includes("usage limit ui smoke")) {
+  await writeFile(join(outboxDir, \`\${jobId}-blocked.json\`), JSON.stringify({
+    status: "blocked",
+    reasonKind: "usage_limit",
+    userMessage: "Codex runner could not start generation because this Codex environment has reached its usage limit.",
+    suggestion: "Wait until the reset time shown in the Codex log, then retry the job."
+  }, null, 2), "utf8");
+  console.log(\`mock usage limit sidecar \${jobId}\`);
   process.exit(0);
 }
 
