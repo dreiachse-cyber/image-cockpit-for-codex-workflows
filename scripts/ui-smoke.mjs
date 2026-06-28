@@ -1,6 +1,6 @@
 import { spawn } from "node:child_process";
 import { existsSync } from "node:fs";
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { createServer } from "node:net";
 import { tmpdir } from "node:os";
 import { delimiter, join } from "node:path";
@@ -169,6 +169,7 @@ try {
   await assertTempCandidateContactImportFilter();
   await assertPartialDirectionSplitRecovery();
   await assertManifestFirstDirectionSplitRecovery();
+  await assertStandardAnimationTournamentTwoCandidates();
   await assertCompletedDirectionSplitImportFailure();
   await assertQualityGateDirectionSplitFailure();
   await assertDetachedDirectionSplitRecoverResults();
@@ -965,6 +966,65 @@ async function assertManifestFirstDirectionSplitRecovery() {
   assert(snapshot.text.includes("direction-split manifest ok"), "Manifest-first recovered import should confirm manifest use");
   await assertNoBrowserErrors("manifest-first direction split recovery");
   await maybeCapture("manifest-first-direction-split-recovery");
+  await selectWorkflowTab("Pixel Art Generation");
+}
+
+async function assertStandardAnimationTournamentTwoCandidates() {
+  await selectWorkflowTab("Pixel Art Generation");
+  await setPromptValue("animation tournament two candidate setup");
+  await selectWorkflowTab("Animation Generation");
+  await waitForEval(() => `document.body.innerText.includes("Animation Generation")`, "Animation Generation for two-candidate tournament");
+  const before = await pageSnapshot();
+
+  await clickButtonByText("Generate Animation");
+  await waitForEval(
+    () => `document.querySelectorAll(".codex-job-row").length === 2
+      && document.body.innerText.includes("Active 2/3")
+      && document.body.innerText.includes("candidate 1/2")
+      && document.body.innerText.includes("candidate 2/2")
+      && !document.body.innerText.includes("candidate 3/")`,
+    "standard animation tournament starts exactly two candidates",
+    10000
+  );
+
+  await waitForEval(
+    () => `document.querySelectorAll(".history-item").length === ${before.historyItems + 1}
+      && document.querySelectorAll(".codex-job-row").length === 0`,
+    "two-candidate tournament imports exactly one winner",
+    25000
+  );
+  const snapshot = await pageSnapshot();
+  assert(snapshot.text.includes("tournament winner candidate"), "Two-candidate tournament should report a winner");
+  assert(snapshot.text.includes("Compared 2 usable candidates"), "Two-candidate tournament should compare two usable candidates");
+  assert(!snapshot.text.includes("candidate 3/"), "Two-candidate tournament should not mention a third candidate");
+
+  const winnerMatch = /tournament winner candidate \d\/2 \(([^)]+)\)/.exec(snapshot.text);
+  assert(winnerMatch, "Two-candidate tournament status should include the winner job id");
+  const winnerJobId = winnerMatch[1];
+  const rootOutboxFiles = await readdir(join(handoffDir, "outbox"));
+  const expectedWinnerFiles = [
+    `${winnerJobId}-front.png`,
+    `${winnerJobId}-front-three-quarter.png`,
+    `${winnerJobId}-side.png`,
+    `${winnerJobId}-back-three-quarter.png`,
+    `${winnerJobId}-back.png`,
+    `${winnerJobId}-manifest.json`
+  ];
+  for (const file of expectedWinnerFiles) {
+    assert(rootOutboxFiles.includes(file), `Winner publish should include ${file}`);
+  }
+  assert(
+    !rootOutboxFiles.some((file) => file.startsWith(`${winnerJobId}-`) && (file.includes("candidate-contact") || file.includes("preview-grid"))),
+    "Tournament winner publish should keep hidden candidate and preview-grid artifacts out of root outbox"
+  );
+
+  const winnerJob = JSON.parse(await readFile(join(handoffDir, "inbox", `${winnerJobId}.json`), "utf8"));
+  assert(winnerJob.tournament?.candidateCount === 2, `Winner job should record tournamentCandidateCount 2, got ${winnerJob.tournament?.candidateCount}`);
+  const hiddenCandidateDirs = await readdir(join(handoffDir, "outbox", ".tournaments", winnerJob.tournament.id));
+  assert(hiddenCandidateDirs.length === 2, `Hidden tournament outbox should contain 2 candidates, got ${hiddenCandidateDirs.length}`);
+
+  await assertNoBrowserErrors("two-candidate animation tournament");
+  await maybeCapture("animation-tournament-two-candidates");
   await selectWorkflowTab("Pixel Art Generation");
 }
 
