@@ -1,0 +1,16 @@
+{
+  "schema": "image-cockpit.animation-delivery-rate-summary.v1",
+  "createdAt": "2026-06-28T17:53:09.006Z",
+  "runnerMode": "real",
+  "totalTrials": 1,
+  "passedTrials": 0,
+  "browserDeliveryRate": 0,
+  "falseSuccessCount": 0,
+  "stuckRunningCount": 0,
+  "failures": [
+    {
+      "id": "browser-delivery-2026-06-28T17-34-22-569Z",
+      "reason": "not_delivered_to_history, not_delivered_to_preview, not_downloadable_final, outbox_final_missing; ui: Material quality gate failed 6月29日 02:53 • codex-job-2026-06-28T17-34-26-123Z-4ek1f0 Animation: idle / Locked animation preset: Idle Breathing. Preset motion (candidate 1/3) The completed Codex job returned outbox files, but the app could not import them. Reason: Animation quality gate failed: no history or final download item was added. All animation tournament candidates failed. candidate 1/3: Direction split QA failed: front: idle breathing motion too small (1.2% average frame Retry suggestion: The candidate was not saved as a final result. Review diagnostics and regenerate the job. Retry import"
+    }
+  ]
+}

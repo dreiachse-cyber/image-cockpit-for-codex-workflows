@@ -7,6 +7,12 @@ const runnerMode = (process.env.IMAGE_COCKPIT_ANIMATION_DELIVERY_RUNNER || "mock
 const trialCount = Math.max(1, Number(process.env.IMAGE_COCKPIT_ANIMATION_DELIVERY_TRIALS ?? "3"));
 const minRate = Number(process.env.IMAGE_COCKPIT_ANIMATION_DELIVERY_MIN_RATE ?? (runnerMode === "mock" ? "1" : "0"));
 const keepRuntimeHandoff = process.env.IMAGE_COCKPIT_ANIMATION_DELIVERY_KEEP_HANDOFF === "1";
+const pruneFailedRuntimeHandoff = process.env.IMAGE_COCKPIT_ANIMATION_DELIVERY_PRUNE_FAILED_HANDOFF === "1";
+const runtimeHandoffPolicy = keepRuntimeHandoff
+  ? "keep-all"
+  : pruneFailedRuntimeHandoff
+    ? "prune-all"
+    : "keep-failed";
 const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
 const baselineDir = resolve(
   process.env.IMAGE_COCKPIT_ANIMATION_DELIVERY_BASELINE_DIR ||
@@ -27,7 +33,6 @@ for (let index = 0; index < trialCount; index += 1) {
   const finishedAt = new Date().toISOString();
   await writeFile(join(trialDir, "child-output.log"), child.output, "utf8");
   const parsedTrials = await readTrialJson(trialDir);
-  if (!keepRuntimeHandoff) await pruneRuntimeHandoff(trialDir);
   const normalizedTrials = parsedTrials.length > 0
     ? parsedTrials.map((trial) => ({
         ...trial,
@@ -47,12 +52,15 @@ for (let index = 0; index < trialCount; index += 1) {
         childFinishedAt: finishedAt,
         childOutputPath: toReportPath(join(trialDir, "child-output.log"))
       }];
+  const trialPassed = child.exitCode === 0 && normalizedTrials.length > 0 && normalizedTrials.every((trial) => trial.resultStatus === "pass");
+  const runtimeHandoffKept = shouldKeepRuntimeHandoffForTrial(trialPassed);
+  if (!runtimeHandoffKept) await pruneRuntimeHandoff(trialDir);
   trials.push(...normalizedTrials);
   childRuns.push({
     trialId,
     reportDir: toReportPath(trialDir),
     exitCode: child.exitCode,
-    runtimeHandoffKept: keepRuntimeHandoff,
+    runtimeHandoffKept,
     startedAt,
     finishedAt
   });
@@ -113,6 +121,12 @@ async function pruneRuntimeHandoff(trialDir) {
   await rm(join(trialDir, "handoff"), { recursive: true, force: true });
 }
 
+function shouldKeepRuntimeHandoffForTrial(trialPassed) {
+  if (keepRuntimeHandoff) return true;
+  if (!trialPassed && !pruneFailedRuntimeHandoff) return true;
+  return false;
+}
+
 function summarizeTrials(allTrials, runs) {
   const totalTrials = allTrials.length;
   const passedTrials = allTrials.filter((trial) => trial.resultStatus === "pass").length;
@@ -129,7 +143,9 @@ function summarizeTrials(allTrials, runs) {
     falseSuccessCount,
     stuckRunningCount,
     failedChildRuns: runs.filter((run) => run.exitCode !== 0).length,
-    runtimeHandoffKept: keepRuntimeHandoff,
+    runtimeHandoffPolicy,
+    runtimeHandoffKept: runs.some((run) => run.runtimeHandoffKept),
+    runtimeHandoffKeptCount: runs.filter((run) => run.runtimeHandoffKept).length,
     minRate,
     failures: allTrials
       .filter((trial) => trial.resultStatus !== "pass")
@@ -144,7 +160,7 @@ function summarizeTrials(allTrials, runs) {
 
 function reportMarkdown(summary, runs) {
   const runLines = runs
-    .map((run) => `- ${run.trialId}: exitCode=${run.exitCode}, reportDir=${run.reportDir}`)
+    .map((run) => `- ${run.trialId}: exitCode=${run.exitCode}, runtimeHandoffKept=${run.runtimeHandoffKept}, reportDir=${run.reportDir}`)
     .join("\n");
   const failureLines = summary.failures.length > 0
     ? summary.failures.map((failure) => `- ${failure.baselineTrialId}: ${failure.reason}`).join("\n")
@@ -162,7 +178,9 @@ Created: ${summary.createdAt}
 - falseSuccessCount: ${summary.falseSuccessCount}
 - stuckRunningCount: ${summary.stuckRunningCount}
 - failedChildRuns: ${summary.failedChildRuns}
+- runtimeHandoffPolicy: ${summary.runtimeHandoffPolicy}
 - runtimeHandoffKept: ${summary.runtimeHandoffKept}
+- runtimeHandoffKeptCount: ${summary.runtimeHandoffKeptCount}
 - minRate: ${summary.minRate}
 
 ## Runs

@@ -42,7 +42,7 @@ $env:IMAGE_COCKPIT_ANIMATION_DELIVERY_TRIALS='3'
 npm run animation:baseline
 ```
 
-`animation:baseline` keeps the committed evidence lightweight by pruning each trial's runtime `handoff/` directory after reading its result metadata. Set `IMAGE_COCKPIT_ANIMATION_DELIVERY_KEEP_HANDOFF=1` when you need the full generated outbox payload for debugging.
+`animation:baseline` keeps committed evidence lightweight by pruning successful trials' runtime `handoff/` directories after reading result metadata. Failed trials keep their runtime `handoff/` directory on disk by default so candidate PNGs, manifests, and runner files remain available for debugging; those heavy directories are git-ignored. Set `IMAGE_COCKPIT_ANIMATION_DELIVERY_KEEP_HANDOFF=1` to keep every trial's payload, or `IMAGE_COCKPIT_ANIMATION_DELIVERY_PRUNE_FAILED_HANDOFF=1` to prune failures too.
 
 For real-run baselines where failures are expected and should still be recorded:
 

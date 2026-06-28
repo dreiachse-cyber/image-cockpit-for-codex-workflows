@@ -1,0 +1,11 @@
+{
+  "schema": "image-cockpit.animation-delivery-rate-summary.v1",
+  "createdAt": "2026-06-28T18:13:40.151Z",
+  "runnerMode": "real",
+  "totalTrials": 1,
+  "passedTrials": 1,
+  "browserDeliveryRate": 1,
+  "falseSuccessCount": 0,
+  "stuckRunningCount": 0,
+  "failures": []
+}

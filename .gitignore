@@ -7,3 +7,4 @@ coverage/
 *.local
 *.log
 codex-handoff/
+docs/qa/animation-delivery-reliability/**/handoff/

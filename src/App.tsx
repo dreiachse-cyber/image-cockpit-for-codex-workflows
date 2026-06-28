@@ -137,9 +137,20 @@ const DIRECTION_SPLIT_CENTER_WARN_DRIFT = 24;
 const DIRECTION_SPLIT_CENTER_FAIL_DRIFT = 48;
 const DIRECTION_SPLIT_BOTTOM_WARN_DRIFT = 16;
 const DIRECTION_SPLIT_BOTTOM_FAIL_DRIFT = 32;
-const DIRECTION_SPLIT_MOTION_WARN_AVERAGE = 0.04;
-const DIRECTION_SPLIT_MOTION_FAIL_AVERAGE = 0.025;
-const DIRECTION_SPLIT_MOTION_FAIL_MAX = 0.055;
+type DirectionSplitMotionProfile = "standard" | "idle-breathing";
+interface DirectionSplitMotionThresholds {
+  label: string;
+  warnAverage: number;
+  failAverage: number;
+  failMax: number;
+}
+const DIRECTION_SPLIT_MOTION_THRESHOLDS: Record<DirectionSplitMotionProfile, DirectionSplitMotionThresholds> = {
+  standard: { label: "motion", warnAverage: 0.04, failAverage: 0.025, failMax: 0.055 },
+  "idle-breathing": { label: "idle breathing motion", warnAverage: 0.03, failAverage: 0.018, failMax: 0.04 }
+};
+const DIRECTION_SPLIT_IDLE_MOTION_ABSENT_AVERAGE = 0.008;
+const DIRECTION_SPLIT_IDLE_MOTION_ABSENT_MAX = 0.02;
+const DIRECTION_SPLIT_IDLE_MIN_READABLE_MOTION_ROWS = 3;
 const STANDARD_ANIMATION_CELL: SpriteAction["cell"] = { width: ANIMATION_CELL_SIZE, height: ANIMATION_CELL_SIZE };
 const STANDARD_ANIMATION_ANCHOR = { x: Math.round(ANIMATION_CELL_SIZE / 2), y: Math.round(ANIMATION_CELL_SIZE * 0.92) };
 const HATCH_PET_CELL: SpriteAction["cell"] = { width: 192, height: 208 };
@@ -2073,8 +2084,8 @@ const animationPresetCatalog: AnimationPresetExample[] = [
       en: "Stable 8-frame ready stance with planted feet, subtle breathing, and readable five-direction views.",
       ja: "足を固定したまま、控えめな呼吸と5方向の見え方が読める8フレーム待機です。"
     },
-    prompt: "idle breathing ready stance with planted feet, subtle inhale and exhale, tiny shoulder and chest rise, delayed hair, hood, clothing, and backpack follow-through, stable center, stable foot baseline, no walking, no stepping, no hopping",
-    notes: "Official preset: generate eight source frames as one complete idle breathing loop. Feet must remain planted on the same baseline; motion should come only from subtle breathing, shoulder/chest rise, and delayed hair, cloth, hood, and backpack settling. Avoid stepping, walking, running, hopping, large bounce, cropped hair, cropped feet, or pose drift."
+    prompt: "idle breathing ready stance with planted feet, clear but contained inhale and exhale, visible 2-4px shoulder and chest rise, delayed hair, hood, clothing, and backpack follow-through, stable center, stable foot baseline, no walking, no stepping, no hopping, no nearly identical frames",
+    notes: "Official preset: generate eight source frames as one complete idle breathing loop. Feet must remain planted on the same baseline; motion should come only from clearly readable breathing, shoulder/chest rise, and delayed hair, cloth, hood, and backpack settling. Avoid nearly identical frames, stepping, walking, running, hopping, large bounce, cropped hair, cropped feet, or pose drift."
   },
   {
     id: "walk-cycle",
@@ -2318,7 +2329,7 @@ const animationPresetMotionPromptLines: Record<string, string[]> = {
     "Use the 8 generated source frames as one complete normal loop, not a ping-pong half-cycle.",
     "Frame plan: frame 1 neutral ready stance; frame 2 slight inhale with chest and shoulders rising; frame 3 hair, hood, clothing, and backpack follow upward subtly; frame 4 top of breath while the body stays centered; frame 5 exhale begins; frame 6 shoulders settle and cloth/hair lag slightly; frame 7 return toward neutral; frame 8 clean bridge back to frame 1.",
     "Both feet must stay planted on the same exact foot baseline in all eight frames. Do not step, walk, run, hop, slide, lift a foot, or change the stance width.",
-    "The motion should be visible but restrained: tiny shoulder/chest rise, small head or hair settle, and light clothing/backpack follow-through. Do not use large bounce as a substitute for breathing.",
+    "The motion should be clearly visible but restrained: about 2-4px shoulder/chest rise, small head or hair settle, and readable clothing/backpack follow-through. Do not return nearly identical frames, and do not use large bounce as a substitute for breathing.",
     "For diagonal and side rows, preserve the same stance silhouette and foot positions across the row; only the breathing and secondary motion should change.",
     "The back row must remain a true straight rear idle stance with a centered backpack/back silhouette and no face details."
   ],
@@ -5693,8 +5704,9 @@ function App() {
       }
 
       const importedResults = await Promise.all(selection.directionResults.map((result) => fetchCodexJobOutboxResult(job.id, result.name)));
+      const actionName = job.actionName ?? manifestActionName(manifest);
       const chromaKey = animationChromaKeys[job.chromaKey ?? manifestChromaKeyName(manifest, animationChromaKey)];
-      const composed = await composeDirectionSplitAnimationSheet(importedResults, chromaKey, job.cell ?? manifest?.cell ?? STANDARD_ANIMATION_CELL);
+      const composed = await composeDirectionSplitAnimationSheet(importedResults, chromaKey, job.cell ?? manifest?.cell ?? STANDARD_ANIMATION_CELL, actionName);
       const artifactWarnings = selection.artifactStatus?.warnings?.length ?? 0;
       const warningCount = composed.warnings.length + artifactWarnings;
       const artifactQuality = selection.artifactStatus?.quality;
@@ -5730,7 +5742,7 @@ function App() {
     const actionName = importContext.actionName ?? manifestActionName(manifest);
     const spriteCell = importContext.cell ?? manifest?.cell ?? STANDARD_ANIMATION_CELL;
     const chromaKey = animationChromaKeys[importContext.chromaKey ?? manifestChromaKeyName(manifest, animationChromaKey)];
-    const composed = await composeDirectionSplitAnimationSheet(importedResults, chromaKey, spriteCell);
+    const composed = await composeDirectionSplitAnimationSheet(importedResults, chromaKey, spriteCell, actionName);
     const image = await loadImage(composed.dataUrl);
     const itemName = `${importContext.id}-direction-split-animation-sheet.png`;
     const item: HistoryItem = {
@@ -9130,7 +9142,8 @@ async function createTransparentSpriteSheetDataUrl(dataUrl: string, chromaKey: A
 async function composeDirectionSplitAnimationSheet(
   importedResults: CodexOutboxImportResponse[],
   chromaKey: AnimationChromaKey,
-  cell: SpriteAction["cell"]
+  cell: SpriteAction["cell"],
+  actionName?: string
 ) {
   const preparedCells: DirectionSplitPreparedCell[] = [];
   const warnings: string[] = [];
@@ -9177,7 +9190,7 @@ async function composeDirectionSplitAnimationSheet(
   }
 
   const normalizedCells = normalizeDirectionSplitCells(preparedCells, cell);
-  const qa = validateDirectionSplitAnimationCells(normalizedCells, cell);
+  const qa = validateDirectionSplitAnimationCells(normalizedCells, cell, directionSplitMotionProfileForAction(actionName));
   warnings.push(...normalizedCells.flatMap((frame) => frame.warnings), ...qa.warnings);
   failures.push(...normalizedCells.flatMap((frame) => frame.failures), ...qa.failures);
 
@@ -9339,9 +9352,20 @@ function normalizeDirectionSplitCells(preparedCells: DirectionSplitPreparedCell[
   });
 }
 
-function validateDirectionSplitAnimationCells(cells: DirectionSplitNormalizedCell[], cell: SpriteAction["cell"]) {
+function directionSplitMotionProfileForAction(actionName?: string): DirectionSplitMotionProfile {
+  const normalized = actionName?.trim().toLowerCase() ?? "";
+  return normalized === "idle" || normalized === "idle-breathing" ? "idle-breathing" : "standard";
+}
+
+function validateDirectionSplitAnimationCells(
+  cells: DirectionSplitNormalizedCell[],
+  cell: SpriteAction["cell"],
+  motionProfile: DirectionSplitMotionProfile = "standard"
+) {
   const warnings: string[] = [];
   const failures: string[] = [];
+  const motionThresholds = DIRECTION_SPLIT_MOTION_THRESHOLDS[motionProfile];
+  const idleMotionRows: Array<{ direction: string; averageMotion: number; maxMotion: number }> = [];
 
   ANIMATION_DIRECTIONS.forEach((direction, directionIndex) => {
     const rowCells = cells
@@ -9404,12 +9428,32 @@ function validateDirectionSplitAnimationCells(cells: DirectionSplitNormalizedCel
       .map((frame, index) => frameDifferenceRatio(rowCells[index].canvas, frame.canvas, cell.width, cell.height));
     const averageMotion = averageNumber(frameMotion);
     const maxMotion = frameMotion.length > 0 ? Math.max(...frameMotion) : 0;
-    if (averageMotion < DIRECTION_SPLIT_MOTION_FAIL_AVERAGE && maxMotion < DIRECTION_SPLIT_MOTION_FAIL_MAX) {
-      failures.push(`${direction}: motion too small (${formatMotionPercent(averageMotion)} average frame change)`);
-    } else if (averageMotion < DIRECTION_SPLIT_MOTION_WARN_AVERAGE) {
-      warnings.push(`${direction}: low motion (${formatMotionPercent(averageMotion)} average frame change)`);
+    if (motionProfile === "idle-breathing") {
+      idleMotionRows.push({ direction, averageMotion, maxMotion });
+      if (averageMotion < DIRECTION_SPLIT_IDLE_MOTION_ABSENT_AVERAGE && maxMotion < DIRECTION_SPLIT_IDLE_MOTION_ABSENT_MAX) {
+        failures.push(`${direction}: ${motionThresholds.label} absent (${formatMotionPercent(averageMotion)} average frame change)`);
+      } else if (averageMotion < motionThresholds.warnAverage) {
+        warnings.push(`${direction}: low ${motionThresholds.label} (${formatMotionPercent(averageMotion)} average frame change)`);
+      }
+    } else if (averageMotion < motionThresholds.failAverage && maxMotion < motionThresholds.failMax) {
+      failures.push(`${direction}: ${motionThresholds.label} too small (${formatMotionPercent(averageMotion)} average frame change)`);
+    } else if (averageMotion < motionThresholds.warnAverage) {
+      warnings.push(`${direction}: low ${motionThresholds.label} (${formatMotionPercent(averageMotion)} average frame change)`);
     }
   });
+
+  if (motionProfile === "idle-breathing" && idleMotionRows.length === ANIMATION_DIRECTIONS.length) {
+    const readableRows = idleMotionRows.filter((row) => row.averageMotion >= motionThresholds.failAverage || row.maxMotion >= motionThresholds.failMax).length;
+    const averageIdleMotion = averageNumber(idleMotionRows.map((row) => row.averageMotion));
+    const maxIdleMotion = Math.max(...idleMotionRows.map((row) => row.maxMotion));
+    if (readableRows < DIRECTION_SPLIT_IDLE_MIN_READABLE_MOTION_ROWS) {
+      failures.push(
+        `idle breathing motion too static across directions (${readableRows}/${ANIMATION_DIRECTIONS.length} readable rows, ${formatMotionPercent(averageIdleMotion)} average frame change)`
+      );
+    } else if (averageIdleMotion < motionThresholds.warnAverage && maxIdleMotion < motionThresholds.failMax) {
+      warnings.push(`idle breathing motion is subtle overall (${formatMotionPercent(averageIdleMotion)} average frame change)`);
+    }
+  }
 
   return { warnings, failures };
 }
