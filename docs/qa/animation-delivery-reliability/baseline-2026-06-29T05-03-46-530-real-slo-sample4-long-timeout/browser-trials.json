@@ -1,0 +1,1450 @@
+[
+  {
+    "id": "browser-delivery-2026-06-28T20-03-46-744Z",
+    "sourceType": "browser file upload from public prompt example",
+    "sourceName": "animation-delivery-source.png",
+    "motionPreset": "default standard animation",
+    "startedAt": "2026-06-28T20:03:46.778Z",
+    "finishedAt": "2026-06-28T20:16:29.113Z",
+    "browserUrl": "http://127.0.0.1:64425/",
+    "resultStatus": "pass",
+    "qualityRank": "silver-or-better",
+    "deliveredToHistory": true,
+    "deliveredToPreview": true,
+    "downloadableFinal": true,
+    "outboxFinalPresent": true,
+    "falseSuccess": false,
+    "stuckRunning": false,
+    "failureCodes": [],
+    "failureReason": "",
+    "uiFailureText": "",
+    "artifactPaths": {
+      "screenshot": "docs/qa/animation-delivery-reliability/baseline-2026-06-29T05-03-46-530-real-slo-sample4-long-timeout/trial-001/browser-final-1280x720.png",
+      "reportDir": "docs/qa/animation-delivery-reliability/baseline-2026-06-29T05-03-46-530-real-slo-sample4-long-timeout/trial-001",
+      "handoffDir": "docs/qa/animation-delivery-reliability/baseline-2026-06-29T05-03-46-530-real-slo-sample4-long-timeout/trial-001/handoff"
+    },
+    "browserSnapshot": {
+      "buttons": [
+        "Diagnose",
+        "Recover Results",
+        "Repair Cockpit",
+        "Pixel Art Generation",
+        "Image Editing",
+        "Animation Generation",
+        "Upload Pixel Art",
+        "Choose Animation",
+        "Generate Animation",
+        "Generated from animation-delivery-source.png",
+        "Download",
+        "Recover Results",
+        "Dedupe History",
+        "codex-job-2026-06-28T20-03-50-219Z-6jco06-direction-split-animation-sheet.png 6月29日 05:16 • Local Inbox 2048x1280 • generate",
+        "animation-delivery-source.png 6月29日 05:03 • Local File 1024x1024 • import",
+        "forest-mage-sheet.png 6月29日 05:03 • Local File 1774x887 • sample",
+        "Collapse logs",
+        "Animated GIF",
+        "Animated WebP",
+        "Sprite Sheet",
+        "Export Animation Pack"
+      ],
+      "disabledButtons": [
+        "Repair Cockpit"
+      ],
+      "historyItems": 3,
+      "codexJobRows": 0,
+      "codexFailureCards": 0,
+      "codexFailureTexts": [],
+      "codexLogCards": 3,
+      "canvasPreviewMode": "result",
+      "canvasPreviewName": "codex-job-2026-06-28T20-03-50-219Z-6jco06-direction-split-animation-sheet.png",
+      "resultPreviewImages": 1,
+      "resultPreviewLoaded": true,
+      "animationPreviewImages": 6,
+      "directionPreviewRows": 5,
+      "resultDownloadPanelComplete": true,
+      "downloadModalVisible": true,
+      "downloadModalButtons": [
+        "Animated GIF",
+        "Animated WebP",
+        "Sprite Sheet",
+        "Export Animation Pack"
+      ],
+      "animationSourceStatus": "Generated from\nanimation-delivery-source.png",
+      "animationSourceCard": "Selected source animation-delivery-source.png 1024x1024 / import",
+      "browserErrors": [],
+      "textOmitted": true,
+      "textLength": 26333,
+      "hasAnimationGeneratedText": true
+    },
+    "outboxResults": [
+      {
+        "name": "codex-job-2026-06-28T20-03-50-219Z-6jco06-manifest.json",
+        "path": "docs/qa/animation-delivery-reliability/baseline-2026-06-29T05-03-46-530-real-slo-sample4-long-timeout/trial-001/handoff/outbox/codex-job-2026-06-28T20-03-50-219Z-6jco06-manifest.json",
+        "mimeType": "application/json",
+        "qualityGate": {
+          "classification": "usable-final",
+          "reason": "server verified",
+          "code": "direction-split-server-verified",
+          "historyAllowed": true,
+          "downloadAllowed": true,
+          "retryable": false
+        },
+        "artifact": {
+          "jobId": "codex-job-2026-06-28T20-03-50-219Z-6jco06",
+          "artifactKind": "direction-split",
+          "detected": true,
+          "ready": true,
+          "verified": true,
+          "quality": "gold",
+          "reason": "server verified",
+          "missingDirections": [],
+          "warnings": [],
+          "files": [
+            "codex-job-2026-06-28T20-03-50-219Z-6jco06-front.png",
+            "codex-job-2026-06-28T20-03-50-219Z-6jco06-front-three-quarter.png",
+            "codex-job-2026-06-28T20-03-50-219Z-6jco06-side.png",
+            "codex-job-2026-06-28T20-03-50-219Z-6jco06-back-three-quarter.png",
+            "codex-job-2026-06-28T20-03-50-219Z-6jco06-back.png"
+          ],
+          "manifestName": "codex-job-2026-06-28T20-03-50-219Z-6jco06-manifest.json",
+          "stable": true,
+          "candidateCount": 6,
+          "qualityGate": {
+            "classification": "usable-final",
+            "reason": "server verified",
+            "code": "direction-split-server-verified",
+            "historyAllowed": true,
+            "downloadAllowed": true,
+            "retryable": false
+          },
+          "chromaKey": {
+            "expected": "green",
+            "manifest": "green"
+          }
+        }
+      },
+      {
+        "name": "codex-job-2026-06-28T20-03-50-219Z-6jco06-back.png",
+        "path": "docs/qa/animation-delivery-reliability/baseline-2026-06-29T05-03-46-530-real-slo-sample4-long-timeout/trial-001/handoff/outbox/codex-job-2026-06-28T20-03-50-219Z-6jco06-back.png",
+        "mimeType": "image/png",
+        "qualityGate": {
+          "classification": "usable-final",
+          "reason": "server verified",
+          "code": "direction-split-server-verified",
+          "historyAllowed": true,
+          "downloadAllowed": true,
+          "retryable": false
+        },
+        "artifact": {
+          "jobId": "codex-job-2026-06-28T20-03-50-219Z-6jco06",
+          "artifactKind": "direction-split",
+          "detected": true,
+          "ready": true,
+          "verified": true,
+          "quality": "gold",
+          "reason": "server verified",
+          "missingDirections": [],
+          "warnings": [],
+          "files": [
+            "codex-job-2026-06-28T20-03-50-219Z-6jco06-front.png",
+            "codex-job-2026-06-28T20-03-50-219Z-6jco06-front-three-quarter.png",
+            "codex-job-2026-06-28T20-03-50-219Z-6jco06-side.png",
+            "codex-job-2026-06-28T20-03-50-219Z-6jco06-back-three-quarter.png",
+            "codex-job-2026-06-28T20-03-50-219Z-6jco06-back.png"
+          ],
+          "manifestName": "codex-job-2026-06-28T20-03-50-219Z-6jco06-manifest.json",
+          "stable": true,
+          "candidateCount": 6,
+          "qualityGate": {
+            "classification": "usable-final",
+            "reason": "server verified",
+            "code": "direction-split-server-verified",
+            "historyAllowed": true,
+            "downloadAllowed": true,
+            "retryable": false
+          },
+          "chromaKey": {
+            "expected": "green",
+            "manifest": "green"
+          }
+        }
+      },
+      {
+        "name": "codex-job-2026-06-28T20-03-50-219Z-6jco06-back-three-quarter.png",
+        "path": "docs/qa/animation-delivery-reliability/baseline-2026-06-29T05-03-46-530-real-slo-sample4-long-timeout/trial-001/handoff/outbox/codex-job-2026-06-28T20-03-50-219Z-6jco06-back-three-quarter.png",
+        "mimeType": "image/png",
+        "qualityGate": {
+          "classification": "usable-final",
+          "reason": "server verified",
+          "code": "direction-split-server-verified",
+          "historyAllowed": true,
+          "downloadAllowed": true,
+          "retryable": false
+        },
+        "artifact": {
+          "jobId": "codex-job-2026-06-28T20-03-50-219Z-6jco06",
+          "artifactKind": "direction-split",
+          "detected": true,
+          "ready": true,
+          "verified": true,
+          "quality": "gold",
+          "reason": "server verified",
+          "missingDirections": [],
+          "warnings": [],
+          "files": [
+            "codex-job-2026-06-28T20-03-50-219Z-6jco06-front.png",
+            "codex-job-2026-06-28T20-03-50-219Z-6jco06-front-three-quarter.png",
+            "codex-job-2026-06-28T20-03-50-219Z-6jco06-side.png",
+            "codex-job-2026-06-28T20-03-50-219Z-6jco06-back-three-quarter.png",
+            "codex-job-2026-06-28T20-03-50-219Z-6jco06-back.png"
+          ],
+          "manifestName": "codex-job-2026-06-28T20-03-50-219Z-6jco06-manifest.json",
+          "stable": true,
+          "candidateCount": 6,
+          "qualityGate": {
+            "classification": "usable-final",
+            "reason": "server verified",
+            "code": "direction-split-server-verified",
+            "historyAllowed": true,
+            "downloadAllowed": true,
+            "retryable": false
+          },
+          "chromaKey": {
+            "expected": "green",
+            "manifest": "green"
+          }
+        }
+      },
+      {
+        "name": "codex-job-2026-06-28T20-03-50-219Z-6jco06-side.png",
+        "path": "docs/qa/animation-delivery-reliability/baseline-2026-06-29T05-03-46-530-real-slo-sample4-long-timeout/trial-001/handoff/outbox/codex-job-2026-06-28T20-03-50-219Z-6jco06-side.png",
+        "mimeType": "image/png",
+        "qualityGate": {
+          "classification": "usable-final",
+          "reason": "server verified",
+          "code": "direction-split-server-verified",
+          "historyAllowed": true,
+          "downloadAllowed": true,
+          "retryable": false
+        },
+        "artifact": {
+          "jobId": "codex-job-2026-06-28T20-03-50-219Z-6jco06",
+          "artifactKind": "direction-split",
+          "detected": true,
+          "ready": true,
+          "verified": true,
+          "quality": "gold",
+          "reason": "server verified",
+          "missingDirections": [],
+          "warnings": [],
+          "files": [
+            "codex-job-2026-06-28T20-03-50-219Z-6jco06-front.png",
+            "codex-job-2026-06-28T20-03-50-219Z-6jco06-front-three-quarter.png",
+            "codex-job-2026-06-28T20-03-50-219Z-6jco06-side.png",
+            "codex-job-2026-06-28T20-03-50-219Z-6jco06-back-three-quarter.png",
+            "codex-job-2026-06-28T20-03-50-219Z-6jco06-back.png"
+          ],
+          "manifestName": "codex-job-2026-06-28T20-03-50-219Z-6jco06-manifest.json",
+          "stable": true,
+          "candidateCount": 6,
+          "qualityGate": {
+            "classification": "usable-final",
+            "reason": "server verified",
+            "code": "direction-split-server-verified",
+            "historyAllowed": true,
+            "downloadAllowed": true,
+            "retryable": false
+          },
+          "chromaKey": {
+            "expected": "green",
+            "manifest": "green"
+          }
+        }
+      },
+      {
+        "name": "codex-job-2026-06-28T20-03-50-219Z-6jco06-front-three-quarter.png",
+        "path": "docs/qa/animation-delivery-reliability/baseline-2026-06-29T05-03-46-530-real-slo-sample4-long-timeout/trial-001/handoff/outbox/codex-job-2026-06-28T20-03-50-219Z-6jco06-front-three-quarter.png",
+        "mimeType": "image/png",
+        "qualityGate": {
+          "classification": "usable-final",
+          "reason": "server verified",
+          "code": "direction-split-server-verified",
+          "historyAllowed": true,
+          "downloadAllowed": true,
+          "retryable": false
+        },
+        "artifact": {
+          "jobId": "codex-job-2026-06-28T20-03-50-219Z-6jco06",
+          "artifactKind": "direction-split",
+          "detected": true,
+          "ready": true,
+          "verified": true,
+          "quality": "gold",
+          "reason": "server verified",
+          "missingDirections": [],
+          "warnings": [],
+          "files": [
+            "codex-job-2026-06-28T20-03-50-219Z-6jco06-front.png",
+            "codex-job-2026-06-28T20-03-50-219Z-6jco06-front-three-quarter.png",
+            "codex-job-2026-06-28T20-03-50-219Z-6jco06-side.png",
+            "codex-job-2026-06-28T20-03-50-219Z-6jco06-back-three-quarter.png",
+            "codex-job-2026-06-28T20-03-50-219Z-6jco06-back.png"
+          ],
+          "manifestName": "codex-job-2026-06-28T20-03-50-219Z-6jco06-manifest.json",
+          "stable": true,
+          "candidateCount": 6,
+          "qualityGate": {
+            "classification": "usable-final",
+            "reason": "server verified",
+            "code": "direction-split-server-verified",
+            "historyAllowed": true,
+            "downloadAllowed": true,
+            "retryable": false
+          },
+          "chromaKey": {
+            "expected": "green",
+            "manifest": "green"
+          }
+        }
+      },
+      {
+        "name": "codex-job-2026-06-28T20-03-50-219Z-6jco06-front.png",
+        "path": "docs/qa/animation-delivery-reliability/baseline-2026-06-29T05-03-46-530-real-slo-sample4-long-timeout/trial-001/handoff/outbox/codex-job-2026-06-28T20-03-50-219Z-6jco06-front.png",
+        "mimeType": "image/png",
+        "qualityGate": {
+          "classification": "usable-final",
+          "reason": "server verified",
+          "code": "direction-split-server-verified",
+          "historyAllowed": true,
+          "downloadAllowed": true,
+          "retryable": false
+        },
+        "artifact": {
+          "jobId": "codex-job-2026-06-28T20-03-50-219Z-6jco06",
+          "artifactKind": "direction-split",
+          "detected": true,
+          "ready": true,
+          "verified": true,
+          "quality": "gold",
+          "reason": "server verified",
+          "missingDirections": [],
+          "warnings": [],
+          "files": [
+            "codex-job-2026-06-28T20-03-50-219Z-6jco06-front.png",
+            "codex-job-2026-06-28T20-03-50-219Z-6jco06-front-three-quarter.png",
+            "codex-job-2026-06-28T20-03-50-219Z-6jco06-side.png",
+            "codex-job-2026-06-28T20-03-50-219Z-6jco06-back-three-quarter.png",
+            "codex-job-2026-06-28T20-03-50-219Z-6jco06-back.png"
+          ],
+          "manifestName": "codex-job-2026-06-28T20-03-50-219Z-6jco06-manifest.json",
+          "stable": true,
+          "candidateCount": 6,
+          "qualityGate": {
+            "classification": "usable-final",
+            "reason": "server verified",
+            "code": "direction-split-server-verified",
+            "historyAllowed": true,
+            "downloadAllowed": true,
+            "retryable": false
+          },
+          "chromaKey": {
+            "expected": "green",
+            "manifest": "green"
+          }
+        }
+      }
+    ],
+    "outboxError": "",
+    "baselineTrialId": "trial-001",
+    "childExitCode": 0,
+    "childStartedAt": "2026-06-28T20:03:46.672Z",
+    "childFinishedAt": "2026-06-28T20:16:30.902Z",
+    "childOutputPath": "docs/qa/animation-delivery-reliability/baseline-2026-06-29T05-03-46-530-real-slo-sample4-long-timeout/trial-001/child-output.log"
+  },
+  {
+    "id": "browser-delivery-2026-06-28T20-16-31-005Z",
+    "sourceType": "browser file upload from public prompt example",
+    "sourceName": "animation-delivery-source.png",
+    "motionPreset": "default standard animation",
+    "startedAt": "2026-06-28T20:16:31.032Z",
+    "finishedAt": "2026-06-28T20:29:33.093Z",
+    "browserUrl": "http://127.0.0.1:59649/",
+    "resultStatus": "pass",
+    "qualityRank": "silver-or-better",
+    "deliveredToHistory": true,
+    "deliveredToPreview": true,
+    "downloadableFinal": true,
+    "outboxFinalPresent": true,
+    "falseSuccess": false,
+    "stuckRunning": false,
+    "failureCodes": [],
+    "failureReason": "",
+    "uiFailureText": "",
+    "artifactPaths": {
+      "screenshot": "docs/qa/animation-delivery-reliability/baseline-2026-06-29T05-03-46-530-real-slo-sample4-long-timeout/trial-002/browser-final-1280x720.png",
+      "reportDir": "docs/qa/animation-delivery-reliability/baseline-2026-06-29T05-03-46-530-real-slo-sample4-long-timeout/trial-002",
+      "handoffDir": "docs/qa/animation-delivery-reliability/baseline-2026-06-29T05-03-46-530-real-slo-sample4-long-timeout/trial-002/handoff"
+    },
+    "browserSnapshot": {
+      "buttons": [
+        "Diagnose",
+        "Recover Results",
+        "Repair Cockpit",
+        "Pixel Art Generation",
+        "Image Editing",
+        "Animation Generation",
+        "Upload Pixel Art",
+        "Choose Animation",
+        "Generate Animation",
+        "Generated from animation-delivery-source.png",
+        "Download",
+        "Recover Results",
+        "Dedupe History",
+        "codex-job-2026-06-28T20-16-34-146Z-vlufsu-direction-split-animation-sheet.png 6月29日 05:29 • Local Inbox 2048x1280 • generate",
+        "animation-delivery-source.png 6月29日 05:16 • Local File 1024x1024 • import",
+        "forest-mage-sheet.png 6月29日 05:16 • Local File 1774x887 • sample",
+        "Collapse logs",
+        "Animated GIF",
+        "Animated WebP",
+        "Sprite Sheet",
+        "Export Animation Pack"
+      ],
+      "disabledButtons": [
+        "Repair Cockpit"
+      ],
+      "historyItems": 3,
+      "codexJobRows": 0,
+      "codexFailureCards": 0,
+      "codexFailureTexts": [],
+      "codexLogCards": 3,
+      "canvasPreviewMode": "result",
+      "canvasPreviewName": "codex-job-2026-06-28T20-16-34-146Z-vlufsu-direction-split-animation-sheet.png",
+      "resultPreviewImages": 1,
+      "resultPreviewLoaded": true,
+      "animationPreviewImages": 6,
+      "directionPreviewRows": 5,
+      "resultDownloadPanelComplete": true,
+      "downloadModalVisible": true,
+      "downloadModalButtons": [
+        "Animated GIF",
+        "Animated WebP",
+        "Sprite Sheet",
+        "Export Animation Pack"
+      ],
+      "animationSourceStatus": "Generated from\nanimation-delivery-source.png",
+      "animationSourceCard": "Selected source animation-delivery-source.png 1024x1024 / import",
+      "browserErrors": [],
+      "textOmitted": true,
+      "textLength": 52871,
+      "hasAnimationGeneratedText": true
+    },
+    "outboxResults": [
+      {
+        "name": "codex-job-2026-06-28T20-16-34-146Z-vlufsu-manifest.json",
+        "path": "docs/qa/animation-delivery-reliability/baseline-2026-06-29T05-03-46-530-real-slo-sample4-long-timeout/trial-002/handoff/outbox/codex-job-2026-06-28T20-16-34-146Z-vlufsu-manifest.json",
+        "mimeType": "application/json",
+        "qualityGate": {
+          "classification": "usable-final",
+          "reason": "server verified",
+          "code": "direction-split-server-verified",
+          "historyAllowed": true,
+          "downloadAllowed": true,
+          "retryable": false
+        },
+        "artifact": {
+          "jobId": "codex-job-2026-06-28T20-16-34-146Z-vlufsu",
+          "artifactKind": "direction-split",
+          "detected": true,
+          "ready": true,
+          "verified": true,
+          "quality": "gold",
+          "reason": "server verified",
+          "missingDirections": [],
+          "warnings": [],
+          "files": [
+            "codex-job-2026-06-28T20-16-34-146Z-vlufsu-front.png",
+            "codex-job-2026-06-28T20-16-34-146Z-vlufsu-front-three-quarter.png",
+            "codex-job-2026-06-28T20-16-34-146Z-vlufsu-side.png",
+            "codex-job-2026-06-28T20-16-34-146Z-vlufsu-back-three-quarter.png",
+            "codex-job-2026-06-28T20-16-34-146Z-vlufsu-back.png"
+          ],
+          "manifestName": "codex-job-2026-06-28T20-16-34-146Z-vlufsu-manifest.json",
+          "stable": true,
+          "candidateCount": 6,
+          "qualityGate": {
+            "classification": "usable-final",
+            "reason": "server verified",
+            "code": "direction-split-server-verified",
+            "historyAllowed": true,
+            "downloadAllowed": true,
+            "retryable": false
+          },
+          "chromaKey": {
+            "expected": "green",
+            "manifest": "green"
+          }
+        }
+      },
+      {
+        "name": "codex-job-2026-06-28T20-16-34-146Z-vlufsu-back.png",
+        "path": "docs/qa/animation-delivery-reliability/baseline-2026-06-29T05-03-46-530-real-slo-sample4-long-timeout/trial-002/handoff/outbox/codex-job-2026-06-28T20-16-34-146Z-vlufsu-back.png",
+        "mimeType": "image/png",
+        "qualityGate": {
+          "classification": "usable-final",
+          "reason": "server verified",
+          "code": "direction-split-server-verified",
+          "historyAllowed": true,
+          "downloadAllowed": true,
+          "retryable": false
+        },
+        "artifact": {
+          "jobId": "codex-job-2026-06-28T20-16-34-146Z-vlufsu",
+          "artifactKind": "direction-split",
+          "detected": true,
+          "ready": true,
+          "verified": true,
+          "quality": "gold",
+          "reason": "server verified",
+          "missingDirections": [],
+          "warnings": [],
+          "files": [
+            "codex-job-2026-06-28T20-16-34-146Z-vlufsu-front.png",
+            "codex-job-2026-06-28T20-16-34-146Z-vlufsu-front-three-quarter.png",
+            "codex-job-2026-06-28T20-16-34-146Z-vlufsu-side.png",
+            "codex-job-2026-06-28T20-16-34-146Z-vlufsu-back-three-quarter.png",
+            "codex-job-2026-06-28T20-16-34-146Z-vlufsu-back.png"
+          ],
+          "manifestName": "codex-job-2026-06-28T20-16-34-146Z-vlufsu-manifest.json",
+          "stable": true,
+          "candidateCount": 6,
+          "qualityGate": {
+            "classification": "usable-final",
+            "reason": "server verified",
+            "code": "direction-split-server-verified",
+            "historyAllowed": true,
+            "downloadAllowed": true,
+            "retryable": false
+          },
+          "chromaKey": {
+            "expected": "green",
+            "manifest": "green"
+          }
+        }
+      },
+      {
+        "name": "codex-job-2026-06-28T20-16-34-146Z-vlufsu-back-three-quarter.png",
+        "path": "docs/qa/animation-delivery-reliability/baseline-2026-06-29T05-03-46-530-real-slo-sample4-long-timeout/trial-002/handoff/outbox/codex-job-2026-06-28T20-16-34-146Z-vlufsu-back-three-quarter.png",
+        "mimeType": "image/png",
+        "qualityGate": {
+          "classification": "usable-final",
+          "reason": "server verified",
+          "code": "direction-split-server-verified",
+          "historyAllowed": true,
+          "downloadAllowed": true,
+          "retryable": false
+        },
+        "artifact": {
+          "jobId": "codex-job-2026-06-28T20-16-34-146Z-vlufsu",
+          "artifactKind": "direction-split",
+          "detected": true,
+          "ready": true,
+          "verified": true,
+          "quality": "gold",
+          "reason": "server verified",
+          "missingDirections": [],
+          "warnings": [],
+          "files": [
+            "codex-job-2026-06-28T20-16-34-146Z-vlufsu-front.png",
+            "codex-job-2026-06-28T20-16-34-146Z-vlufsu-front-three-quarter.png",
+            "codex-job-2026-06-28T20-16-34-146Z-vlufsu-side.png",
+            "codex-job-2026-06-28T20-16-34-146Z-vlufsu-back-three-quarter.png",
+            "codex-job-2026-06-28T20-16-34-146Z-vlufsu-back.png"
+          ],
+          "manifestName": "codex-job-2026-06-28T20-16-34-146Z-vlufsu-manifest.json",
+          "stable": true,
+          "candidateCount": 6,
+          "qualityGate": {
+            "classification": "usable-final",
+            "reason": "server verified",
+            "code": "direction-split-server-verified",
+            "historyAllowed": true,
+            "downloadAllowed": true,
+            "retryable": false
+          },
+          "chromaKey": {
+            "expected": "green",
+            "manifest": "green"
+          }
+        }
+      },
+      {
+        "name": "codex-job-2026-06-28T20-16-34-146Z-vlufsu-side.png",
+        "path": "docs/qa/animation-delivery-reliability/baseline-2026-06-29T05-03-46-530-real-slo-sample4-long-timeout/trial-002/handoff/outbox/codex-job-2026-06-28T20-16-34-146Z-vlufsu-side.png",
+        "mimeType": "image/png",
+        "qualityGate": {
+          "classification": "usable-final",
+          "reason": "server verified",
+          "code": "direction-split-server-verified",
+          "historyAllowed": true,
+          "downloadAllowed": true,
+          "retryable": false
+        },
+        "artifact": {
+          "jobId": "codex-job-2026-06-28T20-16-34-146Z-vlufsu",
+          "artifactKind": "direction-split",
+          "detected": true,
+          "ready": true,
+          "verified": true,
+          "quality": "gold",
+          "reason": "server verified",
+          "missingDirections": [],
+          "warnings": [],
+          "files": [
+            "codex-job-2026-06-28T20-16-34-146Z-vlufsu-front.png",
+            "codex-job-2026-06-28T20-16-34-146Z-vlufsu-front-three-quarter.png",
+            "codex-job-2026-06-28T20-16-34-146Z-vlufsu-side.png",
+            "codex-job-2026-06-28T20-16-34-146Z-vlufsu-back-three-quarter.png",
+            "codex-job-2026-06-28T20-16-34-146Z-vlufsu-back.png"
+          ],
+          "manifestName": "codex-job-2026-06-28T20-16-34-146Z-vlufsu-manifest.json",
+          "stable": true,
+          "candidateCount": 6,
+          "qualityGate": {
+            "classification": "usable-final",
+            "reason": "server verified",
+            "code": "direction-split-server-verified",
+            "historyAllowed": true,
+            "downloadAllowed": true,
+            "retryable": false
+          },
+          "chromaKey": {
+            "expected": "green",
+            "manifest": "green"
+          }
+        }
+      },
+      {
+        "name": "codex-job-2026-06-28T20-16-34-146Z-vlufsu-front-three-quarter.png",
+        "path": "docs/qa/animation-delivery-reliability/baseline-2026-06-29T05-03-46-530-real-slo-sample4-long-timeout/trial-002/handoff/outbox/codex-job-2026-06-28T20-16-34-146Z-vlufsu-front-three-quarter.png",
+        "mimeType": "image/png",
+        "qualityGate": {
+          "classification": "usable-final",
+          "reason": "server verified",
+          "code": "direction-split-server-verified",
+          "historyAllowed": true,
+          "downloadAllowed": true,
+          "retryable": false
+        },
+        "artifact": {
+          "jobId": "codex-job-2026-06-28T20-16-34-146Z-vlufsu",
+          "artifactKind": "direction-split",
+          "detected": true,
+          "ready": true,
+          "verified": true,
+          "quality": "gold",
+          "reason": "server verified",
+          "missingDirections": [],
+          "warnings": [],
+          "files": [
+            "codex-job-2026-06-28T20-16-34-146Z-vlufsu-front.png",
+            "codex-job-2026-06-28T20-16-34-146Z-vlufsu-front-three-quarter.png",
+            "codex-job-2026-06-28T20-16-34-146Z-vlufsu-side.png",
+            "codex-job-2026-06-28T20-16-34-146Z-vlufsu-back-three-quarter.png",
+            "codex-job-2026-06-28T20-16-34-146Z-vlufsu-back.png"
+          ],
+          "manifestName": "codex-job-2026-06-28T20-16-34-146Z-vlufsu-manifest.json",
+          "stable": true,
+          "candidateCount": 6,
+          "qualityGate": {
+            "classification": "usable-final",
+            "reason": "server verified",
+            "code": "direction-split-server-verified",
+            "historyAllowed": true,
+            "downloadAllowed": true,
+            "retryable": false
+          },
+          "chromaKey": {
+            "expected": "green",
+            "manifest": "green"
+          }
+        }
+      },
+      {
+        "name": "codex-job-2026-06-28T20-16-34-146Z-vlufsu-front.png",
+        "path": "docs/qa/animation-delivery-reliability/baseline-2026-06-29T05-03-46-530-real-slo-sample4-long-timeout/trial-002/handoff/outbox/codex-job-2026-06-28T20-16-34-146Z-vlufsu-front.png",
+        "mimeType": "image/png",
+        "qualityGate": {
+          "classification": "usable-final",
+          "reason": "server verified",
+          "code": "direction-split-server-verified",
+          "historyAllowed": true,
+          "downloadAllowed": true,
+          "retryable": false
+        },
+        "artifact": {
+          "jobId": "codex-job-2026-06-28T20-16-34-146Z-vlufsu",
+          "artifactKind": "direction-split",
+          "detected": true,
+          "ready": true,
+          "verified": true,
+          "quality": "gold",
+          "reason": "server verified",
+          "missingDirections": [],
+          "warnings": [],
+          "files": [
+            "codex-job-2026-06-28T20-16-34-146Z-vlufsu-front.png",
+            "codex-job-2026-06-28T20-16-34-146Z-vlufsu-front-three-quarter.png",
+            "codex-job-2026-06-28T20-16-34-146Z-vlufsu-side.png",
+            "codex-job-2026-06-28T20-16-34-146Z-vlufsu-back-three-quarter.png",
+            "codex-job-2026-06-28T20-16-34-146Z-vlufsu-back.png"
+          ],
+          "manifestName": "codex-job-2026-06-28T20-16-34-146Z-vlufsu-manifest.json",
+          "stable": true,
+          "candidateCount": 6,
+          "qualityGate": {
+            "classification": "usable-final",
+            "reason": "server verified",
+            "code": "direction-split-server-verified",
+            "historyAllowed": true,
+            "downloadAllowed": true,
+            "retryable": false
+          },
+          "chromaKey": {
+            "expected": "green",
+            "manifest": "green"
+          }
+        }
+      }
+    ],
+    "outboxError": "",
+    "baselineTrialId": "trial-002",
+    "childExitCode": 0,
+    "childStartedAt": "2026-06-28T20:16:30.933Z",
+    "childFinishedAt": "2026-06-28T20:29:34.864Z",
+    "childOutputPath": "docs/qa/animation-delivery-reliability/baseline-2026-06-29T05-03-46-530-real-slo-sample4-long-timeout/trial-002/child-output.log"
+  },
+  {
+    "id": "browser-delivery-2026-06-28T20-29-34-945Z",
+    "sourceType": "browser file upload from public prompt example",
+    "sourceName": "animation-delivery-source.png",
+    "motionPreset": "default standard animation",
+    "startedAt": "2026-06-28T20:29:34.967Z",
+    "finishedAt": "2026-06-28T20:46:56.510Z",
+    "browserUrl": "http://127.0.0.1:59893/",
+    "resultStatus": "pass",
+    "qualityRank": "silver-or-better",
+    "deliveredToHistory": true,
+    "deliveredToPreview": true,
+    "downloadableFinal": true,
+    "outboxFinalPresent": true,
+    "falseSuccess": false,
+    "stuckRunning": false,
+    "failureCodes": [],
+    "failureReason": "",
+    "uiFailureText": "",
+    "artifactPaths": {
+      "screenshot": "docs/qa/animation-delivery-reliability/baseline-2026-06-29T05-03-46-530-real-slo-sample4-long-timeout/trial-003/browser-final-1280x720.png",
+      "reportDir": "docs/qa/animation-delivery-reliability/baseline-2026-06-29T05-03-46-530-real-slo-sample4-long-timeout/trial-003",
+      "handoffDir": "docs/qa/animation-delivery-reliability/baseline-2026-06-29T05-03-46-530-real-slo-sample4-long-timeout/trial-003/handoff"
+    },
+    "browserSnapshot": {
+      "buttons": [
+        "Diagnose",
+        "Recover Results",
+        "Repair Cockpit",
+        "Pixel Art Generation",
+        "Image Editing",
+        "Animation Generation",
+        "Upload Pixel Art",
+        "Choose Animation",
+        "Generate Animation",
+        "Generated from animation-delivery-source.png",
+        "Download",
+        "Recover Results",
+        "Dedupe History",
+        "codex-job-2026-06-28T20-29-37-810Z-azfjal-direction-split-animation-sheet.png 6月29日 05:46 • Local Inbox 2048x1280 • generate",
+        "animation-delivery-source.png 6月29日 05:29 • Local File 1024x1024 • import",
+        "forest-mage-sheet.png 6月29日 05:29 • Local File 1774x887 • sample",
+        "Collapse logs",
+        "Animated GIF",
+        "Animated WebP",
+        "Sprite Sheet",
+        "Export Animation Pack"
+      ],
+      "disabledButtons": [
+        "Repair Cockpit"
+      ],
+      "historyItems": 3,
+      "codexJobRows": 0,
+      "codexFailureCards": 0,
+      "codexFailureTexts": [],
+      "codexLogCards": 3,
+      "canvasPreviewMode": "result",
+      "canvasPreviewName": "codex-job-2026-06-28T20-29-37-810Z-azfjal-direction-split-animation-sheet.png",
+      "resultPreviewImages": 1,
+      "resultPreviewLoaded": true,
+      "animationPreviewImages": 6,
+      "directionPreviewRows": 5,
+      "resultDownloadPanelComplete": true,
+      "downloadModalVisible": true,
+      "downloadModalButtons": [
+        "Animated GIF",
+        "Animated WebP",
+        "Sprite Sheet",
+        "Export Animation Pack"
+      ],
+      "animationSourceStatus": "Generated from\nanimation-delivery-source.png",
+      "animationSourceCard": "Selected source animation-delivery-source.png 1024x1024 / import",
+      "browserErrors": [],
+      "textOmitted": true,
+      "textLength": 40206,
+      "hasAnimationGeneratedText": true
+    },
+    "outboxResults": [
+      {
+        "name": "codex-job-2026-06-28T20-29-37-810Z-azfjal-manifest.json",
+        "path": "docs/qa/animation-delivery-reliability/baseline-2026-06-29T05-03-46-530-real-slo-sample4-long-timeout/trial-003/handoff/outbox/codex-job-2026-06-28T20-29-37-810Z-azfjal-manifest.json",
+        "mimeType": "application/json",
+        "qualityGate": {
+          "classification": "usable-final",
+          "reason": "server verified",
+          "code": "direction-split-server-verified",
+          "historyAllowed": true,
+          "downloadAllowed": true,
+          "retryable": false
+        },
+        "artifact": {
+          "jobId": "codex-job-2026-06-28T20-29-37-810Z-azfjal",
+          "artifactKind": "direction-split",
+          "detected": true,
+          "ready": true,
+          "verified": true,
+          "quality": "gold",
+          "reason": "server verified",
+          "missingDirections": [],
+          "warnings": [],
+          "files": [
+            "codex-job-2026-06-28T20-29-37-810Z-azfjal-front.png",
+            "codex-job-2026-06-28T20-29-37-810Z-azfjal-front-three-quarter.png",
+            "codex-job-2026-06-28T20-29-37-810Z-azfjal-side.png",
+            "codex-job-2026-06-28T20-29-37-810Z-azfjal-back-three-quarter.png",
+            "codex-job-2026-06-28T20-29-37-810Z-azfjal-back.png"
+          ],
+          "manifestName": "codex-job-2026-06-28T20-29-37-810Z-azfjal-manifest.json",
+          "stable": true,
+          "candidateCount": 6,
+          "qualityGate": {
+            "classification": "usable-final",
+            "reason": "server verified",
+            "code": "direction-split-server-verified",
+            "historyAllowed": true,
+            "downloadAllowed": true,
+            "retryable": false
+          },
+          "chromaKey": {
+            "expected": "green",
+            "manifest": "green"
+          }
+        }
+      },
+      {
+        "name": "codex-job-2026-06-28T20-29-37-810Z-azfjal-back.png",
+        "path": "docs/qa/animation-delivery-reliability/baseline-2026-06-29T05-03-46-530-real-slo-sample4-long-timeout/trial-003/handoff/outbox/codex-job-2026-06-28T20-29-37-810Z-azfjal-back.png",
+        "mimeType": "image/png",
+        "qualityGate": {
+          "classification": "usable-final",
+          "reason": "server verified",
+          "code": "direction-split-server-verified",
+          "historyAllowed": true,
+          "downloadAllowed": true,
+          "retryable": false
+        },
+        "artifact": {
+          "jobId": "codex-job-2026-06-28T20-29-37-810Z-azfjal",
+          "artifactKind": "direction-split",
+          "detected": true,
+          "ready": true,
+          "verified": true,
+          "quality": "gold",
+          "reason": "server verified",
+          "missingDirections": [],
+          "warnings": [],
+          "files": [
+            "codex-job-2026-06-28T20-29-37-810Z-azfjal-front.png",
+            "codex-job-2026-06-28T20-29-37-810Z-azfjal-front-three-quarter.png",
+            "codex-job-2026-06-28T20-29-37-810Z-azfjal-side.png",
+            "codex-job-2026-06-28T20-29-37-810Z-azfjal-back-three-quarter.png",
+            "codex-job-2026-06-28T20-29-37-810Z-azfjal-back.png"
+          ],
+          "manifestName": "codex-job-2026-06-28T20-29-37-810Z-azfjal-manifest.json",
+          "stable": true,
+          "candidateCount": 6,
+          "qualityGate": {
+            "classification": "usable-final",
+            "reason": "server verified",
+            "code": "direction-split-server-verified",
+            "historyAllowed": true,
+            "downloadAllowed": true,
+            "retryable": false
+          },
+          "chromaKey": {
+            "expected": "green",
+            "manifest": "green"
+          }
+        }
+      },
+      {
+        "name": "codex-job-2026-06-28T20-29-37-810Z-azfjal-back-three-quarter.png",
+        "path": "docs/qa/animation-delivery-reliability/baseline-2026-06-29T05-03-46-530-real-slo-sample4-long-timeout/trial-003/handoff/outbox/codex-job-2026-06-28T20-29-37-810Z-azfjal-back-three-quarter.png",
+        "mimeType": "image/png",
+        "qualityGate": {
+          "classification": "usable-final",
+          "reason": "server verified",
+          "code": "direction-split-server-verified",
+          "historyAllowed": true,
+          "downloadAllowed": true,
+          "retryable": false
+        },
+        "artifact": {
+          "jobId": "codex-job-2026-06-28T20-29-37-810Z-azfjal",
+          "artifactKind": "direction-split",
+          "detected": true,
+          "ready": true,
+          "verified": true,
+          "quality": "gold",
+          "reason": "server verified",
+          "missingDirections": [],
+          "warnings": [],
+          "files": [
+            "codex-job-2026-06-28T20-29-37-810Z-azfjal-front.png",
+            "codex-job-2026-06-28T20-29-37-810Z-azfjal-front-three-quarter.png",
+            "codex-job-2026-06-28T20-29-37-810Z-azfjal-side.png",
+            "codex-job-2026-06-28T20-29-37-810Z-azfjal-back-three-quarter.png",
+            "codex-job-2026-06-28T20-29-37-810Z-azfjal-back.png"
+          ],
+          "manifestName": "codex-job-2026-06-28T20-29-37-810Z-azfjal-manifest.json",
+          "stable": true,
+          "candidateCount": 6,
+          "qualityGate": {
+            "classification": "usable-final",
+            "reason": "server verified",
+            "code": "direction-split-server-verified",
+            "historyAllowed": true,
+            "downloadAllowed": true,
+            "retryable": false
+          },
+          "chromaKey": {
+            "expected": "green",
+            "manifest": "green"
+          }
+        }
+      },
+      {
+        "name": "codex-job-2026-06-28T20-29-37-810Z-azfjal-side.png",
+        "path": "docs/qa/animation-delivery-reliability/baseline-2026-06-29T05-03-46-530-real-slo-sample4-long-timeout/trial-003/handoff/outbox/codex-job-2026-06-28T20-29-37-810Z-azfjal-side.png",
+        "mimeType": "image/png",
+        "qualityGate": {
+          "classification": "usable-final",
+          "reason": "server verified",
+          "code": "direction-split-server-verified",
+          "historyAllowed": true,
+          "downloadAllowed": true,
+          "retryable": false
+        },
+        "artifact": {
+          "jobId": "codex-job-2026-06-28T20-29-37-810Z-azfjal",
+          "artifactKind": "direction-split",
+          "detected": true,
+          "ready": true,
+          "verified": true,
+          "quality": "gold",
+          "reason": "server verified",
+          "missingDirections": [],
+          "warnings": [],
+          "files": [
+            "codex-job-2026-06-28T20-29-37-810Z-azfjal-front.png",
+            "codex-job-2026-06-28T20-29-37-810Z-azfjal-front-three-quarter.png",
+            "codex-job-2026-06-28T20-29-37-810Z-azfjal-side.png",
+            "codex-job-2026-06-28T20-29-37-810Z-azfjal-back-three-quarter.png",
+            "codex-job-2026-06-28T20-29-37-810Z-azfjal-back.png"
+          ],
+          "manifestName": "codex-job-2026-06-28T20-29-37-810Z-azfjal-manifest.json",
+          "stable": true,
+          "candidateCount": 6,
+          "qualityGate": {
+            "classification": "usable-final",
+            "reason": "server verified",
+            "code": "direction-split-server-verified",
+            "historyAllowed": true,
+            "downloadAllowed": true,
+            "retryable": false
+          },
+          "chromaKey": {
+            "expected": "green",
+            "manifest": "green"
+          }
+        }
+      },
+      {
+        "name": "codex-job-2026-06-28T20-29-37-810Z-azfjal-front-three-quarter.png",
+        "path": "docs/qa/animation-delivery-reliability/baseline-2026-06-29T05-03-46-530-real-slo-sample4-long-timeout/trial-003/handoff/outbox/codex-job-2026-06-28T20-29-37-810Z-azfjal-front-three-quarter.png",
+        "mimeType": "image/png",
+        "qualityGate": {
+          "classification": "usable-final",
+          "reason": "server verified",
+          "code": "direction-split-server-verified",
+          "historyAllowed": true,
+          "downloadAllowed": true,
+          "retryable": false
+        },
+        "artifact": {
+          "jobId": "codex-job-2026-06-28T20-29-37-810Z-azfjal",
+          "artifactKind": "direction-split",
+          "detected": true,
+          "ready": true,
+          "verified": true,
+          "quality": "gold",
+          "reason": "server verified",
+          "missingDirections": [],
+          "warnings": [],
+          "files": [
+            "codex-job-2026-06-28T20-29-37-810Z-azfjal-front.png",
+            "codex-job-2026-06-28T20-29-37-810Z-azfjal-front-three-quarter.png",
+            "codex-job-2026-06-28T20-29-37-810Z-azfjal-side.png",
+            "codex-job-2026-06-28T20-29-37-810Z-azfjal-back-three-quarter.png",
+            "codex-job-2026-06-28T20-29-37-810Z-azfjal-back.png"
+          ],
+          "manifestName": "codex-job-2026-06-28T20-29-37-810Z-azfjal-manifest.json",
+          "stable": true,
+          "candidateCount": 6,
+          "qualityGate": {
+            "classification": "usable-final",
+            "reason": "server verified",
+            "code": "direction-split-server-verified",
+            "historyAllowed": true,
+            "downloadAllowed": true,
+            "retryable": false
+          },
+          "chromaKey": {
+            "expected": "green",
+            "manifest": "green"
+          }
+        }
+      },
+      {
+        "name": "codex-job-2026-06-28T20-29-37-810Z-azfjal-front.png",
+        "path": "docs/qa/animation-delivery-reliability/baseline-2026-06-29T05-03-46-530-real-slo-sample4-long-timeout/trial-003/handoff/outbox/codex-job-2026-06-28T20-29-37-810Z-azfjal-front.png",
+        "mimeType": "image/png",
+        "qualityGate": {
+          "classification": "usable-final",
+          "reason": "server verified",
+          "code": "direction-split-server-verified",
+          "historyAllowed": true,
+          "downloadAllowed": true,
+          "retryable": false
+        },
+        "artifact": {
+          "jobId": "codex-job-2026-06-28T20-29-37-810Z-azfjal",
+          "artifactKind": "direction-split",
+          "detected": true,
+          "ready": true,
+          "verified": true,
+          "quality": "gold",
+          "reason": "server verified",
+          "missingDirections": [],
+          "warnings": [],
+          "files": [
+            "codex-job-2026-06-28T20-29-37-810Z-azfjal-front.png",
+            "codex-job-2026-06-28T20-29-37-810Z-azfjal-front-three-quarter.png",
+            "codex-job-2026-06-28T20-29-37-810Z-azfjal-side.png",
+            "codex-job-2026-06-28T20-29-37-810Z-azfjal-back-three-quarter.png",
+            "codex-job-2026-06-28T20-29-37-810Z-azfjal-back.png"
+          ],
+          "manifestName": "codex-job-2026-06-28T20-29-37-810Z-azfjal-manifest.json",
+          "stable": true,
+          "candidateCount": 6,
+          "qualityGate": {
+            "classification": "usable-final",
+            "reason": "server verified",
+            "code": "direction-split-server-verified",
+            "historyAllowed": true,
+            "downloadAllowed": true,
+            "retryable": false
+          },
+          "chromaKey": {
+            "expected": "green",
+            "manifest": "green"
+          }
+        }
+      }
+    ],
+    "outboxError": "",
+    "baselineTrialId": "trial-003",
+    "childExitCode": 0,
+    "childStartedAt": "2026-06-28T20:29:34.887Z",
+    "childFinishedAt": "2026-06-28T20:46:58.348Z",
+    "childOutputPath": "docs/qa/animation-delivery-reliability/baseline-2026-06-29T05-03-46-530-real-slo-sample4-long-timeout/trial-003/child-output.log"
+  },
+  {
+    "id": "browser-delivery-2026-06-28T20-46-58-446Z",
+    "sourceType": "browser file upload from public prompt example",
+    "sourceName": "animation-delivery-source.png",
+    "motionPreset": "default standard animation",
+    "startedAt": "2026-06-28T20:46:58.475Z",
+    "finishedAt": "2026-06-28T21:07:45.219Z",
+    "browserUrl": "http://127.0.0.1:56339/",
+    "resultStatus": "pass",
+    "qualityRank": "silver-or-better",
+    "deliveredToHistory": true,
+    "deliveredToPreview": true,
+    "downloadableFinal": true,
+    "outboxFinalPresent": true,
+    "falseSuccess": false,
+    "stuckRunning": false,
+    "failureCodes": [],
+    "failureReason": "",
+    "uiFailureText": "",
+    "artifactPaths": {
+      "screenshot": "docs/qa/animation-delivery-reliability/baseline-2026-06-29T05-03-46-530-real-slo-sample4-long-timeout/trial-004/browser-final-1280x720.png",
+      "reportDir": "docs/qa/animation-delivery-reliability/baseline-2026-06-29T05-03-46-530-real-slo-sample4-long-timeout/trial-004",
+      "handoffDir": "docs/qa/animation-delivery-reliability/baseline-2026-06-29T05-03-46-530-real-slo-sample4-long-timeout/trial-004/handoff"
+    },
+    "browserSnapshot": {
+      "buttons": [
+        "Diagnose",
+        "Recover Results",
+        "Repair Cockpit",
+        "Pixel Art Generation",
+        "Image Editing",
+        "Animation Generation",
+        "Upload Pixel Art",
+        "Choose Animation",
+        "Generate Animation",
+        "Generated from animation-delivery-source.png",
+        "Download",
+        "Recover Results",
+        "Dedupe History",
+        "codex-job-2026-06-28T20-47-01-398Z-2goeh0-direction-split-animation-sheet.png 6月29日 06:07 • Local Inbox 2048x1280 • generate",
+        "animation-delivery-source.png 6月29日 05:47 • Local File 1024x1024 • import",
+        "forest-mage-sheet.png 6月29日 05:47 • Local File 1774x887 • sample",
+        "Collapse logs",
+        "Animated GIF",
+        "Animated WebP",
+        "Sprite Sheet",
+        "Export Animation Pack"
+      ],
+      "disabledButtons": [
+        "Repair Cockpit"
+      ],
+      "historyItems": 3,
+      "codexJobRows": 0,
+      "codexFailureCards": 0,
+      "codexFailureTexts": [],
+      "codexLogCards": 3,
+      "canvasPreviewMode": "result",
+      "canvasPreviewName": "codex-job-2026-06-28T20-47-01-398Z-2goeh0-direction-split-animation-sheet.png",
+      "resultPreviewImages": 1,
+      "resultPreviewLoaded": true,
+      "animationPreviewImages": 6,
+      "directionPreviewRows": 5,
+      "resultDownloadPanelComplete": true,
+      "downloadModalVisible": true,
+      "downloadModalButtons": [
+        "Animated GIF",
+        "Animated WebP",
+        "Sprite Sheet",
+        "Export Animation Pack"
+      ],
+      "animationSourceStatus": "Generated from\nanimation-delivery-source.png",
+      "animationSourceCard": "Selected source animation-delivery-source.png 1024x1024 / import",
+      "browserErrors": [],
+      "textOmitted": true,
+      "textLength": 28981,
+      "hasAnimationGeneratedText": true
+    },
+    "outboxResults": [
+      {
+        "name": "codex-job-2026-06-28T20-47-01-398Z-2goeh0-manifest.json",
+        "path": "docs/qa/animation-delivery-reliability/baseline-2026-06-29T05-03-46-530-real-slo-sample4-long-timeout/trial-004/handoff/outbox/codex-job-2026-06-28T20-47-01-398Z-2goeh0-manifest.json",
+        "mimeType": "application/json",
+        "qualityGate": {
+          "classification": "usable-final",
+          "reason": "server verified",
+          "code": "direction-split-server-verified",
+          "historyAllowed": true,
+          "downloadAllowed": true,
+          "retryable": false
+        },
+        "artifact": {
+          "jobId": "codex-job-2026-06-28T20-47-01-398Z-2goeh0",
+          "artifactKind": "direction-split",
+          "detected": true,
+          "ready": true,
+          "verified": true,
+          "quality": "gold",
+          "reason": "server verified",
+          "missingDirections": [],
+          "warnings": [],
+          "files": [
+            "codex-job-2026-06-28T20-47-01-398Z-2goeh0-front.png",
+            "codex-job-2026-06-28T20-47-01-398Z-2goeh0-front-three-quarter.png",
+            "codex-job-2026-06-28T20-47-01-398Z-2goeh0-side.png",
+            "codex-job-2026-06-28T20-47-01-398Z-2goeh0-back-three-quarter.png",
+            "codex-job-2026-06-28T20-47-01-398Z-2goeh0-back.png"
+          ],
+          "manifestName": "codex-job-2026-06-28T20-47-01-398Z-2goeh0-manifest.json",
+          "stable": true,
+          "candidateCount": 6,
+          "qualityGate": {
+            "classification": "usable-final",
+            "reason": "server verified",
+            "code": "direction-split-server-verified",
+            "historyAllowed": true,
+            "downloadAllowed": true,
+            "retryable": false
+          },
+          "chromaKey": {
+            "expected": "green",
+            "manifest": "green"
+          }
+        }
+      },
+      {
+        "name": "codex-job-2026-06-28T20-47-01-398Z-2goeh0-back.png",
+        "path": "docs/qa/animation-delivery-reliability/baseline-2026-06-29T05-03-46-530-real-slo-sample4-long-timeout/trial-004/handoff/outbox/codex-job-2026-06-28T20-47-01-398Z-2goeh0-back.png",
+        "mimeType": "image/png",
+        "qualityGate": {
+          "classification": "usable-final",
+          "reason": "server verified",
+          "code": "direction-split-server-verified",
+          "historyAllowed": true,
+          "downloadAllowed": true,
+          "retryable": false
+        },
+        "artifact": {
+          "jobId": "codex-job-2026-06-28T20-47-01-398Z-2goeh0",
+          "artifactKind": "direction-split",
+          "detected": true,
+          "ready": true,
+          "verified": true,
+          "quality": "gold",
+          "reason": "server verified",
+          "missingDirections": [],
+          "warnings": [],
+          "files": [
+            "codex-job-2026-06-28T20-47-01-398Z-2goeh0-front.png",
+            "codex-job-2026-06-28T20-47-01-398Z-2goeh0-front-three-quarter.png",
+            "codex-job-2026-06-28T20-47-01-398Z-2goeh0-side.png",
+            "codex-job-2026-06-28T20-47-01-398Z-2goeh0-back-three-quarter.png",
+            "codex-job-2026-06-28T20-47-01-398Z-2goeh0-back.png"
+          ],
+          "manifestName": "codex-job-2026-06-28T20-47-01-398Z-2goeh0-manifest.json",
+          "stable": true,
+          "candidateCount": 6,
+          "qualityGate": {
+            "classification": "usable-final",
+            "reason": "server verified",
+            "code": "direction-split-server-verified",
+            "historyAllowed": true,
+            "downloadAllowed": true,
+            "retryable": false
+          },
+          "chromaKey": {
+            "expected": "green",
+            "manifest": "green"
+          }
+        }
+      },
+      {
+        "name": "codex-job-2026-06-28T20-47-01-398Z-2goeh0-back-three-quarter.png",
+        "path": "docs/qa/animation-delivery-reliability/baseline-2026-06-29T05-03-46-530-real-slo-sample4-long-timeout/trial-004/handoff/outbox/codex-job-2026-06-28T20-47-01-398Z-2goeh0-back-three-quarter.png",
+        "mimeType": "image/png",
+        "qualityGate": {
+          "classification": "usable-final",
+          "reason": "server verified",
+          "code": "direction-split-server-verified",
+          "historyAllowed": true,
+          "downloadAllowed": true,
+          "retryable": false
+        },
+        "artifact": {
+          "jobId": "codex-job-2026-06-28T20-47-01-398Z-2goeh0",
+          "artifactKind": "direction-split",
+          "detected": true,
+          "ready": true,
+          "verified": true,
+          "quality": "gold",
+          "reason": "server verified",
+          "missingDirections": [],
+          "warnings": [],
+          "files": [
+            "codex-job-2026-06-28T20-47-01-398Z-2goeh0-front.png",
+            "codex-job-2026-06-28T20-47-01-398Z-2goeh0-front-three-quarter.png",
+            "codex-job-2026-06-28T20-47-01-398Z-2goeh0-side.png",
+            "codex-job-2026-06-28T20-47-01-398Z-2goeh0-back-three-quarter.png",
+            "codex-job-2026-06-28T20-47-01-398Z-2goeh0-back.png"
+          ],
+          "manifestName": "codex-job-2026-06-28T20-47-01-398Z-2goeh0-manifest.json",
+          "stable": true,
+          "candidateCount": 6,
+          "qualityGate": {
+            "classification": "usable-final",
+            "reason": "server verified",
+            "code": "direction-split-server-verified",
+            "historyAllowed": true,
+            "downloadAllowed": true,
+            "retryable": false
+          },
+          "chromaKey": {
+            "expected": "green",
+            "manifest": "green"
+          }
+        }
+      },
+      {
+        "name": "codex-job-2026-06-28T20-47-01-398Z-2goeh0-side.png",
+        "path": "docs/qa/animation-delivery-reliability/baseline-2026-06-29T05-03-46-530-real-slo-sample4-long-timeout/trial-004/handoff/outbox/codex-job-2026-06-28T20-47-01-398Z-2goeh0-side.png",
+        "mimeType": "image/png",
+        "qualityGate": {
+          "classification": "usable-final",
+          "reason": "server verified",
+          "code": "direction-split-server-verified",
+          "historyAllowed": true,
+          "downloadAllowed": true,
+          "retryable": false
+        },
+        "artifact": {
+          "jobId": "codex-job-2026-06-28T20-47-01-398Z-2goeh0",
+          "artifactKind": "direction-split",
+          "detected": true,
+          "ready": true,
+          "verified": true,
+          "quality": "gold",
+          "reason": "server verified",
+          "missingDirections": [],
+          "warnings": [],
+          "files": [
+            "codex-job-2026-06-28T20-47-01-398Z-2goeh0-front.png",
+            "codex-job-2026-06-28T20-47-01-398Z-2goeh0-front-three-quarter.png",
+            "codex-job-2026-06-28T20-47-01-398Z-2goeh0-side.png",
+            "codex-job-2026-06-28T20-47-01-398Z-2goeh0-back-three-quarter.png",
+            "codex-job-2026-06-28T20-47-01-398Z-2goeh0-back.png"
+          ],
+          "manifestName": "codex-job-2026-06-28T20-47-01-398Z-2goeh0-manifest.json",
+          "stable": true,
+          "candidateCount": 6,
+          "qualityGate": {
+            "classification": "usable-final",
+            "reason": "server verified",
+            "code": "direction-split-server-verified",
+            "historyAllowed": true,
+            "downloadAllowed": true,
+            "retryable": false
+          },
+          "chromaKey": {
+            "expected": "green",
+            "manifest": "green"
+          }
+        }
+      },
+      {
+        "name": "codex-job-2026-06-28T20-47-01-398Z-2goeh0-front-three-quarter.png",
+        "path": "docs/qa/animation-delivery-reliability/baseline-2026-06-29T05-03-46-530-real-slo-sample4-long-timeout/trial-004/handoff/outbox/codex-job-2026-06-28T20-47-01-398Z-2goeh0-front-three-quarter.png",
+        "mimeType": "image/png",
+        "qualityGate": {
+          "classification": "usable-final",
+          "reason": "server verified",
+          "code": "direction-split-server-verified",
+          "historyAllowed": true,
+          "downloadAllowed": true,
+          "retryable": false
+        },
+        "artifact": {
+          "jobId": "codex-job-2026-06-28T20-47-01-398Z-2goeh0",
+          "artifactKind": "direction-split",
+          "detected": true,
+          "ready": true,
+          "verified": true,
+          "quality": "gold",
+          "reason": "server verified",
+          "missingDirections": [],
+          "warnings": [],
+          "files": [
+            "codex-job-2026-06-28T20-47-01-398Z-2goeh0-front.png",
+            "codex-job-2026-06-28T20-47-01-398Z-2goeh0-front-three-quarter.png",
+            "codex-job-2026-06-28T20-47-01-398Z-2goeh0-side.png",
+            "codex-job-2026-06-28T20-47-01-398Z-2goeh0-back-three-quarter.png",
+            "codex-job-2026-06-28T20-47-01-398Z-2goeh0-back.png"
+          ],
+          "manifestName": "codex-job-2026-06-28T20-47-01-398Z-2goeh0-manifest.json",
+          "stable": true,
+          "candidateCount": 6,
+          "qualityGate": {
+            "classification": "usable-final",
+            "reason": "server verified",
+            "code": "direction-split-server-verified",
+            "historyAllowed": true,
+            "downloadAllowed": true,
+            "retryable": false
+          },
+          "chromaKey": {
+            "expected": "green",
+            "manifest": "green"
+          }
+        }
+      },
+      {
+        "name": "codex-job-2026-06-28T20-47-01-398Z-2goeh0-front.png",
+        "path": "docs/qa/animation-delivery-reliability/baseline-2026-06-29T05-03-46-530-real-slo-sample4-long-timeout/trial-004/handoff/outbox/codex-job-2026-06-28T20-47-01-398Z-2goeh0-front.png",
+        "mimeType": "image/png",
+        "qualityGate": {
+          "classification": "usable-final",
+          "reason": "server verified",
+          "code": "direction-split-server-verified",
+          "historyAllowed": true,
+          "downloadAllowed": true,
+          "retryable": false
+        },
+        "artifact": {
+          "jobId": "codex-job-2026-06-28T20-47-01-398Z-2goeh0",
+          "artifactKind": "direction-split",
+          "detected": true,
+          "ready": true,
+          "verified": true,
+          "quality": "gold",
+          "reason": "server verified",
+          "missingDirections": [],
+          "warnings": [],
+          "files": [
+            "codex-job-2026-06-28T20-47-01-398Z-2goeh0-front.png",
+            "codex-job-2026-06-28T20-47-01-398Z-2goeh0-front-three-quarter.png",
+            "codex-job-2026-06-28T20-47-01-398Z-2goeh0-side.png",
+            "codex-job-2026-06-28T20-47-01-398Z-2goeh0-back-three-quarter.png",
+            "codex-job-2026-06-28T20-47-01-398Z-2goeh0-back.png"
+          ],
+          "manifestName": "codex-job-2026-06-28T20-47-01-398Z-2goeh0-manifest.json",
+          "stable": true,
+          "candidateCount": 6,
+          "qualityGate": {
+            "classification": "usable-final",
+            "reason": "server verified",
+            "code": "direction-split-server-verified",
+            "historyAllowed": true,
+            "downloadAllowed": true,
+            "retryable": false
+          },
+          "chromaKey": {
+            "expected": "green",
+            "manifest": "green"
+          }
+        }
+      }
+    ],
+    "outboxError": "",
+    "baselineTrialId": "trial-004",
+    "childExitCode": 0,
+    "childStartedAt": "2026-06-28T20:46:58.376Z",
+    "childFinishedAt": "2026-06-28T21:07:47.048Z",
+    "childOutputPath": "docs/qa/animation-delivery-reliability/baseline-2026-06-29T05-03-46-530-real-slo-sample4-long-timeout/trial-004/child-output.log"
+  }
+]

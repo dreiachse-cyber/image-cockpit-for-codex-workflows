@@ -1,6 +1,6 @@
 # Animation Delivery Rollup
 
-Created: 2026-06-28T19:34:22.962Z
+Created: 2026-06-28T21:10:04.751Z
 
 ## Gate
 
@@ -9,10 +9,10 @@ Created: 2026-06-28T19:34:22.962Z
 - gateStatus: below_rate
 - minTrials: 10
 - minRate: 0.9
-- totalTrials: 11
-- passedTrials: 7
+- totalTrials: 15
+- passedTrials: 11
 - failedTrials: 4
-- browserDeliveryRate: 0.6363636363636364
+- browserDeliveryRate: 0.7333333333333333
 - falseSuccessCount: 0
 - stuckRunningCount: 0
 
@@ -24,6 +24,7 @@ Created: 2026-06-28T19:34:22.962Z
 - docs/qa/animation-delivery-reliability/baseline-2026-06-28T17-57-43-118Z-real-idle-aggregate: 1/1, rate=1
 - docs/qa/animation-delivery-reliability/baseline-2026-06-28T18-22-39-703Z-real-batch4-post-aggregate: 4/4, rate=1
 - docs/qa/animation-delivery-reliability/baseline-2026-06-28T19-17-06-056Z-real-prompt-isolation: 1/1, rate=1
+- docs/qa/animation-delivery-reliability/baseline-2026-06-29T05-03-46-530-real-slo-sample4-long-timeout: 4/4, rate=1
 
 ## Failure Classes
 

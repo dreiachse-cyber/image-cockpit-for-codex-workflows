@@ -1,6 +1,6 @@
 {
   "schema": "image-cockpit.animation-delivery-rollup.v1",
-  "createdAt": "2026-06-28T19:34:22.947Z",
+  "createdAt": "2026-06-28T21:11:51.218Z",
   "qaDir": "docs/qa/animation-delivery-reliability",
   "runnerMode": "real",
   "filters": {
@@ -8,10 +8,10 @@
   },
   "minRate": 0.9,
   "minTrials": 10,
-  "gateStatus": "insufficient_trials",
-  "baselineCount": 3,
-  "totalTrials": 6,
-  "passedTrials": 6,
+  "gateStatus": "pass",
+  "baselineCount": 4,
+  "totalTrials": 10,
+  "passedTrials": 10,
   "failedTrials": 0,
   "browserDeliveryRate": 1,
   "falseSuccessCount": 0,
@@ -43,6 +43,16 @@
       "runnerMode": "real",
       "totalTrials": 1,
       "passedTrials": 1,
+      "browserDeliveryRate": 1,
+      "falseSuccessCount": 0,
+      "stuckRunningCount": 0
+    },
+    {
+      "baselineDir": "docs/qa/animation-delivery-reliability/baseline-2026-06-29T05-03-46-530-real-slo-sample4-long-timeout",
+      "createdAt": "2026-06-28T21:07:47.070Z",
+      "runnerMode": "real",
+      "totalTrials": 4,
+      "passedTrials": 4,
       "browserDeliveryRate": 1,
       "falseSuccessCount": 0,
       "stuckRunningCount": 0

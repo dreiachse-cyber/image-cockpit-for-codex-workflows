@@ -8,7 +8,7 @@ import { delimiter, join, relative, resolve } from "node:path";
 const nodeCommand = process.execPath;
 const browserCommand = process.env.IMAGE_COCKPIT_BROWSER_COMMAND || findBrowserCommand();
 const runnerMode = (process.env.IMAGE_COCKPIT_ANIMATION_DELIVERY_RUNNER || "mock").toLowerCase();
-const timeoutMs = Number(process.env.IMAGE_COCKPIT_ANIMATION_DELIVERY_TIMEOUT_MS ?? (runnerMode === "real" ? 900000 : 90000));
+const timeoutMs = Number(process.env.IMAGE_COCKPIT_ANIMATION_DELIVERY_TIMEOUT_MS ?? (runnerMode === "real" ? 1800000 : 90000));
 const headless = process.env.IMAGE_COCKPIT_ANIMATION_DELIVERY_HEADLESS !== "0";
 const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
 const reportDir = resolve(process.env.IMAGE_COCKPIT_ANIMATION_DELIVERY_REPORT_DIR || join("docs", "qa", "animation-delivery-reliability", timestamp));

@@ -22,9 +22,11 @@ For real Codex/imagegen delivery trials, run:
 
 ```powershell
 $env:IMAGE_COCKPIT_ANIMATION_DELIVERY_RUNNER='real'
-$env:IMAGE_COCKPIT_ANIMATION_DELIVERY_TIMEOUT_MS='900000'
+$env:IMAGE_COCKPIT_ANIMATION_DELIVERY_TIMEOUT_MS='1800000'
 npm run animation:delivery
 ```
+
+Real Codex/imagegen trials default to a 30 minute browser wait because the reliability goal allows generation to take longer when that is what is needed to deliver a usable animation.
 
 Each run writes:
 

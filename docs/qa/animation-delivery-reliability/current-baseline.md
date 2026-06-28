@@ -30,42 +30,42 @@ This proves the browser harness, local API, Vite app, upload source selection, h
 
 - Rollup: `docs/qa/animation-delivery-reliability/delivery-rollup-real.md`
 - Runner mode: `real`
-- Baselines: 6
-- Trials: 11
-- Passed: 7
-- Browser delivery rate: 0.6363636363636364
+- Baselines: 7
+- Trials: 15
+- Passed: 11
+- Browser delivery rate: 0.7333333333333333
 - False-success count: 0
 - Stuck-running count: 0
 - Gate status: `below_rate` (`minTrials=10`, `minRate=0.9`)
 
-The all-history SLO gate is still failing because it intentionally includes the earlier low-motion failures that motivated this reliability cycle.
+The all-history SLO gate still fails because it intentionally includes the earlier low-motion failures that motivated this reliability cycle.
 
 ## Current-Regime Real Browser Rollup
 
 - Rollup: `docs/qa/animation-delivery-reliability/delivery-rollup-real-post-aggregate.md`
 - Filter: `createdAtFrom=2026-06-28T18:13:00.000Z`
 - Runner mode: `real`
-- Baselines: 3
-- Trials: 6
-- Passed: 6
+- Baselines: 4
+- Trials: 10
+- Passed: 10
 - Browser delivery rate: 1.0
 - False-success count: 0
 - Stuck-running count: 0
-- Gate status: `insufficient_trials` (`minTrials=10`, `minRate=0.9`)
+- Gate status: `pass` (`minTrials=10`, `minRate=0.9`)
 
-The current implementation has delivered 6 consecutive real-browser passes, including the prompt-isolation runner guard. The 90% SLO is not proven yet because the current-regime sample still needs at least 10 real trials.
+The current implementation has delivered 10 consecutive real-browser passes, including the prompt-isolation runner guard and the longer real-run wait window. This is the first current-regime sample that satisfies the 90% delivery SLO gate.
 
 ## Latest Real Browser Batch
 
-- Report: `docs/qa/animation-delivery-reliability/baseline-2026-06-28T19-17-06-056Z-real-prompt-isolation`
+- Report: `docs/qa/animation-delivery-reliability/baseline-2026-06-29T05-03-46-530-real-slo-sample4-long-timeout`
 - Runner mode: `real`
-- Trials: 1
-- Passed: 1
+- Trials: 4
+- Passed: 4
 - Browser delivery rate: 1.0
 - False-success count: 0
 - Stuck-running count: 0
 
-This run completed through the visible browser flow after the runner prompt began explicitly isolating imagegen artifacts per job/direction instead of blindly trusting the newest global generated image.
+This run completed four visible browser trials after the real delivery wait window and Codex runner stale timeout were increased to 30 minutes. One trial took longer than the previous 15 minute browser wait would safely allow, matching the goal that longer generation time is acceptable when it produces a usable delivered animation.
 
 ## Recent Failure Class
 
@@ -74,6 +74,7 @@ This run completed through the visible browser flow after the runner prompt bega
 - `docs/qa/animation-delivery-reliability/baseline-2026-06-28T17-57-43-118Z-real-idle-aggregate`: 1/1 real trial passed after Idle Breathing QA changed from per-row hard fail to aggregate idle-motion validation.
 - `docs/qa/animation-delivery-reliability/baseline-2026-06-28T18-22-39-703Z-real-batch4-post-aggregate`: 4/4 real trials passed after the aggregate idle-motion gate.
 - `docs/qa/animation-delivery-reliability/baseline-2026-06-28T19-17-06-056Z-real-prompt-isolation`: 1/1 real trial passed after the runner prompt added imagegen artifact isolation guidance.
+- `docs/qa/animation-delivery-reliability/baseline-2026-06-29T05-03-46-530-real-slo-sample4-long-timeout`: 4/4 real trials passed after extending the real browser delivery wait and runner stale timeout to 30 minutes.
 
 Committed evidence keeps lightweight trial JSON, summary JSON, report Markdown, and browser screenshots. Runtime `handoff/` payloads are pruned for passing trials and kept on disk for failed trials by default, but those heavy directories are git-ignored.
 
@@ -90,14 +91,15 @@ Committed evidence keeps lightweight trial JSON, summary JSON, report Markdown, 
 - Strengthened the Idle Breathing prompt to request clear but contained 2-4px shoulder/chest motion and avoid nearly identical frames.
 - Added a current-regime rollup filter so fixed-regime evidence can be measured separately from all-history evidence.
 - Added runner prompt guidance to isolate built-in imagegen artifacts per job/direction and avoid cross-candidate newest-image pickup.
-- Confirmed six current-regime real browser delivery passes end to end.
+- Increased real browser delivery wait and Codex runner stale timeout defaults from 15 minutes to 30 minutes so longer but successful animation generations are not marked failed prematurely.
+- Confirmed ten current-regime real browser delivery passes end to end.
 
 ## SLO Status
 
-The 90% delivery SLO is not proven yet. All-history real-browser delivery is 7/11, while the current implementation is 6/6 but still below the required 10 current-regime trials. The latest passes are a meaningful improvement over the repeated low-motion failures, so this wave remains eligible for main reflection under the reliability cycle's "improve continuously, reflect clear gains" rule.
+The current-regime 90% delivery SLO is proven by `delivery-rollup-real-post-aggregate.md`: 10/10 real-browser trials passed with false-success 0 and stuck-running 0. All-history real-browser delivery is 11/15 because it intentionally keeps the pre-fix low-motion failures in the record.
 
 ## Next Reliability Work
 
-- Collect at least 4 more current-regime real-browser trials to reach the 10-trial SLO sample.
-- Target the next failure class if any current-regime run fails.
-- Keep reflecting clearly improved changes before the 90% SLO is fully proven, because the current production experience started from a very low reliability baseline.
+- Keep the current-regime rollup as the release gate for future Animation Generation reliability work.
+- Broaden the real-browser sample over more source sprites and motion presets so the 90% claim remains true outside the default standard animation path.
+- Target the next failure class immediately if any future current-regime run fails.

@@ -1,0 +1,17 @@
+{
+  "schema": "image-cockpit.animation-delivery-rate-summary.v1",
+  "createdAt": "2026-06-28T21:07:47.070Z",
+  "runnerMode": "real",
+  "baselineDir": "docs/qa/animation-delivery-reliability/baseline-2026-06-29T05-03-46-530-real-slo-sample4-long-timeout",
+  "totalTrials": 4,
+  "passedTrials": 4,
+  "browserDeliveryRate": 1,
+  "falseSuccessCount": 0,
+  "stuckRunningCount": 0,
+  "failedChildRuns": 0,
+  "runtimeHandoffPolicy": "keep-failed",
+  "runtimeHandoffKept": false,
+  "runtimeHandoffKeptCount": 0,
+  "minRate": 0,
+  "failures": []
+}
