@@ -215,6 +215,10 @@ button {
   grid-column: 2;
 }
 
+.codex-job-row .codex-progress-meter {
+  grid-column: 1 / -1;
+}
+
 .codex-job-state {
   width: 58px;
   min-height: 22px;
@@ -238,6 +242,79 @@ button {
   border-color: #d6c7a6;
   background: #fff8e8;
   color: #6a4b0f;
+}
+
+.codex-progress-meter {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.codex-progress-copy {
+  min-width: 0;
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  color: var(--text-muted);
+  font-size: 11px;
+  line-height: 1.2;
+}
+
+.codex-progress-copy span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.codex-progress-track {
+  position: relative;
+  height: 7px;
+  overflow: hidden;
+  border: 1px solid #d7e4da;
+  border-radius: 999px;
+  background: #edf3ed;
+}
+
+.codex-progress-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: var(--codex-progress-value, 12%);
+  min-width: 18px;
+  overflow: hidden;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #2f8a54, #79cf8f);
+  transition: width 650ms ease;
+}
+
+.codex-progress-fill::after {
+  position: absolute;
+  inset: 0;
+  content: "";
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.58), transparent);
+  animation: codex-progress-shimmer 1.4s linear infinite;
+  transform: translateX(-100%);
+}
+
+.codex-progress-meter.compact {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: 3px;
+  pointer-events: none;
+}
+
+.codex-progress-meter.compact .codex-progress-track {
+  height: 3px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.codex-progress-meter.compact .codex-progress-fill {
+  min-width: 26px;
+  border-radius: 0 999px 999px 0;
 }
 
 .codex-log-panel {
@@ -301,6 +378,7 @@ button {
 }
 
 .codex-log-header {
+  position: relative;
   min-width: 0;
   display: flex;
   align-items: center;
@@ -361,7 +439,7 @@ button {
   min-width: 0;
   min-height: 0;
   display: grid;
-  grid-template-rows: auto auto minmax(0, 1fr);
+  grid-template-rows: auto auto auto minmax(0, 1fr);
   gap: 4px;
   border: 1px solid #d8e3d9;
   border-radius: 6px;
@@ -404,6 +482,10 @@ button {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+}
+
+.codex-log-progress-slot {
+  min-height: 0;
 }
 
 .codex-log-card pre {
@@ -3111,6 +3193,12 @@ button:disabled {
   }
 }
 
+@keyframes codex-progress-shimmer {
+  to {
+    transform: translateX(100%);
+  }
+}
+
 .language-control {
   min-height: 28px;
   min-width: 0;
@@ -3157,6 +3245,24 @@ button:disabled {
 @keyframes spin {
   to {
     transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .codex-progress-fill {
+    transition: none;
+  }
+
+  .codex-progress-fill::after {
+    animation: none;
+    background: repeating-linear-gradient(
+      45deg,
+      rgba(255, 255, 255, 0.25) 0,
+      rgba(255, 255, 255, 0.25) 6px,
+      transparent 6px,
+      transparent 12px
+    );
+    transform: none;
   }
 }
 

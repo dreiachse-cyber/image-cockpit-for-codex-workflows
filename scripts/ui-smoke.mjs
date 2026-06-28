@@ -686,6 +686,7 @@ async function assertCodexQueue() {
 
   await clickButtonByText("Generate Pixel Art");
   await waitForEval(() => `document.body.innerText.includes("Codex Jobs") && document.body.innerText.includes("Active 1/3")`, "first Codex job running");
+  await assertCodexProgressIndicators();
   await assertCodexLogFullscreen();
   await waitForButtonEnabled("Generate Pixel Art");
 
@@ -723,6 +724,81 @@ async function assertCodexQueue() {
   );
   await assertNoBrowserErrors("Codex queue");
   await selectWorkflowTab("Pixel Art Generation");
+}
+
+async function assertCodexProgressIndicators() {
+  await waitForEval(
+    () => `Boolean(document.querySelector(".history-panel .codex-job-row .codex-progress-meter.state-running .codex-progress-fill"))`,
+    "Codex job shelf running progress"
+  );
+  await waitForEval(
+    () => `Boolean(document.querySelector(".codex-log-card .codex-progress-meter.state-running .codex-progress-fill"))`,
+    "Codex log card running progress",
+    6000
+  );
+  const metrics = await evaluate(`(() => {
+    const shelfMeter = document.querySelector(".history-panel .codex-job-row .codex-progress-meter.state-running");
+    const shelfTrack = shelfMeter?.querySelector(".codex-progress-track");
+    const shelfFill = shelfMeter?.querySelector(".codex-progress-fill");
+    const logMeter = document.querySelector(".codex-log-card .codex-progress-meter.state-running");
+    const logTrack = logMeter?.querySelector(".codex-progress-track");
+    const logFill = logMeter?.querySelector(".codex-progress-fill");
+    const shelfText = shelfMeter?.innerText || "";
+    const shelfTrackRect = shelfTrack?.getBoundingClientRect();
+    const shelfFillRect = shelfFill?.getBoundingClientRect();
+    const logTrackRect = logTrack?.getBoundingClientRect();
+    const logFillRect = logFill?.getBoundingClientRect();
+    return {
+      shelfHasElapsed: shelfText.includes("Elapsed"),
+      shelfShowsNoPercent: !/%/.test(shelfText),
+      shelfTrackWidth: Math.round(shelfTrackRect?.width || 0),
+      shelfFillWidth: Math.round(shelfFillRect?.width || 0),
+      logTrackWidth: Math.round(logTrackRect?.width || 0),
+      logFillWidth: Math.round(logFillRect?.width || 0),
+      shimmer: getComputedStyle(shelfFill, "::after").animationName,
+      reducedMotion: window.matchMedia("(prefers-reduced-motion: reduce)").matches,
+      keyframesDefined: Array.from(document.styleSheets).some((sheet) => {
+        try {
+          return Array.from(sheet.cssRules || []).some((rule) => rule.cssText.includes("codex-progress-shimmer"));
+        } catch {
+          return false;
+        }
+      })
+    };
+  })()`);
+  assert(metrics.shelfHasElapsed, "Codex job shelf progress should show elapsed time");
+  assert(metrics.shelfShowsNoPercent, "Codex job shelf progress should not expose a fake percent label");
+  assert(metrics.shelfTrackWidth > 40, `Codex job shelf progress track should be visible, got ${metrics.shelfTrackWidth}`);
+  assert(metrics.shelfFillWidth > 0 && metrics.shelfFillWidth < metrics.shelfTrackWidth, `Codex job shelf progress fill should be partial, got ${metrics.shelfFillWidth}/${metrics.shelfTrackWidth}`);
+  assert(metrics.logTrackWidth > 40, `Codex log card progress track should be visible, got ${metrics.logTrackWidth}`);
+  assert(metrics.logFillWidth > 0 && metrics.logFillWidth < metrics.logTrackWidth, `Codex log card progress fill should be partial, got ${metrics.logFillWidth}/${metrics.logTrackWidth}`);
+  assert(
+    metrics.reducedMotion || metrics.shimmer === "codex-progress-shimmer" || metrics.keyframesDefined,
+    `Codex progress fill should animate with shimmer unless reduced motion is active, got ${metrics.shimmer}`
+  );
+
+  await clickButtonByAriaLabel("Full screen logs");
+  await waitForEval(() => `document.querySelector(".codex-log-panel")?.classList.contains("fullscreen")`, "Codex log fullscreen progress mode");
+  const fullscreenMetrics = await evaluate(`(() => {
+    const header = document.querySelector(".codex-log-panel.fullscreen .codex-log-header");
+    const meter = header?.querySelector(".codex-progress-meter.compact.state-running");
+    const track = meter?.querySelector(".codex-progress-track");
+    const fill = meter?.querySelector(".codex-progress-fill");
+    const headerRect = header?.getBoundingClientRect();
+    const trackRect = track?.getBoundingClientRect();
+    const fillRect = fill?.getBoundingClientRect();
+    return {
+      headerWidth: Math.round(headerRect?.width || 0),
+      trackWidth: Math.round(trackRect?.width || 0),
+      fillWidth: Math.round(fillRect?.width || 0),
+      compactBottom: Boolean(meter && trackRect && headerRect && Math.abs(trackRect.bottom - headerRect.bottom) <= 1)
+    };
+  })()`);
+  assert(fullscreenMetrics.trackWidth > 40, `Fullscreen Codex log header progress should be visible, got ${fullscreenMetrics.trackWidth}`);
+  assert(fullscreenMetrics.fillWidth > 0 && fullscreenMetrics.fillWidth < fullscreenMetrics.trackWidth, `Fullscreen Codex log header progress should be partial, got ${fullscreenMetrics.fillWidth}/${fullscreenMetrics.trackWidth}`);
+  assert(fullscreenMetrics.compactBottom, "Fullscreen Codex log header progress should sit at the bottom of the header");
+  await evaluate(`window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }))`);
+  await waitForEval(() => `!document.querySelector(".codex-log-panel")?.classList.contains("fullscreen")`, "Codex log progress fullscreen closes with Escape");
 }
 
 async function assertCodexLogFullscreen() {
@@ -923,6 +999,7 @@ async function assertPartialDirectionSplitRecovery() {
     "partial direction split imports after final manifest",
     25000
   );
+  await waitForEval(() => `document.querySelectorAll(".codex-job-row").length === 0`, "partial direction split releases active job slot", 6000);
   snapshot = await pageSnapshot();
   assert(snapshot.codexJobRows === 0, "Partial direction split recovery should release the active job slot after import");
   assert(
@@ -956,6 +1033,7 @@ async function assertManifestFirstDirectionSplitRecovery() {
     "manifest-first direction split imports after side arrives",
     25000
   );
+  await waitForEval(() => `document.querySelectorAll(".codex-job-row").length === 0`, "manifest-first direction split releases active job slot", 6000);
   snapshot = await pageSnapshot();
   assert(snapshot.codexJobRows === 0, "Manifest-first direction split recovery should release the active job slot after import");
   assert(

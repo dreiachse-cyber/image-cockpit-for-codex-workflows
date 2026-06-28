@@ -198,6 +198,7 @@ type LocalizedText = Record<BaseLanguage, string> & Partial<Record<Language, str
 type AnimationGenerationMode = "standard" | "hatch-pet" | "directional-hatch-pet";
 type AnimationChromaKeyName = "green" | "magenta";
 type CodexJobQueueState = "queued" | "running";
+type CodexJobProgressPhase = "queued" | "starting" | "generating" | "checking" | "extended";
 
 interface AnimationChromaKey {
   name: AnimationChromaKeyName;
@@ -244,6 +245,15 @@ const languageOptions: Array<{ id: Language; label: string }> = [
 const supportedLanguageSet = new Set<string>(SUPPORTED_LANGUAGE_IDS);
 
 type WorkflowMode = "image-generate" | "image-edit" | "sprite-generate" | "sprite-edit";
+
+const CODEX_PROGRESS_TICK_MS = 1000;
+const CODEX_PROGRESS_ESTIMATE_MS: Record<WorkflowMode | "default", number> = {
+  "image-generate": 8 * 60 * 1000,
+  "image-edit": 10 * 60 * 1000,
+  "sprite-generate": 30 * 60 * 1000,
+  "sprite-edit": 8 * 60 * 1000,
+  default: 12 * 60 * 1000
+};
 
 interface PromptExample {
   id: string;
@@ -8356,6 +8366,62 @@ function LanguageSelect({
   );
 }
 
+function useCodexProgressNow(active: boolean) {
+  const [nowMs, setNowMs] = useState(() => Date.now());
+
+  useEffect(() => {
+    if (!active) return;
+    setNowMs(Date.now());
+    const intervalId = window.setInterval(() => setNowMs(Date.now()), CODEX_PROGRESS_TICK_MS);
+    return () => window.clearInterval(intervalId);
+  }, [active]);
+
+  return nowMs;
+}
+
+function codexProgressPhaseLabel(labels: ReturnType<typeof codexJobQueueLabels>, phase: CodexJobProgressPhase) {
+  if (phase === "queued") return labels.phaseQueued;
+  if (phase === "starting") return labels.phaseStarting;
+  if (phase === "checking") return labels.phaseChecking;
+  if (phase === "extended") return labels.phaseExtended;
+  return labels.phaseGenerating;
+}
+
+function CodexJobProgress({
+  job,
+  labels,
+  compact = false
+}: {
+  job: Pick<CodexJobQueueItem, "state" | "createdAt" | "workflowMode">;
+  labels: ReturnType<typeof codexJobQueueLabels>;
+  compact?: boolean;
+}) {
+  const active = job.state === "running" || job.state === "queued";
+  const nowMs = useCodexProgressNow(active);
+  if (!active) return null;
+
+  const phase = codexJobProgressPhase(job.state, job.createdAt, nowMs, job.workflowMode);
+  const phaseLabel = codexProgressPhaseLabel(labels, phase);
+  const elapsed = formatDurationSinceAt(job.createdAt, nowMs);
+  const progress = job.state === "queued" ? 6 : estimateCodexJobProgress(job.createdAt, nowMs, job.workflowMode);
+  const progressStyle = { "--codex-progress-value": `${progress}%` } as CSSProperties;
+  const valueText = `${phaseLabel}, ${labels.elapsed}: ${elapsed}`;
+
+  return (
+    <div className={`codex-progress-meter ${compact ? "compact" : ""} state-${job.state}`}>
+      {!compact && (
+        <div className="codex-progress-copy">
+          <span>{phaseLabel}</span>
+          <span>{labels.elapsed}: {elapsed}</span>
+        </div>
+      )}
+      <div className="codex-progress-track" role="progressbar" aria-label={labels.progressLabel} aria-valuetext={valueText}>
+        <span className="codex-progress-fill" style={progressStyle} />
+      </div>
+    </div>
+  );
+}
+
 function CodexJobShelf({
   jobs,
   maxActive,
@@ -8382,6 +8448,7 @@ function CodexJobShelf({
             </span>
             <strong>{job.label}</strong>
             <small>{job.state === "running" ? job.id : labels.waitingForSlot}</small>
+            {job.state === "running" && <CodexJobProgress job={job} labels={labels} />}
           </div>
         ))}
       </div>
@@ -8409,7 +8476,10 @@ function CodexLogPanel({
   onExitFullscreen: () => void;
 }) {
   const copy = uiCopy[language];
+  const labels = codexJobQueueLabels(language);
   const runningCount = jobs.filter((job) => job.state === "running").length;
+  const firstRunningJob = jobs.find((job) => job.state === "running");
+  const jobsById = useMemo(() => new Map(jobs.map((job) => [job.id, job])), [jobs]);
   const hasContent = logs.length > 0 || jobs.length > 0;
   const visibleLogs = logs.length > 0
     ? logs
@@ -8484,31 +8554,39 @@ function CodexLogPanel({
             {collapsed ? copy.codexLogExpand : copy.codexLogCollapse}
           </button>
         </span>
+        {firstRunningJob && <CodexJobProgress job={firstRunningJob} labels={labels} compact />}
       </div>
       {!collapsed && (
         <div className="codex-log-list">
-          {visibleLogs.map((log) => (
-            <article className={`codex-log-card state-${log.state}`} key={log.jobId}>
-              <div className="codex-log-card-heading">
-                <span className={`codex-job-state ${log.state === "queued" ? "queued" : "running"}`}>
-                  {log.state}
-                </span>
-                <strong>{log.label}</strong>
-                <small>{log.jobId}</small>
-              </div>
-              <div className="codex-log-card-meta">
-                <span>{copy.codexLogElapsed}: {formatDurationSince(log.createdAt)}</span>
-                <span>{copy.codexLogUpdated}: {log.modifiedAt ? formatTime(log.modifiedAt) : "-"}</span>
-                {log.truncated && <span>{copy.codexLogTruncated}</span>}
-              </div>
-              <pre
-                ref={(node) => setCodexLogPreRef(log.jobId, node)}
-                onScroll={(event) => handleCodexLogScroll(log.jobId, event)}
-              >
-                {log.error || log.text || (log.exists ? copy.codexLogNoOutput : copy.codexLogWaiting)}
-              </pre>
-            </article>
-          ))}
+          {visibleLogs.map((log) => {
+            const activeJob = jobsById.get(log.jobId);
+            const showProgress = activeJob?.state === "running";
+            return (
+              <article className={`codex-log-card state-${log.state}`} key={log.jobId}>
+                <div className="codex-log-card-heading">
+                  <span className={`codex-job-state ${log.state === "queued" ? "queued" : "running"}`}>
+                    {log.state}
+                  </span>
+                  <strong>{log.label}</strong>
+                  <small>{log.jobId}</small>
+                </div>
+                <div className="codex-log-card-meta">
+                  <span>{copy.codexLogElapsed}: {formatDurationSince(log.createdAt)}</span>
+                  <span>{copy.codexLogUpdated}: {log.modifiedAt ? formatTime(log.modifiedAt) : "-"}</span>
+                  {log.truncated && <span>{copy.codexLogTruncated}</span>}
+                </div>
+                <div className="codex-log-progress-slot">
+                  {showProgress && <CodexJobProgress job={activeJob} labels={labels} />}
+                </div>
+                <pre
+                  ref={(node) => setCodexLogPreRef(log.jobId, node)}
+                  onScroll={(event) => handleCodexLogScroll(log.jobId, event)}
+                >
+                  {log.error || log.text || (log.exists ? copy.codexLogNoOutput : copy.codexLogWaiting)}
+                </pre>
+              </article>
+            );
+          })}
         </div>
       )}
     </section>
@@ -8694,6 +8772,13 @@ const codexJobQueueCopyBase = {
   activeSlots: "Active",
   running: "Running",
   queued: "Queued",
+  progressLabel: "Codex job progress",
+  elapsed: "Elapsed",
+  phaseQueued: "Queued",
+  phaseStarting: "Starting",
+  phaseGenerating: "Generating",
+  phaseChecking: "Checking output",
+  phaseExtended: "Still working",
   waitingForSlot: "Waiting for an open slot",
   queueAction: "Queue Codex Job",
   queuedStatus: "Codex job queued"
@@ -8705,6 +8790,13 @@ const codexJobQueueCopy = {
     activeSlots: "Active",
     running: "Running",
     queued: "Queued",
+    progressLabel: "Codex job progress",
+    elapsed: "Elapsed",
+    phaseQueued: "Queued",
+    phaseStarting: "Starting",
+    phaseGenerating: "Generating",
+    phaseChecking: "Checking output",
+    phaseExtended: "Still working",
     waitingForSlot: "Waiting for an open slot",
     queueAction: "Queue Codex Job",
     queuedStatus: "Codex job queued"
@@ -8714,6 +8806,13 @@ const codexJobQueueCopy = {
     activeSlots: "実行枠",
     running: "実行中",
     queued: "待機中",
+    progressLabel: "Codexジョブ進行目安",
+    elapsed: "経過",
+    phaseQueued: "待機中",
+    phaseStarting: "起動中",
+    phaseGenerating: "生成中",
+    phaseChecking: "出力確認中",
+    phaseExtended: "生成継続中",
     waitingForSlot: "空き枠待ち",
     queueAction: "キューに追加",
     queuedStatus: "Codexキューに追加しました"
@@ -11015,16 +11114,59 @@ function formatTime(value: string) {
   );
 }
 
-function formatDurationSince(value: string) {
-  const start = Date.parse(value);
-  if (!Number.isFinite(start)) return "-";
-  const seconds = Math.max(0, Math.floor((Date.now() - start) / 1000));
-  const minutes = Math.floor(seconds / 60);
-  const remainingSeconds = seconds % 60;
+function formatDuration(seconds: number) {
+  const safeSeconds = Math.max(0, Math.floor(seconds));
+  const minutes = Math.floor(safeSeconds / 60);
+  const remainingSeconds = safeSeconds % 60;
   if (minutes < 60) return `${String(minutes).padStart(2, "0")}:${String(remainingSeconds).padStart(2, "0")}`;
   const hours = Math.floor(minutes / 60);
   const remainingMinutes = minutes % 60;
   return `${hours}:${String(remainingMinutes).padStart(2, "0")}:${String(remainingSeconds).padStart(2, "0")}`;
+}
+
+function formatDurationSinceAt(value: string, nowMs: number) {
+  const start = Date.parse(value);
+  if (!Number.isFinite(start)) return "-";
+  return formatDuration((nowMs - start) / 1000);
+}
+
+function formatDurationSince(value: string) {
+  return formatDurationSinceAt(value, Date.now());
+}
+
+function codexProgressEstimateMs(workflowMode?: WorkflowMode | null) {
+  return workflowMode ? CODEX_PROGRESS_ESTIMATE_MS[workflowMode] : CODEX_PROGRESS_ESTIMATE_MS.default;
+}
+
+function codexJobElapsedRatio(createdAt: string, nowMs: number, workflowMode?: WorkflowMode | null) {
+  const start = Date.parse(createdAt);
+  if (!Number.isFinite(start)) return 0;
+  const elapsedMs = Math.max(0, nowMs - start);
+  return elapsedMs / codexProgressEstimateMs(workflowMode);
+}
+
+export function estimateCodexJobProgress(createdAt: string, nowMs = Date.now(), workflowMode?: WorkflowMode | null) {
+  const ratio = codexJobElapsedRatio(createdAt, nowMs, workflowMode);
+  if (ratio <= 0) return 7;
+  if (ratio < 0.08) return 7 + ratio / 0.08 * 11;
+  if (ratio < 0.68) return 18 + (ratio - 0.08) / 0.6 * 54;
+  if (ratio < 1) return 72 + (ratio - 0.68) / 0.32 * 18;
+  const extended = 90 + Math.log2(Math.max(1, ratio)) * 4;
+  return Math.min(96, extended);
+}
+
+export function codexJobProgressPhase(
+  state: CodexJobQueueState,
+  createdAt: string,
+  nowMs = Date.now(),
+  workflowMode?: WorkflowMode | null
+): CodexJobProgressPhase {
+  if (state === "queued") return "queued";
+  const ratio = codexJobElapsedRatio(createdAt, nowMs, workflowMode);
+  if (ratio < 0.08) return "starting";
+  if (ratio < 0.68) return "generating";
+  if (ratio < 1) return "checking";
+  return "extended";
 }
 
 export function resolveInitialLanguage(stored: string | null, browserLanguages: readonly string[] = []): Language {

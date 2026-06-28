@@ -3,7 +3,9 @@ import {
   annotationImageCoordinates,
   buildOutboxImportKey,
   buildImageCockpitEnvironmentReport,
+  codexJobProgressPhase,
   directionSplitJobIdFromOutboxResultName,
+  estimateCodexJobProgress,
   findLatestReadyDirectionSplitArtifact,
   findReadyDirectionSplitArtifacts,
   fingerprintOutboxResults,
@@ -91,6 +93,27 @@ describe("Codex runner wait state", () => {
     expect(reason).toContain("local file");
     expect(reason).not.toContain("D:\\codex");
     expect(reason).not.toContain("stack line");
+  });
+});
+
+describe("Codex job progress estimate", () => {
+  it("keeps visual progress below complete while the job is still running", () => {
+    const startedAt = "2026-06-29T00:00:00.000Z";
+    const afterThirtyMinutes = Date.parse("2026-06-29T00:30:00.000Z");
+    const afterTwoHours = Date.parse("2026-06-29T02:00:00.000Z");
+
+    expect(estimateCodexJobProgress(startedAt, afterThirtyMinutes, "sprite-generate")).toBe(90);
+    expect(estimateCodexJobProgress(startedAt, afterTwoHours, "sprite-generate")).toBeLessThan(100);
+  });
+
+  it("reports coarse phases without exposing a fake percentage", () => {
+    const startedAt = "2026-06-29T00:00:00.000Z";
+
+    expect(codexJobProgressPhase("queued", startedAt, Date.parse("2026-06-29T00:30:00.000Z"), "sprite-generate")).toBe("queued");
+    expect(codexJobProgressPhase("running", startedAt, Date.parse("2026-06-29T00:01:00.000Z"), "sprite-generate")).toBe("starting");
+    expect(codexJobProgressPhase("running", startedAt, Date.parse("2026-06-29T00:12:00.000Z"), "sprite-generate")).toBe("generating");
+    expect(codexJobProgressPhase("running", startedAt, Date.parse("2026-06-29T00:25:00.000Z"), "sprite-generate")).toBe("checking");
+    expect(codexJobProgressPhase("running", startedAt, Date.parse("2026-06-29T00:45:00.000Z"), "sprite-generate")).toBe("extended");
   });
 });
 
