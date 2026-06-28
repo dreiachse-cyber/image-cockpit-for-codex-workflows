@@ -1,6 +1,6 @@
 import { spawn } from "node:child_process";
 import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
-import { join, resolve } from "node:path";
+import { join, relative, resolve } from "node:path";
 
 const nodeCommand = process.execPath;
 const runnerMode = (process.env.IMAGE_COCKPIT_ANIMATION_DELIVERY_RUNNER || "mock").toLowerCase();
@@ -35,7 +35,7 @@ for (let index = 0; index < trialCount; index += 1) {
         childExitCode: child.exitCode,
         childStartedAt: startedAt,
         childFinishedAt: finishedAt,
-        childOutputPath: join(trialDir, "child-output.log")
+        childOutputPath: toReportPath(join(trialDir, "child-output.log"))
       }))
     : [{
         id: `browser-delivery-${trialId}`,
@@ -45,12 +45,12 @@ for (let index = 0; index < trialCount; index += 1) {
         childExitCode: child.exitCode,
         childStartedAt: startedAt,
         childFinishedAt: finishedAt,
-        childOutputPath: join(trialDir, "child-output.log")
+        childOutputPath: toReportPath(join(trialDir, "child-output.log"))
       }];
   trials.push(...normalizedTrials);
   childRuns.push({
     trialId,
-    reportDir: trialDir,
+    reportDir: toReportPath(trialDir),
     exitCode: child.exitCode,
     runtimeHandoffKept: keepRuntimeHandoff,
     startedAt,
@@ -122,7 +122,7 @@ function summarizeTrials(allTrials, runs) {
     schema: "image-cockpit.animation-delivery-rate-summary.v1",
     createdAt: new Date().toISOString(),
     runnerMode,
-    baselineDir,
+    baselineDir: toReportPath(baselineDir),
     totalTrials,
     passedTrials,
     browserDeliveryRate: totalTrials > 0 ? passedTrials / totalTrials : 0,
@@ -173,4 +173,13 @@ ${runLines}
 
 ${failureLines}
 `;
+}
+
+function toReportPath(value) {
+  if (typeof value !== "string" || !/^[A-Za-z]:[\\/]/.test(value)) return value;
+  const relativePath = relative(process.cwd(), value);
+  if (relativePath && !relativePath.startsWith("..") && !relativePath.includes(":")) {
+    return relativePath.replace(/\\/g, "/");
+  }
+  return "<local-path>";
 }

@@ -3,7 +3,7 @@ import { existsSync } from "node:fs";
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { createServer } from "node:net";
 import { tmpdir } from "node:os";
-import { delimiter, join, resolve } from "node:path";
+import { delimiter, join, relative, resolve } from "node:path";
 
 const nodeCommand = process.execPath;
 const browserCommand = process.env.IMAGE_COCKPIT_BROWSER_COMMAND || findBrowserCommand();
@@ -130,8 +130,8 @@ try {
     runnerMode,
     browserUrl,
     viewport: "1280x720",
-    reportDir,
-    handoffDir,
+    reportDir: toReportPath(reportDir),
+    handoffDir: toReportPath(handoffDir),
     trial: {
       id: `browser-delivery-${timestamp}`,
       sourceType: selectedSourceName === "animation-delivery-source.png" ? "browser file upload from public prompt example" : "app sample fallback source",
@@ -152,21 +152,21 @@ try {
       failureReason,
       uiFailureText,
       artifactPaths: {
-        screenshot: screenshotPath,
-        reportDir,
-        handoffDir
+        screenshot: toReportPath(screenshotPath),
+        reportDir: toReportPath(reportDir),
+        handoffDir: toReportPath(handoffDir)
       },
-      browserSnapshot: after,
+      browserSnapshot: browserSnapshotForReport(after),
       outboxResults: Array.isArray(resultsList.results)
         ? resultsList.results.map((result) => ({
             name: result.name,
-            path: result.path,
+            path: toReportPath(result.path),
             mimeType: result.mimeType,
             qualityGate: result.qualityGate,
-            artifact: result.artifact
+            artifact: sanitizeReportValue(result.artifact)
           }))
         : [],
-      outboxError: resultsList.error || ""
+      outboxError: sanitizeReportValue(resultsList.error || "")
     }
   };
 
@@ -184,13 +184,13 @@ try {
       createdAt: new Date().toISOString(),
       runnerMode,
       viewport: "1280x720",
-      reportDir,
-      handoffDir,
+      reportDir: toReportPath(reportDir),
+      handoffDir: toReportPath(handoffDir),
       trial: {
         id: `browser-delivery-${timestamp}`,
         resultStatus: "fail",
         failureReason: error instanceof Error ? error.message : String(error),
-        browserSnapshot: lastSnapshot
+        browserSnapshot: browserSnapshotForReport(lastSnapshot)
       }
     };
     await mkdir(reportDir, { recursive: true });
@@ -199,7 +199,7 @@ try {
       const screenshot = await cdp.send("Page.captureScreenshot", { format: "png", captureBeyondViewport: false }).catch(() => null);
       if (screenshot?.data) {
         await writeFile(failureScreenshotPath, Buffer.from(screenshot.data, "base64")).catch(() => null);
-        report.trial.artifactPaths = { screenshot: failureScreenshotPath, reportDir, handoffDir };
+        report.trial.artifactPaths = { screenshot: toReportPath(failureScreenshotPath), reportDir: toReportPath(reportDir), handoffDir: toReportPath(handoffDir) };
       }
     }
     await writeReports(report).catch(() => null);
@@ -388,6 +388,35 @@ async function writeReports(currentReport) {
   await writeFile(join(reportDir, "browser-trials.json"), `${JSON.stringify([trial], null, 2)}\n`, "utf8");
   await writeFile(join(reportDir, "delivery-rate-summary.json"), `${JSON.stringify(summary, null, 2)}\n`, "utf8");
   await writeFile(join(reportDir, "report.md"), reportMarkdown(currentReport, summary), "utf8");
+}
+
+function browserSnapshotForReport(snapshot) {
+  if (!snapshot || typeof snapshot !== "object") return snapshot;
+  const { text, ...safeSnapshot } = snapshot;
+  return {
+    ...sanitizeReportValue(safeSnapshot),
+    textOmitted: typeof text === "string",
+    textLength: typeof text === "string" ? text.length : 0,
+    hasAnimationGeneratedText: typeof text === "string" ? text.includes("Animation generated") : false
+  };
+}
+
+function sanitizeReportValue(value) {
+  if (typeof value === "string") return toReportPath(value);
+  if (Array.isArray(value)) return value.map((item) => sanitizeReportValue(item));
+  if (!value || typeof value !== "object") return value;
+  return Object.fromEntries(
+    Object.entries(value).map(([key, entry]) => [key, sanitizeReportValue(entry)])
+  );
+}
+
+function toReportPath(value) {
+  if (typeof value !== "string" || !/^[A-Za-z]:[\\/]/.test(value)) return value;
+  const relativePath = relative(process.cwd(), value);
+  if (relativePath && !relativePath.startsWith("..") && !relativePath.includes(":")) {
+    return relativePath.replace(/\\/g, "/");
+  }
+  return "<local-path>";
 }
 
 function reportMarkdown(currentReport, summary) {

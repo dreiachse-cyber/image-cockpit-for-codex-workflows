@@ -16,8 +16,8 @@ Created: 2026-06-28T15:38:28.013Z
 
 ## Runs
 
-- trial-001: exitCode=0, reportDir=D:\codex\image-cockpit-for-codex-workflows\slot5\docs\qa\animation-delivery-reliability\baseline-2026-06-28T15-37-58-428Z\trial-001
-- trial-002: exitCode=0, reportDir=D:\codex\image-cockpit-for-codex-workflows\slot5\docs\qa\animation-delivery-reliability\baseline-2026-06-28T15-37-58-428Z\trial-002
+- trial-001: exitCode=0, reportDir=docs/qa/animation-delivery-reliability/baseline-2026-06-28T15-37-58-428Z/trial-001
+- trial-002: exitCode=0, reportDir=docs/qa/animation-delivery-reliability/baseline-2026-06-28T15-37-58-428Z/trial-002
 
 ## Failures
 

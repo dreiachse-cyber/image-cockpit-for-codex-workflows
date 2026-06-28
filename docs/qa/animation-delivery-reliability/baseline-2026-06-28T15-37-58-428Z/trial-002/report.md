@@ -28,7 +28,7 @@ Created: 2026-06-28T15:38:26.249Z
 
 ## Artifacts
 
-- screenshot: D:\codex\image-cockpit-for-codex-workflows\slot5\docs\qa\animation-delivery-reliability\baseline-2026-06-28T15-37-58-428Z\trial-002\browser-final-1280x720.png
-- handoffDir: D:\codex\image-cockpit-for-codex-workflows\slot5\docs\qa\animation-delivery-reliability\baseline-2026-06-28T15-37-58-428Z\trial-002\handoff
+- screenshot: docs/qa/animation-delivery-reliability/baseline-2026-06-28T15-37-58-428Z/trial-002/browser-final-1280x720.png
+- handoffDir: docs/qa/animation-delivery-reliability/baseline-2026-06-28T15-37-58-428Z/trial-002/handoff
 - browser-trials.json
 - delivery-rate-summary.json

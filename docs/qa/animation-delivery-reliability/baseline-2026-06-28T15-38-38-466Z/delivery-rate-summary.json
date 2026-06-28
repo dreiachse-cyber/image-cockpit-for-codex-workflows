@@ -2,7 +2,7 @@
   "schema": "image-cockpit.animation-delivery-rate-summary.v1",
   "createdAt": "2026-06-28T15:56:18.662Z",
   "runnerMode": "real",
-  "baselineDir": "D:\\codex\\image-cockpit-for-codex-workflows\\slot5\\docs\\qa\\animation-delivery-reliability\\baseline-2026-06-28T15-38-38-466Z",
+  "baselineDir": "docs/qa/animation-delivery-reliability/baseline-2026-06-28T15-38-38-466Z",
   "totalTrials": 1,
   "passedTrials": 1,
   "browserDeliveryRate": 1,
