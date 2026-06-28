@@ -52,3 +52,11 @@ $env:IMAGE_COCKPIT_ANIMATION_DELIVERY_TRIALS='1'
 $env:IMAGE_COCKPIT_ANIMATION_DELIVERY_MIN_RATE='0'
 npm run animation:baseline
 ```
+
+To evaluate the accumulated real-browser delivery SLO across recorded baselines:
+
+```powershell
+npm run animation:rollup
+```
+
+By default, `animation:rollup` checks real-run baselines against `minTrials=10` and `minRate=0.9`. It writes `delivery-rollup-real.json` and `delivery-rollup-real.md`, and it exits non-zero while evidence is still insufficient or the observed delivery rate is below the SLO.

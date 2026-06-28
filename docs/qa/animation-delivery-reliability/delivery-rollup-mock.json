@@ -1,0 +1,30 @@
+{
+  "schema": "image-cockpit.animation-delivery-rollup.v1",
+  "createdAt": "2026-06-28T16:28:42.763Z",
+  "qaDir": "docs/qa/animation-delivery-reliability",
+  "runnerMode": "mock",
+  "minRate": 0.9,
+  "minTrials": 1,
+  "gateStatus": "pass",
+  "baselineCount": 1,
+  "totalTrials": 2,
+  "passedTrials": 2,
+  "failedTrials": 0,
+  "browserDeliveryRate": 1,
+  "falseSuccessCount": 0,
+  "stuckRunningCount": 0,
+  "baselines": [
+    {
+      "baselineDir": "docs/qa/animation-delivery-reliability/baseline-2026-06-28T15-37-58-428Z",
+      "createdAt": "2026-06-28T15:38:28.013Z",
+      "runnerMode": "mock",
+      "totalTrials": 2,
+      "passedTrials": 2,
+      "browserDeliveryRate": 1,
+      "falseSuccessCount": 0,
+      "stuckRunningCount": 0
+    }
+  ],
+  "failureClasses": [],
+  "failures": []
+}
