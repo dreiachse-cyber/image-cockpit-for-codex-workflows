@@ -1,0 +1,253 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Failed Sprite Sheets</title>
+  <style>
+    :root {
+      --bg: #f6f7f8;
+      --ink: #1f2933;
+      --muted: #667384;
+      --line: #d8dee5;
+      --panel: #fff;
+      --fail: #b42318;
+      --link: #1d4ed8;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      line-height: 1.5;
+    }
+
+    header,
+    main {
+      padding: 24px clamp(18px, 4vw, 44px);
+    }
+
+    header {
+      background: #fff;
+      border-bottom: 1px solid var(--line);
+    }
+
+    h1,
+    h2,
+    h3 {
+      margin: 0;
+      line-height: 1.15;
+    }
+
+    h1 {
+      font-size: clamp(28px, 4vw, 42px);
+    }
+
+    h2 {
+      font-size: 24px;
+      margin: 34px 0 14px;
+    }
+
+    h3 {
+      font-size: 18px;
+    }
+
+    a {
+      color: var(--link);
+      text-decoration: none;
+    }
+
+    a:hover {
+      text-decoration: underline;
+    }
+
+    .subtitle {
+      color: var(--muted);
+      margin: 10px 0 0;
+      max-width: 980px;
+    }
+
+    .links {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 16px;
+      font-size: 14px;
+    }
+
+    .links a {
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      color: var(--ink);
+      min-height: 34px;
+      padding: 6px 12px;
+    }
+
+    .trial {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      margin: 0 0 20px;
+      overflow: hidden;
+    }
+
+    .trial-head {
+      border-bottom: 1px solid var(--line);
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      justify-content: space-between;
+      padding: 14px 16px;
+    }
+
+    .reason {
+      color: var(--muted);
+      flex-basis: 100%;
+      margin: 0;
+      font-size: 14px;
+    }
+
+    .badge {
+      background: var(--fail);
+      border-radius: 999px;
+      color: #fff;
+      display: inline-flex;
+      align-items: center;
+      font-size: 12px;
+      font-weight: 700;
+      min-height: 24px;
+      padding: 3px 9px;
+      text-transform: uppercase;
+    }
+
+    .direction-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 12px;
+      padding: 14px;
+    }
+
+    figure {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      margin: 0;
+      overflow: hidden;
+      background:
+        linear-gradient(45deg, #dfe5ec 25%, transparent 25%),
+        linear-gradient(-45deg, #dfe5ec 25%, transparent 25%),
+        linear-gradient(45deg, transparent 75%, #dfe5ec 75%),
+        linear-gradient(-45deg, transparent 75%, #dfe5ec 75%);
+      background-color: #f9fafb;
+      background-size: 20px 20px;
+      background-position: 0 0, 0 10px, 10px -10px, -10px 0;
+    }
+
+    figure img {
+      display: block;
+      width: 100%;
+      aspect-ratio: 2 / 1;
+      object-fit: contain;
+    }
+
+    figcaption {
+      background: rgba(255, 255, 255, 0.9);
+      border-top: 1px solid var(--line);
+      color: var(--muted);
+      font-size: 13px;
+      padding: 7px 9px;
+    }
+
+    .note {
+      color: var(--muted);
+      font-size: 13px;
+      margin: 0;
+      padding: 0 16px 16px;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Failed Sprite Sheets</h1>
+    <p class="subtitle">Rejected direction sheets from the failed Animation Generation trials. Each image is one 4 x 2 direction sheet, so one failed trial has five direction sheets rather than a final imported 2048 x 1280 sheet.</p>
+    <nav class="links" aria-label="Navigation">
+      <a href="index.html">Back to index</a>
+      <a href="failure-taxonomy.md">failure-taxonomy.md</a>
+      <a href="fix-cycles.md">fix-cycles.md</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="trial" id="t01-s01-idle-breathing">
+      <div class="trial-head">
+        <h2>T01 / S01 / Idle Breathing</h2>
+        <span class="badge">fail</span>
+        <p class="reason">Quality gate: idle breathing motion too static across directions.</p>
+        <div class="links"><a href="trials/T01-S01-idle-breathing/report.md">trial report</a><a href="trials/T01-S01-idle-breathing/browser-final-1280x720.png">browser screenshot</a></div>
+      </div>
+      <div class="direction-grid">
+        <figure><a href="failed-sprite-sheets/T01-S01-idle-breathing/front.png"><img src="failed-sprite-sheets/T01-S01-idle-breathing/front.png" alt="T01 front direction sheet"></a><figcaption>front</figcaption></figure>
+        <figure><a href="failed-sprite-sheets/T01-S01-idle-breathing/front-three-quarter.png"><img src="failed-sprite-sheets/T01-S01-idle-breathing/front-three-quarter.png" alt="T01 front three-quarter direction sheet"></a><figcaption>front three-quarter</figcaption></figure>
+        <figure><a href="failed-sprite-sheets/T01-S01-idle-breathing/side.png"><img src="failed-sprite-sheets/T01-S01-idle-breathing/side.png" alt="T01 side direction sheet"></a><figcaption>side</figcaption></figure>
+        <figure><a href="failed-sprite-sheets/T01-S01-idle-breathing/back-three-quarter.png"><img src="failed-sprite-sheets/T01-S01-idle-breathing/back-three-quarter.png" alt="T01 back three-quarter direction sheet"></a><figcaption>back three-quarter</figcaption></figure>
+        <figure><a href="failed-sprite-sheets/T01-S01-idle-breathing/back.png"><img src="failed-sprite-sheets/T01-S01-idle-breathing/back.png" alt="T01 back direction sheet"></a><figcaption>back</figcaption></figure>
+      </div>
+    </section>
+
+    <section class="trial" id="t01r-s01-idle-breathing-motion-contract">
+      <div class="trial-head">
+        <h2>T01R / S01 / Idle Breathing</h2>
+        <span class="badge">fail</span>
+        <p class="reason">Quality gate: idle breathing remained too static after the motion-contract prompt change.</p>
+        <div class="links"><a href="trials/T01R-S01-idle-breathing-motion-contract/report.md">trial report</a><a href="trials/T01R-S01-idle-breathing-motion-contract/browser-final-1280x720.png">browser screenshot</a></div>
+      </div>
+      <div class="direction-grid">
+        <figure><a href="failed-sprite-sheets/T01R-S01-idle-breathing-motion-contract/front.png"><img src="failed-sprite-sheets/T01R-S01-idle-breathing-motion-contract/front.png" alt="T01R front direction sheet"></a><figcaption>front</figcaption></figure>
+        <figure><a href="failed-sprite-sheets/T01R-S01-idle-breathing-motion-contract/front-three-quarter.png"><img src="failed-sprite-sheets/T01R-S01-idle-breathing-motion-contract/front-three-quarter.png" alt="T01R front three-quarter direction sheet"></a><figcaption>front three-quarter</figcaption></figure>
+        <figure><a href="failed-sprite-sheets/T01R-S01-idle-breathing-motion-contract/side.png"><img src="failed-sprite-sheets/T01R-S01-idle-breathing-motion-contract/side.png" alt="T01R side direction sheet"></a><figcaption>side</figcaption></figure>
+        <figure><a href="failed-sprite-sheets/T01R-S01-idle-breathing-motion-contract/back-three-quarter.png"><img src="failed-sprite-sheets/T01R-S01-idle-breathing-motion-contract/back-three-quarter.png" alt="T01R back three-quarter direction sheet"></a><figcaption>back three-quarter</figcaption></figure>
+        <figure><a href="failed-sprite-sheets/T01R-S01-idle-breathing-motion-contract/back.png"><img src="failed-sprite-sheets/T01R-S01-idle-breathing-motion-contract/back.png" alt="T01R back direction sheet"></a><figcaption>back</figcaption></figure>
+      </div>
+    </section>
+
+    <section class="trial" id="t02-s01-run-cycle">
+      <div class="trial-head">
+        <h2>T02 / S01 / Run Cycle</h2>
+        <span class="badge">fail</span>
+        <p class="reason">Quality gate: back row measured 2.3% average frame change under the previous standard threshold.</p>
+        <div class="links"><a href="trials/T02-S01-run-cycle/report.md">trial report</a><a href="trials/T02-S01-run-cycle/browser-final-1280x720.png">browser screenshot</a></div>
+      </div>
+      <div class="direction-grid">
+        <figure><a href="failed-sprite-sheets/T02-S01-run-cycle/front.png"><img src="failed-sprite-sheets/T02-S01-run-cycle/front.png" alt="T02 front direction sheet"></a><figcaption>front</figcaption></figure>
+        <figure><a href="failed-sprite-sheets/T02-S01-run-cycle/front-three-quarter.png"><img src="failed-sprite-sheets/T02-S01-run-cycle/front-three-quarter.png" alt="T02 front three-quarter direction sheet"></a><figcaption>front three-quarter</figcaption></figure>
+        <figure><a href="failed-sprite-sheets/T02-S01-run-cycle/side.png"><img src="failed-sprite-sheets/T02-S01-run-cycle/side.png" alt="T02 side direction sheet"></a><figcaption>side</figcaption></figure>
+        <figure><a href="failed-sprite-sheets/T02-S01-run-cycle/back-three-quarter.png"><img src="failed-sprite-sheets/T02-S01-run-cycle/back-three-quarter.png" alt="T02 back three-quarter direction sheet"></a><figcaption>back three-quarter</figcaption></figure>
+        <figure><a href="failed-sprite-sheets/T02-S01-run-cycle/back.png"><img src="failed-sprite-sheets/T02-S01-run-cycle/back.png" alt="T02 back direction sheet"></a><figcaption>back</figcaption></figure>
+      </div>
+    </section>
+
+    <section class="trial" id="t03-s02-walk-cycle">
+      <div class="trial-head">
+        <h2>T03 / S02 / Walk Cycle</h2>
+        <span class="badge">fail</span>
+        <p class="reason">Quality gate: small source walk motion was too subtle, especially front and back directions.</p>
+        <div class="links"><a href="trials/T03-S02-walk-cycle/report.md">trial report</a><a href="trials/T03-S02-walk-cycle/browser-final-1280x720.png">browser screenshot</a></div>
+      </div>
+      <div class="direction-grid">
+        <figure><a href="failed-sprite-sheets/T03-S02-walk-cycle/front.png"><img src="failed-sprite-sheets/T03-S02-walk-cycle/front.png" alt="T03 front direction sheet"></a><figcaption>front</figcaption></figure>
+        <figure><a href="failed-sprite-sheets/T03-S02-walk-cycle/front-three-quarter.png"><img src="failed-sprite-sheets/T03-S02-walk-cycle/front-three-quarter.png" alt="T03 front three-quarter direction sheet"></a><figcaption>front three-quarter</figcaption></figure>
+        <figure><a href="failed-sprite-sheets/T03-S02-walk-cycle/side.png"><img src="failed-sprite-sheets/T03-S02-walk-cycle/side.png" alt="T03 side direction sheet"></a><figcaption>side</figcaption></figure>
+        <figure><a href="failed-sprite-sheets/T03-S02-walk-cycle/back-three-quarter.png"><img src="failed-sprite-sheets/T03-S02-walk-cycle/back-three-quarter.png" alt="T03 back three-quarter direction sheet"></a><figcaption>back three-quarter</figcaption></figure>
+        <figure><a href="failed-sprite-sheets/T03-S02-walk-cycle/back.png"><img src="failed-sprite-sheets/T03-S02-walk-cycle/back.png" alt="T03 back direction sheet"></a><figcaption>back</figcaption></figure>
+      </div>
+    </section>
+
+    <p class="note">The source files copied here are the rejected direction PNGs from each trial's local handoff tournament output. They were not imported into Image Cockpit history because the quality gate blocked final delivery.</p>
+  </main>
+</body>
+</html>

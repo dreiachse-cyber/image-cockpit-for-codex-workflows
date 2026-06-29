@@ -43,3 +43,5 @@
 - `fix-cycles.md`
 - `artifact-index.md`
 - `verification.md`
+- `index.html`
+- `failed-sprite-sheets.html`

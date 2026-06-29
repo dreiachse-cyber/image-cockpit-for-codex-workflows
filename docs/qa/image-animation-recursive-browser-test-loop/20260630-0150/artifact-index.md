@@ -34,6 +34,11 @@ Base: `docs/qa/image-animation-recursive-browser-test-loop/20260630-0150`
 
 Heavy local handoff artifacts under `handoff/` are intentionally ignored by `.gitignore`. Public QA files keep summary JSON, Markdown reports, source PNGs, and browser screenshots.
 
+## HTML Galleries
+
+- `index.html`: source and trial overview with thumbnails.
+- `failed-sprite-sheets.html`: rejected 5-direction sheets copied from failed trial handoff outputs for visual review.
+
 ## Verification
 
 See `verification.md` for the static checks, unit tests, build, smoke, release audit, and real browser UI smoke run after fixes.
