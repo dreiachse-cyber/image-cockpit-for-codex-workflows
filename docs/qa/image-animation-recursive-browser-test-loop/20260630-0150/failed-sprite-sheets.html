@@ -133,6 +133,26 @@
       padding: 14px;
     }
 
+    .preview-title {
+      color: var(--ink);
+      font-size: 16px;
+      margin: 0;
+      padding: 16px 16px 0;
+    }
+
+    .animation-grid {
+      padding-bottom: 4px;
+    }
+
+    .animation-grid figure img {
+      aspect-ratio: 1 / 1;
+      image-rendering: pixelated;
+    }
+
+    .sheet-grid {
+      padding-top: 8px;
+    }
+
     figure {
       border: 1px solid var(--line);
       border-radius: 8px;
@@ -174,7 +194,7 @@
 <body>
   <header>
     <h1>Failed Sprite Sheets</h1>
-    <p class="subtitle">Rejected direction sheets from the failed Animation Generation trials. Each image is one 4 x 2 direction sheet, so one failed trial has five direction sheets rather than a final imported 2048 x 1280 sheet.</p>
+    <p class="subtitle">Rejected direction sheets from the failed Animation Generation trials. Each trial now includes looping 8-frame GIF previews plus the original 4 x 2 direction sheets, so subtle motion can be checked without opening the PNGs one by one.</p>
     <nav class="links" aria-label="Navigation">
       <a href="index.html">Back to index</a>
       <a href="failure-taxonomy.md">failure-taxonomy.md</a>
@@ -190,7 +210,16 @@
         <p class="reason">Quality gate: idle breathing motion too static across directions.</p>
         <div class="links"><a href="trials/T01-S01-idle-breathing/report.md">trial report</a><a href="trials/T01-S01-idle-breathing/browser-final-1280x720.png">browser screenshot</a></div>
       </div>
-      <div class="direction-grid">
+      <h3 class="preview-title">Animated GIF preview</h3>
+      <div class="direction-grid animation-grid">
+        <figure><a href="failed-sprite-sheets/T01-S01-idle-breathing/front.gif"><img src="failed-sprite-sheets/T01-S01-idle-breathing/front.gif" alt="T01 front animated GIF"></a><figcaption>front</figcaption></figure>
+        <figure><a href="failed-sprite-sheets/T01-S01-idle-breathing/front-three-quarter.gif"><img src="failed-sprite-sheets/T01-S01-idle-breathing/front-three-quarter.gif" alt="T01 front three-quarter animated GIF"></a><figcaption>front three-quarter</figcaption></figure>
+        <figure><a href="failed-sprite-sheets/T01-S01-idle-breathing/side.gif"><img src="failed-sprite-sheets/T01-S01-idle-breathing/side.gif" alt="T01 side animated GIF"></a><figcaption>side</figcaption></figure>
+        <figure><a href="failed-sprite-sheets/T01-S01-idle-breathing/back-three-quarter.gif"><img src="failed-sprite-sheets/T01-S01-idle-breathing/back-three-quarter.gif" alt="T01 back three-quarter animated GIF"></a><figcaption>back three-quarter</figcaption></figure>
+        <figure><a href="failed-sprite-sheets/T01-S01-idle-breathing/back.gif"><img src="failed-sprite-sheets/T01-S01-idle-breathing/back.gif" alt="T01 back animated GIF"></a><figcaption>back</figcaption></figure>
+      </div>
+      <h3 class="preview-title">Direction sheets</h3>
+      <div class="direction-grid sheet-grid">
         <figure><a href="failed-sprite-sheets/T01-S01-idle-breathing/front.png"><img src="failed-sprite-sheets/T01-S01-idle-breathing/front.png" alt="T01 front direction sheet"></a><figcaption>front</figcaption></figure>
         <figure><a href="failed-sprite-sheets/T01-S01-idle-breathing/front-three-quarter.png"><img src="failed-sprite-sheets/T01-S01-idle-breathing/front-three-quarter.png" alt="T01 front three-quarter direction sheet"></a><figcaption>front three-quarter</figcaption></figure>
         <figure><a href="failed-sprite-sheets/T01-S01-idle-breathing/side.png"><img src="failed-sprite-sheets/T01-S01-idle-breathing/side.png" alt="T01 side direction sheet"></a><figcaption>side</figcaption></figure>
@@ -206,7 +235,16 @@
         <p class="reason">Quality gate: idle breathing remained too static after the motion-contract prompt change.</p>
         <div class="links"><a href="trials/T01R-S01-idle-breathing-motion-contract/report.md">trial report</a><a href="trials/T01R-S01-idle-breathing-motion-contract/browser-final-1280x720.png">browser screenshot</a></div>
       </div>
-      <div class="direction-grid">
+      <h3 class="preview-title">Animated GIF preview</h3>
+      <div class="direction-grid animation-grid">
+        <figure><a href="failed-sprite-sheets/T01R-S01-idle-breathing-motion-contract/front.gif"><img src="failed-sprite-sheets/T01R-S01-idle-breathing-motion-contract/front.gif" alt="T01R front animated GIF"></a><figcaption>front</figcaption></figure>
+        <figure><a href="failed-sprite-sheets/T01R-S01-idle-breathing-motion-contract/front-three-quarter.gif"><img src="failed-sprite-sheets/T01R-S01-idle-breathing-motion-contract/front-three-quarter.gif" alt="T01R front three-quarter animated GIF"></a><figcaption>front three-quarter</figcaption></figure>
+        <figure><a href="failed-sprite-sheets/T01R-S01-idle-breathing-motion-contract/side.gif"><img src="failed-sprite-sheets/T01R-S01-idle-breathing-motion-contract/side.gif" alt="T01R side animated GIF"></a><figcaption>side</figcaption></figure>
+        <figure><a href="failed-sprite-sheets/T01R-S01-idle-breathing-motion-contract/back-three-quarter.gif"><img src="failed-sprite-sheets/T01R-S01-idle-breathing-motion-contract/back-three-quarter.gif" alt="T01R back three-quarter animated GIF"></a><figcaption>back three-quarter</figcaption></figure>
+        <figure><a href="failed-sprite-sheets/T01R-S01-idle-breathing-motion-contract/back.gif"><img src="failed-sprite-sheets/T01R-S01-idle-breathing-motion-contract/back.gif" alt="T01R back animated GIF"></a><figcaption>back</figcaption></figure>
+      </div>
+      <h3 class="preview-title">Direction sheets</h3>
+      <div class="direction-grid sheet-grid">
         <figure><a href="failed-sprite-sheets/T01R-S01-idle-breathing-motion-contract/front.png"><img src="failed-sprite-sheets/T01R-S01-idle-breathing-motion-contract/front.png" alt="T01R front direction sheet"></a><figcaption>front</figcaption></figure>
         <figure><a href="failed-sprite-sheets/T01R-S01-idle-breathing-motion-contract/front-three-quarter.png"><img src="failed-sprite-sheets/T01R-S01-idle-breathing-motion-contract/front-three-quarter.png" alt="T01R front three-quarter direction sheet"></a><figcaption>front three-quarter</figcaption></figure>
         <figure><a href="failed-sprite-sheets/T01R-S01-idle-breathing-motion-contract/side.png"><img src="failed-sprite-sheets/T01R-S01-idle-breathing-motion-contract/side.png" alt="T01R side direction sheet"></a><figcaption>side</figcaption></figure>
@@ -222,7 +260,16 @@
         <p class="reason">Quality gate: back row measured 2.3% average frame change under the previous standard threshold.</p>
         <div class="links"><a href="trials/T02-S01-run-cycle/report.md">trial report</a><a href="trials/T02-S01-run-cycle/browser-final-1280x720.png">browser screenshot</a></div>
       </div>
-      <div class="direction-grid">
+      <h3 class="preview-title">Animated GIF preview</h3>
+      <div class="direction-grid animation-grid">
+        <figure><a href="failed-sprite-sheets/T02-S01-run-cycle/front.gif"><img src="failed-sprite-sheets/T02-S01-run-cycle/front.gif" alt="T02 front animated GIF"></a><figcaption>front</figcaption></figure>
+        <figure><a href="failed-sprite-sheets/T02-S01-run-cycle/front-three-quarter.gif"><img src="failed-sprite-sheets/T02-S01-run-cycle/front-three-quarter.gif" alt="T02 front three-quarter animated GIF"></a><figcaption>front three-quarter</figcaption></figure>
+        <figure><a href="failed-sprite-sheets/T02-S01-run-cycle/side.gif"><img src="failed-sprite-sheets/T02-S01-run-cycle/side.gif" alt="T02 side animated GIF"></a><figcaption>side</figcaption></figure>
+        <figure><a href="failed-sprite-sheets/T02-S01-run-cycle/back-three-quarter.gif"><img src="failed-sprite-sheets/T02-S01-run-cycle/back-three-quarter.gif" alt="T02 back three-quarter animated GIF"></a><figcaption>back three-quarter</figcaption></figure>
+        <figure><a href="failed-sprite-sheets/T02-S01-run-cycle/back.gif"><img src="failed-sprite-sheets/T02-S01-run-cycle/back.gif" alt="T02 back animated GIF"></a><figcaption>back</figcaption></figure>
+      </div>
+      <h3 class="preview-title">Direction sheets</h3>
+      <div class="direction-grid sheet-grid">
         <figure><a href="failed-sprite-sheets/T02-S01-run-cycle/front.png"><img src="failed-sprite-sheets/T02-S01-run-cycle/front.png" alt="T02 front direction sheet"></a><figcaption>front</figcaption></figure>
         <figure><a href="failed-sprite-sheets/T02-S01-run-cycle/front-three-quarter.png"><img src="failed-sprite-sheets/T02-S01-run-cycle/front-three-quarter.png" alt="T02 front three-quarter direction sheet"></a><figcaption>front three-quarter</figcaption></figure>
         <figure><a href="failed-sprite-sheets/T02-S01-run-cycle/side.png"><img src="failed-sprite-sheets/T02-S01-run-cycle/side.png" alt="T02 side direction sheet"></a><figcaption>side</figcaption></figure>
@@ -238,7 +285,16 @@
         <p class="reason">Quality gate: small source walk motion was too subtle, especially front and back directions.</p>
         <div class="links"><a href="trials/T03-S02-walk-cycle/report.md">trial report</a><a href="trials/T03-S02-walk-cycle/browser-final-1280x720.png">browser screenshot</a></div>
       </div>
-      <div class="direction-grid">
+      <h3 class="preview-title">Animated GIF preview</h3>
+      <div class="direction-grid animation-grid">
+        <figure><a href="failed-sprite-sheets/T03-S02-walk-cycle/front.gif"><img src="failed-sprite-sheets/T03-S02-walk-cycle/front.gif" alt="T03 front animated GIF"></a><figcaption>front</figcaption></figure>
+        <figure><a href="failed-sprite-sheets/T03-S02-walk-cycle/front-three-quarter.gif"><img src="failed-sprite-sheets/T03-S02-walk-cycle/front-three-quarter.gif" alt="T03 front three-quarter animated GIF"></a><figcaption>front three-quarter</figcaption></figure>
+        <figure><a href="failed-sprite-sheets/T03-S02-walk-cycle/side.gif"><img src="failed-sprite-sheets/T03-S02-walk-cycle/side.gif" alt="T03 side animated GIF"></a><figcaption>side</figcaption></figure>
+        <figure><a href="failed-sprite-sheets/T03-S02-walk-cycle/back-three-quarter.gif"><img src="failed-sprite-sheets/T03-S02-walk-cycle/back-three-quarter.gif" alt="T03 back three-quarter animated GIF"></a><figcaption>back three-quarter</figcaption></figure>
+        <figure><a href="failed-sprite-sheets/T03-S02-walk-cycle/back.gif"><img src="failed-sprite-sheets/T03-S02-walk-cycle/back.gif" alt="T03 back animated GIF"></a><figcaption>back</figcaption></figure>
+      </div>
+      <h3 class="preview-title">Direction sheets</h3>
+      <div class="direction-grid sheet-grid">
         <figure><a href="failed-sprite-sheets/T03-S02-walk-cycle/front.png"><img src="failed-sprite-sheets/T03-S02-walk-cycle/front.png" alt="T03 front direction sheet"></a><figcaption>front</figcaption></figure>
         <figure><a href="failed-sprite-sheets/T03-S02-walk-cycle/front-three-quarter.png"><img src="failed-sprite-sheets/T03-S02-walk-cycle/front-three-quarter.png" alt="T03 front three-quarter direction sheet"></a><figcaption>front three-quarter</figcaption></figure>
         <figure><a href="failed-sprite-sheets/T03-S02-walk-cycle/side.png"><img src="failed-sprite-sheets/T03-S02-walk-cycle/side.png" alt="T03 side direction sheet"></a><figcaption>side</figcaption></figure>
@@ -247,7 +303,7 @@
       </div>
     </section>
 
-    <p class="note">The source files copied here are the rejected direction PNGs from each trial's local handoff tournament output. They were not imported into Image Cockpit history because the quality gate blocked final delivery.</p>
+    <p class="note">The source files copied here are the rejected direction PNGs from each trial's local handoff tournament output. GIF previews were generated deterministically from those 4 x 2 sheets at 120ms per frame. They were not imported into Image Cockpit history because the quality gate blocked final delivery.</p>
   </main>
 </body>
 </html>

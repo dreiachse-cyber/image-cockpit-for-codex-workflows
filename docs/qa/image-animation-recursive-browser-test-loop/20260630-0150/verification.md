@@ -32,3 +32,14 @@ After lowering the idle-breathing aggregate readable-row minimum from 3 to 2, st
 | `node scripts/release-audit.mjs` | pass | Release audit passed. |
 | `node node_modules/typescript/bin/tsc -b` + `node node_modules/vite/bin/vite.js build` | pass | Vite emitted the existing large chunk warning. |
 | `node scripts/ui-smoke.mjs` | pass | Real browser smoke passed after the idle threshold change. |
+
+## Follow-up: Failed Sprite Sheet GIF Preview
+
+The failed sprite sheet gallery was extended with looping animated GIF previews generated from the committed 4 x 2 direction PNGs.
+
+| Check | Result | Notes |
+| --- | --- | --- |
+| Generate direction GIFs with Pillow | pass | 20 GIFs written under `failed-sprite-sheets/*/*.gif`, one per failed trial direction. |
+| GIF metadata check | pass | Every GIF has 8 frames, 256 x 256 size, and 120ms frame duration. |
+| `failed-sprite-sheets.html` local link check | pass | 91 local `href` / `src` values checked with zero missing files. |
+| `git diff --check` | pass | Only CRLF normalization warnings were reported. |
