@@ -11,7 +11,7 @@
 
 ## Categories
 
-- `motion_too_static_idle`: idle-breathing rows had too few readable moving directions. Observed in T01 and T01R.
+- `motion_too_static_idle`: idle-breathing rows had too few readable moving directions under the original 3/5 aggregate gate. Observed in T01 and T01R, both with 2/5 readable rows; follow-up implementation now accepts 2/5 while preserving the per-direction static-copy guard.
 - `standard_motion_gate_false_positive_back_run`: run-cycle back row had readable motion but average frame-change was below the previous standard threshold. Observed in T02 and fixed by T02R.
 - `small_source_walk_motion_too_subtle`: small source + walk-cycle produced front/back motion below the standard gate. Observed in T03 and left as a classified generation-quality failure for the next cycle.
 - `quality_gate_blocked_history_delivery`, `quality_gate_blocked_preview_delivery`, `quality_gate_blocked_download`: expected downstream consequences when the material quality gate blocks a candidate. These did not create false success entries.

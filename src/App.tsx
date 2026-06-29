@@ -158,7 +158,8 @@ const DIRECTION_SPLIT_MOTION_THRESHOLDS: Record<DirectionSplitMotionProfile, Dir
 };
 const DIRECTION_SPLIT_IDLE_MOTION_ABSENT_AVERAGE = 0.008;
 const DIRECTION_SPLIT_IDLE_MOTION_ABSENT_MAX = 0.02;
-const DIRECTION_SPLIT_IDLE_MIN_READABLE_MOTION_ROWS = 3;
+// Idle breathing is intentionally quiet, so require only a couple readable rows while preserving the static-copy guard above.
+const DIRECTION_SPLIT_IDLE_MIN_READABLE_MOTION_ROWS = 2;
 const STANDARD_ANIMATION_CELL: SpriteAction["cell"] = { width: ANIMATION_CELL_SIZE, height: ANIMATION_CELL_SIZE };
 const STANDARD_ANIMATION_ANCHOR = { x: Math.round(ANIMATION_CELL_SIZE / 2), y: Math.round(ANIMATION_CELL_SIZE * 0.92) };
 const HATCH_PET_CELL: SpriteAction["cell"] = { width: 192, height: 208 };

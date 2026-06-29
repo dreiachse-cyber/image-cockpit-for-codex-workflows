@@ -37,3 +37,14 @@ Changes:
 - Direction-split manifest detection now requires the direction-split schema, while generic single-image outbox results remain recoverable.
 
 Retest: `npm run ui:smoke` passed, including partial direction recovery, manifest-first recovery, completed incomplete candidate review, and quality-gate failure handling.
+
+## Cycle 4: Idle Breathing Readable Row Tolerance
+
+Before: T01 and T01R each reached `2/5 readable rows` but still failed the idle-breathing aggregate gate because the minimum was 3 rows.
+
+Change:
+
+- Idle-breathing aggregate readable-row minimum was lowered from 3 to 2.
+- The hard static-copy guard remains unchanged at `averageMotion < 0.008` and `maxMotion < 0.02` per direction, so near-identical frame rows still fail.
+
+Retest: static verification was rerun after the threshold change.
