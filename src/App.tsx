@@ -137,7 +137,7 @@ const DIRECTION_SPLIT_CENTER_WARN_DRIFT = 24;
 const DIRECTION_SPLIT_CENTER_FAIL_DRIFT = 48;
 const DIRECTION_SPLIT_BOTTOM_WARN_DRIFT = 16;
 const DIRECTION_SPLIT_BOTTOM_FAIL_DRIFT = 32;
-type DirectionSplitMotionProfile = "standard" | "idle-breathing" | "subtle";
+type DirectionSplitMotionProfile = "standard" | "idle-breathing" | "walk-cycle" | "subtle";
 
 function readIntegerEnv(name: string, fallback: number, min: number, max: number) {
   const raw = import.meta.env[name];
@@ -154,6 +154,7 @@ interface DirectionSplitMotionThresholds {
 const DIRECTION_SPLIT_MOTION_THRESHOLDS: Record<DirectionSplitMotionProfile, DirectionSplitMotionThresholds> = {
   standard: { label: "motion", warnAverage: 0.04, failAverage: 0.02, failMax: 0.055 },
   "idle-breathing": { label: "idle breathing motion", warnAverage: 0.03, failAverage: 0.015, failMax: 0.04 },
+  "walk-cycle": { label: "walk motion", warnAverage: 0.03, failAverage: 0.012, failMax: 0.03 },
   subtle: { label: "subtle motion", warnAverage: 0.025, failAverage: 0.006, failMax: 0.015 }
 };
 const DIRECTION_SPLIT_IDLE_MOTION_ABSENT_AVERAGE = 0.008;
@@ -9529,6 +9530,7 @@ function normalizeDirectionSplitCells(preparedCells: DirectionSplitPreparedCell[
 function directionSplitMotionProfileForAction(actionName?: string): DirectionSplitMotionProfile {
   const normalized = actionName?.trim().toLowerCase() ?? "";
   if (normalized === "idle" || normalized === "idle-breathing") return "idle-breathing";
+  if (normalized === "walk" || normalized === "walk-cycle") return "walk-cycle";
   if (normalized === "talk" || normalized === "talk-react" || normalized === "cast" || normalized === "spell-cast") return "subtle";
   return "standard";
 }

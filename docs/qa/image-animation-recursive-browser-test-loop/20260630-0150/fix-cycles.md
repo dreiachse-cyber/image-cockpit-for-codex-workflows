@@ -48,3 +48,14 @@ Change:
 - The hard static-copy guard remains unchanged at `averageMotion < 0.008` and `maxMotion < 0.02` per direction, so near-identical frame rows still fail.
 
 Retest: static verification was rerun after the threshold change.
+
+## Cycle 5: Small Walk Cycle Motion Tolerance
+
+Before: T03 failed as `small_source_walk_motion_too_subtle` even though visual review showed the S02 Walk Cycle read well as a small-character walk loop.
+
+Change:
+
+- `walk` and `walk-cycle` now use a dedicated walk motion profile instead of the generic standard profile.
+- Walk motion `failAverage` is `0.012` and `failMax` is `0.03`, while the generic standard profile remains at `0.020` / `0.055` for run, attack, guard, jump, hurt, and other larger motions.
+
+Retest: static verification was rerun after the walk profile change.

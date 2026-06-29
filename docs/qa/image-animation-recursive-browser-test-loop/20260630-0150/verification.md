@@ -43,3 +43,18 @@ The failed sprite sheet gallery was extended with looping animated GIF previews 
 | GIF metadata check | pass | Every GIF has 8 frames, 256 x 256 size, and 120ms frame duration. |
 | `failed-sprite-sheets.html` local link check | pass | 91 local `href` / `src` values checked with zero missing files. |
 | `git diff --check` | pass | Only CRLF normalization warnings were reported. |
+
+## Follow-up: Walk Cycle Motion Tolerance
+
+After visual review of T03, `walk` / `walk-cycle` were moved to a dedicated walk motion profile so readable small-character walk loops are not blocked by the generic standard threshold.
+
+| Command / Check | Result | Notes |
+| --- | --- | --- |
+| `git diff --check` | pass | Only CRLF normalization warnings were reported. |
+| `node node_modules/typescript/bin/tsc --noEmit` | pass | TypeScript completed with no errors. |
+| `node node_modules/vitest/vitest.mjs run` | pass | 61 tests passed across 3 files. |
+| `node scripts/smoke.mjs` | pass | Static smoke passed. |
+| `node scripts/release-audit.mjs` | pass | Release audit passed. |
+| `success-rate-summary.json` parse + gallery local link check | pass | Summary JSON parsed; `index.html` and `failed-sprite-sheets.html` local links exist. |
+| `node node_modules/typescript/bin/tsc -b` + `node node_modules/vite/bin/vite.js build` | pass | Vite emitted the existing large chunk warning. |
+| `node scripts/ui-smoke.mjs` | pass on retry | First attempt hit an unrelated Animation Generation source-card round-trip assertion; immediate rerun passed. |

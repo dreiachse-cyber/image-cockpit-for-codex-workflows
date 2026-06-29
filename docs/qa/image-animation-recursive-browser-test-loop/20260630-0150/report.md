@@ -19,7 +19,7 @@
 | T01RR-S01-idle-breathing-threshold | S01 | idle-breathing | pass | delivered to history/preview/download |
 | T02-S01-run-cycle | S01 | run-cycle | fail | standard_motion_gate_false_positive_back_run, quality_gate_blocked_history_delivery, quality_gate_blocked_preview_delivery, quality_gate_blocked_download |
 | T02R-S01-run-cycle-standard-threshold | S01 | run-cycle | pass | delivered to history/preview/download |
-| T03-S02-walk-cycle | S02 | walk-cycle | fail | small_source_walk_motion_too_subtle, quality_gate_blocked_history_delivery, quality_gate_blocked_preview_delivery, quality_gate_blocked_download |
+| T03-S02-walk-cycle | S02 | walk-cycle | fail | historical fail under previous standard gate; follow-up walk-cycle profile added |
 | T04-S02-talk-emote | S02 | talk | pass | delivered to history/preview/download |
 | T05-S03-spell-cast | S03 | spell-cast | pass | delivered to history/preview/download |
 | T06-S04-basic-attack | S04 | basic-attack | pass | delivered to history/preview/download |
@@ -32,7 +32,7 @@
 - Two fix cycles were completed and retested with the same source/preset pair.
 - Quality-gated failures did not leak into success history or downloadable finals.
 - Later trials across talk, spell-cast, basic-attack, guard-block, jump-hop, and hurt-reaction passed browser delivery.
-- T03 remains a classified small-source walk-cycle motion issue for a future cycle.
+- T03 exposed that the generic standard motion gate was too strict for readable small-character walk loops; a follow-up walk-cycle profile was added.
 
 ## Files
 

@@ -61,6 +61,17 @@
       ],
       "retestTrial": "T02R-S01-run-cycle-standard-threshold",
       "result": "pass"
+    },
+    {
+      "id": "fix-cycle-5-small-walk-motion-tolerance",
+      "beforeTrials": [
+        "T03-S02-walk-cycle"
+      ],
+      "changes": [
+        "Added a dedicated walk-cycle motion profile with failAverage 0.012 and failMax 0.03 after visual review showed readable small-character walk motion."
+      ],
+      "retestTrial": null,
+      "result": "static verification pass"
     }
   ]
 }
