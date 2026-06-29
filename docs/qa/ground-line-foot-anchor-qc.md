@@ -1,7 +1,7 @@
 # Ground Line / Foot Anchor QC
 
 - Branch: `codex/ground-line-foot-anchor-qc`
-- Commit: pending final commit
+- Commit: `0197c4f` (implementation and QA evidence commit; final pushed branch head is reported in the completion note)
 - Date: 2026-06-29 JST
 - Browser URL: `http://127.0.0.1:5275/`
 - Viewport: 1280x720, devicePixelRatio 1.5
