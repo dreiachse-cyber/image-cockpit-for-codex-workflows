@@ -5,7 +5,7 @@ T08以降は開始していない。
 
 ## 作業場所
 
-- slot: `D:\codex\image-cockpit-for-codex-workflows\slot6`
+- slot: `<slot6-worktree>`
 - branch: `codex/recursive-animation-matrix-identity-rerun`
 - evidence root: `docs\qa\recursive-animation-matrix-identity-rerun`
 - trial dir: `docs\qa\recursive-animation-matrix-identity-rerun\trials\T07-basic-hooded-mysterious-figure-spell-cast`

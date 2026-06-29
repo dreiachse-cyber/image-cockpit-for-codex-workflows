@@ -19,4 +19,4 @@
 
 ## Results
 
-- codex-job-2026-06-29T04-20-58-385Z-y5i5s1-manifest.json: quality-failed / client-quality-gate-failed / D:\codex\image-cockpit-for-codex-workflows\slot6\docs\qa\recursive-animation-matrix-browser-qa\runtime-handoff\outbox\codex-job-2026-06-29T04-20-58-385Z-y5i5s1-manifest.json
+- codex-job-2026-06-29T04-20-58-385Z-y5i5s1-manifest.json: quality-failed / client-quality-gate-failed / docs\qa\recursive-animation-matrix-browser-qa\runtime-handoff\outbox\codex-job-2026-06-29T04-20-58-385Z-y5i5s1-manifest.json

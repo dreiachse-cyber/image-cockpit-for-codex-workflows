@@ -19,9 +19,9 @@
 
 ## Results
 
-- codex-job-2026-06-29T03-59-47-867Z-86qz8j-manifest.json: usable-final / direction-split-server-verified / D:\codex\image-cockpit-for-codex-workflows\slot6\docs\qa\recursive-animation-matrix-browser-qa\runtime-handoff\outbox\codex-job-2026-06-29T03-59-47-867Z-86qz8j-manifest.json
-- codex-job-2026-06-29T03-59-47-867Z-86qz8j-back.png: usable-final / direction-split-server-verified / D:\codex\image-cockpit-for-codex-workflows\slot6\docs\qa\recursive-animation-matrix-browser-qa\runtime-handoff\outbox\codex-job-2026-06-29T03-59-47-867Z-86qz8j-back.png
-- codex-job-2026-06-29T03-59-47-867Z-86qz8j-back-three-quarter.png: usable-final / direction-split-server-verified / D:\codex\image-cockpit-for-codex-workflows\slot6\docs\qa\recursive-animation-matrix-browser-qa\runtime-handoff\outbox\codex-job-2026-06-29T03-59-47-867Z-86qz8j-back-three-quarter.png
-- codex-job-2026-06-29T03-59-47-867Z-86qz8j-side.png: usable-final / direction-split-server-verified / D:\codex\image-cockpit-for-codex-workflows\slot6\docs\qa\recursive-animation-matrix-browser-qa\runtime-handoff\outbox\codex-job-2026-06-29T03-59-47-867Z-86qz8j-side.png
-- codex-job-2026-06-29T03-59-47-867Z-86qz8j-front-three-quarter.png: usable-final / direction-split-server-verified / D:\codex\image-cockpit-for-codex-workflows\slot6\docs\qa\recursive-animation-matrix-browser-qa\runtime-handoff\outbox\codex-job-2026-06-29T03-59-47-867Z-86qz8j-front-three-quarter.png
-- codex-job-2026-06-29T03-59-47-867Z-86qz8j-front.png: usable-final / direction-split-server-verified / D:\codex\image-cockpit-for-codex-workflows\slot6\docs\qa\recursive-animation-matrix-browser-qa\runtime-handoff\outbox\codex-job-2026-06-29T03-59-47-867Z-86qz8j-front.png
+- codex-job-2026-06-29T03-59-47-867Z-86qz8j-manifest.json: usable-final / direction-split-server-verified / docs\qa\recursive-animation-matrix-browser-qa\runtime-handoff\outbox\codex-job-2026-06-29T03-59-47-867Z-86qz8j-manifest.json
+- codex-job-2026-06-29T03-59-47-867Z-86qz8j-back.png: usable-final / direction-split-server-verified / docs\qa\recursive-animation-matrix-browser-qa\runtime-handoff\outbox\codex-job-2026-06-29T03-59-47-867Z-86qz8j-back.png
+- codex-job-2026-06-29T03-59-47-867Z-86qz8j-back-three-quarter.png: usable-final / direction-split-server-verified / docs\qa\recursive-animation-matrix-browser-qa\runtime-handoff\outbox\codex-job-2026-06-29T03-59-47-867Z-86qz8j-back-three-quarter.png
+- codex-job-2026-06-29T03-59-47-867Z-86qz8j-side.png: usable-final / direction-split-server-verified / docs\qa\recursive-animation-matrix-browser-qa\runtime-handoff\outbox\codex-job-2026-06-29T03-59-47-867Z-86qz8j-side.png
+- codex-job-2026-06-29T03-59-47-867Z-86qz8j-front-three-quarter.png: usable-final / direction-split-server-verified / docs\qa\recursive-animation-matrix-browser-qa\runtime-handoff\outbox\codex-job-2026-06-29T03-59-47-867Z-86qz8j-front-three-quarter.png
+- codex-job-2026-06-29T03-59-47-867Z-86qz8j-front.png: usable-final / direction-split-server-verified / docs\qa\recursive-animation-matrix-browser-qa\runtime-handoff\outbox\codex-job-2026-06-29T03-59-47-867Z-86qz8j-front.png

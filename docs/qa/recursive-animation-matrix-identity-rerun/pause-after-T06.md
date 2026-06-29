@@ -4,8 +4,8 @@
 
 ## 作業場所
 
-- 正規ルート: `D:\codex\image-cockpit-for-codex-workflows`
-- 作業slot: `D:\codex\image-cockpit-for-codex-workflows\slot6`
+- 正規ルート: `<project-root>`
+- 作業slot: `<slot6-worktree>`
 - ブランチ: `codex/recursive-animation-matrix-identity-rerun`
 - マトリクス: `docs\qa\recursive-animation-matrix-identity-rerun\matrix.md`
 
@@ -60,7 +60,7 @@ $env:VITE_IMAGE_COCKPIT_SUPERVISOR_PORT='8876'
 $env:IMAGE_COCKPIT_VITE_PORT='5266'
 $env:IMAGE_COCKPIT_API_PORT='8866'
 $env:IMAGE_COCKPIT_SUPERVISOR_PORT='8876'
-$env:IMAGE_COCKPIT_HANDOFF_DIR='D:\codex\image-cockpit-for-codex-workflows\slot6\tmp\recursive-animation-matrix-identity-rerun\handoff'
+$env:IMAGE_COCKPIT_HANDOFF_DIR='tmp\recursive-animation-matrix-identity-rerun\handoff'
 $env:IMAGE_COCKPIT_CODEX_AUTORUN='1'
 $env:IMAGE_COCKPIT_ARTIFACT_STABLE_MS='0'
 npm run dev:all
