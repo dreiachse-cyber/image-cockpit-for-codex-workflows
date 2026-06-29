@@ -4,6 +4,36 @@
 
 No unreleased changes yet.
 
+## v0.1.3 - 2026-06-30
+
+Recursive animation QA and review-gallery update after v0.1.2.
+
+### Added
+
+- Recursive browser-test QA artifacts for the animation matrix under `docs/qa/image-animation-recursive-browser-test-loop/20260630-0150/`.
+- Source and trial overview gallery at `index.html`, plus failed sprite review gallery at `failed-sprite-sheets.html`.
+- Animated GIF previews for failed 5-direction sprite rows so rejected candidates can be reviewed frame-by-frame.
+- Recursive source restoration and rerun coverage for repeated animation trials from the same generated source image.
+
+### Changed
+
+- Animation preset identity prompts and runner contracts now stress that generated direction PNGs are animation sheets, not still references.
+- Idle Breathing quality gates now accept readable subtle breathing across two directions while keeping hard static-copy guards.
+- Run Cycle and Walk Cycle motion checks use calibrated thresholds so readable back-run and small-character walk loops are not blocked by generic motion gates.
+- Generated-output rights are documented more clearly for local Codex/imagegen handoff workflows.
+
+### Fixed
+
+- Animation Generation restores the original source when returning from an animation result, keeping repeat trials enabled.
+- Direction-split and generic single-image outbox detection now preserve useful diagnostics instead of collapsing recoverable outputs into no-image failures.
+- The recursive QA loop no longer records false successes for quality-gated failed animation candidates.
+
+### Verification
+
+- v0.1.3 release prep tracks package/app/API version `0.1.3`.
+- Recursive animation QA verification passed typecheck, tests, build, smoke, release audit, and browser UI smoke after the threshold fixes.
+- The failed sprite gallery local-link and GIF metadata checks passed.
+
 ## v0.1.2 - 2026-06-29
 
 Animation delivery reliability and operator-feedback update after v0.1.1.

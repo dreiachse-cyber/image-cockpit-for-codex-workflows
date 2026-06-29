@@ -214,6 +214,8 @@ Use `docs/review/mvp-review-report.md` for the v0.1.0 review history, QA evidenc
 ## Release Materials
 
 - Changelog: `CHANGELOG.md`
+- v0.1.3 release notes: `docs/release/v0.1.3-release-notes.md`
+- v0.1.3 release prep QA: `docs/qa/v0.1.3-release-prep.md`
 - v0.1.2 release notes: `docs/release/v0.1.2-release-notes.md`
 - v0.1.2 release prep QA: `docs/qa/v0.1.2-release-prep.md`
 - v0.1.1 release notes: `docs/release/v0.1.1-release-notes.md`
