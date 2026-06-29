@@ -114,8 +114,8 @@ const ANIMATION_DIRECTION_COUNT = 5;
 const ANIMATION_CELL_SIZE = 256;
 const MIN_ANIMATION_CELL_SIZE = ANIMATION_CELL_SIZE;
 const MAX_ACTIVE_CODEX_JOBS = 3;
-const STANDARD_ANIMATION_TOURNAMENT_CANDIDATES = 3;
-const STANDARD_ANIMATION_TOURNAMENT_MIN_AB_CANDIDATES = 2;
+const STANDARD_ANIMATION_TOURNAMENT_CANDIDATES = readIntegerEnv("VITE_STANDARD_ANIMATION_TOURNAMENT_CANDIDATES", 3, 1, 3);
+const STANDARD_ANIMATION_TOURNAMENT_MIN_AB_CANDIDATES = Math.min(2, STANDARD_ANIMATION_TOURNAMENT_CANDIDATES);
 const MAX_ACTIVE_STANDARD_ANIMATION_CODEX_JOBS = STANDARD_ANIMATION_TOURNAMENT_CANDIDATES;
 const CODEX_LOG_POLL_INTERVAL_MS = 2000;
 const CODEX_LOG_TAIL_BYTES = 32768;
@@ -137,7 +137,14 @@ const DIRECTION_SPLIT_CENTER_WARN_DRIFT = 24;
 const DIRECTION_SPLIT_CENTER_FAIL_DRIFT = 48;
 const DIRECTION_SPLIT_BOTTOM_WARN_DRIFT = 16;
 const DIRECTION_SPLIT_BOTTOM_FAIL_DRIFT = 32;
-type DirectionSplitMotionProfile = "standard" | "idle-breathing";
+type DirectionSplitMotionProfile = "standard" | "idle-breathing" | "subtle";
+
+function readIntegerEnv(name: string, fallback: number, min: number, max: number) {
+  const raw = import.meta.env[name];
+  const parsed = typeof raw === "string" ? Number(raw) : Number.NaN;
+  if (!Number.isFinite(parsed)) return fallback;
+  return Math.max(min, Math.min(max, Math.trunc(parsed)));
+}
 interface DirectionSplitMotionThresholds {
   label: string;
   warnAverage: number;
@@ -146,7 +153,8 @@ interface DirectionSplitMotionThresholds {
 }
 const DIRECTION_SPLIT_MOTION_THRESHOLDS: Record<DirectionSplitMotionProfile, DirectionSplitMotionThresholds> = {
   standard: { label: "motion", warnAverage: 0.04, failAverage: 0.025, failMax: 0.055 },
-  "idle-breathing": { label: "idle breathing motion", warnAverage: 0.03, failAverage: 0.018, failMax: 0.04 }
+  "idle-breathing": { label: "idle breathing motion", warnAverage: 0.03, failAverage: 0.018, failMax: 0.04 },
+  subtle: { label: "subtle motion", warnAverage: 0.025, failAverage: 0.006, failMax: 0.015 }
 };
 const DIRECTION_SPLIT_IDLE_MOTION_ABSENT_AVERAGE = 0.008;
 const DIRECTION_SPLIT_IDLE_MOTION_ABSENT_MAX = 0.02;
@@ -2133,8 +2141,8 @@ const animationPresetCatalog: AnimationPresetExample[] = [
       en: "Eight-frame forward attack with anticipation, impact, follow-through, and recovery.",
       ja: "構え、溜め、打撃、フォロースルー、戻りが読める8フレーム攻撃です。"
     },
-    prompt: "basic forward attack with ready pose, anticipation, wind-up, strike, clear impact pose, follow-through, recovery, small contained weapon or hand motion, readable attack direction, no large effects",
-    notes: "Official preset: generate eight source frames as one non-looping basic attack. The action must work for armed or unarmed characters; any slash or hit effect must remain small and must not hide the body, feet, or cell edges."
+    prompt: "basic forward attack with ready pose, anticipation, wind-up, strike, clear impact pose, follow-through, recovery, planted pivot foot, stable foot baseline, no skating or jitter, small contained weapon or hand motion, readable attack direction, no large effects",
+    notes: "Official preset: generate eight source frames as one non-looping basic attack. The action must work for armed or unarmed characters; any slash or hit effect must remain small and must not hide the body, feet, or cell edges. Keep the attack grounded: motion should read through weapon, arm, torso, and cloth follow-through while the feet stay anchored on a stable baseline."
   },
   {
     id: "hurt-reaction",
@@ -2172,8 +2180,8 @@ const animationPresetCatalog: AnimationPresetExample[] = [
       en: "Raise, charge, release, and recover with small contained magic effects.",
       ja: "手元や杖先の小さなエフェクトで、詠唱から発動まで読める動きです。"
     },
-    prompt: "spell cast animation with ready stance, raise hand or staff, magic charge, brighter charge, compact release, follow-through, settle, return ready, small contained effect",
-    notes: "Official preset: generate eight source frames as one non-looping spell cast. Keep the exact same caster identity, outfit, staff, body proportions, and compact magic effect language across all directions."
+    prompt: "spell cast animation with ready stance, planted feet or anchored robe hem, stable foot baseline, raise hand or staff, magic charge, brighter charge, compact release, follow-through, settle, return ready, small contained effect, no skating or body bob",
+    notes: "Official preset: generate eight source frames as one non-looping spell cast. Keep the exact same caster identity, outfit, staff, body proportions, and compact magic effect language across all directions. Keep the caster grounded: feet or robe hem must stay anchored on one baseline while the action reads through arms, shoulders, robe sway, and compact attached effects."
   },
   {
     id: "jump-hop",
@@ -2333,6 +2341,13 @@ const animationPresetMotionSheetLines: Record<string, string> = {
   "talk": "Create a talk / NPC reaction animation sprite sheet."
 };
 
+const ANIMATION_SCALE_CONSISTENCY_CONTRACT_LINES = [
+  "Scale consistency contract: use the front ready stance as the reference character scale for every direction and frame.",
+  "Across all directions and frames, keep the same real character scale, head size, torso width, limb thickness, pixel density, and costume detail size. Do not auto-fit each direction or pose to fill the cell.",
+  "For crouch, sit, kneel, downed, cast, attack, hurt, or other lower poses, the character may become lower because of the pose, but must not be enlarged. A seated, crouched, kneeling, or downed pose should occupy less vertical height, not a larger body scale.",
+  "Keep head size and clothing-detail size consistent with the ready stance even when the pose is lower, turned away, or partly hidden by a robe, cape, weapon, or effect."
+];
+
 const animationPresetMotionPromptLines: Record<string, string[]> = {
   "idle-breathing": [
     "Idle breathing must read as a ready stance in every row, not as movement through space.",
@@ -2365,8 +2380,10 @@ const animationPresetMotionPromptLines: Record<string, string[]> = {
   "basic-attack": [
     "The action must read as a generic forward attack in every row, using the character's existing weapon when visible or a compact punch/slash when no weapon is visible.",
     "Use the 8 generated source frames as one non-looping action, not a ping-pong cycle.",
-    "Frame plan: frame 1 ready stance; frame 2 anticipation with weight shift; frame 3 wind-up with arm, weapon, or body pulled back; frame 4 fast strike; frame 5 clear impact pose; frame 6 follow-through; frame 7 recover; frame 8 ready-ish end pose.",
+    "Frame plan: frame 1 ready stance with both feet planted; frame 2 anticipation with a controlled weight shift over the planted feet; frame 3 wind-up with arm, weapon, or body pulled back while the feet stay on the same baseline; frame 4 fast strike with one planted pivot foot or a very small grounded lunge; frame 5 clear impact pose; frame 6 follow-through; frame 7 recover; frame 8 ready-ish end pose.",
     "Keep the attack direction readable in side and diagonal rows; the strike should travel forward from the character, not randomly upward or backward.",
+    "Grounding contract: keep at least one pivot foot visually anchored across frames 1-6, keep both feet on the same visual ground line, and avoid skating, toe popping, random stance-width changes, or vertical body bob that makes the character look jittery.",
+    "For side and diagonal rows, the visible foot contact point must not teleport between adjacent frames; weapon, arm, torso, hair, scarf, cape, and cloth follow-through should carry the motion while the lower body remains stable.",
     "Any slash, punch arc, hit spark, or weapon trail must be small, transparent-friendly, and contained well inside the 256px cell.",
     "Do not let effects hide the feet, face, weapon, or torso; do not let a sword, staff, arm, or effect cross into neighboring cells.",
     "Back row must show the same attack from a true rear view without face details."
@@ -2398,6 +2415,8 @@ const animationPresetMotionPromptLines: Record<string, string[]> = {
     "Effects must stay near the hand, staff tip, book, or small focus point and must remain compact enough to preserve the character silhouette.",
     "Use the same compact magic effect language in all five directions: same color family, same approximate size, and same attachment point relative to the hand, staff, book, or focus.",
     "Do not add large circles, giant beams, huge explosions, screen-filling particles, readable magic letters, UI symbols, or text.",
+    "Grounding contract: keep both feet planted on the same visual ground line in all eight frames. If the robe hides the feet, keep the robe hem bottom anchored to the same baseline and do not let the body float, sink, slide, or bob.",
+    "Casting motion should read through hand, arm, shoulder, hood, robe sleeve, and compact attached effect changes; do not use stepping, hopping, sliding, or body translation to create motion.",
     "Keep feet and body baseline stable; casting is not a jump or walking animation.",
     "Back row must show rear-facing casting with no face details."
   ],
@@ -2516,6 +2535,7 @@ function buildAnimationPresetMotionPrompt(preset: AnimationPresetExample) {
     "Projectiles, items, weapons, and effects must stay small enough to remain inside their own 256px cell and must not be used as a reason to crop or resize the character inconsistently.",
     "When the sheet is sliced into equal 256px cells, neighboring frames above, below, left, or right must not intrude into the current cell.",
     "Keep each character centered in its own cell with the feet landing on the same visual ground line; do not make the character drift up, down, left, or right between frames.",
+    ...ANIMATION_SCALE_CONSISTENCY_CONTRACT_LINES,
     "Prefer a transparent background. If true transparency is not available during generation, use only the flat chroma-key color requested elsewhere in this job.",
     "Reject and regenerate before returning if any cell has cropped hair, a cut-off head, missing feet, duplicated heads, body fragments, a changed character, nonuniform scale, or a non-flat background."
   ].join(" ");
@@ -2534,6 +2554,8 @@ function buildAnimationPresetNotes(preset: AnimationPresetExample) {
     `Standard sheet contract: ${ANIMATION_DIRECTION_COUNT} rows x ${ANIMATION_FRAME_COUNT} columns, ${ANIMATION_CELL_SIZE}px x ${ANIMATION_CELL_SIZE}px per cell, direction rows are ${ANIMATION_DIRECTIONS.join(", ")}.`,
     "Direction identity note: the back row is a true straight rear view, not back three-quarter; no face, side profile, or looking-over-shoulder pose should appear in that row.",
     "Framing note: every direction row must keep the full hair silhouette and both feet visible with clear padding inside each cell.",
+    "Scale consistency note:",
+    ...ANIMATION_SCALE_CONSISTENCY_CONTRACT_LINES.map((line) => `- ${line}`),
     "No free-form user motion prompt was supplied; use the locked preset and the strict sheet contract only."
   ].join("\n");
 }
@@ -9128,7 +9150,8 @@ function buildAnimationCodexPrompt({
     "The character center and foot baseline must stay aligned across all eight frames in the same direction image; do not drift left, right, up, or down between frames.",
     "Do not crop the head, feet, hair, held item, weapon, projectile, or effects. Do not let body parts, items, projectiles, or effects cross cell borders. Do not place heads or body fragments under the feet.",
     "Use consistent character scale, baseline, foot contact point, silhouette size, palette, outfit, and pixel density across all direction images.",
-    "Hard consistency requirement across all five direction images: keep the same chibi body proportions, same head-to-body ratio, same head size, same body height from feet to top of head within about 5%, same limb thickness, same outfit colors, same clothing layers, and same prop design. Do not redesign any direction or make one direction taller, older, younger, more realistic, or differently dressed than the others.",
+    "Hard consistency requirement across all five direction images: keep the same chibi body proportions, same head-to-body ratio, same head size, same limb thickness, same outfit colors, same clothing layers, and same prop design. Do not redesign any direction or make one direction older, younger, more realistic, differently dressed, or scaled differently than the others.",
+    ...ANIMATION_SCALE_CONSISTENCY_CONTRACT_LINES,
     `Prefer a transparent background in every cell. If true transparency is not available during generation, use a flat ${chromaKey.label} background (${chromaKey.hex}) in every cell; do not use black, white, gradients, scenery, shadows, UI, text, logos, watermarks, letters, or numbers.`,
     "If you add a temporary guide grid, use a temporary 1-pixel pure cyan #00FFFF guide grid only on the exact 4x2 cell boundaries for each direction image; no labels, numbers, text, UI, or decorative borders.",
     "Quality gate before returning: inspect all 40 cells and regenerate if any cell is cropped, has missing feet, has a cut-off head, contains multiple heads, has a head below the feet, has a different character, or uses a non-flat background.",
@@ -9159,6 +9182,8 @@ function buildAnimationCodexNotes({
     `Required direction files: ${directionSplitAnimationFileSet("<job-id>").join(", ")}.`,
     `Manifest schema: ${DIRECTION_SPLIT_ANIMATION_SCHEMA}; include directions, files, grid, cell, and framesPerDirection=${ANIMATION_FRAME_COUNT}.`,
     "Cell QA is mandatory: one full-body character per cell, consistent baseline and scale, at least 24px inner padding, no cropping, no duplicated heads, no body fragments under feet, no character parts, items, projectiles, or effects crossing cell borders.",
+    "Scale consistency QA is mandatory: compare every direction and frame against the front ready stance, and reject any result where a direction or lower pose was auto-enlarged to fill the cell.",
+    ...ANIMATION_SCALE_CONSISTENCY_CONTRACT_LINES,
     "The generated sheet should keep the chroma key background simple and flat so the app can remove it reliably.",
     "Temporary guide grid: pure cyan #00FFFF on exact 4x2 direction-image cell boundaries only. Image Cockpit removes those guide pixels before slicing/export."
   ].filter(Boolean).join("\n");
@@ -9489,7 +9514,9 @@ function normalizeDirectionSplitCells(preparedCells: DirectionSplitPreparedCell[
 
 function directionSplitMotionProfileForAction(actionName?: string): DirectionSplitMotionProfile {
   const normalized = actionName?.trim().toLowerCase() ?? "";
-  return normalized === "idle" || normalized === "idle-breathing" ? "idle-breathing" : "standard";
+  if (normalized === "idle" || normalized === "idle-breathing") return "idle-breathing";
+  if (normalized === "talk" || normalized === "talk-react" || normalized === "cast" || normalized === "spell-cast") return "subtle";
+  return "standard";
 }
 
 function validateDirectionSplitAnimationCells(
