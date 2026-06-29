@@ -1,0 +1,547 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Image Animation Recursive Browser Test Loop</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f6f7f8;
+      --ink: #1f2933;
+      --muted: #657282;
+      --line: #d8dee5;
+      --panel: #ffffff;
+      --pass: #0f766e;
+      --fail: #b42318;
+      --warn: #9a6700;
+      --link: #1d4ed8;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      line-height: 1.5;
+    }
+
+    a {
+      color: var(--link);
+      text-decoration: none;
+    }
+
+    a:hover {
+      text-decoration: underline;
+    }
+
+    header {
+      background: #ffffff;
+      border-bottom: 1px solid var(--line);
+      padding: 28px clamp(18px, 4vw, 44px);
+    }
+
+    main {
+      padding: 24px clamp(18px, 4vw, 44px) 48px;
+    }
+
+    h1, h2, h3 {
+      margin: 0;
+      line-height: 1.15;
+    }
+
+    h1 {
+      font-size: clamp(28px, 4vw, 44px);
+      letter-spacing: 0;
+    }
+
+    h2 {
+      font-size: 24px;
+      margin: 34px 0 14px;
+    }
+
+    h3 {
+      font-size: 17px;
+    }
+
+    .subtitle {
+      color: var(--muted);
+      margin: 10px 0 0;
+      max-width: 960px;
+    }
+
+    .quick-links {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 18px;
+    }
+
+    .quick-links a,
+    .pill {
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: #fff;
+      color: var(--ink);
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      min-height: 34px;
+      padding: 6px 12px;
+      font-size: 14px;
+    }
+
+    .metrics {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 12px;
+      margin-top: 22px;
+      max-width: 980px;
+    }
+
+    .metric {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 14px;
+    }
+
+    .metric strong {
+      display: block;
+      font-size: 24px;
+    }
+
+    .metric span {
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 16px;
+    }
+
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      overflow: hidden;
+      min-width: 0;
+    }
+
+    .card-body {
+      padding: 14px;
+    }
+
+    .thumb {
+      background:
+        linear-gradient(45deg, #dfe5ec 25%, transparent 25%),
+        linear-gradient(-45deg, #dfe5ec 25%, transparent 25%),
+        linear-gradient(45deg, transparent 75%, #dfe5ec 75%),
+        linear-gradient(-45deg, transparent 75%, #dfe5ec 75%);
+      background-color: #f9fafb;
+      background-size: 20px 20px;
+      background-position: 0 0, 0 10px, 10px -10px, -10px 0;
+      border-bottom: 1px solid var(--line);
+      display: block;
+      width: 100%;
+      aspect-ratio: 16 / 10;
+      object-fit: contain;
+    }
+
+    .source-thumb {
+      aspect-ratio: 1 / 1;
+      max-height: 360px;
+    }
+
+    .row {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px;
+      margin-top: 10px;
+    }
+
+    .badge {
+      border-radius: 999px;
+      color: #fff;
+      display: inline-flex;
+      align-items: center;
+      font-size: 12px;
+      font-weight: 700;
+      min-height: 24px;
+      padding: 3px 9px;
+      text-transform: uppercase;
+    }
+
+    .pass {
+      background: var(--pass);
+    }
+
+    .fail {
+      background: var(--fail);
+    }
+
+    .note {
+      color: var(--muted);
+      font-size: 13px;
+      margin: 10px 0 0;
+    }
+
+    .tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 10px;
+    }
+
+    .tag {
+      background: #eef2f6;
+      border: 1px solid #dbe3eb;
+      border-radius: 6px;
+      color: #344454;
+      font-size: 12px;
+      padding: 3px 7px;
+    }
+
+    .links {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 12px;
+      font-size: 13px;
+    }
+
+    .split {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+      margin-top: 12px;
+    }
+
+    .mini {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      overflow: hidden;
+      background: #f9fafb;
+    }
+
+    .mini img {
+      display: block;
+      width: 100%;
+      aspect-ratio: 16 / 10;
+      object-fit: contain;
+    }
+
+    .mini span {
+      color: var(--muted);
+      display: block;
+      font-size: 12px;
+      padding: 6px 8px;
+    }
+
+    .table-wrap {
+      overflow-x: auto;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+    }
+
+    table {
+      border-collapse: collapse;
+      min-width: 860px;
+      width: 100%;
+    }
+
+    th,
+    td {
+      border-bottom: 1px solid var(--line);
+      padding: 10px 12px;
+      text-align: left;
+      vertical-align: top;
+    }
+
+    th {
+      background: #eef2f6;
+      font-size: 13px;
+    }
+
+    td {
+      font-size: 14px;
+    }
+
+    tr:last-child td {
+      border-bottom: 0;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Image Animation Recursive Browser Test Loop</h1>
+    <p class="subtitle">Real browser QA gallery for source image generation and Animation Generation delivery trials. This page is static, so it can be opened directly from disk.</p>
+    <nav class="quick-links" aria-label="QA links">
+      <a href="report.md">report.md</a>
+      <a href="artifact-index.md">artifact-index.md</a>
+      <a href="failure-taxonomy.md">failure-taxonomy.md</a>
+      <a href="fix-cycles.md">fix-cycles.md</a>
+      <a href="verification.md">verification.md</a>
+      <a href="source-images.json">source-images.json</a>
+      <a href="browser-trials.json">browser-trials.json</a>
+    </nav>
+    <section class="metrics" aria-label="Summary metrics">
+      <div class="metric"><strong>6</strong><span>source images generated in browser</span></div>
+      <div class="metric"><strong>12</strong><span>real Animation Generation trials</span></div>
+      <div class="metric"><strong>8 / 12</strong><span>passed delivery checks</span></div>
+      <div class="metric"><strong>66.7%</strong><span>browser delivery rate</span></div>
+      <div class="metric"><strong>0</strong><span>false success count</span></div>
+      <div class="metric"><strong>0</strong><span>stuck running count</span></div>
+    </section>
+  </header>
+
+  <main>
+    <h2>Source Images</h2>
+    <section class="grid">
+      <article class="card">
+        <a href="sources/S01-human-hero/S01-human-hero.png"><img class="thumb source-thumb" src="sources/S01-human-hero/S01-human-hero.png" alt="S01 human hero source"></a>
+        <div class="card-body">
+          <h3>S01 Human Hero</h3>
+          <div class="row"><span class="badge pass">pass</span><span class="pill">visual-review</span></div>
+          <p class="note">Young male fantasy hero with armor, scarf, and sword.</p>
+          <div class="split">
+            <a class="mini" href="sources/S01-human-hero/source-before-terminal.png"><img src="sources/S01-human-hero/source-before-terminal.png" alt=""><span>before</span></a>
+            <a class="mini" href="sources/S01-human-hero/source-after-terminal.png"><img src="sources/S01-human-hero/source-after-terminal.png" alt=""><span>after</span></a>
+          </div>
+          <div class="links"><a href="sources/S01-human-hero/report.md">report</a><a href="sources/S01-human-hero/source-result.json">result json</a></div>
+        </div>
+      </article>
+
+      <article class="card">
+        <a href="sources/S02-small-character/S02-small-character.png"><img class="thumb source-thumb" src="sources/S02-small-character/S02-small-character.png" alt="S02 small character source"></a>
+        <div class="card-body">
+          <h3>S02 Small Character</h3>
+          <div class="row"><span class="badge pass">pass</span><span class="pill">visual-review</span></div>
+          <p class="note">Small village child adventurer with compact proportions.</p>
+          <div class="split">
+            <a class="mini" href="sources/S02-small-character/source-before-terminal.png"><img src="sources/S02-small-character/source-before-terminal.png" alt=""><span>before</span></a>
+            <a class="mini" href="sources/S02-small-character/source-after-terminal.png"><img src="sources/S02-small-character/source-after-terminal.png" alt=""><span>after</span></a>
+          </div>
+          <div class="links"><a href="sources/S02-small-character/report.md">report</a><a href="sources/S02-small-character/source-result.json">result json</a></div>
+        </div>
+      </article>
+
+      <article class="card">
+        <a href="sources/S03-robed-mage/S03-robed-mage.png"><img class="thumb source-thumb" src="sources/S03-robed-mage/S03-robed-mage.png" alt="S03 robed mage source"></a>
+        <div class="card-body">
+          <h3>S03 Robed Mage</h3>
+          <div class="row"><span class="badge pass">pass</span><span class="pill">visual-review</span></div>
+          <p class="note">Hooded mage with layered robe and close-held staff.</p>
+          <div class="split">
+            <a class="mini" href="sources/S03-robed-mage/source-before-terminal.png"><img src="sources/S03-robed-mage/source-before-terminal.png" alt=""><span>before</span></a>
+            <a class="mini" href="sources/S03-robed-mage/source-after-terminal.png"><img src="sources/S03-robed-mage/source-after-terminal.png" alt=""><span>after</span></a>
+          </div>
+          <div class="links"><a href="sources/S03-robed-mage/report.md">report</a><a href="sources/S03-robed-mage/source-result.json">result json</a></div>
+        </div>
+      </article>
+
+      <article class="card">
+        <a href="sources/S04-long-weapon/S04-long-weapon.png"><img class="thumb source-thumb" src="sources/S04-long-weapon/S04-long-weapon.png" alt="S04 long weapon source"></a>
+        <div class="card-body">
+          <h3>S04 Long Weapon</h3>
+          <div class="row"><span class="badge pass">pass</span><span class="pill">visual-review</span></div>
+          <p class="note">Spear lancer source; exposed generic outbox image rescue case.</p>
+          <div class="split">
+            <a class="mini" href="sources/S04-long-weapon/source-before-terminal.png"><img src="sources/S04-long-weapon/source-before-terminal.png" alt=""><span>before</span></a>
+            <a class="mini" href="sources/S04-long-weapon/source-after-terminal.png"><img src="sources/S04-long-weapon/source-after-terminal.png" alt=""><span>after</span></a>
+          </div>
+          <div class="links"><a href="sources/S04-long-weapon/report.md">report</a><a href="sources/S04-long-weapon/source-result.json">result json</a></div>
+        </div>
+      </article>
+
+      <article class="card">
+        <a href="sources/S05-shield-wide/S05-shield-wide.png"><img class="thumb source-thumb" src="sources/S05-shield-wide/S05-shield-wide.png" alt="S05 shield wide source"></a>
+        <div class="card-body">
+          <h3>S05 Shield Wide</h3>
+          <div class="row"><span class="badge pass">pass</span><span class="pill">visual-review</span></div>
+          <p class="note">Shield bearer source recovered after a checkerboard-background retry.</p>
+          <div class="split">
+            <a class="mini" href="sources/S05-shield-wide/source-before-terminal.png"><img src="sources/S05-shield-wide/source-before-terminal.png" alt=""><span>before</span></a>
+            <a class="mini" href="sources/S05-shield-wide/source-after-terminal.png"><img src="sources/S05-shield-wide/source-after-terminal.png" alt=""><span>after</span></a>
+          </div>
+          <div class="links"><a href="sources/S05-shield-wide/report.md">report</a><a href="sources/S05-shield-wide/source-result.json">result json</a></div>
+        </div>
+      </article>
+
+      <article class="card">
+        <a href="sources/S06-mascot-dragon/S06-mascot-dragon.png"><img class="thumb source-thumb" src="sources/S06-mascot-dragon/S06-mascot-dragon.png" alt="S06 mascot dragon source"></a>
+        <div class="card-body">
+          <h3>S06 Mascot Dragon</h3>
+          <div class="row"><span class="badge pass">pass</span><span class="pill">visual-review</span></div>
+          <p class="note">Mascot dragon source recovered after timestamp-based path retry.</p>
+          <div class="split">
+            <a class="mini" href="sources/S06-mascot-dragon/source-before-terminal.png"><img src="sources/S06-mascot-dragon/source-before-terminal.png" alt=""><span>before</span></a>
+            <a class="mini" href="sources/S06-mascot-dragon/source-after-terminal.png"><img src="sources/S06-mascot-dragon/source-after-terminal.png" alt=""><span>after</span></a>
+          </div>
+          <div class="links"><a href="sources/S06-mascot-dragon/report.md">report</a><a href="sources/S06-mascot-dragon/source-result.json">result json</a></div>
+        </div>
+      </article>
+    </section>
+
+    <h2>Animation Trials</h2>
+    <section class="grid">
+      <article class="card">
+        <a href="trials/T01-S01-idle-breathing/browser-final-1280x720.png"><img class="thumb" src="trials/T01-S01-idle-breathing/browser-final-1280x720.png" alt="T01 screenshot"></a>
+        <div class="card-body">
+          <h3>T01 / S01 / Idle Breathing</h3>
+          <div class="row"><span class="badge fail">fail</span><span class="pill">quality gate blocked</span></div>
+          <div class="tags"><span class="tag">motion_too_static_idle</span><span class="tag">no history delivery</span></div>
+          <div class="links"><a href="trials/T01-S01-idle-breathing/report.md">report</a><a href="trials/T01-S01-idle-breathing/browser-trials.json">json</a></div>
+        </div>
+      </article>
+
+      <article class="card">
+        <a href="trials/T01R-S01-idle-breathing-motion-contract/browser-final-1280x720.png"><img class="thumb" src="trials/T01R-S01-idle-breathing-motion-contract/browser-final-1280x720.png" alt="T01R screenshot"></a>
+        <div class="card-body">
+          <h3>T01R / S01 / Idle Breathing</h3>
+          <div class="row"><span class="badge fail">fail</span><span class="pill">after prompt contract</span></div>
+          <div class="tags"><span class="tag">motion_too_static_idle</span><span class="tag">still blocked</span></div>
+          <div class="links"><a href="trials/T01R-S01-idle-breathing-motion-contract/report.md">report</a><a href="trials/T01R-S01-idle-breathing-motion-contract/browser-trials.json">json</a></div>
+        </div>
+      </article>
+
+      <article class="card">
+        <a href="trials/T01RR-S01-idle-breathing-threshold/browser-final-1280x720.png"><img class="thumb" src="trials/T01RR-S01-idle-breathing-threshold/browser-final-1280x720.png" alt="T01RR screenshot"></a>
+        <div class="card-body">
+          <h3>T01RR / S01 / Idle Breathing</h3>
+          <div class="row"><span class="badge pass">pass</span><span class="pill">threshold retest</span></div>
+          <div class="tags"><span class="tag">history</span><span class="tag">preview</span><span class="tag">download</span></div>
+          <div class="links"><a href="trials/T01RR-S01-idle-breathing-threshold/report.md">report</a><a href="trials/T01RR-S01-idle-breathing-threshold/browser-trials.json">json</a></div>
+        </div>
+      </article>
+
+      <article class="card">
+        <a href="trials/T02-S01-run-cycle/browser-final-1280x720.png"><img class="thumb" src="trials/T02-S01-run-cycle/browser-final-1280x720.png" alt="T02 screenshot"></a>
+        <div class="card-body">
+          <h3>T02 / S01 / Run Cycle</h3>
+          <div class="row"><span class="badge fail">fail</span><span class="pill">false-positive gate</span></div>
+          <div class="tags"><span class="tag">back row low average</span><span class="tag">blocked</span></div>
+          <div class="links"><a href="trials/T02-S01-run-cycle/report.md">report</a><a href="trials/T02-S01-run-cycle/browser-trials.json">json</a></div>
+        </div>
+      </article>
+
+      <article class="card">
+        <a href="trials/T02R-S01-run-cycle-standard-threshold/browser-final-1280x720.png"><img class="thumb" src="trials/T02R-S01-run-cycle-standard-threshold/browser-final-1280x720.png" alt="T02R screenshot"></a>
+        <div class="card-body">
+          <h3>T02R / S01 / Run Cycle</h3>
+          <div class="row"><span class="badge pass">pass</span><span class="pill">threshold retest</span></div>
+          <div class="tags"><span class="tag">history</span><span class="tag">preview</span><span class="tag">download</span></div>
+          <div class="links"><a href="trials/T02R-S01-run-cycle-standard-threshold/report.md">report</a><a href="trials/T02R-S01-run-cycle-standard-threshold/browser-trials.json">json</a></div>
+        </div>
+      </article>
+
+      <article class="card">
+        <a href="trials/T03-S02-walk-cycle/browser-final-1280x720.png"><img class="thumb" src="trials/T03-S02-walk-cycle/browser-final-1280x720.png" alt="T03 screenshot"></a>
+        <div class="card-body">
+          <h3>T03 / S02 / Walk Cycle</h3>
+          <div class="row"><span class="badge fail">fail</span><span class="pill">classified</span></div>
+          <div class="tags"><span class="tag">small_source_walk_motion_too_subtle</span></div>
+          <div class="links"><a href="trials/T03-S02-walk-cycle/report.md">report</a><a href="trials/T03-S02-walk-cycle/browser-trials.json">json</a></div>
+        </div>
+      </article>
+
+      <article class="card">
+        <a href="trials/T04-S02-talk-emote/browser-final-1280x720.png"><img class="thumb" src="trials/T04-S02-talk-emote/browser-final-1280x720.png" alt="T04 screenshot"></a>
+        <div class="card-body">
+          <h3>T04 / S02 / Talk</h3>
+          <div class="row"><span class="badge pass">pass</span><span class="pill">delivered</span></div>
+          <div class="tags"><span class="tag">history</span><span class="tag">preview</span><span class="tag">download</span></div>
+          <div class="links"><a href="trials/T04-S02-talk-emote/report.md">report</a><a href="trials/T04-S02-talk-emote/browser-trials.json">json</a></div>
+        </div>
+      </article>
+
+      <article class="card">
+        <a href="trials/T05-S03-spell-cast/browser-final-1280x720.png"><img class="thumb" src="trials/T05-S03-spell-cast/browser-final-1280x720.png" alt="T05 screenshot"></a>
+        <div class="card-body">
+          <h3>T05 / S03 / Spell Cast</h3>
+          <div class="row"><span class="badge pass">pass</span><span class="pill">delivered</span></div>
+          <div class="tags"><span class="tag">history</span><span class="tag">preview</span><span class="tag">download</span></div>
+          <div class="links"><a href="trials/T05-S03-spell-cast/report.md">report</a><a href="trials/T05-S03-spell-cast/browser-trials.json">json</a></div>
+        </div>
+      </article>
+
+      <article class="card">
+        <a href="trials/T06-S04-basic-attack/browser-final-1280x720.png"><img class="thumb" src="trials/T06-S04-basic-attack/browser-final-1280x720.png" alt="T06 screenshot"></a>
+        <div class="card-body">
+          <h3>T06 / S04 / Basic Attack</h3>
+          <div class="row"><span class="badge pass">pass</span><span class="pill">delivered</span></div>
+          <div class="tags"><span class="tag">history</span><span class="tag">preview</span><span class="tag">download</span></div>
+          <div class="links"><a href="trials/T06-S04-basic-attack/report.md">report</a><a href="trials/T06-S04-basic-attack/browser-trials.json">json</a></div>
+        </div>
+      </article>
+
+      <article class="card">
+        <a href="trials/T07-S05-guard-block/browser-final-1280x720.png"><img class="thumb" src="trials/T07-S05-guard-block/browser-final-1280x720.png" alt="T07 screenshot"></a>
+        <div class="card-body">
+          <h3>T07 / S05 / Guard Block</h3>
+          <div class="row"><span class="badge pass">pass</span><span class="pill">delivered</span></div>
+          <div class="tags"><span class="tag">history</span><span class="tag">preview</span><span class="tag">download</span></div>
+          <div class="links"><a href="trials/T07-S05-guard-block/report.md">report</a><a href="trials/T07-S05-guard-block/browser-trials.json">json</a></div>
+        </div>
+      </article>
+
+      <article class="card">
+        <a href="trials/T08-S06-jump-hop/browser-final-1280x720.png"><img class="thumb" src="trials/T08-S06-jump-hop/browser-final-1280x720.png" alt="T08 screenshot"></a>
+        <div class="card-body">
+          <h3>T08 / S06 / Jump Hop</h3>
+          <div class="row"><span class="badge pass">pass</span><span class="pill">delivered</span></div>
+          <div class="tags"><span class="tag">history</span><span class="tag">preview</span><span class="tag">download</span></div>
+          <div class="links"><a href="trials/T08-S06-jump-hop/report.md">report</a><a href="trials/T08-S06-jump-hop/browser-trials.json">json</a></div>
+        </div>
+      </article>
+
+      <article class="card">
+        <a href="trials/T09-S06-hurt-reaction/browser-final-1280x720.png"><img class="thumb" src="trials/T09-S06-hurt-reaction/browser-final-1280x720.png" alt="T09 screenshot"></a>
+        <div class="card-body">
+          <h3>T09 / S06 / Hurt Reaction</h3>
+          <div class="row"><span class="badge pass">pass</span><span class="pill">delivered</span></div>
+          <div class="tags"><span class="tag">history</span><span class="tag">preview</span><span class="tag">download</span></div>
+          <div class="links"><a href="trials/T09-S06-hurt-reaction/report.md">report</a><a href="trials/T09-S06-hurt-reaction/browser-trials.json">json</a></div>
+        </div>
+      </article>
+    </section>
+
+    <h2>Trial Matrix</h2>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Trial</th>
+            <th>Source</th>
+            <th>Preset</th>
+            <th>Status</th>
+            <th>Notes</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td><a href="trials/T01-S01-idle-breathing/report.md">T01</a></td><td>S01</td><td>Idle Breathing</td><td><span class="badge fail">fail</span></td><td>Idle motion too static; quality gate blocked delivery.</td></tr>
+          <tr><td><a href="trials/T01R-S01-idle-breathing-motion-contract/report.md">T01R</a></td><td>S01</td><td>Idle Breathing</td><td><span class="badge fail">fail</span></td><td>Retest after runner prompt contract; still too static.</td></tr>
+          <tr><td><a href="trials/T01RR-S01-idle-breathing-threshold/report.md">T01RR</a></td><td>S01</td><td>Idle Breathing</td><td><span class="badge pass">pass</span></td><td>Passed after idle threshold tuning.</td></tr>
+          <tr><td><a href="trials/T02-S01-run-cycle/report.md">T02</a></td><td>S01</td><td>Run Cycle</td><td><span class="badge fail">fail</span></td><td>Back row motion measured below previous standard threshold.</td></tr>
+          <tr><td><a href="trials/T02R-S01-run-cycle-standard-threshold/report.md">T02R</a></td><td>S01</td><td>Run Cycle</td><td><span class="badge pass">pass</span></td><td>Passed after standard threshold tuning.</td></tr>
+          <tr><td><a href="trials/T03-S02-walk-cycle/report.md">T03</a></td><td>S02</td><td>Walk Cycle</td><td><span class="badge fail">fail</span></td><td>Small source walk motion too subtle; classified for future work.</td></tr>
+          <tr><td><a href="trials/T04-S02-talk-emote/report.md">T04</a></td><td>S02</td><td>Talk</td><td><span class="badge pass">pass</span></td><td>Delivered to history, preview, and download.</td></tr>
+          <tr><td><a href="trials/T05-S03-spell-cast/report.md">T05</a></td><td>S03</td><td>Spell Cast</td><td><span class="badge pass">pass</span></td><td>Delivered to history, preview, and download.</td></tr>
+          <tr><td><a href="trials/T06-S04-basic-attack/report.md">T06</a></td><td>S04</td><td>Basic Attack</td><td><span class="badge pass">pass</span></td><td>Delivered to history, preview, and download.</td></tr>
+          <tr><td><a href="trials/T07-S05-guard-block/report.md">T07</a></td><td>S05</td><td>Guard Block</td><td><span class="badge pass">pass</span></td><td>Delivered to history, preview, and download.</td></tr>
+          <tr><td><a href="trials/T08-S06-jump-hop/report.md">T08</a></td><td>S06</td><td>Jump Hop</td><td><span class="badge pass">pass</span></td><td>Delivered to history, preview, and download.</td></tr>
+          <tr><td><a href="trials/T09-S06-hurt-reaction/report.md">T09</a></td><td>S06</td><td>Hurt Reaction</td><td><span class="badge pass">pass</span></td><td>Delivered to history, preview, and download.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </main>
+</body>
+</html>
