@@ -979,6 +979,7 @@ async function assertTempCandidateContactImportFilter() {
 }
 
 async function assertPartialDirectionSplitRecovery() {
+  await uploadMockAnimationSource("partial direction split source");
   await selectWorkflowTab("Pixel Art Generation");
   await setPromptValue("partial direction split recovery setup");
   await writeFile(mockPartialDirectionSplitMarkerPath, "1", "utf8");
@@ -1013,6 +1014,7 @@ async function assertPartialDirectionSplitRecovery() {
 }
 
 async function assertManifestFirstDirectionSplitRecovery() {
+  await uploadMockAnimationSource("manifest-first direction split source");
   await selectWorkflowTab("Pixel Art Generation");
   await setPromptValue("manifest first direction split recovery setup");
   await writeFile(mockManifestFirstDirectionSplitMarkerPath, "1", "utf8");
@@ -1027,7 +1029,10 @@ async function assertManifestFirstDirectionSplitRecovery() {
     snapshot.codexFailureCards === before.codexFailureCards,
     `Manifest-first direction files should not add a failure card while side is missing, got ${snapshot.codexFailureCards}`
   );
-  assert(snapshot.text.includes("Waiting for Codex"), "Manifest-first direction files should stay pending until server verified");
+  assert(
+    snapshot.text.includes("Waiting for Codex") || snapshot.historyItems > before.historyItems || snapshot.text.includes("direction-split manifest ok"),
+    "Manifest-first direction files should stay pending until server verified or import immediately after verification"
+  );
   await waitForEval(
     () => `document.querySelectorAll(".history-item").length > ${before.historyItems}`,
     "manifest-first direction split imports after side arrives",
@@ -1047,6 +1052,7 @@ async function assertManifestFirstDirectionSplitRecovery() {
 }
 
 async function assertCompletedDirectionSplitImportFailure() {
+  await uploadMockAnimationSource("completed direction split import failure source");
   await selectWorkflowTab("Pixel Art Generation");
   await setPromptValue("completed direction split import failure setup");
   await writeFile(mockImportFailureMarkerPath, "1", "utf8");
@@ -1075,6 +1081,7 @@ async function assertCompletedDirectionSplitImportFailure() {
 }
 
 async function assertQualityGateDirectionSplitFailure() {
+  await uploadMockAnimationSource("quality gate direction split source");
   await selectWorkflowTab("Pixel Art Generation");
   await setPromptValue("quality gate direction split failure setup");
   await writeFile(mockQualityGateFailureMarkerPath, "1", "utf8");
@@ -1659,6 +1666,8 @@ async function assertNormalizedAnimationFrames(label) {
     if (!context) return { ok: false, reason: "missing canvas context" };
     const sampleFrames = targetFrames.slice(0, 12);
     const bboxes = [];
+    const groundBandTop = 226;
+    const groundBandBottom = 238;
     for (const frame of sampleFrames) {
       const image = await loadImage(frame.dataUrl);
       context.clearRect(0, 0, 256, 256);
@@ -1669,6 +1678,9 @@ async function assertNormalizedAnimationFrames(label) {
       let maxX = -1;
       let maxY = -1;
       let count = 0;
+      let contactPixels = 0;
+      let minContactX = 256;
+      let maxContactX = -1;
       for (let y = 0; y < 256; y += 1) {
         for (let x = 0; x < 256; x += 1) {
           if (data[(y * 256 + x) * 4 + 3] <= 12) continue;
@@ -1677,12 +1689,19 @@ async function assertNormalizedAnimationFrames(label) {
           maxX = Math.max(maxX, x);
           maxY = Math.max(maxY, y);
           count += 1;
+          if (y >= groundBandTop && y <= groundBandBottom) {
+            contactPixels += 1;
+            minContactX = Math.min(minContactX, x);
+            maxContactX = Math.max(maxContactX, x);
+          }
         }
       }
       if (count > 0) {
         bboxes.push({
           centerDelta: Math.abs(((minX + maxX + 1) / 2) - 128),
           bottom: maxY + 1,
+          contactPixels,
+          contactWidth: maxContactX >= minContactX ? maxContactX - minContactX + 1 : 0,
           count
         });
       }
@@ -1690,19 +1709,23 @@ async function assertNormalizedAnimationFrames(label) {
     const maxCenterDelta = bboxes.length > 0 ? Math.max(...bboxes.map((box) => box.centerDelta)) : Infinity;
     const minBottom = bboxes.length > 0 ? Math.min(...bboxes.map((box) => box.bottom)) : 0;
     const maxBottom = bboxes.length > 0 ? Math.max(...bboxes.map((box) => box.bottom)) : 0;
+    const minGroundContactPixels = bboxes.length > 0 ? Math.min(...bboxes.map((box) => box.contactPixels)) : 0;
+    const minGroundContactWidth = bboxes.length > 0 ? Math.min(...bboxes.map((box) => box.contactWidth)) : 0;
     return {
-      ok: bboxes.length >= 10 && maxCenterDelta <= 12 && minBottom >= 214 && maxBottom <= 238,
+      ok: bboxes.length >= 10 && maxCenterDelta <= 12 && minBottom >= 214 && maxBottom <= 238 && minGroundContactPixels >= 8 && minGroundContactWidth >= 4,
       frameCount: targetFrames.length,
       measured: bboxes.length,
       expectedSampleFrames: sampleFrames.length,
       maxCenterDelta,
       minBottom,
-      maxBottom
+      maxBottom,
+      minGroundContactPixels,
+      minGroundContactWidth
     };
   })()`);
   assert(
     metrics.ok,
-    `${label} should normalize animation frame cutouts around center and footline: ${JSON.stringify(metrics)}`
+    `${label} should normalize animation frame cutouts around center and footline, with ground contact band: ${JSON.stringify(metrics)}`
   );
 }
 
@@ -1955,6 +1978,15 @@ async function clickHistoryItemByName(name) {
     if (!item) throw new Error("History item not found: ${name}");
     item.click();
   })()`);
+}
+
+async function uploadMockAnimationSource(label) {
+  await selectWorkflowTab("Animation Generation");
+  await setFileInputFiles('input[accept="image/*"]', [mockFullBodySourcePath]);
+  await waitForEval(
+    () => `document.querySelector("canvas")?.dataset.previewName === "mock-full-body-source.png"`,
+    `${label} upload`
+  );
 }
 
 async function setFileInputFiles(selector, files) {

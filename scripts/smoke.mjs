@@ -125,8 +125,8 @@ async function runManualHandoffSmoke() {
     assert(verifiedManifestText.includes('"classification": "usable-final"'), "server manifest should include the quality gate classification");
     await postJson(port, `/api/codex/artifacts/${encodeURIComponent(artifactJobId)}/quality-gate`, {
       classification: "quality-failed",
-      reason: "Direction split QA failed: front cell 1: Chroma key removal failed",
-      code: "chroma-key-removal-failed"
+      reason: "Direction split QA failed: front: ground line grounded-strict contact missing in 8/8 frames",
+      code: "ground-line-contact-missing"
     });
     const qualityFailedArtifactList = await getJson(port, "/api/codex/results");
     const qualityFailedArtifact = qualityFailedArtifactList.results.find((result) => result.name === `${artifactJobId}-manifest.json`)?.artifact;
@@ -136,6 +136,7 @@ async function runManualHandoffSmoke() {
     const qualityFailedManifest = await getJson(port, `/api/codex/results/${artifactJobId}-manifest.json`);
     const qualityFailedManifestText = Buffer.from(qualityFailedManifest.dataUrl.split(",")[1], "base64").toString("utf8");
     assert(qualityFailedManifestText.includes('"classification": "quality-failed"'), "quality-failed manifest should be persisted");
+    assert(qualityFailedManifestText.includes("ground line"), "ground line quality failure should be persisted");
     await new Promise((resolve) => setTimeout(resolve, 120));
     await writeFile(join(handoffDir, "outbox", `${artifactJobId}-side.png`), tinyPngBytes);
     const repairedArtifactList = await getJson(port, "/api/codex/results");

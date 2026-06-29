@@ -137,12 +137,35 @@ const DIRECTION_SPLIT_CENTER_WARN_DRIFT = 24;
 const DIRECTION_SPLIT_CENTER_FAIL_DRIFT = 48;
 const DIRECTION_SPLIT_BOTTOM_WARN_DRIFT = 16;
 const DIRECTION_SPLIT_BOTTOM_FAIL_DRIFT = 32;
+const DIRECTION_SPLIT_GROUND_LINE_RATIO = 0.9;
+const DIRECTION_SPLIT_GROUND_BAND_ABOVE_PX = 4;
+const DIRECTION_SPLIT_GROUND_BAND_BELOW_PX = 8;
+const DIRECTION_SPLIT_GROUND_MIN_CONTACT_PIXELS = 8;
+const DIRECTION_SPLIT_GROUND_MIN_CONTACT_WIDTH = 4;
+const DIRECTION_SPLIT_GROUND_STRICT_WARN_DISTANCE = 6;
+const DIRECTION_SPLIT_GROUND_STRICT_FAIL_DISTANCE = 12;
+const DIRECTION_SPLIT_GROUND_SOFT_WARN_DISTANCE = 14;
+const DIRECTION_SPLIT_GROUND_SOFT_FAIL_DISTANCE = 28;
 type DirectionSplitMotionProfile = "standard" | "idle-breathing";
+type DirectionSplitGroundProfile = "grounded-strict" | "grounded-soft" | "airborne-or-exempt";
 interface DirectionSplitMotionThresholds {
   label: string;
   warnAverage: number;
   failAverage: number;
   failMax: number;
+}
+interface DirectionSplitGroundBand {
+  groundLineY: number;
+  bandTop: number;
+  bandBottom: number;
+}
+interface DirectionSplitGroundContactMetric {
+  bottomY: number;
+  centerX: number;
+  groundBandDistance: number;
+  hasGroundContact: boolean;
+  contactPixelCount: number;
+  contactWidth: number;
 }
 const DIRECTION_SPLIT_MOTION_THRESHOLDS: Record<DirectionSplitMotionProfile, DirectionSplitMotionThresholds> = {
   standard: { label: "motion", warnAverage: 0.04, failAverage: 0.025, failMax: 0.055 },
@@ -2495,10 +2518,31 @@ function getAnimationPresetById(id: string): AnimationPresetExample {
     ?? animationPresetExamples[0]!;
 }
 
+function animationGroundContractLinesForAction(actionName?: string) {
+  const profile = directionSplitGroundProfileForAction(actionName);
+  if (profile === "grounded-strict") {
+    return [
+      "Ground line contract: every frame should keep at least one supporting foot or foot silhouette touching the same visual ground band.",
+      "Do not let the character float, sink, skate, bounce as a substitute for the motion, or move the foot anchor up and down between frames."
+    ];
+  }
+  if (profile === "grounded-soft") {
+    return [
+      "Ground line contract: contact frames should land in the same visual ground band; airborne or recoil frames are allowed when the preset needs them.",
+      "Keep the row's foot anchor vertically stable overall, with no large upward or downward drift across the eight frames."
+    ];
+  }
+  return [
+    "Ground line contract: this preset may leave the ground, collapse, or land lower than the ready stance when the action requires it.",
+    "Even when exempt from constant foot contact, keep the full character inside each cell and return to a readable landing, downed, or recovery pose when the preset calls for it."
+  ];
+}
+
 function buildAnimationPresetMotionPrompt(preset: AnimationPresetExample) {
   const presetTitle = preset.title.en;
   const motionSheetLine = animationPresetMotionSheetLines[preset.id] ?? `Create a ${presetTitle.toLowerCase()} animation sprite sheet.`;
   const presetSpecificLines = animationPresetMotionPromptLines[preset.id] ?? [];
+  const groundContractLines = animationGroundContractLinesForAction(preset.actionName);
 
   return [
     `Locked animation preset: ${presetTitle}.`,
@@ -2515,7 +2559,7 @@ function buildAnimationPresetMotionPrompt(preset: AnimationPresetExample) {
     "In every direction row, keep the full hair silhouette, entire head, hands, held item, compact effect, outfit, and both feet fully visible inside each 256px cell with at least 24px empty padding whenever possible; never let the head touch or disappear beyond the top cell edge.",
     "Projectiles, items, weapons, and effects must stay small enough to remain inside their own 256px cell and must not be used as a reason to crop or resize the character inconsistently.",
     "When the sheet is sliced into equal 256px cells, neighboring frames above, below, left, or right must not intrude into the current cell.",
-    "Keep each character centered in its own cell with the feet landing on the same visual ground line; do not make the character drift up, down, left, or right between frames.",
+    ...groundContractLines,
     "Prefer a transparent background. If true transparency is not available during generation, use only the flat chroma-key color requested elsewhere in this job.",
     "Reject and regenerate before returning if any cell has cropped hair, a cut-off head, missing feet, duplicated heads, body fragments, a changed character, nonuniform scale, or a non-flat background."
   ].join(" ");
@@ -2523,6 +2567,7 @@ function buildAnimationPresetMotionPrompt(preset: AnimationPresetExample) {
 
 function buildAnimationPresetNotes(preset: AnimationPresetExample) {
   const presetSpecificLines = animationPresetMotionPromptLines[preset.id] ?? [];
+  const groundContractLines = animationGroundContractLinesForAction(preset.actionName);
   return [
     `Locked animation preset: ${preset.title.en} (${preset.id}).`,
     preset.notes,
@@ -2532,6 +2577,8 @@ function buildAnimationPresetNotes(preset: AnimationPresetExample) {
         : []
     ),
     `Standard sheet contract: ${ANIMATION_DIRECTION_COUNT} rows x ${ANIMATION_FRAME_COUNT} columns, ${ANIMATION_CELL_SIZE}px x ${ANIMATION_CELL_SIZE}px per cell, direction rows are ${ANIMATION_DIRECTIONS.join(", ")}.`,
+    `Ground line QC profile: ${directionSplitGroundProfileForAction(preset.actionName)}.`,
+    ...groundContractLines.map((line) => `Ground line QC: ${line}`),
     "Direction identity note: the back row is a true straight rear view, not back three-quarter; no face, side profile, or looking-over-shoulder pose should appear in that row.",
     "Framing note: every direction row must keep the full hair silhouette and both feet visible with clear padding inside each cell.",
     "No free-form user motion prompt was supplied; use the locked preset and the strict sheet contract only."
@@ -4697,7 +4744,8 @@ function App() {
             chromaKey: chromaDecision.key,
             chromaReason: chromaDecision.reason,
             grid: spriteGrid,
-            cell: spriteCell
+            cell: spriteCell,
+            actionName: animationAction.name
           })
       : isImageEditJob
         ? buildImageEditCodexNotes({
@@ -9115,6 +9163,7 @@ function buildAnimationCodexPrompt({
   cell: SpriteAction["cell"];
 }) {
   const motion = motionPrompt.trim() || actionName;
+  const groundContractLines = animationGroundContractLinesForAction(actionName);
   return [
     "このキャラクターをデフォルメして、方向別アニメーション素材として画像生成してほしい。",
     `Use the uploaded source image "${sourceName}" as the character reference.`,
@@ -9125,7 +9174,7 @@ function buildAnimationCodexPrompt({
     `Each cell must be exactly ${cell.width}x${cell.height} pixels. Fill frames left-to-right on row 1, then left-to-right on row 2.`,
     "Every cell must contain exactly one full-body character, centered inside that cell, with the entire head, hair, hands, held item, weapon, projectile, compact effect, clothing, and both feet visible.",
     "Keep at least 24 pixels of empty chroma-key padding inside every cell above the head, below the feet, and on both sides. Never enlarge the character, held item, projectile, or effect to fill the cell.",
-    "The character center and foot baseline must stay aligned across all eight frames in the same direction image; do not drift left, right, up, or down between frames.",
+    ...groundContractLines,
     "Do not crop the head, feet, hair, held item, weapon, projectile, or effects. Do not let body parts, items, projectiles, or effects cross cell borders. Do not place heads or body fragments under the feet.",
     "Use consistent character scale, baseline, foot contact point, silhouette size, palette, outfit, and pixel density across all direction images.",
     "Hard consistency requirement across all five direction images: keep the same chibi body proportions, same head-to-body ratio, same head size, same body height from feet to top of head within about 5%, same limb thickness, same outfit colors, same clothing layers, and same prop design. Do not redesign any direction or make one direction taller, older, younger, more realistic, or differently dressed than the others.",
@@ -9142,14 +9191,18 @@ function buildAnimationCodexNotes({
   chromaKey,
   chromaReason,
   grid,
-  cell
+  cell,
+  actionName
 }: {
   userNotes: string;
   chromaKey: AnimationChromaKey;
   chromaReason: string;
   grid: GridSettings;
   cell: SpriteAction["cell"];
+  actionName: string;
 }) {
+  const groundBand = directionSplitGroundBandForCell(cell);
+  const groundProfile = directionSplitGroundProfileForAction(actionName);
   return [
     userNotes.trim(),
     `Animation sprite workflow: generate five source-image-driven direction images through Codex imagegen / built-in image_gen, then Image Cockpit will remove the ${chromaKey.label} background and compose the final sheet.`,
@@ -9158,6 +9211,8 @@ function buildAnimationCodexNotes({
     `Raw returned direction layout: ${DIRECTION_SPLIT_ANIMATION_GRID.columns} columns x ${DIRECTION_SPLIT_ANIMATION_GRID.rows} rows per direction image, ${cell.width}x${cell.height} per cell.`,
     `Required direction files: ${directionSplitAnimationFileSet("<job-id>").join(", ")}.`,
     `Manifest schema: ${DIRECTION_SPLIT_ANIMATION_SCHEMA}; include directions, files, grid, cell, and framesPerDirection=${ANIMATION_FRAME_COUNT}.`,
+    `Ground line QC profile: ${groundProfile}; expected normalized ground line is y=${groundBand.groundLineY}px with contact band ${groundBand.bandTop}-${groundBand.bandBottom}px inside each ${cell.width}x${cell.height} cell.`,
+    ...animationGroundContractLinesForAction(actionName),
     "Cell QA is mandatory: one full-body character per cell, consistent baseline and scale, at least 24px inner padding, no cropping, no duplicated heads, no body fragments under feet, no character parts, items, projectiles, or effects crossing cell borders.",
     "The generated sheet should keep the chroma key background simple and flat so the app can remove it reliably.",
     "Temporary guide grid: pure cyan #00FFFF on exact 4x2 direction-image cell boundaries only. Image Cockpit removes those guide pixels before slicing/export."
@@ -9325,7 +9380,12 @@ async function composeDirectionSplitAnimationSheet(
   }
 
   const normalizedCells = normalizeDirectionSplitCells(preparedCells, cell);
-  const qa = validateDirectionSplitAnimationCells(normalizedCells, cell, directionSplitMotionProfileForAction(actionName));
+  const qa = validateDirectionSplitAnimationCells(
+    normalizedCells,
+    cell,
+    directionSplitMotionProfileForAction(actionName),
+    directionSplitGroundProfileForAction(actionName)
+  );
   warnings.push(...normalizedCells.flatMap((frame) => frame.warnings), ...qa.warnings);
   failures.push(...normalizedCells.flatMap((frame) => frame.failures), ...qa.failures);
 
@@ -9444,7 +9504,7 @@ function normalizeDirectionSplitCells(preparedCells: DirectionSplitPreparedCell[
     Math.round(cell.height * 0.45),
     Math.round(cell.height * 0.86)
   );
-  const targetFootY = Math.round(cell.height * 0.9);
+  const targetFootY = directionSplitGroundBandForCell(cell).groundLineY;
 
   return preparedCells.map((frame) => {
     const canvas = document.createElement("canvas");
@@ -9487,19 +9547,99 @@ function normalizeDirectionSplitCells(preparedCells: DirectionSplitPreparedCell[
   });
 }
 
-function directionSplitMotionProfileForAction(actionName?: string): DirectionSplitMotionProfile {
+export function directionSplitMotionProfileForAction(actionName?: string): DirectionSplitMotionProfile {
   const normalized = actionName?.trim().toLowerCase() ?? "";
   return normalized === "idle" || normalized === "idle-breathing" ? "idle-breathing" : "standard";
+}
+
+export function directionSplitGroundProfileForAction(actionName?: string): DirectionSplitGroundProfile {
+  const normalized = actionName?.trim().toLowerCase() ?? "";
+  if (["jump", "hop", "jump-hop", "knockback", "death", "downed", "death-downed"].includes(normalized)) {
+    return "airborne-or-exempt";
+  }
+  if (
+    [
+      "run",
+      "run-cycle",
+      "attack",
+      "basic-attack",
+      "ranged",
+      "ranged-attack",
+      "skill",
+      "skill-release",
+      "hurt",
+      "hurt-reaction",
+      "cheer",
+      "victory-cheer"
+    ].includes(normalized)
+  ) {
+    return "grounded-soft";
+  }
+  return "grounded-strict";
+}
+
+export function directionSplitGroundBandForCell(cell: SpriteAction["cell"]): DirectionSplitGroundBand {
+  const groundLineY = clampNumber(Math.round(cell.height * DIRECTION_SPLIT_GROUND_LINE_RATIO), 0, Math.max(0, cell.height - 1));
+  return {
+    groundLineY,
+    bandTop: clampNumber(groundLineY - DIRECTION_SPLIT_GROUND_BAND_ABOVE_PX, 0, Math.max(0, cell.height - 1)),
+    bandBottom: clampNumber(groundLineY + DIRECTION_SPLIT_GROUND_BAND_BELOW_PX, 0, Math.max(0, cell.height - 1))
+  };
+}
+
+function directionSplitGroundContactMetric(
+  frame: DirectionSplitNormalizedCell,
+  cell: SpriteAction["cell"],
+  groundBand: DirectionSplitGroundBand
+): DirectionSplitGroundContactMetric | null {
+  if (!frame.bounds) return null;
+  const context = frame.canvas.getContext("2d", { willReadFrequently: true });
+  if (!context) return null;
+  const imageData = context.getImageData(0, 0, cell.width, cell.height);
+  const data = imageData.data;
+  let contactPixelCount = 0;
+  let minContactX = cell.width;
+  let maxContactX = -1;
+  const minX = clampNumber(frame.bounds.minX, 0, Math.max(0, cell.width - 1));
+  const maxX = clampNumber(frame.bounds.maxX, 0, Math.max(0, cell.width - 1));
+
+  for (let y = groundBand.bandTop; y <= groundBand.bandBottom; y += 1) {
+    for (let x = minX; x <= maxX; x += 1) {
+      const alpha = data[(y * cell.width + x) * 4 + 3];
+      if (alpha <= FRAME_ALPHA_THRESHOLD) continue;
+      contactPixelCount += 1;
+      minContactX = Math.min(minContactX, x);
+      maxContactX = Math.max(maxContactX, x);
+    }
+  }
+
+  const contactWidth = maxContactX >= minContactX ? maxContactX - minContactX + 1 : 0;
+  return {
+    bottomY: frame.bounds.maxY,
+    centerX: (frame.bounds.minX + frame.bounds.maxX) / 2,
+    groundBandDistance: distanceFromGroundBand(frame.bounds.maxY, groundBand),
+    hasGroundContact: contactPixelCount >= DIRECTION_SPLIT_GROUND_MIN_CONTACT_PIXELS && contactWidth >= DIRECTION_SPLIT_GROUND_MIN_CONTACT_WIDTH,
+    contactPixelCount,
+    contactWidth
+  };
+}
+
+function distanceFromGroundBand(y: number, groundBand: DirectionSplitGroundBand) {
+  if (y < groundBand.bandTop) return groundBand.bandTop - y;
+  if (y > groundBand.bandBottom) return y - groundBand.bandBottom;
+  return 0;
 }
 
 function validateDirectionSplitAnimationCells(
   cells: DirectionSplitNormalizedCell[],
   cell: SpriteAction["cell"],
-  motionProfile: DirectionSplitMotionProfile = "standard"
+  motionProfile: DirectionSplitMotionProfile = "standard",
+  groundProfile: DirectionSplitGroundProfile = "grounded-strict"
 ) {
   const warnings: string[] = [];
   const failures: string[] = [];
   const motionThresholds = DIRECTION_SPLIT_MOTION_THRESHOLDS[motionProfile];
+  const groundBand = directionSplitGroundBandForCell(cell);
   const idleMotionRows: Array<{ direction: string; averageMotion: number; maxMotion: number }> = [];
 
   ANIMATION_DIRECTIONS.forEach((direction, directionIndex) => {
@@ -9540,6 +9680,55 @@ function validateDirectionSplitAnimationCells(
       failures.push(`${direction}: foot baseline drift ${Math.round(bottomDrift)}px`);
     } else if (bottomDrift > DIRECTION_SPLIT_BOTTOM_WARN_DRIFT) {
       warnings.push(`${direction}: foot baseline drift ${Math.round(bottomDrift)}px`);
+    }
+
+    const groundMetrics = metrics
+      .map((metric) => directionSplitGroundContactMetric(metric.frame, cell, groundBand))
+      .filter((metric): metric is DirectionSplitGroundContactMetric => Boolean(metric));
+    if (groundMetrics.length !== metrics.length) {
+      failures.push(`${direction}: ground line contact could not be inspected`);
+    } else {
+      const contactFrames = groundMetrics.filter((metric) => metric.hasGroundContact).length;
+      const missingContactFrames = groundMetrics.length - contactFrames;
+      const maxGroundDistance = Math.max(...groundMetrics.map((metric) => metric.groundBandDistance));
+      const minContactWidth = Math.min(...groundMetrics.map((metric) => metric.contactWidth));
+      const profileLabel = `ground line ${groundProfile}`;
+
+      if (groundProfile === "grounded-strict") {
+        if (missingContactFrames === groundMetrics.length) {
+          failures.push(`${direction}: ${profileLabel} contact absent in all frames`);
+        } else if (missingContactFrames >= Math.ceil(groundMetrics.length * 0.5)) {
+          failures.push(`${direction}: ${profileLabel} contact missing in ${missingContactFrames}/${groundMetrics.length} frames`);
+        } else if (missingContactFrames > 0) {
+          warnings.push(`${direction}: ${profileLabel} contact missing in ${missingContactFrames}/${groundMetrics.length} frames`);
+        }
+
+        if (maxGroundDistance > DIRECTION_SPLIT_GROUND_STRICT_FAIL_DISTANCE) {
+          failures.push(`${direction}: foot anchor ${Math.round(maxGroundDistance)}px outside ground line band ${groundBand.bandTop}-${groundBand.bandBottom}`);
+        } else if (maxGroundDistance > DIRECTION_SPLIT_GROUND_STRICT_WARN_DISTANCE) {
+          warnings.push(`${direction}: foot anchor ${Math.round(maxGroundDistance)}px outside ground line band ${groundBand.bandTop}-${groundBand.bandBottom}`);
+        }
+      } else if (groundProfile === "grounded-soft") {
+        if (contactFrames === 0) {
+          failures.push(`${direction}: ${profileLabel} contact absent across the row`);
+        } else if (contactFrames < 2) {
+          failures.push(`${direction}: ${profileLabel} has only ${contactFrames}/${groundMetrics.length} contact frame`);
+        } else if (contactFrames < 3) {
+          warnings.push(`${direction}: ${profileLabel} has only ${contactFrames}/${groundMetrics.length} contact frames`);
+        }
+
+        if (maxGroundDistance > DIRECTION_SPLIT_GROUND_SOFT_FAIL_DISTANCE) {
+          failures.push(`${direction}: foot anchor ${Math.round(maxGroundDistance)}px outside soft ground line band ${groundBand.bandTop}-${groundBand.bandBottom}`);
+        } else if (maxGroundDistance > DIRECTION_SPLIT_GROUND_SOFT_WARN_DISTANCE) {
+          warnings.push(`${direction}: foot anchor ${Math.round(maxGroundDistance)}px outside soft ground line band ${groundBand.bandTop}-${groundBand.bandBottom}`);
+        }
+      } else if (maxGroundDistance > Math.round(cell.height * 0.25)) {
+        warnings.push(`${direction}: airborne/exempt foot anchor is ${Math.round(maxGroundDistance)}px from ground line band ${groundBand.bandTop}-${groundBand.bandBottom}`);
+      }
+
+      if (contactFrames > 0 && minContactWidth > 0 && minContactWidth < DIRECTION_SPLIT_GROUND_MIN_CONTACT_WIDTH) {
+        warnings.push(`${direction}: narrow ground contact width ${Math.round(minContactWidth)}px`);
+      }
     }
 
     const widthVariation = variationRatio(metrics.map((metric) => metric.width));

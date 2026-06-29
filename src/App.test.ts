@@ -4,6 +4,8 @@ import {
   buildOutboxImportKey,
   buildImageCockpitEnvironmentReport,
   codexJobProgressPhase,
+  directionSplitGroundBandForCell,
+  directionSplitGroundProfileForAction,
   directionSplitJobIdFromOutboxResultName,
   estimateCodexJobProgress,
   findLatestReadyDirectionSplitArtifact,
@@ -52,6 +54,28 @@ import {
   STORAGE_WARNING_BYTES
 } from "./lib/storage";
 import type { Annotation, CodexArtifactStatus, CodexRunnerStatus, HistoryItem, SpriteFrame } from "./types";
+
+describe("direction split ground line QC", () => {
+  it("classifies grounded presets without forcing airborne actions into strict contact", () => {
+    expect(directionSplitGroundProfileForAction("idle")).toBe("grounded-strict");
+    expect(directionSplitGroundProfileForAction("walk")).toBe("grounded-strict");
+    expect(directionSplitGroundProfileForAction("guard")).toBe("grounded-strict");
+    expect(directionSplitGroundProfileForAction("talk")).toBe("grounded-strict");
+    expect(directionSplitGroundProfileForAction("run")).toBe("grounded-soft");
+    expect(directionSplitGroundProfileForAction("attack")).toBe("grounded-soft");
+    expect(directionSplitGroundProfileForAction("ranged-attack")).toBe("grounded-soft");
+    expect(directionSplitGroundProfileForAction("jump")).toBe("airborne-or-exempt");
+    expect(directionSplitGroundProfileForAction("death-downed")).toBe("airborne-or-exempt");
+  });
+
+  it("keeps the standard 256px animation ground band aligned with normalization", () => {
+    expect(directionSplitGroundBandForCell({ width: 256, height: 256 })).toEqual({
+      groundLineY: 230,
+      bandTop: 226,
+      bandBottom: 238
+    });
+  });
+});
 
 describe("Codex runner wait state", () => {
   it("keeps waiting only when the runner is actively running or status is not loaded yet", () => {
