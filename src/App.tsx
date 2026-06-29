@@ -3733,10 +3733,12 @@ function App() {
     setDownloadModalOpen(false);
   }, [selected?.id]);
 
-  const animationSource = useMemo(
-    () => history.find((item) => item.id === animationSourceId) ?? (isAnimationSource(selected) ? selected : undefined),
-    [animationSourceId, history, selected]
-  );
+  const animationSource = useMemo(() => {
+    const explicitSource = history.find((item) => item.id === animationSourceId);
+    if (isAnimationSource(explicitSource)) return explicitSource;
+    if (isAnimationSource(selected)) return selected;
+    return undefined;
+  }, [animationSourceId, history, selected]);
 
   const activeAction = useMemo(
     () => actions.find((action) => action.name === activeActionName) ?? actions[0],
@@ -4624,6 +4626,11 @@ function App() {
 
     if (isImageEditJob && selectedIsAnimationResult) {
       setStatus(copy.statusAnimationFinalNotEditable);
+      return null;
+    }
+
+    if (isAnimationJob && sourceImageForJob && isAnimationResultHistoryItem(sourceImageForJob)) {
+      setStatus(animationResultNotSourceMessage(sourceImageForJob, language));
       return null;
     }
 
@@ -6169,7 +6176,13 @@ function App() {
   function selectHistoryResult(item: HistoryItem) {
     setSelectedId(item.id);
     setSelectedFrameId("");
-    if (isAnimationWorkflow && isAnimationSource(item)) setAnimationSourceId(item.id);
+    if (isAnimationWorkflow) {
+      if (isAnimationSource(item)) {
+        setAnimationSourceId(item.id);
+      } else if (isAnimationResultHistoryItem(item)) {
+        setStatus(animationResultNotSourceMessage(item, language));
+      }
+    }
     if (isImageEditWorkflow && item.source === "generate" && frames.some((frame) => frame.sourceId === item.id)) {
       setStatus(copy.statusAnimationFinalNotEditable);
     }
@@ -6178,7 +6191,11 @@ function App() {
   function selectSourceFromPreview(source: HistoryItem) {
     setSelectedId(source.id);
     setSelectedFrameId("");
-    if (isAnimationSource(source)) setAnimationSourceId(source.id);
+    if (!isAnimationSource(source)) {
+      setStatus(isAnimationResultHistoryItem(source) ? animationResultNotSourceMessage(source, language) : copy.statusAnimationSourceRequired);
+      return;
+    }
+    setAnimationSourceId(source.id);
     setStatus(`${copy.statusSourceSelectedForAnimation}: ${source.name}`);
   }
 
@@ -9029,8 +9046,27 @@ function animationDirectionLabel(directionId: string, language: Language) {
   return directionId;
 }
 
-function isAnimationSource(item?: HistoryItem): item is HistoryItem {
-  return Boolean(item && item.source !== "sample");
+export function isAnimationResultHistoryItem(item?: Pick<HistoryItem, "name" | "outboxImportKey" | "source">): boolean {
+  if (!item) return false;
+  const name = normalizeOutboxResultNameForFiltering(item.name);
+  const importKey = item.outboxImportKey?.toLowerCase() ?? "";
+  return (
+    name.endsWith("-direction-split-animation-sheet.png") ||
+    importKey.startsWith("direction-split:") ||
+    importKey.startsWith("animation-sheet:") ||
+    importKey.startsWith("bronze-candidate:")
+  );
+}
+
+export function isAnimationSource(item?: HistoryItem): item is HistoryItem {
+  return Boolean(item && item.source !== "sample" && !isAnimationResultHistoryItem(item));
+}
+
+function animationResultNotSourceMessage(item: Pick<HistoryItem, "name">, language: Language) {
+  if (language === "ja") {
+    return `生成済みアニメーション結果は次の素体sourceにできません。元の素体画像を選び直してください: ${item.name}`;
+  }
+  return `Generated animation results cannot be used as the next body source. Select the original body image again: ${item.name}`;
 }
 
 async function chooseAnimationChromaKey(sourceDataUrl: string) {

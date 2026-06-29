@@ -18,6 +18,8 @@ import {
   isDirectionSplitAnimationManifestName,
   isDirectionSplitComponentOutboxName,
   isFrameChromaResiduePixel,
+  isAnimationResultHistoryItem,
+  isAnimationSource,
   isGenericStaticImageResult,
   isOutboxResultForJob,
   isLikelyFrameGarbageComponent,
@@ -148,6 +150,45 @@ describe("initial language", () => {
   it("falls back to English when no stored or supported browser language exists", () => {
     expect(resolveInitialLanguage(null, ["en-US"])).toBe("en");
     expect(resolveInitialLanguage("xx", [])).toBe("en");
+  });
+});
+
+describe("animation source selection", () => {
+  it("allows imported body images as animation sources", () => {
+    expect(isAnimationSource(makeHistoryItem("body-source", { source: "import", name: "basic-young-male-hero.png" }))).toBe(true);
+  });
+
+  it("does not allow generated animation result sheets as the next body source", () => {
+    const directionSplitSheet = makeHistoryItem("direction-split", {
+      source: "generate",
+      name: "codex-job-test-direction-split-animation-sheet.png",
+      outboxImportKey: buildOutboxImportKey("direction-split", {
+        jobId: "codex-job-test",
+        filenames: ["codex-job-test-front.png"],
+        manifestName: "codex-job-test-manifest.json"
+      })
+    });
+    const legacyAnimationSheet = makeHistoryItem("animation-sheet", {
+      source: "generate",
+      name: "codex-job-legacy.png",
+      outboxImportKey: buildOutboxImportKey("animation-sheet", { jobId: "codex-job-legacy", filenames: ["codex-job-legacy.png"] })
+    });
+    const bronzeCandidate = makeHistoryItem("bronze", {
+      source: "generate",
+      name: "codex-job-bronze-front.png",
+      outboxImportKey: buildOutboxImportKey("bronze-candidate", { jobId: "codex-job-bronze", filenames: ["codex-job-bronze-front.png"] })
+    });
+
+    expect(isAnimationResultHistoryItem(directionSplitSheet)).toBe(true);
+    expect(isAnimationResultHistoryItem(legacyAnimationSheet)).toBe(true);
+    expect(isAnimationResultHistoryItem(bronzeCandidate)).toBe(true);
+    expect(isAnimationSource(directionSplitSheet)).toBe(false);
+    expect(isAnimationSource(legacyAnimationSheet)).toBe(false);
+    expect(isAnimationSource(bronzeCandidate)).toBe(false);
+  });
+
+  it("does not allow bundled sample items as animation sources until imported", () => {
+    expect(isAnimationSource(makeHistoryItem("sample", { source: "sample" }))).toBe(false);
   });
 });
 
