@@ -34,6 +34,12 @@ The local generation endpoint is `POST /api/generate`. It writes deterministic f
 Manual handoff steps are documented in `docs/usage/manual-handoff.md`.
 The prompt-only imagegen handoff smoke result is recorded in `docs/qa/imagegen-handoff-smoke.md`.
 
+## Generated Outputs And Rights
+
+The MIT license in this repository covers the repository contents. It does not license, assign, or clear rights for generated images, sprites, animation sheets, animation packs, or other user outputs.
+
+Generated outputs are user-controlled. Image Cockpit does not provide legal clearance or guarantee copyrightability, exclusivity, non-infringement, or commercial suitability of generated assets. Users are responsible for their prompts, input images, provider terms, project requirements, and jurisdiction-specific legal review.
+
 ## Core Flow
 
 - Start directly in the workspace and switch between three tabs: Pixel Art Generation, Image Editing, and Animation Generation.
@@ -236,6 +242,7 @@ See `docs/roadmap/release-roadmap.md` for the current product direction and next
 - No direct OpenAI API requests are made by this app.
 - Optional adapters for local tools can be added later.
 - Generated outputs are user-controlled and imported/exported from the browser.
+- The repository license does not provide legal clearance for generated outputs.
 - Sample assets are original generated demo assets for this repository.
 - No model weights are included.
 - No API keys, tokens, or license-unclear sample assets should be committed.
