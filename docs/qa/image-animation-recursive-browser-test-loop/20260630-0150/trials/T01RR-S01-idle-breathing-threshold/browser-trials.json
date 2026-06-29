@@ -1,0 +1,358 @@
+[
+  {
+    "id": "browser-delivery-2026-06-29T18-25-54-311Z",
+    "sourceType": "browser file upload from public prompt example",
+    "sourceName": "animation-delivery-source.png",
+    "motionPreset": "Idle Breathing",
+    "motionPresetId": "idle-breathing",
+    "startedAt": "2026-06-29T18:25:54.349Z",
+    "finishedAt": "2026-06-29T18:38:55.250Z",
+    "browserUrl": "http://127.0.0.1:50917/",
+    "resultStatus": "pass",
+    "qualityRank": "silver-or-better",
+    "deliveredToHistory": true,
+    "deliveredToPreview": true,
+    "downloadableFinal": true,
+    "outboxFinalPresent": true,
+    "falseSuccess": false,
+    "stuckRunning": false,
+    "failureCodes": [],
+    "failureReason": "",
+    "uiFailureText": "",
+    "artifactPaths": {
+      "screenshot": "docs/qa/image-animation-recursive-browser-test-loop/20260630-0150/trials/T01RR-S01-idle-breathing-threshold/browser-final-1280x720.png",
+      "reportDir": "docs/qa/image-animation-recursive-browser-test-loop/20260630-0150/trials/T01RR-S01-idle-breathing-threshold",
+      "handoffDir": "docs/qa/image-animation-recursive-browser-test-loop/20260630-0150/trials/T01RR-S01-idle-breathing-threshold/handoff"
+    },
+    "browserSnapshot": {
+      "buttons": [
+        "Diagnose",
+        "Recover Results",
+        "Repair Cockpit",
+        "Pixel Art Generation",
+        "Image Editing",
+        "Animation Generation",
+        "Upload Pixel Art",
+        "Choose Animation",
+        "Generate Animation",
+        "Generated from animation-delivery-source.png",
+        "Download",
+        "Recover Results",
+        "Dedupe History",
+        "codex-job-2026-06-29T18-25-58-029Z-m4fjll-direction-split-animation-sheet.png 6月30日 03:38 • Local Inbox 2048x1280 • generate",
+        "animation-delivery-source.png 6月30日 03:25 • Local File 1024x1024 • import",
+        "forest-mage-sheet.png 6月30日 03:25 • Local File 1774x887 • sample",
+        "Collapse logs",
+        "Animated GIF",
+        "Animated WebP",
+        "Sprite Sheet",
+        "Export Animation Pack"
+      ],
+      "disabledButtons": [],
+      "historyItems": 3,
+      "codexJobRows": 0,
+      "codexFailureCards": 0,
+      "codexFailureTexts": [],
+      "codexLogCards": 1,
+      "canvasPreviewMode": "result",
+      "canvasPreviewName": "codex-job-2026-06-29T18-25-58-029Z-m4fjll-direction-split-animation-sheet.png",
+      "resultPreviewImages": 1,
+      "resultPreviewLoaded": true,
+      "animationPreviewImages": 6,
+      "directionPreviewRows": 5,
+      "resultDownloadPanelComplete": true,
+      "downloadModalVisible": true,
+      "downloadModalButtons": [
+        "Animated GIF",
+        "Animated WebP",
+        "Sprite Sheet",
+        "Export Animation Pack"
+      ],
+      "animationSourceStatus": "Generated from\nanimation-delivery-source.png",
+      "animationSourceCard": "Selected source animation-delivery-source.png 1024x1024 / import",
+      "browserErrors": [],
+      "textOmitted": true,
+      "textLength": 7446,
+      "hasAnimationGeneratedText": true
+    },
+    "outboxResults": [
+      {
+        "name": "codex-job-2026-06-29T18-25-58-029Z-m4fjll-manifest.json",
+        "path": "docs/qa/image-animation-recursive-browser-test-loop/20260630-0150/trials/T01RR-S01-idle-breathing-threshold/handoff/outbox/codex-job-2026-06-29T18-25-58-029Z-m4fjll-manifest.json",
+        "mimeType": "application/json",
+        "qualityGate": {
+          "classification": "usable-final",
+          "reason": "server verified",
+          "code": "direction-split-server-verified",
+          "historyAllowed": true,
+          "downloadAllowed": true,
+          "retryable": false
+        },
+        "artifact": {
+          "jobId": "codex-job-2026-06-29T18-25-58-029Z-m4fjll",
+          "artifactKind": "direction-split",
+          "detected": true,
+          "ready": true,
+          "verified": true,
+          "quality": "gold",
+          "reason": "server verified",
+          "missingDirections": [],
+          "warnings": [],
+          "files": [
+            "codex-job-2026-06-29T18-25-58-029Z-m4fjll-front.png",
+            "codex-job-2026-06-29T18-25-58-029Z-m4fjll-front-three-quarter.png",
+            "codex-job-2026-06-29T18-25-58-029Z-m4fjll-side.png",
+            "codex-job-2026-06-29T18-25-58-029Z-m4fjll-back-three-quarter.png",
+            "codex-job-2026-06-29T18-25-58-029Z-m4fjll-back.png"
+          ],
+          "manifestName": "codex-job-2026-06-29T18-25-58-029Z-m4fjll-manifest.json",
+          "stable": true,
+          "candidateCount": 6,
+          "qualityGate": {
+            "classification": "usable-final",
+            "reason": "server verified",
+            "code": "direction-split-server-verified",
+            "historyAllowed": true,
+            "downloadAllowed": true,
+            "retryable": false
+          },
+          "chromaKey": {
+            "expected": "green",
+            "manifest": "green"
+          }
+        }
+      },
+      {
+        "name": "codex-job-2026-06-29T18-25-58-029Z-m4fjll-back.png",
+        "path": "docs/qa/image-animation-recursive-browser-test-loop/20260630-0150/trials/T01RR-S01-idle-breathing-threshold/handoff/outbox/codex-job-2026-06-29T18-25-58-029Z-m4fjll-back.png",
+        "mimeType": "image/png",
+        "qualityGate": {
+          "classification": "usable-final",
+          "reason": "server verified",
+          "code": "direction-split-server-verified",
+          "historyAllowed": true,
+          "downloadAllowed": true,
+          "retryable": false
+        },
+        "artifact": {
+          "jobId": "codex-job-2026-06-29T18-25-58-029Z-m4fjll",
+          "artifactKind": "direction-split",
+          "detected": true,
+          "ready": true,
+          "verified": true,
+          "quality": "gold",
+          "reason": "server verified",
+          "missingDirections": [],
+          "warnings": [],
+          "files": [
+            "codex-job-2026-06-29T18-25-58-029Z-m4fjll-front.png",
+            "codex-job-2026-06-29T18-25-58-029Z-m4fjll-front-three-quarter.png",
+            "codex-job-2026-06-29T18-25-58-029Z-m4fjll-side.png",
+            "codex-job-2026-06-29T18-25-58-029Z-m4fjll-back-three-quarter.png",
+            "codex-job-2026-06-29T18-25-58-029Z-m4fjll-back.png"
+          ],
+          "manifestName": "codex-job-2026-06-29T18-25-58-029Z-m4fjll-manifest.json",
+          "stable": true,
+          "candidateCount": 6,
+          "qualityGate": {
+            "classification": "usable-final",
+            "reason": "server verified",
+            "code": "direction-split-server-verified",
+            "historyAllowed": true,
+            "downloadAllowed": true,
+            "retryable": false
+          },
+          "chromaKey": {
+            "expected": "green",
+            "manifest": "green"
+          }
+        }
+      },
+      {
+        "name": "codex-job-2026-06-29T18-25-58-029Z-m4fjll-back-three-quarter.png",
+        "path": "docs/qa/image-animation-recursive-browser-test-loop/20260630-0150/trials/T01RR-S01-idle-breathing-threshold/handoff/outbox/codex-job-2026-06-29T18-25-58-029Z-m4fjll-back-three-quarter.png",
+        "mimeType": "image/png",
+        "qualityGate": {
+          "classification": "usable-final",
+          "reason": "server verified",
+          "code": "direction-split-server-verified",
+          "historyAllowed": true,
+          "downloadAllowed": true,
+          "retryable": false
+        },
+        "artifact": {
+          "jobId": "codex-job-2026-06-29T18-25-58-029Z-m4fjll",
+          "artifactKind": "direction-split",
+          "detected": true,
+          "ready": true,
+          "verified": true,
+          "quality": "gold",
+          "reason": "server verified",
+          "missingDirections": [],
+          "warnings": [],
+          "files": [
+            "codex-job-2026-06-29T18-25-58-029Z-m4fjll-front.png",
+            "codex-job-2026-06-29T18-25-58-029Z-m4fjll-front-three-quarter.png",
+            "codex-job-2026-06-29T18-25-58-029Z-m4fjll-side.png",
+            "codex-job-2026-06-29T18-25-58-029Z-m4fjll-back-three-quarter.png",
+            "codex-job-2026-06-29T18-25-58-029Z-m4fjll-back.png"
+          ],
+          "manifestName": "codex-job-2026-06-29T18-25-58-029Z-m4fjll-manifest.json",
+          "stable": true,
+          "candidateCount": 6,
+          "qualityGate": {
+            "classification": "usable-final",
+            "reason": "server verified",
+            "code": "direction-split-server-verified",
+            "historyAllowed": true,
+            "downloadAllowed": true,
+            "retryable": false
+          },
+          "chromaKey": {
+            "expected": "green",
+            "manifest": "green"
+          }
+        }
+      },
+      {
+        "name": "codex-job-2026-06-29T18-25-58-029Z-m4fjll-side.png",
+        "path": "docs/qa/image-animation-recursive-browser-test-loop/20260630-0150/trials/T01RR-S01-idle-breathing-threshold/handoff/outbox/codex-job-2026-06-29T18-25-58-029Z-m4fjll-side.png",
+        "mimeType": "image/png",
+        "qualityGate": {
+          "classification": "usable-final",
+          "reason": "server verified",
+          "code": "direction-split-server-verified",
+          "historyAllowed": true,
+          "downloadAllowed": true,
+          "retryable": false
+        },
+        "artifact": {
+          "jobId": "codex-job-2026-06-29T18-25-58-029Z-m4fjll",
+          "artifactKind": "direction-split",
+          "detected": true,
+          "ready": true,
+          "verified": true,
+          "quality": "gold",
+          "reason": "server verified",
+          "missingDirections": [],
+          "warnings": [],
+          "files": [
+            "codex-job-2026-06-29T18-25-58-029Z-m4fjll-front.png",
+            "codex-job-2026-06-29T18-25-58-029Z-m4fjll-front-three-quarter.png",
+            "codex-job-2026-06-29T18-25-58-029Z-m4fjll-side.png",
+            "codex-job-2026-06-29T18-25-58-029Z-m4fjll-back-three-quarter.png",
+            "codex-job-2026-06-29T18-25-58-029Z-m4fjll-back.png"
+          ],
+          "manifestName": "codex-job-2026-06-29T18-25-58-029Z-m4fjll-manifest.json",
+          "stable": true,
+          "candidateCount": 6,
+          "qualityGate": {
+            "classification": "usable-final",
+            "reason": "server verified",
+            "code": "direction-split-server-verified",
+            "historyAllowed": true,
+            "downloadAllowed": true,
+            "retryable": false
+          },
+          "chromaKey": {
+            "expected": "green",
+            "manifest": "green"
+          }
+        }
+      },
+      {
+        "name": "codex-job-2026-06-29T18-25-58-029Z-m4fjll-front-three-quarter.png",
+        "path": "docs/qa/image-animation-recursive-browser-test-loop/20260630-0150/trials/T01RR-S01-idle-breathing-threshold/handoff/outbox/codex-job-2026-06-29T18-25-58-029Z-m4fjll-front-three-quarter.png",
+        "mimeType": "image/png",
+        "qualityGate": {
+          "classification": "usable-final",
+          "reason": "server verified",
+          "code": "direction-split-server-verified",
+          "historyAllowed": true,
+          "downloadAllowed": true,
+          "retryable": false
+        },
+        "artifact": {
+          "jobId": "codex-job-2026-06-29T18-25-58-029Z-m4fjll",
+          "artifactKind": "direction-split",
+          "detected": true,
+          "ready": true,
+          "verified": true,
+          "quality": "gold",
+          "reason": "server verified",
+          "missingDirections": [],
+          "warnings": [],
+          "files": [
+            "codex-job-2026-06-29T18-25-58-029Z-m4fjll-front.png",
+            "codex-job-2026-06-29T18-25-58-029Z-m4fjll-front-three-quarter.png",
+            "codex-job-2026-06-29T18-25-58-029Z-m4fjll-side.png",
+            "codex-job-2026-06-29T18-25-58-029Z-m4fjll-back-three-quarter.png",
+            "codex-job-2026-06-29T18-25-58-029Z-m4fjll-back.png"
+          ],
+          "manifestName": "codex-job-2026-06-29T18-25-58-029Z-m4fjll-manifest.json",
+          "stable": true,
+          "candidateCount": 6,
+          "qualityGate": {
+            "classification": "usable-final",
+            "reason": "server verified",
+            "code": "direction-split-server-verified",
+            "historyAllowed": true,
+            "downloadAllowed": true,
+            "retryable": false
+          },
+          "chromaKey": {
+            "expected": "green",
+            "manifest": "green"
+          }
+        }
+      },
+      {
+        "name": "codex-job-2026-06-29T18-25-58-029Z-m4fjll-front.png",
+        "path": "docs/qa/image-animation-recursive-browser-test-loop/20260630-0150/trials/T01RR-S01-idle-breathing-threshold/handoff/outbox/codex-job-2026-06-29T18-25-58-029Z-m4fjll-front.png",
+        "mimeType": "image/png",
+        "qualityGate": {
+          "classification": "usable-final",
+          "reason": "server verified",
+          "code": "direction-split-server-verified",
+          "historyAllowed": true,
+          "downloadAllowed": true,
+          "retryable": false
+        },
+        "artifact": {
+          "jobId": "codex-job-2026-06-29T18-25-58-029Z-m4fjll",
+          "artifactKind": "direction-split",
+          "detected": true,
+          "ready": true,
+          "verified": true,
+          "quality": "gold",
+          "reason": "server verified",
+          "missingDirections": [],
+          "warnings": [],
+          "files": [
+            "codex-job-2026-06-29T18-25-58-029Z-m4fjll-front.png",
+            "codex-job-2026-06-29T18-25-58-029Z-m4fjll-front-three-quarter.png",
+            "codex-job-2026-06-29T18-25-58-029Z-m4fjll-side.png",
+            "codex-job-2026-06-29T18-25-58-029Z-m4fjll-back-three-quarter.png",
+            "codex-job-2026-06-29T18-25-58-029Z-m4fjll-back.png"
+          ],
+          "manifestName": "codex-job-2026-06-29T18-25-58-029Z-m4fjll-manifest.json",
+          "stable": true,
+          "candidateCount": 6,
+          "qualityGate": {
+            "classification": "usable-final",
+            "reason": "server verified",
+            "code": "direction-split-server-verified",
+            "historyAllowed": true,
+            "downloadAllowed": true,
+            "retryable": false
+          },
+          "chromaKey": {
+            "expected": "green",
+            "manifest": "green"
+          }
+        }
+      }
+    ],
+    "outboxError": ""
+  }
+]

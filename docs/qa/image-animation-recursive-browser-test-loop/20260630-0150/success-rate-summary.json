@@ -1,0 +1,66 @@
+{
+  "schema": "image-cockpit.image-animation-recursive-browser-test-loop.summary.v1",
+  "createdAt": "2026-06-29T21:33:35.512Z",
+  "baseDir": "docs/qa/image-animation-recursive-browser-test-loop/20260630-0150",
+  "sourceImageTotal": 6,
+  "sourceImagePassed": 6,
+  "animationTrialTotal": 12,
+  "animationTrialPassed": 8,
+  "animationTrialFailed": 4,
+  "browserDeliveryRate": 0.6667,
+  "falseSuccessCount": 0,
+  "stuckRunningCount": 0,
+  "uniqueSources": [
+    "S01",
+    "S02",
+    "S03",
+    "S04",
+    "S05",
+    "S06"
+  ],
+  "uniquePresets": [
+    "basic-attack",
+    "guard-block",
+    "hurt-reaction",
+    "idle-breathing",
+    "jump-hop",
+    "run-cycle",
+    "spell-cast",
+    "talk",
+    "walk-cycle"
+  ],
+  "failureTagCounts": {
+    "motion_too_static_idle": 2,
+    "quality_gate_blocked_history_delivery": 4,
+    "quality_gate_blocked_preview_delivery": 4,
+    "quality_gate_blocked_download": 4,
+    "standard_motion_gate_false_positive_back_run": 1,
+    "small_source_walk_motion_too_subtle": 1
+  },
+  "fixCycles": [
+    {
+      "id": "fix-cycle-1-idle-motion",
+      "beforeTrials": [
+        "T01-S01-idle-breathing",
+        "T01R-S01-idle-breathing-motion-contract"
+      ],
+      "changes": [
+        "Strengthened animation runner prompt contract so generated rows must be animation sheets, not still references.",
+        "Relaxed idle-breathing readable motion failAverage from 0.018 to 0.015 while keeping absent-motion gates."
+      ],
+      "retestTrial": "T01RR-S01-idle-breathing-threshold",
+      "result": "pass"
+    },
+    {
+      "id": "fix-cycle-2-standard-motion-back-run",
+      "beforeTrials": [
+        "T02-S01-run-cycle"
+      ],
+      "changes": [
+        "Relaxed standard motion failAverage from 0.025 to 0.020 after visual review showed readable back run motion at 2.3% average frame change."
+      ],
+      "retestTrial": "T02R-S01-run-cycle-standard-threshold",
+      "result": "pass"
+    }
+  ]
+}

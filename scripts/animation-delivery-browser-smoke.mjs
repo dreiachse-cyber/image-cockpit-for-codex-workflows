@@ -10,6 +10,20 @@ const browserCommand = process.env.IMAGE_COCKPIT_BROWSER_COMMAND || findBrowserC
 const runnerMode = (process.env.IMAGE_COCKPIT_ANIMATION_DELIVERY_RUNNER || "mock").toLowerCase();
 const timeoutMs = Number(process.env.IMAGE_COCKPIT_ANIMATION_DELIVERY_TIMEOUT_MS ?? (runnerMode === "real" ? 1800000 : 90000));
 const headless = process.env.IMAGE_COCKPIT_ANIMATION_DELIVERY_HEADLESS !== "0";
+const animationPresetId = process.env.IMAGE_COCKPIT_ANIMATION_DELIVERY_PRESET_ID || "idle-breathing";
+const animationPresetTitle = process.env.IMAGE_COCKPIT_ANIMATION_DELIVERY_PRESET_TITLE || "";
+const animationPresetCatalog = {
+  "idle-breathing": { id: "idle-breathing", title: "Idle Breathing" },
+  "walk-cycle": { id: "walk-cycle", title: "Walk Cycle" },
+  "run-cycle": { id: "run-cycle", title: "Run Cycle" },
+  "basic-attack": { id: "basic-attack", title: "Basic Attack" },
+  "hurt-reaction": { id: "hurt-reaction", title: "Hurt Reaction" },
+  "death-downed": { id: "death-downed", title: "Death / Downed" },
+  "spell-cast": { id: "spell-cast", title: "Spell Cast" },
+  "jump-hop": { id: "jump-hop", title: "Jump / Hop" },
+  "guard-block": { id: "guard-block", title: "Guard / Block" },
+  "talk": { id: "talk", title: "Talk / NPC Reaction" }
+};
 const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
 const reportDir = resolve(process.env.IMAGE_COCKPIT_ANIMATION_DELIVERY_REPORT_DIR || join("docs", "qa", "animation-delivery-reliability", timestamp));
 const handoffDir = resolve(process.env.IMAGE_COCKPIT_ANIMATION_DELIVERY_HANDOFF_DIR || join(reportDir, "handoff"));
@@ -78,6 +92,7 @@ try {
   );
   await selectWorkflowTab("Animation Generation");
   const selectedSourceName = await uploadAnimationSource(sourceImageFilePath, "animation-delivery-source.png");
+  const selectedPreset = await selectAnimationPreset(animationPresetId, animationPresetTitle);
   lastSnapshot = await pageSnapshot();
   await waitForButtonEnabled("Generate Animation");
   const before = await pageSnapshot();
@@ -136,7 +151,8 @@ try {
       id: `browser-delivery-${timestamp}`,
       sourceType: selectedSourceName === "animation-delivery-source.png" ? "browser file upload from public prompt example" : "app sample fallback source",
       sourceName: selectedSourceName,
-      motionPreset: "default standard animation",
+      motionPreset: selectedPreset.title,
+      motionPresetId: selectedPreset.id,
       startedAt,
       finishedAt,
       browserUrl,
@@ -325,6 +341,38 @@ async function uploadAnimationSource(filePath, fileName) {
     "uploaded animation source"
   );
   return fileName;
+}
+
+async function selectAnimationPreset(presetId, fallbackTitle = "") {
+  const expected = animationPresetCatalog[presetId] || {
+    id: presetId,
+    title: fallbackTitle || presetId
+  };
+  if (presetId === "idle-breathing" && !fallbackTitle) return expected;
+  await clickButtonByText("Choose Animation");
+  await waitForEval(() => `Boolean(document.querySelector(".animation-preset-modal"))`, "Choose Animation modal");
+  const clicked = await evaluate(`(() => {
+    const cards = Array.from(document.querySelectorAll(".animation-preset-card"));
+    const expectedId = ${JSON.stringify(presetId)};
+    const expectedTitle = ${JSON.stringify(expected.title)};
+    const card = cards.find((candidate) => {
+      const text = candidate.innerText.replace(/\\s+/g, " ").trim();
+      const title = candidate.querySelector("h2")?.innerText.replace(/\\s+/g, " ").trim() || "";
+      return title === expectedTitle || text.includes(expectedTitle) || text.toLowerCase().includes(expectedId.replace(/-/g, " "));
+    });
+    if (!card) return null;
+    const button = card.querySelector("button");
+    if (!button) return null;
+    button.click();
+    return {
+      id: expectedId,
+      title: card.querySelector("h2")?.innerText.replace(/\\s+/g, " ").trim() || expectedTitle
+    };
+  })()`);
+  if (!clicked) throw new Error(`Animation preset not found: ${presetId}`);
+  await waitForEval(() => `!document.querySelector(".animation-preset-modal")`, "Choose Animation modal closes");
+  await waitForEval(() => `document.querySelector(".selected-animation-card")?.innerText.includes(${JSON.stringify(clicked.title)})`, "selected animation preset");
+  return clicked;
 }
 
 async function waitForButtonEnabled(label) {

@@ -1,0 +1,12 @@
+**/handoff/
+**/*-script-stdout.log
+**/*-script-stderr.log
+**/*-script-pid.txt
+**/animation-delivery-source.png
+preflight-imagegen-smoke/inbox/
+preflight-imagegen-smoke/logs/
+preflight-imagegen-smoke/outbox/
+preflight-imagegen-smoke/status/
+preflight-imagegen-smoke/stderr.log
+preflight-imagegen-smoke/stdout.log
+preflight-imagegen-smoke/pid.txt

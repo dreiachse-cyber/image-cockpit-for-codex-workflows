@@ -648,6 +648,8 @@ function workflowNotes(mode: CodexWorkflowMode) {
       "Treat spriteContext.grid and spriteContext.cell as strict cut lines: no gutters, no extra sheet margin, no character pixels crossing cell borders.",
       "The default direction-row order is front, front three-quarter, side, back three-quarter, back.",
       "Every cell must contain exactly one full-body character with head, hair, hands, equipment, and both feet visible, centered with at least 10% inner padding.",
+      "Each direction image is an animation sheet, not a still direction reference image: all populated cells must show the requested action progressing over time. Do not paste, upscale, or lightly nudge one still pose into every frame.",
+      "Before publishing standard animation output, compare neighboring frames in each direction. If the frame-to-frame motion is nearly identical, regenerate that direction with clearer pose, limb, cloth, hair, equipment, or breathing changes while keeping the same character and grounded baseline.",
       "Reject and retry the sprite sheet if any cell has a cropped head, missing feet, multiple heads, a head below the feet, inconsistent scale, body fragments, or a different character.",
       "Use the requested chroma-key background color as a flat simple background in every cell so Image Cockpit can remove it after import.",
       "For standard direction-split output, keep every intermediate, source, QA, and candidate file under outbox/.staging/<job-id>/ or another non-root work folder while work is still in progress. Do not write, copy, or manifest any root outbox <job-id>-*.png or <job-id>-manifest.json until all five directions are normalized, self-checked, and no further regeneration is planned. The final step must publish only the five final direction PNG/WebP files plus the final manifest into the root outbox, with the manifest written last. Keep *-qa.json, work files, temporary files, contact sheets, comparison sheets, and debug images outside the root.",
@@ -1048,6 +1050,8 @@ function buildCodexRunnerPrompt(job: { id: string; path: string; outboxDir: stri
     "For workflowMode=sprite-generate, inspect selectedImage.assetPath, then use imagegen / built-in image_gen when available to create the requested sprite sheet assets from the source character image. Never create a procedural, SVG, canvas, diagram, geometric, or placeholder image.",
     "For workflowMode=sprite-generate, follow spriteContext.grid, spriteContext.cell, spriteContext.directions, spriteContext.variant, and spriteContext.chromaKey exactly. Keep one full-body character centered inside each strict cell with padding, no cropping, no duplicated heads, and no body parts crossing cells.",
     "For workflowMode=sprite-generate with spriteContext.variant=standard, return exactly five separate direction PNG/WebP images using the suffixes front, front-three-quarter, side, back-three-quarter, and back. Each direction image must be 4 columns x 2 rows, 256x256 cells unless spriteContext.cell says otherwise. Do not return only one combined 5x8 sheet.",
+    "For workflowMode=sprite-generate with spriteContext.variant=standard, each of the eight cells in every direction image must be a distinct animation frame for spriteContext.action, not a repeated still pose. Static or nearly static rows are failed material even when the directions, padding, and chroma key are otherwise correct.",
+    "For idle breathing, the feet must stay planted but at least three of the five direction sheets must show readable frame-to-frame breathing or secondary motion: 2-4px shoulder/chest/head change plus hair, scarf, cape, cloth, or equipment follow-through. Regenerate any direction whose frames look nearly identical before writing the final manifest.",
     "For standard direction-split output, keep generated direction images, source manifests, contact sheets, comparison sheets, QA files, and all candidates under outbox/.staging/<job-id>/ or another non-root work folder while work is still in progress. Do not write, copy, or manifest root outbox <job-id>-*.png or <job-id>-manifest.json until the complete five-direction set is normalized, self-checked, and no further regeneration is planned. The final runner step must publish only the five final direction PNG/WebP files into the root outbox and write the final <job-id>-manifest.json last. Image Cockpit will verify artifacts after the runner has finished and may rewrite the manifest after completion.",
     "For workflowMode=sprite-generate, inspect all cells before writing the final file and retry if any head is cut off, feet are missing, a head appears below feet, scale changes wildly, or the background is not flat chroma key.",
     "For workflowMode=sprite-generate with spriteContext.variant=hatch-pet, use the installed hatch-pet skill/scripts when available. Build a Codex pet atlas with 8 columns x 9 rows, 192x208 cells, 1536x1872 total, transparent unused cells, contact-sheet QA, and final spritesheet PNG/WebP returned with the job id filename prefix. Include pet.json as a sidecar if produced.",
@@ -1271,12 +1275,13 @@ function shouldBuildDiagnostic(status: CodexRunnerStatus) {
 
 async function getJobDiagnostic(status: CodexRunnerStatus): Promise<CodexJobDiagnostic | null> {
   const resultDir = status.outboxDir ?? outboxDir;
-  const [sidecar, logText, hasReturnedImage] = await Promise.all([
+  const [sidecar, logText, hasReturnedImage, directionSplitArtifact] = await Promise.all([
     findJobSidecar(status.jobId, resultDir),
     readShortFile(status.logPath),
-    hasOutboxImageForJob(status.jobId, resultDir)
+    hasOutboxImageForJob(status.jobId, resultDir),
+    inspectDirectionSplitArtifact(status.jobId, resultDir)
   ]);
-  if (status.state === "completed" && hasReturnedImage) return null;
+  if (status.state === "completed" && (hasReturnedImage || directionSplitArtifact.detected)) return null;
 
   const sidecarKind = normalizeFailureKind(sidecar?.reasonKind);
   const combinedText = [status.message, sidecar?.text, logText].filter(Boolean).join("\n").toLowerCase();
@@ -1414,28 +1419,37 @@ function readSidecarReasonKind(name: string, text: string) {
 
 async function hasOutboxImageForJob(jobId: string, resultDir = outboxDir) {
   try {
+    const entries = await readdir(resultDir, { withFileTypes: true });
     const directionSplitArtifact = await inspectDirectionSplitArtifact(jobId, resultDir);
     if (directionSplitArtifact.detected) {
       const classification = directionSplitArtifact.qualityGate?.classification;
       return (
         directionSplitArtifact.ready ||
-        directionSplitArtifact.files.length > 0 ||
         directionSplitArtifact.quality === "bronze" ||
         classification === "quality-failed" ||
         classification === "quarantined-candidate"
       );
     }
 
-    const entries = await readdir(resultDir, { withFileTypes: true });
-    const names = entries
+    const genericImageReturned = entries
       .filter((entry) => entry.isFile())
       .map((entry) => entry.name)
-      .filter((name) => isJobOutboxFileName(jobId, name))
-      .filter((name) => !shouldIgnoreOutboxResultName(name));
-    return names.some((name) => Boolean(mimeTypeForImage(name)) && !isDirectionSplitDirectionFileName(name, jobId));
+      .some((name) => isGenericImageOutboxFileName(jobId, name));
+    if (genericImageReturned) return true;
+
+    return false;
   } catch {
     return false;
   }
+}
+
+function isGenericImageOutboxFileName(jobId: string, name: string) {
+  return (
+    isJobOutboxFileName(jobId, name) &&
+    !shouldIgnoreOutboxResultName(name) &&
+    Boolean(mimeTypeForImage(name)) &&
+    !isDirectionSplitDirectionFileName(name, jobId)
+  );
 }
 
 function isJobOutboxFileName(jobId: string, name: string) {
@@ -1806,6 +1820,7 @@ async function findDirectionSplitSourceManifest(jobId: string, resultDir = outbo
     try {
       const [text, fileStat] = await Promise.all([readFile(candidate.path, "utf8"), stat(candidate.path)]);
       const parsed = JSON.parse(text) as Record<string, unknown>;
+      if (!isDirectionSplitSourceManifestObject(parsed)) continue;
       loaded.push({
         ...candidate,
         parsed,
@@ -1816,6 +1831,10 @@ async function findDirectionSplitSourceManifest(jobId: string, resultDir = outbo
     }
   }
   return loaded.sort(sortDirectionSplitManifests)[0] ?? null;
+}
+
+function isDirectionSplitSourceManifestObject(value: Record<string, unknown>) {
+  return value.schema === directionSplitManifestSchema;
 }
 
 function sortDirectionSplitManifests(left: NonNullable<DirectionSplitSourceManifest>, right: NonNullable<DirectionSplitSourceManifest>) {

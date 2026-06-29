@@ -1,0 +1,358 @@
+[
+  {
+    "id": "browser-delivery-2026-06-29T20-41-36-820Z",
+    "sourceType": "browser file upload from public prompt example",
+    "sourceName": "animation-delivery-source.png",
+    "motionPreset": "Jump / Hop",
+    "motionPresetId": "jump-hop",
+    "startedAt": "2026-06-29T20:41:36.844Z",
+    "finishedAt": "2026-06-29T21:06:52.442Z",
+    "browserUrl": "http://127.0.0.1:54159/",
+    "resultStatus": "pass",
+    "qualityRank": "silver-or-better",
+    "deliveredToHistory": true,
+    "deliveredToPreview": true,
+    "downloadableFinal": true,
+    "outboxFinalPresent": true,
+    "falseSuccess": false,
+    "stuckRunning": false,
+    "failureCodes": [],
+    "failureReason": "",
+    "uiFailureText": "",
+    "artifactPaths": {
+      "screenshot": "docs/qa/image-animation-recursive-browser-test-loop/20260630-0150/trials/T08-S06-jump-hop/browser-final-1280x720.png",
+      "reportDir": "docs/qa/image-animation-recursive-browser-test-loop/20260630-0150/trials/T08-S06-jump-hop",
+      "handoffDir": "docs/qa/image-animation-recursive-browser-test-loop/20260630-0150/trials/T08-S06-jump-hop/handoff"
+    },
+    "browserSnapshot": {
+      "buttons": [
+        "Diagnose",
+        "Recover Results",
+        "Repair Cockpit",
+        "Pixel Art Generation",
+        "Image Editing",
+        "Animation Generation",
+        "Upload Pixel Art",
+        "Choose Animation",
+        "Generate Animation",
+        "Generated from animation-delivery-source.png",
+        "Download",
+        "Recover Results",
+        "Dedupe History",
+        "codex-job-2026-06-29T20-41-39-458Z-f9f320-direction-split-animation-sheet.png 6月30日 06:06 • Local Inbox 2048x1280 • generate",
+        "animation-delivery-source.png 6月30日 05:41 • Local File 1024x1024 • import",
+        "forest-mage-sheet.png 6月30日 05:41 • Local File 1774x887 • sample",
+        "Collapse logs",
+        "Animated GIF",
+        "Animated WebP",
+        "Sprite Sheet",
+        "Export Animation Pack"
+      ],
+      "disabledButtons": [],
+      "historyItems": 3,
+      "codexJobRows": 0,
+      "codexFailureCards": 0,
+      "codexFailureTexts": [],
+      "codexLogCards": 1,
+      "canvasPreviewMode": "result",
+      "canvasPreviewName": "codex-job-2026-06-29T20-41-39-458Z-f9f320-direction-split-animation-sheet.png",
+      "resultPreviewImages": 1,
+      "resultPreviewLoaded": true,
+      "animationPreviewImages": 6,
+      "directionPreviewRows": 5,
+      "resultDownloadPanelComplete": true,
+      "downloadModalVisible": true,
+      "downloadModalButtons": [
+        "Animated GIF",
+        "Animated WebP",
+        "Sprite Sheet",
+        "Export Animation Pack"
+      ],
+      "animationSourceStatus": "Generated from\nanimation-delivery-source.png",
+      "animationSourceCard": "Selected source animation-delivery-source.png 1024x1024 / import",
+      "browserErrors": [],
+      "textOmitted": true,
+      "textLength": 19553,
+      "hasAnimationGeneratedText": true
+    },
+    "outboxResults": [
+      {
+        "name": "codex-job-2026-06-29T20-41-39-458Z-f9f320-manifest.json",
+        "path": "docs/qa/image-animation-recursive-browser-test-loop/20260630-0150/trials/T08-S06-jump-hop/handoff/outbox/codex-job-2026-06-29T20-41-39-458Z-f9f320-manifest.json",
+        "mimeType": "application/json",
+        "qualityGate": {
+          "classification": "usable-final",
+          "reason": "server verified",
+          "code": "direction-split-server-verified",
+          "historyAllowed": true,
+          "downloadAllowed": true,
+          "retryable": false
+        },
+        "artifact": {
+          "jobId": "codex-job-2026-06-29T20-41-39-458Z-f9f320",
+          "artifactKind": "direction-split",
+          "detected": true,
+          "ready": true,
+          "verified": true,
+          "quality": "gold",
+          "reason": "server verified",
+          "missingDirections": [],
+          "warnings": [],
+          "files": [
+            "codex-job-2026-06-29T20-41-39-458Z-f9f320-front.png",
+            "codex-job-2026-06-29T20-41-39-458Z-f9f320-front-three-quarter.png",
+            "codex-job-2026-06-29T20-41-39-458Z-f9f320-side.png",
+            "codex-job-2026-06-29T20-41-39-458Z-f9f320-back-three-quarter.png",
+            "codex-job-2026-06-29T20-41-39-458Z-f9f320-back.png"
+          ],
+          "manifestName": "codex-job-2026-06-29T20-41-39-458Z-f9f320-manifest.json",
+          "stable": true,
+          "candidateCount": 6,
+          "qualityGate": {
+            "classification": "usable-final",
+            "reason": "server verified",
+            "code": "direction-split-server-verified",
+            "historyAllowed": true,
+            "downloadAllowed": true,
+            "retryable": false
+          },
+          "chromaKey": {
+            "expected": "green",
+            "manifest": "green"
+          }
+        }
+      },
+      {
+        "name": "codex-job-2026-06-29T20-41-39-458Z-f9f320-back.png",
+        "path": "docs/qa/image-animation-recursive-browser-test-loop/20260630-0150/trials/T08-S06-jump-hop/handoff/outbox/codex-job-2026-06-29T20-41-39-458Z-f9f320-back.png",
+        "mimeType": "image/png",
+        "qualityGate": {
+          "classification": "usable-final",
+          "reason": "server verified",
+          "code": "direction-split-server-verified",
+          "historyAllowed": true,
+          "downloadAllowed": true,
+          "retryable": false
+        },
+        "artifact": {
+          "jobId": "codex-job-2026-06-29T20-41-39-458Z-f9f320",
+          "artifactKind": "direction-split",
+          "detected": true,
+          "ready": true,
+          "verified": true,
+          "quality": "gold",
+          "reason": "server verified",
+          "missingDirections": [],
+          "warnings": [],
+          "files": [
+            "codex-job-2026-06-29T20-41-39-458Z-f9f320-front.png",
+            "codex-job-2026-06-29T20-41-39-458Z-f9f320-front-three-quarter.png",
+            "codex-job-2026-06-29T20-41-39-458Z-f9f320-side.png",
+            "codex-job-2026-06-29T20-41-39-458Z-f9f320-back-three-quarter.png",
+            "codex-job-2026-06-29T20-41-39-458Z-f9f320-back.png"
+          ],
+          "manifestName": "codex-job-2026-06-29T20-41-39-458Z-f9f320-manifest.json",
+          "stable": true,
+          "candidateCount": 6,
+          "qualityGate": {
+            "classification": "usable-final",
+            "reason": "server verified",
+            "code": "direction-split-server-verified",
+            "historyAllowed": true,
+            "downloadAllowed": true,
+            "retryable": false
+          },
+          "chromaKey": {
+            "expected": "green",
+            "manifest": "green"
+          }
+        }
+      },
+      {
+        "name": "codex-job-2026-06-29T20-41-39-458Z-f9f320-back-three-quarter.png",
+        "path": "docs/qa/image-animation-recursive-browser-test-loop/20260630-0150/trials/T08-S06-jump-hop/handoff/outbox/codex-job-2026-06-29T20-41-39-458Z-f9f320-back-three-quarter.png",
+        "mimeType": "image/png",
+        "qualityGate": {
+          "classification": "usable-final",
+          "reason": "server verified",
+          "code": "direction-split-server-verified",
+          "historyAllowed": true,
+          "downloadAllowed": true,
+          "retryable": false
+        },
+        "artifact": {
+          "jobId": "codex-job-2026-06-29T20-41-39-458Z-f9f320",
+          "artifactKind": "direction-split",
+          "detected": true,
+          "ready": true,
+          "verified": true,
+          "quality": "gold",
+          "reason": "server verified",
+          "missingDirections": [],
+          "warnings": [],
+          "files": [
+            "codex-job-2026-06-29T20-41-39-458Z-f9f320-front.png",
+            "codex-job-2026-06-29T20-41-39-458Z-f9f320-front-three-quarter.png",
+            "codex-job-2026-06-29T20-41-39-458Z-f9f320-side.png",
+            "codex-job-2026-06-29T20-41-39-458Z-f9f320-back-three-quarter.png",
+            "codex-job-2026-06-29T20-41-39-458Z-f9f320-back.png"
+          ],
+          "manifestName": "codex-job-2026-06-29T20-41-39-458Z-f9f320-manifest.json",
+          "stable": true,
+          "candidateCount": 6,
+          "qualityGate": {
+            "classification": "usable-final",
+            "reason": "server verified",
+            "code": "direction-split-server-verified",
+            "historyAllowed": true,
+            "downloadAllowed": true,
+            "retryable": false
+          },
+          "chromaKey": {
+            "expected": "green",
+            "manifest": "green"
+          }
+        }
+      },
+      {
+        "name": "codex-job-2026-06-29T20-41-39-458Z-f9f320-side.png",
+        "path": "docs/qa/image-animation-recursive-browser-test-loop/20260630-0150/trials/T08-S06-jump-hop/handoff/outbox/codex-job-2026-06-29T20-41-39-458Z-f9f320-side.png",
+        "mimeType": "image/png",
+        "qualityGate": {
+          "classification": "usable-final",
+          "reason": "server verified",
+          "code": "direction-split-server-verified",
+          "historyAllowed": true,
+          "downloadAllowed": true,
+          "retryable": false
+        },
+        "artifact": {
+          "jobId": "codex-job-2026-06-29T20-41-39-458Z-f9f320",
+          "artifactKind": "direction-split",
+          "detected": true,
+          "ready": true,
+          "verified": true,
+          "quality": "gold",
+          "reason": "server verified",
+          "missingDirections": [],
+          "warnings": [],
+          "files": [
+            "codex-job-2026-06-29T20-41-39-458Z-f9f320-front.png",
+            "codex-job-2026-06-29T20-41-39-458Z-f9f320-front-three-quarter.png",
+            "codex-job-2026-06-29T20-41-39-458Z-f9f320-side.png",
+            "codex-job-2026-06-29T20-41-39-458Z-f9f320-back-three-quarter.png",
+            "codex-job-2026-06-29T20-41-39-458Z-f9f320-back.png"
+          ],
+          "manifestName": "codex-job-2026-06-29T20-41-39-458Z-f9f320-manifest.json",
+          "stable": true,
+          "candidateCount": 6,
+          "qualityGate": {
+            "classification": "usable-final",
+            "reason": "server verified",
+            "code": "direction-split-server-verified",
+            "historyAllowed": true,
+            "downloadAllowed": true,
+            "retryable": false
+          },
+          "chromaKey": {
+            "expected": "green",
+            "manifest": "green"
+          }
+        }
+      },
+      {
+        "name": "codex-job-2026-06-29T20-41-39-458Z-f9f320-front-three-quarter.png",
+        "path": "docs/qa/image-animation-recursive-browser-test-loop/20260630-0150/trials/T08-S06-jump-hop/handoff/outbox/codex-job-2026-06-29T20-41-39-458Z-f9f320-front-three-quarter.png",
+        "mimeType": "image/png",
+        "qualityGate": {
+          "classification": "usable-final",
+          "reason": "server verified",
+          "code": "direction-split-server-verified",
+          "historyAllowed": true,
+          "downloadAllowed": true,
+          "retryable": false
+        },
+        "artifact": {
+          "jobId": "codex-job-2026-06-29T20-41-39-458Z-f9f320",
+          "artifactKind": "direction-split",
+          "detected": true,
+          "ready": true,
+          "verified": true,
+          "quality": "gold",
+          "reason": "server verified",
+          "missingDirections": [],
+          "warnings": [],
+          "files": [
+            "codex-job-2026-06-29T20-41-39-458Z-f9f320-front.png",
+            "codex-job-2026-06-29T20-41-39-458Z-f9f320-front-three-quarter.png",
+            "codex-job-2026-06-29T20-41-39-458Z-f9f320-side.png",
+            "codex-job-2026-06-29T20-41-39-458Z-f9f320-back-three-quarter.png",
+            "codex-job-2026-06-29T20-41-39-458Z-f9f320-back.png"
+          ],
+          "manifestName": "codex-job-2026-06-29T20-41-39-458Z-f9f320-manifest.json",
+          "stable": true,
+          "candidateCount": 6,
+          "qualityGate": {
+            "classification": "usable-final",
+            "reason": "server verified",
+            "code": "direction-split-server-verified",
+            "historyAllowed": true,
+            "downloadAllowed": true,
+            "retryable": false
+          },
+          "chromaKey": {
+            "expected": "green",
+            "manifest": "green"
+          }
+        }
+      },
+      {
+        "name": "codex-job-2026-06-29T20-41-39-458Z-f9f320-front.png",
+        "path": "docs/qa/image-animation-recursive-browser-test-loop/20260630-0150/trials/T08-S06-jump-hop/handoff/outbox/codex-job-2026-06-29T20-41-39-458Z-f9f320-front.png",
+        "mimeType": "image/png",
+        "qualityGate": {
+          "classification": "usable-final",
+          "reason": "server verified",
+          "code": "direction-split-server-verified",
+          "historyAllowed": true,
+          "downloadAllowed": true,
+          "retryable": false
+        },
+        "artifact": {
+          "jobId": "codex-job-2026-06-29T20-41-39-458Z-f9f320",
+          "artifactKind": "direction-split",
+          "detected": true,
+          "ready": true,
+          "verified": true,
+          "quality": "gold",
+          "reason": "server verified",
+          "missingDirections": [],
+          "warnings": [],
+          "files": [
+            "codex-job-2026-06-29T20-41-39-458Z-f9f320-front.png",
+            "codex-job-2026-06-29T20-41-39-458Z-f9f320-front-three-quarter.png",
+            "codex-job-2026-06-29T20-41-39-458Z-f9f320-side.png",
+            "codex-job-2026-06-29T20-41-39-458Z-f9f320-back-three-quarter.png",
+            "codex-job-2026-06-29T20-41-39-458Z-f9f320-back.png"
+          ],
+          "manifestName": "codex-job-2026-06-29T20-41-39-458Z-f9f320-manifest.json",
+          "stable": true,
+          "candidateCount": 6,
+          "qualityGate": {
+            "classification": "usable-final",
+            "reason": "server verified",
+            "code": "direction-split-server-verified",
+            "historyAllowed": true,
+            "downloadAllowed": true,
+            "retryable": false
+          },
+          "chromaKey": {
+            "expected": "green",
+            "manifest": "green"
+          }
+        }
+      }
+    ],
+    "outboxError": ""
+  }
+]

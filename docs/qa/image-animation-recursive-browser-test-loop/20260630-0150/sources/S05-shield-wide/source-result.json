@@ -1,0 +1,88 @@
+{
+  "sourceId": "S05-shield-wide",
+  "sourcePrompt": "Create a single full-body pixel-art character asset: a sturdy shield bearer with broad round shield, stocky armor, short cape, wide defensive silhouette, front-facing idle-animation-ready stance, both feet visible, centered on canvas, transparent background preferred, crisp 32-bit RPG pixel-art rendering, no scenery, no readable text, no logo, no watermark. Keep the complete shield rim, helmet or hair, shoulders, cape edge, hands, and both feet fully inside the image with comfortable transparent padding. If transparency is unavailable, use a perfectly flat solid #00ff00 chroma-key background with no shadows, gradients, texture, floor plane, or lighting variation.",
+  "sourceNegativePrompt": "blur, text, watermark, logo, cropped shield, cropped shoulders, cropped head, cropped feet, cut off body, extra limbs, duplicate character, scenery, detailed background, floor shadow, photorealistic, 3d render, vector art",
+  "sourceNotes": "Real browser QA source S05. Generate a wide shield bearer, full-body, transparent/chroma background, no placeholder.",
+  "startedAt": "2026-06-29T17:21:41.512Z",
+  "finishedAt": "2026-06-29T17:31:02.837Z",
+  "browserUrl": "http://127.0.0.1:58672/",
+  "viewport": "1280x720",
+  "jobId": "codex-job-2026-06-29T17-21-41-553Z-hxmwwj",
+  "resultStatus": "pass",
+  "qualityRank": "visual-review",
+  "failurePrimary": "",
+  "deliveredToHistory": true,
+  "deliveredToPreview": true,
+  "outboxFinalPresent": true,
+  "falseSuccess": false,
+  "blockedReason": "",
+  "selectedHistoryName": "codex-job-2026-06-29T17-21-41-553Z-hxmwwj.png",
+  "selectedHistoryMeta": "codex-job-2026-06-29T17-21-41-553Z-hxmwwj.png 6月30日 02:31 • Local Inbox 1024x1024 • inbox",
+  "artifactPaths": {
+    "sourceImage": "docs/qa/image-animation-recursive-browser-test-loop/20260630-0150/sources/S05-shield-wide/S05-shield-wide.png",
+    "beforeScreenshot": "docs/qa/image-animation-recursive-browser-test-loop/20260630-0150/sources/S05-shield-wide/source-before-terminal.png",
+    "afterScreenshot": "docs/qa/image-animation-recursive-browser-test-loop/20260630-0150/sources/S05-shield-wide/source-after-terminal.png",
+    "handoffDir": "docs/qa/image-animation-recursive-browser-test-loop/20260630-0150/sources/S05-shield-wide/handoff"
+  },
+  "outboxResults": [
+    {
+      "name": "codex-job-2026-06-29T17-21-41-553Z-hxmwwj-manifest.json",
+      "path": "docs/qa/image-animation-recursive-browser-test-loop/20260630-0150/sources/S05-shield-wide/handoff/outbox/codex-job-2026-06-29T17-21-41-553Z-hxmwwj-manifest.json",
+      "mimeType": "application/json",
+      "size": 1049,
+      "qualityGate": {
+        "classification": "usable-final",
+        "reason": "Usable final result.",
+        "code": "usable-final",
+        "historyAllowed": true,
+        "downloadAllowed": true,
+        "retryable": false
+      }
+    },
+    {
+      "name": "codex-job-2026-06-29T17-21-41-553Z-hxmwwj.png",
+      "path": "docs/qa/image-animation-recursive-browser-test-loop/20260630-0150/sources/S05-shield-wide/handoff/outbox/codex-job-2026-06-29T17-21-41-553Z-hxmwwj.png",
+      "mimeType": "image/png",
+      "size": 865272,
+      "qualityGate": {
+        "classification": "usable-final",
+        "reason": "Usable final result.",
+        "code": "usable-final",
+        "historyAllowed": true,
+        "downloadAllowed": true,
+        "retryable": false
+      }
+    }
+  ],
+  "outboxError": "",
+  "browserSnapshot": {
+    "buttons": [
+      "Diagnose",
+      "Recover Results",
+      "Repair Cockpit",
+      "Pixel Art Generation",
+      "Image Editing",
+      "Animation Generation",
+      "Prompt Examples",
+      "Generate Pixel Art",
+      "Download",
+      "Recover Results",
+      "Dedupe History",
+      "codex-job-2026-06-29T17-21-41-553Z-hxmwwj.png 6月30日 02:31 • Local Inbox 1024x1024 • inbox",
+      "forest-mage-sheet.png 6月30日 02:21 • Local File 1774x887 • sample",
+      "Collapse logs"
+    ],
+    "disabledButtons": [],
+    "historyItems": 2,
+    "codexJobRows": 0,
+    "codexFailureCards": 0,
+    "codexFailureTexts": [],
+    "canvasPreviewMode": "result",
+    "canvasPreviewName": "codex-job-2026-06-29T17-21-41-553Z-hxmwwj.png",
+    "selectedHistoryName": "codex-job-2026-06-29T17-21-41-553Z-hxmwwj.png",
+    "selectedHistoryMeta": "codex-job-2026-06-29T17-21-41-553Z-hxmwwj.png 6月30日 02:31 • Local Inbox 1024x1024 • inbox",
+    "browserErrors": [],
+    "textOmitted": true,
+    "textLength": 17641
+  }
+}

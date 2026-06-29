@@ -1,0 +1,514 @@
+{
+  "schema": "image-cockpit.animation-browser-trials.v1",
+  "createdAt": "2026-06-29T21:33:35.512Z",
+  "trials": [
+    {
+      "trialFolder": "T01-S01-idle-breathing",
+      "trialId": "T01",
+      "sourceId": "S01",
+      "jobId": "codex-job-2026-06-29T17-43-41-675Z-02ewpz",
+      "motionPreset": "Idle Breathing",
+      "motionPresetId": "idle-breathing",
+      "startedAt": "2026-06-29T17:43:38.332Z",
+      "finishedAt": "2026-06-29T18:00:38.565Z",
+      "browserUrl": "http://127.0.0.1:53685/",
+      "resultStatus": "fail",
+      "qualityRank": "failed",
+      "deliveredToHistory": false,
+      "deliveredToPreview": false,
+      "downloadableFinal": false,
+      "outboxFinalPresent": false,
+      "falseSuccess": false,
+      "stuckRunning": false,
+      "failureCodes": [
+        "not_delivered_to_history",
+        "not_delivered_to_preview",
+        "not_downloadable_final",
+        "outbox_final_missing"
+      ],
+      "failureTags": [
+        "motion_too_static_idle",
+        "quality_gate_blocked_history_delivery",
+        "quality_gate_blocked_preview_delivery",
+        "quality_gate_blocked_download"
+      ],
+      "failureSummary": "not_delivered_to_history, not_delivered_to_preview, not_downloadable_final, outbox_final_missing; ui: Material quality gate failed 6月30日 03:00 • codex-job-2026-06-29T17-43-41-675Z-02ewpz Animation: idle / Locked animation preset: Idle Breathing. Preset motion (candidate 1/1) The ",
+      "browserSnapshot": {
+        "historyItems": 2,
+        "animationPreviewImages": 0,
+        "directionPreviewRows": 0,
+        "downloadModalButtons": [
+          "PNG"
+        ],
+        "browserErrors": []
+      },
+      "artifacts": {
+        "screenshot": "docs/qa/image-animation-recursive-browser-test-loop/20260630-0150/trials/T01-S01-idle-breathing/browser-final-1280x720.png",
+        "reportDir": "docs/qa/image-animation-recursive-browser-test-loop/20260630-0150/trials/T01-S01-idle-breathing",
+        "browserTrials": "docs/qa/image-animation-recursive-browser-test-loop/20260630-0150/trials/T01-S01-idle-breathing/browser-trials.json",
+        "deliverySummary": "docs/qa/image-animation-recursive-browser-test-loop/20260630-0150/trials/T01-S01-idle-breathing/delivery-rate-summary.json"
+      }
+    },
+    {
+      "trialFolder": "T01R-S01-idle-breathing-motion-contract",
+      "trialId": "T01R",
+      "sourceId": "S01",
+      "jobId": "codex-job-2026-06-29T18-03-43-987Z-nojti3",
+      "motionPreset": "Idle Breathing",
+      "motionPresetId": "idle-breathing",
+      "startedAt": "2026-06-29T18:03:39.677Z",
+      "finishedAt": "2026-06-29T18:22:30.738Z",
+      "browserUrl": "http://127.0.0.1:60868/",
+      "resultStatus": "fail",
+      "qualityRank": "failed",
+      "deliveredToHistory": false,
+      "deliveredToPreview": false,
+      "downloadableFinal": false,
+      "outboxFinalPresent": false,
+      "falseSuccess": false,
+      "stuckRunning": false,
+      "failureCodes": [
+        "not_delivered_to_history",
+        "not_delivered_to_preview",
+        "not_downloadable_final",
+        "outbox_final_missing"
+      ],
+      "failureTags": [
+        "motion_too_static_idle",
+        "quality_gate_blocked_history_delivery",
+        "quality_gate_blocked_preview_delivery",
+        "quality_gate_blocked_download"
+      ],
+      "failureSummary": "not_delivered_to_history, not_delivered_to_preview, not_downloadable_final, outbox_final_missing; ui: Material quality gate failed 6月30日 03:22 • codex-job-2026-06-29T18-03-43-987Z-nojti3 Animation: idle / Locked animation preset: Idle Breathing. Preset motion (candidate 1/1) The ",
+      "browserSnapshot": {
+        "historyItems": 2,
+        "animationPreviewImages": 0,
+        "directionPreviewRows": 0,
+        "downloadModalButtons": [
+          "PNG"
+        ],
+        "browserErrors": []
+      },
+      "artifacts": {
+        "screenshot": "docs/qa/image-animation-recursive-browser-test-loop/20260630-0150/trials/T01R-S01-idle-breathing-motion-contract/browser-final-1280x720.png",
+        "reportDir": "docs/qa/image-animation-recursive-browser-test-loop/20260630-0150/trials/T01R-S01-idle-breathing-motion-contract",
+        "browserTrials": "docs/qa/image-animation-recursive-browser-test-loop/20260630-0150/trials/T01R-S01-idle-breathing-motion-contract/browser-trials.json",
+        "deliverySummary": "docs/qa/image-animation-recursive-browser-test-loop/20260630-0150/trials/T01R-S01-idle-breathing-motion-contract/delivery-rate-summary.json"
+      }
+    },
+    {
+      "trialFolder": "T01RR-S01-idle-breathing-threshold",
+      "trialId": "T01RR",
+      "sourceId": "S01",
+      "jobId": "codex-job-2026-06-29T18-25-58-029Z-m4fjll",
+      "motionPreset": "Idle Breathing",
+      "motionPresetId": "idle-breathing",
+      "startedAt": "2026-06-29T18:25:54.349Z",
+      "finishedAt": "2026-06-29T18:38:55.250Z",
+      "browserUrl": "http://127.0.0.1:50917/",
+      "resultStatus": "pass",
+      "qualityRank": "silver-or-better",
+      "deliveredToHistory": true,
+      "deliveredToPreview": true,
+      "downloadableFinal": true,
+      "outboxFinalPresent": true,
+      "falseSuccess": false,
+      "stuckRunning": false,
+      "failureCodes": [],
+      "failureTags": [],
+      "failureSummary": "",
+      "browserSnapshot": {
+        "historyItems": 3,
+        "animationPreviewImages": 6,
+        "directionPreviewRows": 5,
+        "downloadModalButtons": [
+          "Animated GIF",
+          "Animated WebP",
+          "Sprite Sheet",
+          "Export Animation Pack"
+        ],
+        "browserErrors": []
+      },
+      "artifacts": {
+        "screenshot": "docs/qa/image-animation-recursive-browser-test-loop/20260630-0150/trials/T01RR-S01-idle-breathing-threshold/browser-final-1280x720.png",
+        "reportDir": "docs/qa/image-animation-recursive-browser-test-loop/20260630-0150/trials/T01RR-S01-idle-breathing-threshold",
+        "browserTrials": "docs/qa/image-animation-recursive-browser-test-loop/20260630-0150/trials/T01RR-S01-idle-breathing-threshold/browser-trials.json",
+        "deliverySummary": "docs/qa/image-animation-recursive-browser-test-loop/20260630-0150/trials/T01RR-S01-idle-breathing-threshold/delivery-rate-summary.json"
+      }
+    },
+    {
+      "trialFolder": "T02-S01-run-cycle",
+      "trialId": "T02",
+      "sourceId": "S01",
+      "jobId": "codex-job-2026-06-29T18-42-23-365Z-b42ldj",
+      "motionPreset": "Run Cycle",
+      "motionPresetId": "run-cycle",
+      "startedAt": "2026-06-29T18:42:20.189Z",
+      "finishedAt": "2026-06-29T18:59:09.954Z",
+      "browserUrl": "http://127.0.0.1:61325/",
+      "resultStatus": "fail",
+      "qualityRank": "failed",
+      "deliveredToHistory": false,
+      "deliveredToPreview": false,
+      "downloadableFinal": false,
+      "outboxFinalPresent": false,
+      "falseSuccess": false,
+      "stuckRunning": false,
+      "failureCodes": [
+        "not_delivered_to_history",
+        "not_delivered_to_preview",
+        "not_downloadable_final",
+        "outbox_final_missing"
+      ],
+      "failureTags": [
+        "standard_motion_gate_false_positive_back_run",
+        "quality_gate_blocked_history_delivery",
+        "quality_gate_blocked_preview_delivery",
+        "quality_gate_blocked_download"
+      ],
+      "failureSummary": "not_delivered_to_history, not_delivered_to_preview, not_downloadable_final, outbox_final_missing; ui: Material quality gate failed 6月30日 03:59 • codex-job-2026-06-29T18-42-23-365Z-b42ldj Animation: run / Locked animation preset: Run Cycle. Preset motion deta (candidate 1/1) The c",
+      "browserSnapshot": {
+        "historyItems": 2,
+        "animationPreviewImages": 0,
+        "directionPreviewRows": 0,
+        "downloadModalButtons": [
+          "PNG"
+        ],
+        "browserErrors": []
+      },
+      "artifacts": {
+        "screenshot": "docs/qa/image-animation-recursive-browser-test-loop/20260630-0150/trials/T02-S01-run-cycle/browser-final-1280x720.png",
+        "reportDir": "docs/qa/image-animation-recursive-browser-test-loop/20260630-0150/trials/T02-S01-run-cycle",
+        "browserTrials": "docs/qa/image-animation-recursive-browser-test-loop/20260630-0150/trials/T02-S01-run-cycle/browser-trials.json",
+        "deliverySummary": "docs/qa/image-animation-recursive-browser-test-loop/20260630-0150/trials/T02-S01-run-cycle/delivery-rate-summary.json"
+      }
+    },
+    {
+      "trialFolder": "T02R-S01-run-cycle-standard-threshold",
+      "trialId": "T02R",
+      "sourceId": "S01",
+      "jobId": "codex-job-2026-06-29T19-01-35-887Z-i73kip",
+      "motionPreset": "Run Cycle",
+      "motionPresetId": "run-cycle",
+      "startedAt": "2026-06-29T19:01:33.116Z",
+      "finishedAt": "2026-06-29T19:14:44.386Z",
+      "browserUrl": "http://127.0.0.1:62310/",
+      "resultStatus": "pass",
+      "qualityRank": "silver-or-better",
+      "deliveredToHistory": true,
+      "deliveredToPreview": true,
+      "downloadableFinal": true,
+      "outboxFinalPresent": true,
+      "falseSuccess": false,
+      "stuckRunning": false,
+      "failureCodes": [],
+      "failureTags": [],
+      "failureSummary": "",
+      "browserSnapshot": {
+        "historyItems": 3,
+        "animationPreviewImages": 6,
+        "directionPreviewRows": 5,
+        "downloadModalButtons": [
+          "Animated GIF",
+          "Animated WebP",
+          "Sprite Sheet",
+          "Export Animation Pack"
+        ],
+        "browserErrors": []
+      },
+      "artifacts": {
+        "screenshot": "docs/qa/image-animation-recursive-browser-test-loop/20260630-0150/trials/T02R-S01-run-cycle-standard-threshold/browser-final-1280x720.png",
+        "reportDir": "docs/qa/image-animation-recursive-browser-test-loop/20260630-0150/trials/T02R-S01-run-cycle-standard-threshold",
+        "browserTrials": "docs/qa/image-animation-recursive-browser-test-loop/20260630-0150/trials/T02R-S01-run-cycle-standard-threshold/browser-trials.json",
+        "deliverySummary": "docs/qa/image-animation-recursive-browser-test-loop/20260630-0150/trials/T02R-S01-run-cycle-standard-threshold/delivery-rate-summary.json"
+      }
+    },
+    {
+      "trialFolder": "T03-S02-walk-cycle",
+      "trialId": "T03",
+      "sourceId": "S02",
+      "jobId": "codex-job-2026-06-29T19-15-43-739Z-0tgn8i",
+      "motionPreset": "Walk Cycle",
+      "motionPresetId": "walk-cycle",
+      "startedAt": "2026-06-29T19:15:39.907Z",
+      "finishedAt": "2026-06-29T19:27:35.755Z",
+      "browserUrl": "http://127.0.0.1:57903/",
+      "resultStatus": "fail",
+      "qualityRank": "failed",
+      "deliveredToHistory": false,
+      "deliveredToPreview": false,
+      "downloadableFinal": false,
+      "outboxFinalPresent": false,
+      "falseSuccess": false,
+      "stuckRunning": false,
+      "failureCodes": [
+        "not_delivered_to_history",
+        "not_delivered_to_preview",
+        "not_downloadable_final",
+        "outbox_final_missing"
+      ],
+      "failureTags": [
+        "small_source_walk_motion_too_subtle",
+        "quality_gate_blocked_history_delivery",
+        "quality_gate_blocked_preview_delivery",
+        "quality_gate_blocked_download"
+      ],
+      "failureSummary": "not_delivered_to_history, not_delivered_to_preview, not_downloadable_final, outbox_final_missing; ui: Material quality gate failed 6月30日 04:27 • codex-job-2026-06-29T19-15-43-739Z-0tgn8i Animation: walk / Locked animation preset: Walk Cycle. Preset motion det (candidate 1/1) The ",
+      "browserSnapshot": {
+        "historyItems": 2,
+        "animationPreviewImages": 0,
+        "directionPreviewRows": 0,
+        "downloadModalButtons": [
+          "PNG"
+        ],
+        "browserErrors": []
+      },
+      "artifacts": {
+        "screenshot": "docs/qa/image-animation-recursive-browser-test-loop/20260630-0150/trials/T03-S02-walk-cycle/browser-final-1280x720.png",
+        "reportDir": "docs/qa/image-animation-recursive-browser-test-loop/20260630-0150/trials/T03-S02-walk-cycle",
+        "browserTrials": "docs/qa/image-animation-recursive-browser-test-loop/20260630-0150/trials/T03-S02-walk-cycle/browser-trials.json",
+        "deliverySummary": "docs/qa/image-animation-recursive-browser-test-loop/20260630-0150/trials/T03-S02-walk-cycle/delivery-rate-summary.json"
+      }
+    },
+    {
+      "trialFolder": "T04-S02-talk-emote",
+      "trialId": "T04",
+      "sourceId": "S02",
+      "jobId": "codex-job-2026-06-29T19-28-23-260Z-e1g3yp",
+      "motionPreset": "Talk / NPC Reaction",
+      "motionPresetId": "talk",
+      "startedAt": "2026-06-29T19:28:19.923Z",
+      "finishedAt": "2026-06-29T19:43:45.560Z",
+      "browserUrl": "http://127.0.0.1:56180/",
+      "resultStatus": "pass",
+      "qualityRank": "silver-or-better",
+      "deliveredToHistory": true,
+      "deliveredToPreview": true,
+      "downloadableFinal": true,
+      "outboxFinalPresent": true,
+      "falseSuccess": false,
+      "stuckRunning": false,
+      "failureCodes": [],
+      "failureTags": [],
+      "failureSummary": "",
+      "browserSnapshot": {
+        "historyItems": 3,
+        "animationPreviewImages": 6,
+        "directionPreviewRows": 5,
+        "downloadModalButtons": [
+          "Animated GIF",
+          "Animated WebP",
+          "Sprite Sheet",
+          "Export Animation Pack"
+        ],
+        "browserErrors": []
+      },
+      "artifacts": {
+        "screenshot": "docs/qa/image-animation-recursive-browser-test-loop/20260630-0150/trials/T04-S02-talk-emote/browser-final-1280x720.png",
+        "reportDir": "docs/qa/image-animation-recursive-browser-test-loop/20260630-0150/trials/T04-S02-talk-emote",
+        "browserTrials": "docs/qa/image-animation-recursive-browser-test-loop/20260630-0150/trials/T04-S02-talk-emote/browser-trials.json",
+        "deliverySummary": "docs/qa/image-animation-recursive-browser-test-loop/20260630-0150/trials/T04-S02-talk-emote/delivery-rate-summary.json"
+      }
+    },
+    {
+      "trialFolder": "T05-S03-spell-cast",
+      "trialId": "T05",
+      "sourceId": "S03",
+      "jobId": "codex-job-2026-06-29T19-45-14-466Z-c3bvei",
+      "motionPreset": "Spell Cast",
+      "motionPresetId": "spell-cast",
+      "startedAt": "2026-06-29T19:45:11.278Z",
+      "finishedAt": "2026-06-29T20:04:12.014Z",
+      "browserUrl": "http://127.0.0.1:59509/",
+      "resultStatus": "pass",
+      "qualityRank": "silver-or-better",
+      "deliveredToHistory": true,
+      "deliveredToPreview": true,
+      "downloadableFinal": true,
+      "outboxFinalPresent": true,
+      "falseSuccess": false,
+      "stuckRunning": false,
+      "failureCodes": [],
+      "failureTags": [],
+      "failureSummary": "",
+      "browserSnapshot": {
+        "historyItems": 3,
+        "animationPreviewImages": 6,
+        "directionPreviewRows": 5,
+        "downloadModalButtons": [
+          "Animated GIF",
+          "Animated WebP",
+          "Sprite Sheet",
+          "Export Animation Pack"
+        ],
+        "browserErrors": []
+      },
+      "artifacts": {
+        "screenshot": "docs/qa/image-animation-recursive-browser-test-loop/20260630-0150/trials/T05-S03-spell-cast/browser-final-1280x720.png",
+        "reportDir": "docs/qa/image-animation-recursive-browser-test-loop/20260630-0150/trials/T05-S03-spell-cast",
+        "browserTrials": "docs/qa/image-animation-recursive-browser-test-loop/20260630-0150/trials/T05-S03-spell-cast/browser-trials.json",
+        "deliverySummary": "docs/qa/image-animation-recursive-browser-test-loop/20260630-0150/trials/T05-S03-spell-cast/delivery-rate-summary.json"
+      }
+    },
+    {
+      "trialFolder": "T06-S04-basic-attack",
+      "trialId": "T06",
+      "sourceId": "S04",
+      "jobId": "codex-job-2026-06-29T20-04-38-219Z-s3njbe",
+      "motionPreset": "Basic Attack",
+      "motionPresetId": "basic-attack",
+      "startedAt": "2026-06-29T20:04:34.066Z",
+      "finishedAt": "2026-06-29T20:24:20.244Z",
+      "browserUrl": "http://127.0.0.1:55417/",
+      "resultStatus": "pass",
+      "qualityRank": "silver-or-better",
+      "deliveredToHistory": true,
+      "deliveredToPreview": true,
+      "downloadableFinal": true,
+      "outboxFinalPresent": true,
+      "falseSuccess": false,
+      "stuckRunning": false,
+      "failureCodes": [],
+      "failureTags": [],
+      "failureSummary": "",
+      "browserSnapshot": {
+        "historyItems": 3,
+        "animationPreviewImages": 6,
+        "directionPreviewRows": 5,
+        "downloadModalButtons": [
+          "Animated GIF",
+          "Animated WebP",
+          "Sprite Sheet",
+          "Export Animation Pack"
+        ],
+        "browserErrors": []
+      },
+      "artifacts": {
+        "screenshot": "docs/qa/image-animation-recursive-browser-test-loop/20260630-0150/trials/T06-S04-basic-attack/browser-final-1280x720.png",
+        "reportDir": "docs/qa/image-animation-recursive-browser-test-loop/20260630-0150/trials/T06-S04-basic-attack",
+        "browserTrials": "docs/qa/image-animation-recursive-browser-test-loop/20260630-0150/trials/T06-S04-basic-attack/browser-trials.json",
+        "deliverySummary": "docs/qa/image-animation-recursive-browser-test-loop/20260630-0150/trials/T06-S04-basic-attack/delivery-rate-summary.json"
+      }
+    },
+    {
+      "trialFolder": "T07-S05-guard-block",
+      "trialId": "T07",
+      "sourceId": "S05",
+      "jobId": "codex-job-2026-06-29T20-25-23-281Z-owwwf7",
+      "motionPreset": "Guard / Block",
+      "motionPresetId": "guard-block",
+      "startedAt": "2026-06-29T20:25:20.195Z",
+      "finishedAt": "2026-06-29T20:40:30.944Z",
+      "browserUrl": "http://127.0.0.1:62806/",
+      "resultStatus": "pass",
+      "qualityRank": "silver-or-better",
+      "deliveredToHistory": true,
+      "deliveredToPreview": true,
+      "downloadableFinal": true,
+      "outboxFinalPresent": true,
+      "falseSuccess": false,
+      "stuckRunning": false,
+      "failureCodes": [],
+      "failureTags": [],
+      "failureSummary": "",
+      "browserSnapshot": {
+        "historyItems": 3,
+        "animationPreviewImages": 6,
+        "directionPreviewRows": 5,
+        "downloadModalButtons": [
+          "Animated GIF",
+          "Animated WebP",
+          "Sprite Sheet",
+          "Export Animation Pack"
+        ],
+        "browserErrors": []
+      },
+      "artifacts": {
+        "screenshot": "docs/qa/image-animation-recursive-browser-test-loop/20260630-0150/trials/T07-S05-guard-block/browser-final-1280x720.png",
+        "reportDir": "docs/qa/image-animation-recursive-browser-test-loop/20260630-0150/trials/T07-S05-guard-block",
+        "browserTrials": "docs/qa/image-animation-recursive-browser-test-loop/20260630-0150/trials/T07-S05-guard-block/browser-trials.json",
+        "deliverySummary": "docs/qa/image-animation-recursive-browser-test-loop/20260630-0150/trials/T07-S05-guard-block/delivery-rate-summary.json"
+      }
+    },
+    {
+      "trialFolder": "T08-S06-jump-hop",
+      "trialId": "T08",
+      "sourceId": "S06",
+      "jobId": "codex-job-2026-06-29T20-41-39-458Z-f9f320",
+      "motionPreset": "Jump / Hop",
+      "motionPresetId": "jump-hop",
+      "startedAt": "2026-06-29T20:41:36.844Z",
+      "finishedAt": "2026-06-29T21:06:52.442Z",
+      "browserUrl": "http://127.0.0.1:54159/",
+      "resultStatus": "pass",
+      "qualityRank": "silver-or-better",
+      "deliveredToHistory": true,
+      "deliveredToPreview": true,
+      "downloadableFinal": true,
+      "outboxFinalPresent": true,
+      "falseSuccess": false,
+      "stuckRunning": false,
+      "failureCodes": [],
+      "failureTags": [],
+      "failureSummary": "",
+      "browserSnapshot": {
+        "historyItems": 3,
+        "animationPreviewImages": 6,
+        "directionPreviewRows": 5,
+        "downloadModalButtons": [
+          "Animated GIF",
+          "Animated WebP",
+          "Sprite Sheet",
+          "Export Animation Pack"
+        ],
+        "browserErrors": []
+      },
+      "artifacts": {
+        "screenshot": "docs/qa/image-animation-recursive-browser-test-loop/20260630-0150/trials/T08-S06-jump-hop/browser-final-1280x720.png",
+        "reportDir": "docs/qa/image-animation-recursive-browser-test-loop/20260630-0150/trials/T08-S06-jump-hop",
+        "browserTrials": "docs/qa/image-animation-recursive-browser-test-loop/20260630-0150/trials/T08-S06-jump-hop/browser-trials.json",
+        "deliverySummary": "docs/qa/image-animation-recursive-browser-test-loop/20260630-0150/trials/T08-S06-jump-hop/delivery-rate-summary.json"
+      }
+    },
+    {
+      "trialFolder": "T09-S06-hurt-reaction",
+      "trialId": "T09",
+      "sourceId": "S06",
+      "jobId": "codex-job-2026-06-29T21-07-52-682Z-njbfg2",
+      "motionPreset": "Hurt Reaction",
+      "motionPresetId": "hurt-reaction",
+      "startedAt": "2026-06-29T21:07:49.519Z",
+      "finishedAt": "2026-06-29T21:30:25.584Z",
+      "browserUrl": "http://127.0.0.1:63087/",
+      "resultStatus": "pass",
+      "qualityRank": "silver-or-better",
+      "deliveredToHistory": true,
+      "deliveredToPreview": true,
+      "downloadableFinal": true,
+      "outboxFinalPresent": true,
+      "falseSuccess": false,
+      "stuckRunning": false,
+      "failureCodes": [],
+      "failureTags": [],
+      "failureSummary": "",
+      "browserSnapshot": {
+        "historyItems": 3,
+        "animationPreviewImages": 6,
+        "directionPreviewRows": 5,
+        "downloadModalButtons": [
+          "Animated GIF",
+          "Animated WebP",
+          "Sprite Sheet",
+          "Export Animation Pack"
+        ],
+        "browserErrors": []
+      },
+      "artifacts": {
+        "screenshot": "docs/qa/image-animation-recursive-browser-test-loop/20260630-0150/trials/T09-S06-hurt-reaction/browser-final-1280x720.png",
+        "reportDir": "docs/qa/image-animation-recursive-browser-test-loop/20260630-0150/trials/T09-S06-hurt-reaction",
+        "browserTrials": "docs/qa/image-animation-recursive-browser-test-loop/20260630-0150/trials/T09-S06-hurt-reaction/browser-trials.json",
+        "deliverySummary": "docs/qa/image-animation-recursive-browser-test-loop/20260630-0150/trials/T09-S06-hurt-reaction/delivery-rate-summary.json"
+      }
+    }
+  ]
+}

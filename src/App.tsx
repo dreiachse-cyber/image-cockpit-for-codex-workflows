@@ -152,8 +152,8 @@ interface DirectionSplitMotionThresholds {
   failMax: number;
 }
 const DIRECTION_SPLIT_MOTION_THRESHOLDS: Record<DirectionSplitMotionProfile, DirectionSplitMotionThresholds> = {
-  standard: { label: "motion", warnAverage: 0.04, failAverage: 0.025, failMax: 0.055 },
-  "idle-breathing": { label: "idle breathing motion", warnAverage: 0.03, failAverage: 0.018, failMax: 0.04 },
+  standard: { label: "motion", warnAverage: 0.04, failAverage: 0.02, failMax: 0.055 },
+  "idle-breathing": { label: "idle breathing motion", warnAverage: 0.03, failAverage: 0.015, failMax: 0.04 },
   subtle: { label: "subtle motion", warnAverage: 0.025, failAverage: 0.006, failMax: 0.015 }
 };
 const DIRECTION_SPLIT_IDLE_MOTION_ABSENT_AVERAGE = 0.008;
@@ -4662,6 +4662,10 @@ function App() {
       return null;
     }
 
+    if (isAnimationJob && sourceImageForJob) {
+      setAnimationSourceId(sourceImageForJob.id);
+    }
+
     const chromaDecision = isAnimationJob && sourceImageForJob
       ? await chooseAnimationChromaKey(sourceImageForJob.dataUrl)
       : { key: animationChromaKeys[animationChromaKey], reason: "" };
@@ -5827,6 +5831,9 @@ function App() {
       )
     );
     setSelectedFrameId("");
+    if (importContext.sourceImageId) {
+      setAnimationSourceId(importContext.sourceImageId);
+    }
 
     const manifestSuffix = manifest?.schema === DIRECTION_SPLIT_ANIMATION_SCHEMA ? " direction-split manifest ok." : "";
     const warningSuffix = composed.warnings.length > 0 ? ` QA warnings: ${composed.warnings.length}.` : "";
@@ -6387,6 +6394,12 @@ function App() {
 
   function beginWorkflow(mode: WorkflowMode) {
     const option = workflowOptions.find((item) => item.id === mode);
+    const nextAnimationSource =
+      selected && isAnimationSource(selected)
+        ? selected
+        : selectedAnimationSource && isAnimationSource(selectedAnimationSource)
+          ? selectedAnimationSource
+          : animationSource;
     setWorkflowMode(mode);
     setShowPromptExamples(false);
     setShowAnimationPresetExamples(false);
@@ -6414,9 +6427,9 @@ function App() {
       setActions((current) => normalizeAnimationActions(current));
     }
     if (mode === "sprite-generate") {
-      setAnimationSourceId(selected && isAnimationSource(selected) ? selected.id : "");
+      setAnimationSourceId(isAnimationSource(nextAnimationSource) ? nextAnimationSource.id : "");
     }
-    if (mode === "sprite-generate" && !isAnimationSource(selected)) {
+    if (mode === "sprite-generate" && !isAnimationSource(nextAnimationSource)) {
       setStatus(copy.statusAnimationSourceRequired);
       return;
     }

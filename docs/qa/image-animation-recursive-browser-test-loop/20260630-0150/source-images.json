@@ -1,0 +1,144 @@
+{
+  "schema": "image-cockpit.source-browser-generation.v1",
+  "createdAt": "2026-06-29T21:33:35.512Z",
+  "sources": [
+    {
+      "sourceId": "S01-human-hero",
+      "jobId": "codex-job-2026-06-29T16-57-56-550Z-m5hl98",
+      "resultStatus": "pass",
+      "qualityRank": "visual-review",
+      "deliveredToHistory": true,
+      "deliveredToPreview": true,
+      "outboxFinalPresent": true,
+      "falseSuccess": false,
+      "sourcePrompt": "Create a single full-body pixel-art character asset: a young male fantasy hero with light armor, blue scarf, simple longsword at his side, confident relaxed pose, clean heroic silhouette, centered idle-animation-ready stance, clear feet contact, transparent background preferred, crisp 32-bit RPG pixel-art rendering, no scenery, no readable text, no logo, no watermark. Keep the entire head, hair, hands, sword, scarf, and both feet fully inside the image with comfortable transparent padding around the character. If transparency is unavailable, use a perfectly flat solid #00ff00 chroma-key background with no shadows, gradients, texture, floor plane, or lighting variation.",
+      "sourceNegativePrompt": "blur, text, watermark, logo, cropped head, cropped feet, cut off body, extra limbs, duplicate character, scenery, detailed background, floor shadow, photorealistic, 3d render, vector art",
+      "sourceNotes": "Real browser QA source S01. Generate a single animation-ready full-body source character. Avoid scenery and crop. Return a real PNG/WebP with the job id prefix, no placeholder.",
+      "issueTags": [
+        "source_generation_pass"
+      ],
+      "artifacts": {
+        "sourceImage": "docs/qa/image-animation-recursive-browser-test-loop/20260630-0150/sources/S01-human-hero/S01-human-hero.png",
+        "beforeScreenshot": "docs/qa/image-animation-recursive-browser-test-loop/20260630-0150/sources/S01-human-hero/source-before-terminal.png",
+        "afterScreenshot": "docs/qa/image-animation-recursive-browser-test-loop/20260630-0150/sources/S01-human-hero/source-after-terminal.png",
+        "report": "docs/qa/image-animation-recursive-browser-test-loop/20260630-0150/sources/S01-human-hero/report.md"
+      }
+    },
+    {
+      "sourceId": "S02-small-character",
+      "jobId": "codex-job-2026-06-29T17-03-53-558Z-m118j6",
+      "resultStatus": "pass",
+      "qualityRank": "visual-review",
+      "deliveredToHistory": true,
+      "deliveredToPreview": true,
+      "outboxFinalPresent": true,
+      "falseSuccess": false,
+      "sourcePrompt": "Create a single full-body pixel-art character asset: a small village child adventurer with a round face, simple green tunic, tiny satchel, short boots, compact chibi-like proportions, centered idle-animation-ready stance, clear feet contact, transparent background preferred, crisp 32-bit RPG pixel-art rendering, no scenery, no readable text, no logo, no watermark. Keep the entire head, hands, satchel, and both feet fully inside the image with generous transparent padding. If transparency is unavailable, use a perfectly flat solid #00ff00 chroma-key background with no shadows, gradients, texture, floor plane, or lighting variation.",
+      "sourceNegativePrompt": "blur, text, watermark, logo, cropped head, cropped feet, cut off body, extra limbs, duplicate character, scenery, detailed background, floor shadow, photorealistic, 3d render, vector art",
+      "sourceNotes": "Real browser QA source S02. Generate a small compact full-body source character. Avoid scenery and crop. Return a real PNG/WebP with the job id prefix, no placeholder.",
+      "issueTags": [
+        "source_generation_pass"
+      ],
+      "artifacts": {
+        "sourceImage": "docs/qa/image-animation-recursive-browser-test-loop/20260630-0150/sources/S02-small-character/S02-small-character.png",
+        "beforeScreenshot": "docs/qa/image-animation-recursive-browser-test-loop/20260630-0150/sources/S02-small-character/source-before-terminal.png",
+        "afterScreenshot": "docs/qa/image-animation-recursive-browser-test-loop/20260630-0150/sources/S02-small-character/source-after-terminal.png",
+        "report": "docs/qa/image-animation-recursive-browser-test-loop/20260630-0150/sources/S02-small-character/report.md"
+      }
+    },
+    {
+      "sourceId": "S03-robed-mage",
+      "jobId": "codex-job-2026-06-29T17-10-04-101Z-2q4i2l",
+      "resultStatus": "pass",
+      "qualityRank": "visual-review",
+      "deliveredToHistory": true,
+      "deliveredToPreview": true,
+      "outboxFinalPresent": true,
+      "falseSuccess": false,
+      "sourcePrompt": "Create a single full-body pixel-art character asset: an adult hooded robed mage with layered purple robe, wooden staff held close to the body, calm front-facing idle-animation-ready stance, robe hem and both feet visible, clean readable silhouette, centered on canvas, transparent background preferred, crisp 32-bit RPG pixel-art rendering, no scenery, no readable text, no logo, no watermark. Keep the full hood, staff top, sleeves, robe hem, and feet completely inside the image with comfortable transparent padding. If transparency is unavailable, use a perfectly flat solid #00ff00 chroma-key background with no shadows, gradients, texture, floor plane, or lighting variation.",
+      "sourceNegativePrompt": "blur, text, watermark, logo, cropped hood, cropped staff, cropped feet, cut off body, extra limbs, duplicate character, scenery, detailed background, floor shadow, photorealistic, 3d render, vector art",
+      "sourceNotes": "Real browser QA source S03. Generate a robed mage with close-held staff, full-body, transparent/chroma background, no placeholder.",
+      "issueTags": [
+        "source_generation_pass"
+      ],
+      "artifacts": {
+        "sourceImage": "docs/qa/image-animation-recursive-browser-test-loop/20260630-0150/sources/S03-robed-mage/S03-robed-mage.png",
+        "beforeScreenshot": "docs/qa/image-animation-recursive-browser-test-loop/20260630-0150/sources/S03-robed-mage/source-before-terminal.png",
+        "afterScreenshot": "docs/qa/image-animation-recursive-browser-test-loop/20260630-0150/sources/S03-robed-mage/source-after-terminal.png",
+        "report": "docs/qa/image-animation-recursive-browser-test-loop/20260630-0150/sources/S03-robed-mage/report.md"
+      }
+    },
+    {
+      "sourceId": "S04-long-weapon",
+      "jobId": "codex-job-2026-06-29T17-14-40-686Z-03uv6o",
+      "resultStatus": "pass",
+      "qualityRank": "visual-review",
+      "deliveredToHistory": true,
+      "deliveredToPreview": true,
+      "outboxFinalPresent": true,
+      "falseSuccess": false,
+      "sourcePrompt": "Create a single full-body pixel-art character asset: a young spear lancer with light leather armor and a long spear held diagonally but fully contained inside the canvas, balanced front-facing idle-animation-ready stance, clean readable silhouette, both feet visible, centered on canvas, transparent background preferred, crisp 32-bit RPG pixel-art rendering, no scenery, no readable text, no logo, no watermark. Keep the complete spear tip, spear butt, head, hands, and both feet fully inside the image with comfortable transparent padding. If transparency is unavailable, use a perfectly flat solid #00ff00 chroma-key background with no shadows, gradients, texture, floor plane, or lighting variation.",
+      "sourceNegativePrompt": "blur, text, watermark, logo, cropped spear, cropped weapon, cropped head, cropped feet, cut off body, extra limbs, duplicate character, scenery, detailed background, floor shadow, photorealistic, 3d render, vector art",
+      "sourceNotes": "Real browser QA source S04. Generate a long-weapon lancer with complete spear inside canvas, full-body, transparent/chroma background, no placeholder.",
+      "issueTags": [
+        "source_generation_pass",
+        "runner_no_image_returned_false_negative_fixed",
+        "chroma_edge_remnant_minor"
+      ],
+      "artifacts": {
+        "sourceImage": "docs/qa/image-animation-recursive-browser-test-loop/20260630-0150/sources/S04-long-weapon/S04-long-weapon.png",
+        "beforeScreenshot": "docs/qa/image-animation-recursive-browser-test-loop/20260630-0150/sources/S04-long-weapon/source-before-terminal.png",
+        "afterScreenshot": "docs/qa/image-animation-recursive-browser-test-loop/20260630-0150/sources/S04-long-weapon/source-after-terminal.png",
+        "report": "docs/qa/image-animation-recursive-browser-test-loop/20260630-0150/sources/S04-long-weapon/report.md"
+      }
+    },
+    {
+      "sourceId": "S05-shield-wide",
+      "jobId": "codex-job-2026-06-29T17-21-41-553Z-hxmwwj",
+      "resultStatus": "pass",
+      "qualityRank": "visual-review",
+      "deliveredToHistory": true,
+      "deliveredToPreview": true,
+      "outboxFinalPresent": true,
+      "falseSuccess": false,
+      "sourcePrompt": "Create a single full-body pixel-art character asset: a sturdy shield bearer with broad round shield, stocky armor, short cape, wide defensive silhouette, front-facing idle-animation-ready stance, both feet visible, centered on canvas, transparent background preferred, crisp 32-bit RPG pixel-art rendering, no scenery, no readable text, no logo, no watermark. Keep the complete shield rim, helmet or hair, shoulders, cape edge, hands, and both feet fully inside the image with comfortable transparent padding. If transparency is unavailable, use a perfectly flat solid #00ff00 chroma-key background with no shadows, gradients, texture, floor plane, or lighting variation.",
+      "sourceNegativePrompt": "blur, text, watermark, logo, cropped shield, cropped shoulders, cropped head, cropped feet, cut off body, extra limbs, duplicate character, scenery, detailed background, floor shadow, photorealistic, 3d render, vector art",
+      "sourceNotes": "Real browser QA source S05. Generate a wide shield bearer, full-body, transparent/chroma background, no placeholder.",
+      "issueTags": [
+        "source_generation_pass_after_child_retry",
+        "source_checkerboard_baked_background_recovered",
+        "chroma_edge_remnant_minor"
+      ],
+      "artifacts": {
+        "sourceImage": "docs/qa/image-animation-recursive-browser-test-loop/20260630-0150/sources/S05-shield-wide/S05-shield-wide.png",
+        "beforeScreenshot": "docs/qa/image-animation-recursive-browser-test-loop/20260630-0150/sources/S05-shield-wide/source-before-terminal.png",
+        "afterScreenshot": "docs/qa/image-animation-recursive-browser-test-loop/20260630-0150/sources/S05-shield-wide/source-after-terminal.png",
+        "report": "docs/qa/image-animation-recursive-browser-test-loop/20260630-0150/sources/S05-shield-wide/report.md"
+      }
+    },
+    {
+      "sourceId": "S06-mascot-dragon",
+      "jobId": "codex-job-2026-06-29T17-31-40-585Z-b6qo2r",
+      "resultStatus": "pass",
+      "qualityRank": "visual-review",
+      "deliveredToHistory": true,
+      "deliveredToPreview": true,
+      "outboxFinalPresent": true,
+      "falseSuccess": false,
+      "sourcePrompt": "Create a single full-body pixel-art character asset: a small friendly baby dragon mascot with tiny wings, curled tail, short legs, expressive face, compact squat body, front three-quarter idle-animation-ready stance, clear feet contact, centered on canvas, transparent background preferred, crisp 32-bit RPG pixel-art rendering, no scenery, no readable text, no logo, no watermark. Keep the complete head, horn tips, wings, tail curl, claws, and both feet fully inside the image with generous transparent padding. If transparency is unavailable, use a perfectly flat solid #00ff00 chroma-key background with no shadows, gradients, texture, floor plane, or lighting variation.",
+      "sourceNegativePrompt": "blur, text, watermark, logo, cropped horns, cropped wings, cropped tail, cropped feet, cut off body, extra limbs, duplicate character, scenery, detailed background, floor shadow, photorealistic, 3d render, vector art",
+      "sourceNotes": "Real browser QA source S06. Generate a small mascot creature with complete wings/tail/feet inside canvas, transparent/chroma background, no placeholder.",
+      "issueTags": [
+        "source_generation_pass_after_timestamp_retry",
+        "source_path_detection_unstable_recovered",
+        "runner_no_image_returned_false_negative_fixed"
+      ],
+      "artifacts": {
+        "sourceImage": "docs/qa/image-animation-recursive-browser-test-loop/20260630-0150/sources/S06-mascot-dragon/S06-mascot-dragon.png",
+        "beforeScreenshot": "docs/qa/image-animation-recursive-browser-test-loop/20260630-0150/sources/S06-mascot-dragon/source-before-terminal.png",
+        "afterScreenshot": "docs/qa/image-animation-recursive-browser-test-loop/20260630-0150/sources/S06-mascot-dragon/source-after-terminal.png",
+        "report": "docs/qa/image-animation-recursive-browser-test-loop/20260630-0150/sources/S06-mascot-dragon/report.md"
+      }
+    }
+  ]
+}
