@@ -182,7 +182,7 @@ describe("settings recovery environment report", () => {
 
   it("builds a report from summaries without including prompts or image data", () => {
     const report = buildImageCockpitEnvironmentReport({
-      appVersion: "0.1.1",
+      appVersion: "0.1.2",
       appUrl: "http://127.0.0.1:5181",
       route: "/?settings=environment",
       userAgent: "Vitest Browser",
@@ -193,7 +193,7 @@ describe("settings recovery environment report", () => {
       localTime: "2026-06-27T02:41:00.000Z",
       apiHealth: {
         app: "image-cockpit",
-        version: "0.1.1",
+        version: "0.1.2",
         role: "api",
         port: 8794,
         handoffRoot: ["C:", "Users", "alice", "project", "codex-handoff"].join("\\"),

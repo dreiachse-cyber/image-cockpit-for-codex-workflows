@@ -5,7 +5,7 @@ import { extname, join } from "node:path";
 const root = process.cwd();
 const failures = [];
 const privacyTextExtensions = new Set(["", ".css", ".html", ".js", ".json", ".md", ".mjs", ".ts", ".tsx", ".txt", ".yaml", ".yml"]);
-const expectedPackageVersion = "0.1.1";
+const expectedPackageVersion = "0.1.2";
 
 function slugPromptExampleTitle(value) {
   return value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
@@ -37,6 +37,7 @@ const requiredFiles = [
   "scripts/capture-readme-screenshots.mjs",
   "docs/qa/completed-codex-job-import-storage-quota.md",
   "docs/qa/local-state-oom-safe-mode-retention.md",
+  "docs/qa/v0.1.2-release-prep.md",
   "docs/qa/v0.1.1-release-prep.md",
   "docs/qa/cockpit-health-repair-supervisor.md",
   "docs/qa/deduplicate-bronze-candidate-import-retry.md",
@@ -68,6 +69,7 @@ const requiredFiles = [
   "docs/release/v0.1.0-checklist.md",
   "docs/release/v0.1.0-runbook.md",
   "docs/release/v0.1.0-release-notes.md",
+  "docs/release/v0.1.2-release-notes.md",
   "docs/release/v0.1.1-release-notes.md",
   "docs/release/v0.1.0-owner-review.md",
   "docs/release/v0.1.0-final-audit.md",
@@ -187,6 +189,8 @@ const requiredVerifyCommands = [
 const requiredReviewLocalCommands = ["npm run verify", "npm run ui:smoke", "npm run codex:smoke"];
 const requiredReadmeLinks = [
   "CHANGELOG.md",
+  "docs/release/v0.1.2-release-notes.md",
+  "docs/qa/v0.1.2-release-prep.md",
   "docs/release/v0.1.1-release-notes.md",
   "docs/qa/v0.1.1-release-prep.md",
   "docs/release/v0.1.0-release-notes.md",
@@ -249,7 +253,7 @@ function checkPackageJson() {
   }
 
   if (packageJson.version !== expectedPackageVersion) {
-    failures.push(`package.json version should be ${expectedPackageVersion} for the v0.1.1 release prep.`);
+    failures.push(`package.json version should be ${expectedPackageVersion} for the current release prep.`);
   }
 
   const appText = readText("src/App.tsx");
@@ -265,10 +269,10 @@ function checkPackageJson() {
   const packageLock = readJson("package-lock.json");
   if (packageLock) {
     if (packageLock.version !== expectedPackageVersion) {
-      failures.push(`package-lock.json version should be ${expectedPackageVersion} for the v0.1.1 release prep.`);
+      failures.push(`package-lock.json version should be ${expectedPackageVersion} for the current release prep.`);
     }
     if (packageLock.packages?.[""]?.version !== expectedPackageVersion) {
-      failures.push(`package-lock root package version should be ${expectedPackageVersion} for the v0.1.1 release prep.`);
+      failures.push(`package-lock root package version should be ${expectedPackageVersion} for the current release prep.`);
     }
   }
 
@@ -1561,14 +1565,16 @@ function checkReleaseDocs() {
   const checklist = readText("docs/release/v0.1.0-checklist.md");
   const runbook = readText("docs/release/v0.1.0-runbook.md");
   const releaseNotes = readText("docs/release/v0.1.0-release-notes.md");
+  const releaseNotes012 = readText("docs/release/v0.1.2-release-notes.md");
   const releaseNotes011 = readText("docs/release/v0.1.1-release-notes.md");
+  const releasePrepQa012 = readText("docs/qa/v0.1.2-release-prep.md");
   const releasePrepQa = readText("docs/qa/v0.1.1-release-prep.md");
   const ownerReview = readText("docs/release/v0.1.0-owner-review.md");
   const finalAudit = readText("docs/release/v0.1.0-final-audit.md");
   const acceptanceEvidence = readText("docs/release/v0.1.0-acceptance-evidence.md");
   const ownerDecision = readText("docs/release/v0.1.0-owner-decision.md");
   const manualHandoff = readText("docs/usage/manual-handoff.md");
-  if (!readme || !checklist || !runbook || !releaseNotes || !releaseNotes011 || !releasePrepQa || !ownerReview || !finalAudit || !acceptanceEvidence || !ownerDecision || !manualHandoff) return;
+  if (!readme || !checklist || !runbook || !releaseNotes || !releaseNotes012 || !releaseNotes011 || !releasePrepQa012 || !releasePrepQa || !ownerReview || !finalAudit || !acceptanceEvidence || !ownerDecision || !manualHandoff) return;
 
   requiredReadmeLinks.forEach((link) => {
     if (!readme.includes(link)) {
@@ -1592,6 +1598,48 @@ function checkReleaseDocs() {
   ].forEach((line) => {
     if (!runbook.includes(line)) {
       failures.push(`Release runbook is missing safety line: ${line}`);
+    }
+  });
+
+  [
+    "v0.1.2",
+    "Animation delivery reliability",
+    "running Codex job progress indicators",
+    "first two usable candidates",
+    "quality gate",
+    "detached direction-split outputs",
+    "current-regime animation delivery rollup",
+    "browser UI smoke",
+    "package.json",
+    "package-lock.json",
+    "The app still does not call OpenAI APIs directly",
+    "No model weights, API keys, tokens",
+    "npm run verify",
+    "npm run ui:smoke"
+  ].forEach((line) => {
+    if (!releaseNotes012.includes(line)) {
+      failures.push(`v0.1.2 release notes are missing expected content: ${line}`);
+    }
+  });
+
+  [
+    "v0.1.2 Release Prep QA",
+    "Target commit before release-prep changes: `91d75e4`",
+    "package.json version: `0.1.2`",
+    "package-lock.json root version: `0.1.2`",
+    "docs/release/v0.1.2-release-notes.md",
+    "npm run doctor",
+    "npm run typecheck",
+    "npm test",
+    "npm run build",
+    "npm run smoke",
+    "npm run release:audit",
+    "npm run ui:smoke",
+    "git diff --check",
+    "Tag push / GitHub Release"
+  ].forEach((line) => {
+    if (!releasePrepQa012.includes(line)) {
+      failures.push(`v0.1.2 release prep QA is missing expected content: ${line}`);
     }
   });
 

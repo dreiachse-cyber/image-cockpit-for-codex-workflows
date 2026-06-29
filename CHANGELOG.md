@@ -4,6 +4,37 @@
 
 No unreleased changes yet.
 
+## v0.1.2 - 2026-06-29
+
+Animation delivery reliability and operator-feedback update after v0.1.1.
+
+### Added
+
+- Animation delivery browser smoke, baseline, and rollup scripts for measuring real browser delivery success.
+- QA evidence for animation delivery reliability, including current-regime rollups and long-timeout real browser trials.
+- Running Codex job progress indicators in the right job panel, compact log cards, and fullscreen log header.
+- Settings recovery environment reporting for user-copyable diagnostics.
+
+### Changed
+
+- Standard animation generation now quarantines low-quality candidate artifacts instead of importing debug, raw, bronze, contact-sheet, or partial outputs as final results.
+- Animation tournament handling adopts the first two usable candidates for AB scoring and publishes only the winning final artifact.
+- Animation delivery waits longer for real Codex/imagegen runs before treating jobs as stale, reducing false failures on slow but successful jobs.
+- Recovery and import filters are stricter about detached direction-split outputs, local-generator artifacts, and stale intermediate files.
+
+### Fixed
+
+- Detached direction-split outputs can be recovered into final sheets when manifest and direction PNGs are available.
+- Completed Codex jobs with hidden or staged animation artifacts no longer leave the UI in misleading success/running states.
+- Animation results with chroma, transparency, bbox, or motion-quality problems are blocked from normal history/download flows until they pass the quality gate.
+- The UI now shows motion progress for long-running jobs without pretending the job is complete.
+
+### Verification
+
+- v0.1.2 release prep tracks package/app/API version `0.1.2`.
+- Current-regime animation delivery rollup reached the documented delivery SLO before release prep.
+- Browser UI smoke covers the running-job progress indicator with a mock runner.
+
 ## v0.1.1 - 2026-06-27
 
 Stability, recovery, and animation workflow update after the v0.1.0 public baseline.
