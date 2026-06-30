@@ -27,6 +27,7 @@ Additional real Codex runner / built-in `image_gen` trials were run from the loc
 - Added type/style/palette selectors, frame count, canvas size, sheet layout, loop mode, anchor, and preview background switch.
 - Added effect-specific result preview: GIF preview, sheet preview, frame timeline, quality strip, and history card metadata.
 - Added effect export options in the shared download modal: Effect GIF, Effect APNG, Sheet PNG, Frames ZIP, Metadata JSON, and Effect Pack ZIP.
+- Reduced Effect result cards in the Results list to a compact two-line summary (`Effect: category` plus rank/frame/size) so long sheet filenames and metadata do not crowd the card.
 - Effect results are treated as final export assets in Image Editing and cannot expose numbered edit regions.
 
 ## Handoff Payload
@@ -92,7 +93,7 @@ The Effect Pack ZIP includes `preview.gif` and `preview.apng` alongside `sheet.p
 
 ## Desktop / Mobile
 
-- Desktop viewport `1280x720`: verified by full `npm run ui:smoke` and effect-only screenshot QA. The latest APNG pass used `IMAGE_COCKPIT_UI_SMOKE_ONLY_EFFECT=1 node scripts/ui-smoke.mjs` and full `node scripts/ui-smoke.mjs`; the effect APNG download contained `acTL` with 8 frames and loop count 0.
+- Desktop viewport `1280x720`: verified by full `npm run ui:smoke` and effect-only screenshot QA. The latest APNG pass used `IMAGE_COCKPIT_UI_SMOKE_ONLY_EFFECT=1 node scripts/ui-smoke.mjs` and full `node scripts/ui-smoke.mjs`; the effect APNG download contained `acTL` with 8 frames and loop count 0. A follow-up screenshot pass verified compact Effect result cards in the Results list.
 - Mobile/responsive behavior: `npm run ui:smoke` covers responsive log/fullscreen checks and workflow tab wrapping; the workflow tabs now use a 2x2 layout inside the source panel to keep localized labels within height limits.
 
 ## Evidence Files

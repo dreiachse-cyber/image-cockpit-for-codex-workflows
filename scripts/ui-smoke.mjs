@@ -1424,7 +1424,8 @@ async function assertEffectCategoryMatrix() {
       };
     })()`);
     const gifLoop = await waitForEffectGifLoop(category.label);
-    assert(result.selected.includes(`Effect • ${category.id}`), `Effect Animation should label selected history as ${category.id}: ${result.selected}`);
+    assert(result.selected.includes(`Effect: ${category.label}`), `Effect Animation should label selected history compactly as ${category.label}: ${result.selected}`);
+    assert(!result.selected.includes("-effect-sheet.png"), `Effect Animation selected history card should hide long sheet filenames: ${result.selected}`);
     assert(result.previewMode === "result", `Effect Animation ${category.label} should stay in result preview mode, got ${result.previewMode}`);
     assert(result.previewName, `Effect Animation ${category.label} should expose a selected preview name`);
     assert(result.frameButtons === 8, `Effect Animation ${category.label} should render 8 timeline frames, got ${result.frameButtons}`);

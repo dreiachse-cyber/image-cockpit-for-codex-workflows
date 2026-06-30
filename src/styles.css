@@ -2446,6 +2446,9 @@ button:disabled {
 
 .history-item.effect-result {
   border-left: 3px solid #3b82f6;
+  min-height: 62px;
+  padding: 6px 8px;
+  gap: 8px;
 }
 
 .history-item img {
@@ -2463,6 +2466,11 @@ button:disabled {
     0 8px,
     8px -8px,
     -8px 0;
+}
+
+.history-item.effect-result img {
+  width: 54px;
+  height: 44px;
 }
 
 .codex-failure-card {
@@ -2530,6 +2538,10 @@ button:disabled {
   min-width: 0;
 }
 
+.history-item.effect-result span {
+  gap: 2px;
+}
+
 .history-item strong {
   overflow: hidden;
   text-overflow: ellipsis;
@@ -2538,6 +2550,13 @@ button:disabled {
 
 .history-item small {
   color: var(--text-muted);
+}
+
+.history-item.effect-result small {
+  overflow: hidden;
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .history-item em {

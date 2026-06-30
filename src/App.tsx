@@ -8588,24 +8588,34 @@ function App() {
                 onRetryImport={notice.retryJob ? retryCodexFailureImport : undefined}
               />
             ))}
-            {visibleHistory.map((item) => (
-              <button
-                key={item.id}
-                className={`history-item ${selected?.id === item.id ? "selected" : ""} ${isEffectAnimationHistoryItem(item) ? "effect-result" : ""}`}
-                onClick={() => selectHistoryResult(item)}
-              >
-                <img src={item.dataUrl} alt="" loading="lazy" decoding="async" />
-                <span>
-                  <strong>{item.name}</strong>
-                  <small>{formatTime(item.createdAt)} • {providerLabel(item.provider, language)}</small>
-                  <small>{item.size} • {item.source}</small>
-                  {item.effectAnimation && (
-                    <small>Effect • {item.effectAnimation.category} / {item.effectAnimation.type} • {item.effectAnimation.qualityRank}</small>
-                  )}
-                </span>
-                {SHOW_LOW_PRIORITY_CONTROLS && item.adopted && <em>Adopted</em>}
-              </button>
-            ))}
+            {visibleHistory.map((item) => {
+              const effectMetadata = item.effectAnimation;
+              return (
+                <button
+                  key={item.id}
+                  className={`history-item ${selected?.id === item.id ? "selected" : ""} ${isEffectAnimationHistoryItem(item) ? "effect-result" : ""}`}
+                  title={effectMetadata ? item.name : undefined}
+                  onClick={() => selectHistoryResult(item)}
+                >
+                  <img src={item.dataUrl} alt="" loading="lazy" decoding="async" />
+                  <span>
+                    {effectMetadata ? (
+                      <>
+                        <strong>{formatEffectHistoryTitle(effectMetadata, language)}</strong>
+                        <small>{formatEffectHistoryMeta(effectMetadata)}</small>
+                      </>
+                    ) : (
+                      <>
+                        <strong>{item.name}</strong>
+                        <small>{formatTime(item.createdAt)} • {providerLabel(item.provider, language)}</small>
+                        <small>{item.size} • {item.source}</small>
+                      </>
+                    )}
+                  </span>
+                  {SHOW_LOW_PRIORITY_CONTROLS && item.adopted && <em>Adopted</em>}
+                </button>
+              );
+            })}
             {hasMoreHistory && <div ref={historyLoadMoreRef} className="history-load-more-sentinel" aria-hidden="true" />}
           </div>
           {SHOW_LOW_PRIORITY_CONTROLS && (
@@ -9309,6 +9319,31 @@ function localStateResetScopeLabel(scope: LocalStateResetScope) {
 function selectedImageSafeBaseName(item: Pick<HistoryItem, "name">) {
   const baseName = item.name.replace(/\.[^.]+$/, "") || "image-cockpit-result";
   return baseName.replace(/[<>:"/\\|?*\x00-\x1F]+/g, "-");
+}
+
+function formatEffectHistoryTitle(metadata: EffectAnimationMetadata, language: Language) {
+  const category = effectCategoryDefinitions.find((item) => item.id === metadata.category);
+  const label = category ? localizedText(category.label, language) : formatEffectSlugForDisplay(metadata.category);
+  return `Effect: ${label}`;
+}
+
+function formatEffectHistoryMeta(metadata: EffectAnimationMetadata) {
+  const frameSize = metadata.frameSize?.width && metadata.frameSize.height
+    ? `${metadata.frameSize.width}px`
+    : "";
+  return [
+    metadata.qualityRank.toUpperCase(),
+    `${metadata.frameCount}f`,
+    frameSize
+  ].filter(Boolean).join(" / ");
+}
+
+function formatEffectSlugForDisplay(value: string) {
+  return value
+    .split(/[-_\s]+/)
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ") || "Effect";
 }
 
 function isUsableHistoryDownloadItem(item: Pick<HistoryItem, "name" | "outboxImportKey" | "effectAnimation">) {
