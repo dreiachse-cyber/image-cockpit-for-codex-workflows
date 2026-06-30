@@ -15,7 +15,9 @@ Date: 2026-06-30
 
 Implemented the `Effect Animation` workflow as a fourth workspace mode beside Pixel Art Generation, Image Editing, and Animation Generation. The MVP covers category/type/style/palette controls, frame/canvas/layout/loop/anchor controls, prompt and negative prompt generation, Codex handoff payloads, effect result import, GIF/sheet/timeline preview, quality rank, history labeling, and download modal exports.
 
-The browser QA used the app UI and local API with the deterministic ui-smoke Codex runner. It verifies the real browser interaction, job queue, outbox import, preview, QC, and export paths without calling an external image model.
+The five-category browser matrix used the app UI and local API with the deterministic ui-smoke Codex runner. It verifies the real browser interaction, job queue, outbox import, preview, QC, and export paths for every MVP category.
+
+An additional real Codex runner / built-in `image_gen` trial was run from the local UI for Slash Arc. It verified the external imagegen path, outbox publish, Effect QC import, GIF preview, sheet preview, frame timeline, and history/download readiness with a real generated raster candidate.
 
 ## UI Changes
 
@@ -44,6 +46,8 @@ QC checks frame count, frame size, sheet layout, alpha transparency, checkerboar
 
 ## Browser Trials
 
+### Five-Category Browser Matrix
+
 | Category | Type | Job id | Result file | Rank | Warning / failure | Screenshot |
 | --- | --- | --- | --- | --- | --- | --- |
 | Slash Arc | crescent slash | `codex-job-2026-06-30T13-37-06-996Z-jt01lr` | `slash-arc-crescent-slash-8f-codex-job-2026-06-30T13-37-06-996Z-jt01lr-effect-sheet.png` | gold | none | `docs/qa/effect-animation-mvp/ui-smoke-effect-animation-slash-arc-1280x720.png` |
@@ -53,6 +57,23 @@ QC checks frame count, frame size, sheet layout, alpha transparency, checkerboar
 | Impact | small explosion | `codex-job-2026-06-30T13-37-29-515Z-ja7azd` | `impact-small-explosion-8f-codex-job-2026-06-30T13-37-29-515Z-ja7azd-effect-sheet.png` | gold | none | `docs/qa/effect-animation-mvp/ui-smoke-effect-animation-impact-1280x720.png` |
 
 Each trial created a UI job, showed a running/completed job card, imported the final sheet into history, rendered the sheet preview, rendered the GIF preview, rendered 8 timeline frames, and showed `GOLD` with no QC warnings.
+
+### Real Codex Runner / Imagegen Trial
+
+| Category | Type | Job id | Result file | Runner result | Import rank | Warning / failure | Screenshot |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| Slash Arc | crescent slash | `codex-job-2026-06-30T13-50-06-636Z-ku2iws` | `codex-job-2026-06-30T13-50-06-636Z-ku2iws-effect-sheet.png` | completed / exit 0 | gold | none after postprocess | `docs/qa/effect-animation-mvp/real-run-slash-arc-import-1280x720.png` |
+
+Real runner details:
+
+- Submitted from `http://127.0.0.1:5282/` by opening `Effect Animation` in a browser and pressing `Generate Effect`.
+- Codex runner used built-in `image_gen`. The first transparent request produced an RGB checkerboard-like candidate, so the runner retried with a chroma-key intermediate and postprocessed it to real alpha.
+- Published root outbox files:
+  - `codex-handoff/outbox/codex-job-2026-06-30T13-50-06-636Z-ku2iws-effect-sheet.png`
+  - `codex-handoff/outbox/codex-job-2026-06-30T13-50-06-636Z-ku2iws-effect-preview.gif`
+  - `codex-handoff/outbox/codex-job-2026-06-30T13-50-06-636Z-ku2iws-effect-metadata.json`
+- File QA: sheet PNG `512x256`, `RGBA`, 4x2 cells, 8 frames, corner alpha `0`; GIF preview `128x128`, 8 frames; metadata `status: ok`, `warnings: []`.
+- UI import QA: pending job was restored in browser storage, `Recover Results`/polling imported the sheet as an Effect result, showed GIF preview, sheet preview, 8-frame timeline, `GOLD`, and a completed download panel.
 
 ## Download Check
 
@@ -80,9 +101,10 @@ No legacy PNG-only, Animated WebP, or Animation Pack options appeared for effect
 - `docs/qa/effect-animation-mvp/ui-smoke-effect-animation-projectile-1280x720.png`
 - `docs/qa/effect-animation-mvp/ui-smoke-effect-animation-impact-1280x720.png`
 - `docs/qa/effect-animation-mvp/ui-smoke-effect-result-not-editable-1280x720.png`
+- `docs/qa/effect-animation-mvp/real-run-slash-arc-import-1280x720.png`
 
 ## Follow-up Items
 
 - Character overlay preview is not included in this MVP.
 - Godot, Unity, and Phaser exports are not included beyond portable metadata/effect pack output.
-- External image-model generation was not exercised in this QA pass; the deterministic local runner was used for repeatable browser and export verification.
+- External image-model generation was exercised for Slash Arc only. The remaining four categories are covered by deterministic browser/export QA, not by real imagegen generation.
