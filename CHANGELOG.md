@@ -4,6 +4,30 @@
 
 No unreleased changes yet.
 
+## v0.1.4 - 2026-07-01
+
+Experimental Effect Animation MVP release after v0.1.3.
+
+### Added
+
+- Added the Effect Animation workflow with Slash Arc, Hit Spark, Magic Cast, Projectile, and Impact categories.
+- Added effect controls for type, style, palette, frame count, canvas size, sheet layout, loop mode, anchor, and preview background.
+- Added effect-specific preview surfaces for transparent sheet review, looping GIF preview, frame timeline, quality rank, and history metadata.
+- Added effect export options for Effect GIF, Effect APNG / Animated APNG, Sheet PNG, Frames ZIP, Metadata JSON, and Effect Pack ZIP.
+- Added QA evidence for deterministic browser trials and real Codex/imagegen trials across all five MVP categories.
+
+### Changed
+
+- The Vite watcher now handles the new effect workflow files without losing the local dev-server session during iteration.
+- Effect result cards are compact, showing the category and rank/frame/size summary instead of long sheet filenames and metadata.
+- Download and history handling now treats effect results as final export assets while keeping image-edit numbered regions disabled for them.
+
+### Verification
+
+- v0.1.4 release prep tracks package/app/API version `0.1.4`.
+- Effect Animation QA passed five-category browser coverage, real imagegen import coverage, GIF loop preview checks, Animated APNG export checks, and compact Effect result card screenshot checks.
+- The app still does not call OpenAI APIs directly, and no model weights, API keys, tokens, generated handoff folders, or license-unclear assets are included.
+
 ## v0.1.3 - 2026-06-30
 
 Recursive animation QA and review-gallery update after v0.1.2.
