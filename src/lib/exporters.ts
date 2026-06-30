@@ -9,10 +9,12 @@ export interface AnimationPackExportInput {
   sheet: Blob | string;
   previewGif?: Blob;
   previewWebp?: Blob;
+  previewApng?: Blob;
   directionPreviews?: Array<{
     direction: string;
     gif?: Blob;
     webp?: Blob;
+    apng?: Blob;
   }>;
   metadata?: unknown;
   frames?: Array<{ name: string; dataUrl: string }>;
@@ -22,6 +24,7 @@ export interface EffectPackExportInput {
   metadata: EffectAnimationMetadata;
   sheet: Blob | string;
   previewGif?: Blob;
+  previewApng?: Blob;
   frames?: Array<{ name: string; dataUrl: string }>;
 }
 
@@ -111,6 +114,70 @@ export async function exportGif(frames: SpriteFrame[], action: SpriteAction) {
   downloadBlob(blob, `${action.name}.gif`);
 }
 
+export async function createApngBlob(
+  frames: SpriteFrame[],
+  action: SpriteAction,
+  options: { forceLoop?: boolean } = {}
+) {
+  const ordered = resolvePlaybackFrameIds(action)
+    .map((frameId) => frames.find((frame) => frame.id === frameId))
+    .filter((frame): frame is SpriteFrame => Boolean(frame));
+  if (ordered.length === 0) throw new Error("No frames to export");
+
+  const width = action.cell.width;
+  const height = action.cell.height;
+  const canvas = document.createElement("canvas");
+  canvas.width = width;
+  canvas.height = height;
+  const context = canvas.getContext("2d");
+  if (!context) throw new Error("Canvas context unavailable");
+
+  const pngFrames: ParsedPng[] = [];
+  for (const frame of ordered) {
+    const image = await loadImage(frame.dataUrl);
+    context.clearRect(0, 0, width, height);
+    context.drawImage(image, 0, 0, width, height);
+    const pngBlob = await canvasToBlob(canvas, "image/png");
+    pngFrames.push(parsePng(new Uint8Array(await pngBlob.arrayBuffer())));
+  }
+
+  const first = pngFrames[0];
+  const chunks: Uint8Array[] = [PNG_SIGNATURE, makePngChunk("IHDR", first.ihdr)];
+  const animationControl = new Uint8Array(8);
+  writeUint32BigEndian(animationControl, 0, ordered.length);
+  writeUint32BigEndian(animationControl, 4, options.forceLoop || action.loop ? 0 : 1);
+  chunks.push(makePngChunk("acTL", animationControl));
+  chunks.push(...first.beforeIdat.map((chunk) => makePngChunk(chunk.type, chunk.data)));
+
+  const delayMs = Math.max(20, Math.round(1000 / Math.max(1, action.fps)));
+  let sequence = 0;
+  pngFrames.forEach((frame, index) => {
+    chunks.push(makePngChunk("fcTL", makeFrameControlPayload(sequence++, width, height, delayMs)));
+    if (index === 0) {
+      chunks.push(...frame.idat.map((data) => makePngChunk("IDAT", data)));
+      return;
+    }
+    for (const data of frame.idat) {
+      const payload = new Uint8Array(4 + data.length);
+      writeUint32BigEndian(payload, 0, sequence++);
+      payload.set(data, 4);
+      chunks.push(makePngChunk("fdAT", payload));
+    }
+  });
+  chunks.push(...first.afterIdat.map((chunk) => makePngChunk(chunk.type, chunk.data)));
+  chunks.push(makePngChunk("IEND", new Uint8Array()));
+
+  const bytes = concatBytes(chunks);
+  const arrayBuffer = new ArrayBuffer(bytes.byteLength);
+  new Uint8Array(arrayBuffer).set(bytes);
+  return new Blob([arrayBuffer], { type: "image/apng" });
+}
+
+export async function exportApng(frames: SpriteFrame[], action: SpriteAction) {
+  const blob = await createApngBlob(frames, action);
+  downloadBlob(blob, `${action.name}.apng`);
+}
+
 export async function createAnimatedWebpBlob(frames: SpriteFrame[], action: SpriteAction) {
   const ordered = resolvePlaybackFrameIds(action)
     .map((frameId) => frames.find((frame) => frame.id === frameId))
@@ -185,12 +252,16 @@ export async function createAnimationPackZip(input: AnimationPackExportInput) {
   if (input.previewWebp && manifest.files.previewWebp) {
     zip.file(manifest.files.previewWebp, await sourceToZipData(input.previewWebp));
   }
+  if (input.previewApng && manifest.files.previewApng) {
+    zip.file(manifest.files.previewApng, await sourceToZipData(input.previewApng));
+  }
   if (input.directionPreviews && manifest.files.directionPreviews) {
     for (const preview of input.directionPreviews) {
       const fileSet = manifest.files.directionPreviews.find((item) => item.direction === preview.direction);
       if (!fileSet) continue;
       if (preview.gif && fileSet.gif) zip.file(fileSet.gif, await sourceToZipData(preview.gif));
       if (preview.webp && fileSet.webp) zip.file(fileSet.webp, await sourceToZipData(preview.webp));
+      if (preview.apng && fileSet.apng) zip.file(fileSet.apng, await sourceToZipData(preview.apng));
     }
   }
   if (manifest.files.metadata) {
@@ -223,6 +294,9 @@ export async function createEffectPackZip(input: EffectPackExportInput) {
   if (input.previewGif) {
     zip.file("preview.gif", await sourceToZipData(input.previewGif));
   }
+  if (input.previewApng) {
+    zip.file("preview.apng", await sourceToZipData(input.previewApng));
+  }
   if (input.frames) {
     for (let index = 0; index < input.frames.length; index += 1) {
       const frame = input.frames[index];
@@ -246,6 +320,7 @@ function normalizePackManifestFiles(manifest: AnimationPackManifest): AnimationP
       sheet: manifest.files.sheet || "sheet.png",
       previewGif: manifest.files.previewGif || "preview.gif",
       previewWebp: manifest.files.previewWebp || "preview.webp",
+      previewApng: manifest.files.previewApng || "preview.apng",
       directionPreviews: manifest.files.directionPreviews,
       metadata: manifest.files.metadata || "metadata.json"
     }
@@ -258,6 +333,7 @@ function normalizeEffectMetadataFiles(metadata: EffectAnimationMetadata): Effect
     artifacts: {
       sheet: metadata.artifacts?.sheet || "sheet.png",
       previewGif: metadata.artifacts?.previewGif || "preview.gif",
+      previewApng: metadata.artifacts?.previewApng || "preview.apng",
       metadata: metadata.artifacts?.metadata || "effect.json",
       frames: metadata.artifacts?.frames || Array.from({ length: metadata.frameCount }, (_, index) => {
         return `frames/frame-${String(index + 1).padStart(3, "0")}.png`;
@@ -296,6 +372,103 @@ function buildAnimationPackMetadata(manifest: AnimationPackManifest) {
     license: manifest.license ?? "",
     sourceNote: manifest.sourceNote ?? ""
   };
+}
+
+interface ParsedPng {
+  ihdr: Uint8Array;
+  beforeIdat: Array<{ type: string; data: Uint8Array }>;
+  idat: Uint8Array[];
+  afterIdat: Array<{ type: string; data: Uint8Array }>;
+}
+
+const PNG_SIGNATURE = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+let pngCrcTable: Uint32Array | undefined;
+
+function parsePng(bytes: Uint8Array): ParsedPng {
+  if (bytes.length < PNG_SIGNATURE.length || !PNG_SIGNATURE.every((value, index) => bytes[index] === value)) {
+    throw new Error("Canvas did not return a PNG image.");
+  }
+
+  let ihdr: Uint8Array | undefined;
+  const beforeIdat: ParsedPng["beforeIdat"] = [];
+  const idat: Uint8Array[] = [];
+  const afterIdat: ParsedPng["afterIdat"] = [];
+  let seenIdat = false;
+
+  for (let offset = PNG_SIGNATURE.length; offset + 12 <= bytes.length;) {
+    const length = readUint32BigEndian(bytes, offset);
+    const type = readFourCc(bytes, offset + 4);
+    const dataStart = offset + 8;
+    const dataEnd = dataStart + length;
+    const nextOffset = dataEnd + 4;
+    if (nextOffset > bytes.length) throw new Error("PNG chunk length is invalid.");
+    const data = bytes.slice(dataStart, dataEnd);
+    offset = nextOffset;
+
+    if (type === "IHDR") {
+      ihdr = data;
+      continue;
+    }
+    if (type === "IDAT") {
+      seenIdat = true;
+      idat.push(data);
+      continue;
+    }
+    if (type === "IEND") break;
+    if (type === "acTL" || type === "fcTL" || type === "fdAT") continue;
+    if (seenIdat) {
+      afterIdat.push({ type, data });
+    } else {
+      beforeIdat.push({ type, data });
+    }
+  }
+
+  if (!ihdr || idat.length === 0) throw new Error("PNG output did not contain IHDR/IDAT chunks.");
+  return { ihdr, beforeIdat, idat, afterIdat };
+}
+
+function makeFrameControlPayload(sequence: number, width: number, height: number, delayMs: number) {
+  const payload = new Uint8Array(26);
+  writeUint32BigEndian(payload, 0, sequence);
+  writeUint32BigEndian(payload, 4, width);
+  writeUint32BigEndian(payload, 8, height);
+  writeUint32BigEndian(payload, 12, 0);
+  writeUint32BigEndian(payload, 16, 0);
+  writeUint16BigEndian(payload, 20, Math.min(65535, delayMs));
+  writeUint16BigEndian(payload, 22, 1000);
+  payload[24] = 0;
+  payload[25] = 0;
+  return payload;
+}
+
+function makePngChunk(type: string, payload: Uint8Array) {
+  const chunkType = asciiBytes(type);
+  const bytes = new Uint8Array(12 + payload.length);
+  writeUint32BigEndian(bytes, 0, payload.length);
+  bytes.set(chunkType, 4);
+  bytes.set(payload, 8);
+  writeUint32BigEndian(bytes, 8 + payload.length, crc32(concatBytes([chunkType, payload])));
+  return bytes;
+}
+
+function crc32(bytes: Uint8Array) {
+  const table = pngCrcTable ?? buildPngCrcTable();
+  pngCrcTable = table;
+  let crc = 0xffffffff;
+  for (const byte of bytes) crc = table[(crc ^ byte) & 0xff] ^ (crc >>> 8);
+  return (crc ^ 0xffffffff) >>> 0;
+}
+
+function buildPngCrcTable() {
+  const table = new Uint32Array(256);
+  for (let index = 0; index < table.length; index += 1) {
+    let value = index;
+    for (let bit = 0; bit < 8; bit += 1) {
+      value = value & 1 ? 0xedb88320 ^ (value >>> 1) : value >>> 1;
+    }
+    table[index] = value >>> 0;
+  }
+  return table;
 }
 
 function extractWebpFrameChunks(bytes: Uint8Array) {
@@ -363,6 +536,18 @@ function readFourCc(bytes: Uint8Array, offset: number) {
 
 function readUint32(bytes: Uint8Array, offset: number) {
   return new DataView(bytes.buffer, bytes.byteOffset + offset, 4).getUint32(0, true);
+}
+
+function readUint32BigEndian(bytes: Uint8Array, offset: number) {
+  return new DataView(bytes.buffer, bytes.byteOffset + offset, 4).getUint32(0, false);
+}
+
+function writeUint32BigEndian(bytes: Uint8Array, offset: number, value: number) {
+  new DataView(bytes.buffer, bytes.byteOffset + offset, 4).setUint32(0, value >>> 0, false);
+}
+
+function writeUint16BigEndian(bytes: Uint8Array, offset: number, value: number) {
+  new DataView(bytes.buffer, bytes.byteOffset + offset, 2).setUint16(0, Math.max(0, Math.floor(value)), false);
 }
 
 function writeUint24(bytes: Uint8Array, offset: number, value: number) {

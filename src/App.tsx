@@ -39,6 +39,7 @@ import type { CSSProperties, UIEvent } from "react";
 import monsterPromptsMarkdown from "../docs/prompt-examples/monster-prompts.md?raw";
 import professionCharacterPromptsMarkdown from "../docs/prompt-examples/profession-character-prompts.md?raw";
 import {
+  createApngBlob,
   createAnimatedWebpBlob,
   createSpriteSheetBlob,
   createGifBlob,
@@ -826,6 +827,7 @@ const baseUiCopy = {
     animationReady: "Animation frames ready",
     animatedGif: "Animated GIF",
     animatedWebP: "Animated WebP",
+    animatedApng: "Animated APNG",
     spriteSheetDownload: "Sprite Sheet",
     directionalPreviews: "Directional Previews",
     previewFront: "Front",
@@ -1057,6 +1059,7 @@ const baseUiCopy = {
     animationReady: "アニメーションframes準備完了",
     animatedGif: "アニメGIF",
     animatedWebP: "アニメWebP",
+    animatedApng: "アニメAPNG",
     spriteSheetDownload: "スプライトシート",
     directionalPreviews: "5方向プレビュー",
     previewFront: "正面",
@@ -6514,6 +6517,7 @@ function App() {
       artifacts: {
         sheet: imported.name,
         previewGif: jobResults.find((result) => result.mimeType === "image/gif")?.name,
+        previewApng: jobResults.find((result) => result.mimeType === "image/apng" || result.name.toLowerCase().endsWith(".apng"))?.name,
         metadata: jobResults.find((result) => result.mimeType === "application/json" || result.name.endsWith(".json"))?.name,
         frames: tempFrames.map((frame) => `${frame.name}.png`)
       }
@@ -6914,12 +6918,14 @@ function App() {
     }
   }
 
-  async function exportDirectionalAnimations(format: "gif" | "webp") {
+  async function exportDirectionalAnimations(format: "gif" | "webp" | "apng") {
     if (!selectedAnimationExportReady) return;
     for (const { directionId, action } of selectedAnimationPreviewActions) {
       const blob = format === "gif"
         ? await createGifBlob(frames, action)
-        : await createAnimatedWebpBlob(frames, action);
+        : format === "webp"
+          ? await createAnimatedWebpBlob(frames, action)
+          : await createApngBlob(frames, action);
       downloadBlob(blob, `${selectedAnimationAction.name}_${directionId.replace(/\s+/g, "-")}.${format}`);
     }
   }
@@ -6928,6 +6934,12 @@ function App() {
     if (!selectedEffectExportReady) return;
     const blob = await createGifBlob(frames, selectedEffectAction, { forceLoop: true });
     downloadBlob(blob, `${selectedEffectAction.name}.gif`);
+  }
+
+  async function exportSelectedEffectApng() {
+    if (!selectedEffectExportReady) return;
+    const blob = await createApngBlob(frames, selectedEffectAction, { forceLoop: true });
+    downloadBlob(blob, `${selectedEffectAction.name}.apng`);
   }
 
   async function exportSelectedEffectSheet() {
@@ -6949,10 +6961,12 @@ function App() {
   async function exportSelectedEffectPack() {
     if (!selected || !selectedEffectMetadata || !selectedEffectExportReady) return;
     const previewGif = await createGifBlob(frames, selectedEffectAction, { forceLoop: true });
+    const previewApng = await createApngBlob(frames, selectedEffectAction, { forceLoop: true });
     await exportEffectPack({
       metadata: selectedEffectMetadata,
       sheet: selected.dataUrl,
       previewGif,
+      previewApng,
       frames: selectedEffectFrames.map((frame, index) => ({
         name: `frame-${String(index + 1).padStart(3, "0")}`,
         dataUrl: frame.dataUrl
@@ -7431,6 +7445,7 @@ function App() {
       );
       const previewGif = await createGifBlob(tempFrames, previewAction);
       const previewWebp = await createAnimatedWebpBlob(tempFrames, previewAction);
+      const previewApng = await createApngBlob(tempFrames, previewAction);
       const directionPreviewBlobs = await createDirectionPreviewBlobs(tempFrames, directionPreviews);
       await exportAnimationPack({
         manifest: {
@@ -7442,6 +7457,7 @@ function App() {
         sheet: sheetDataUrl,
         previewGif,
         previewWebp,
+        previewApng,
         directionPreviews: directionPreviewBlobs,
         metadata: animationPackMetadata(item.manifest, {
           libraryKind: item.kind,
@@ -7495,6 +7511,7 @@ function App() {
       const previewAction = selectedAnimationPreviewActions[0]?.action ?? selectedAnimationAction;
       const previewGif = await createGifBlob(frames, previewAction);
       const previewWebp = await createAnimatedWebpBlob(frames, previewAction);
+      const previewApng = await createApngBlob(frames, previewAction);
       const directionPreviewBlobs = await createDirectionPreviewBlobs(frames, selectedAnimationPreviewActions);
       const manifest = buildSelectedAnimationPackManifest({
         draft: animationPackExportDraft,
@@ -7508,6 +7525,7 @@ function App() {
         sheet: selected.dataUrl,
         previewGif,
         previewWebp,
+        previewApng,
         directionPreviews: directionPreviewBlobs,
         metadata: animationPackMetadata(manifest, {
           libraryKind: "user",
@@ -8806,9 +8824,11 @@ function App() {
           onDownloadImage={downloadSelectedImage}
           onExportGif={() => void exportDirectionalAnimations("gif")}
           onExportWebp={() => void exportDirectionalAnimations("webp")}
+          onExportApng={() => void exportDirectionalAnimations("apng")}
           onExportSpriteSheet={() => void exportSpriteSheet(frames, selectedAnimationAction, ANIMATION_FRAME_COUNT)}
           onExportAnimationPack={openSelectedAnimationPackExportModal}
           onExportEffectGif={() => void exportSelectedEffectGif()}
+          onExportEffectApng={() => void exportSelectedEffectApng()}
           onExportEffectSheet={() => void exportSelectedEffectSheet()}
           onExportEffectFramesZip={() => void exportSelectedEffectFramesZip()}
           onExportEffectMetadata={exportSelectedEffectMetadata}
@@ -9359,10 +9379,12 @@ function animationPackFileSet(directions: string[] = ANIMATION_DIRECTIONS): Anim
     sheet: "sheet.png",
     previewGif: "preview.gif",
     previewWebp: "preview.webp",
+    previewApng: "preview.apng",
     directionPreviews: directions.map((direction) => ({
       direction,
       gif: `previews/${safeAnimationDirectionFileName(direction)}.gif`,
-      webp: `previews/${safeAnimationDirectionFileName(direction)}.webp`
+      webp: `previews/${safeAnimationDirectionFileName(direction)}.webp`,
+      apng: `previews/${safeAnimationDirectionFileName(direction)}.apng`
     })),
     metadata: "metadata.json"
   };
@@ -9419,7 +9441,8 @@ async function createDirectionPreviewBlobs(
     previews.map(async ({ directionId, action }) => ({
       direction: directionId,
       gif: await createGifBlob(frames, action),
-      webp: await createAnimatedWebpBlob(frames, action)
+      webp: await createAnimatedWebpBlob(frames, action),
+      apng: await createApngBlob(frames, action)
     }))
   );
 }
@@ -11610,9 +11633,11 @@ function DownloadOptionsModal({
   onDownloadImage,
   onExportGif,
   onExportWebp,
+  onExportApng,
   onExportSpriteSheet,
   onExportAnimationPack,
   onExportEffectGif,
+  onExportEffectApng,
   onExportEffectSheet,
   onExportEffectFramesZip,
   onExportEffectMetadata,
@@ -11631,9 +11656,11 @@ function DownloadOptionsModal({
   onDownloadImage: () => void;
   onExportGif: () => void;
   onExportWebp: () => void;
+  onExportApng: () => void;
   onExportSpriteSheet: () => void;
   onExportAnimationPack: () => void;
   onExportEffectGif: () => void;
+  onExportEffectApng: () => void;
   onExportEffectSheet: () => void;
   onExportEffectFramesZip: () => void;
   onExportEffectMetadata: () => void;
@@ -11672,6 +11699,10 @@ function DownloadOptionsModal({
                 <Film size={16} aria-hidden="true" />
                 {language === "ja" ? "Effect GIF" : "Effect GIF"}
               </button>
+              <button onClick={onExportEffectApng} disabled={!effectReady}>
+                <Film size={16} aria-hidden="true" />
+                {language === "ja" ? "Effect APNG" : "Effect APNG"}
+              </button>
               <button onClick={onExportEffectSheet} disabled={!effectReady}>
                 <FileImage size={16} aria-hidden="true" />
                 {language === "ja" ? "Sheet PNG" : "Sheet PNG"}
@@ -11698,6 +11729,10 @@ function DownloadOptionsModal({
               <button onClick={onExportWebp} disabled={!animationReady}>
                 <FileArchive size={16} aria-hidden="true" />
                 {copy.animatedWebP}
+              </button>
+              <button onClick={onExportApng} disabled={!animationReady}>
+                <Film size={16} aria-hidden="true" />
+                {copy.animatedApng}
               </button>
               <button onClick={onExportSpriteSheet} disabled={!animationReady}>
                 <FileImage size={16} aria-hidden="true" />

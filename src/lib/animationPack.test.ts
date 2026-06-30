@@ -52,17 +52,19 @@ describe("animation pack validation", () => {
     expect(JSON.parse(await zip.file("manifest.json")!.async("string")).schema).toBe("image-cockpit.animation.v1");
   });
 
-  it("exports direction GIF and WebP previews into the animation pack", async () => {
+  it("exports direction GIF, WebP, and APNG previews into the animation pack", async () => {
     const manifest = makeManifest();
     const blob = await createAnimationPackZip({
       manifest,
       sheet: new Blob(["png"], { type: "image/png" }),
       previewGif: new Blob(["front-gif"], { type: "image/gif" }),
       previewWebp: new Blob(["front-webp"], { type: "image/webp" }),
+      previewApng: new Blob(["front-apng"], { type: "image/apng" }),
       directionPreviews: manifest.files.directionPreviews?.map((preview) => ({
         direction: preview.direction,
         gif: new Blob([`${preview.direction}-gif`], { type: "image/gif" }),
-        webp: new Blob([`${preview.direction}-webp`], { type: "image/webp" })
+        webp: new Blob([`${preview.direction}-webp`], { type: "image/webp" }),
+        apng: new Blob([`${preview.direction}-apng`], { type: "image/apng" })
       }))
     });
     const zip = await JSZip.loadAsync(await blob.arrayBuffer());
@@ -70,10 +72,12 @@ describe("animation pack validation", () => {
 
     expect(zip.file("preview.gif")).toBeTruthy();
     expect(zip.file("preview.webp")).toBeTruthy();
+    expect(zip.file("preview.apng")).toBeTruthy();
     expect(exportedManifest.files.directionPreviews).toHaveLength(5);
     for (const preview of exportedManifest.files.directionPreviews ?? []) {
       expect(zip.file(preview.gif ?? "")).toBeTruthy();
       expect(zip.file(preview.webp ?? "")).toBeTruthy();
+      expect(zip.file(preview.apng ?? "")).toBeTruthy();
     }
   });
 });
@@ -99,6 +103,7 @@ function makeManifest(): AnimationPackManifest {
       sheet: "sheet.png",
       previewGif: "preview.gif",
       previewWebp: "preview.webp",
+      previewApng: "preview.apng",
       directionPreviews: [
         "front",
         "front three-quarter",
@@ -108,7 +113,8 @@ function makeManifest(): AnimationPackManifest {
       ].map((direction) => ({
         direction,
         gif: `previews/${direction.replace(/\s+/g, "-")}.gif`,
-        webp: `previews/${direction.replace(/\s+/g, "-")}.webp`
+        webp: `previews/${direction.replace(/\s+/g, "-")}.webp`,
+        apng: `previews/${direction.replace(/\s+/g, "-")}.apng`
       })),
       metadata: "metadata.json"
     }

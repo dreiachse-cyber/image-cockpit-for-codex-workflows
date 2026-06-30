@@ -187,28 +187,28 @@ try {
     label: "Pixel Art Generation",
     route: "Route: Codex Handoff",
     buttons: ["Generate Pixel Art", "Download"],
-    hiddenButtons: ["Import Latest", "Import File", "PNG", "Animated GIF", "Animated WebP"],
+    hiddenButtons: ["Import Latest", "Import File", "PNG", "Animated GIF", "Animated WebP", "Animated APNG"],
     hiddenText: ["Sprite Actions", "Export Sprite", "Generation Method"],
     requiredText: ["Pixel Art Prompt", "Generation Notes", "Preview", "Generation can take a few minutes."],
     exerciseButton: "Generate Pixel Art",
     expectedAfterExercise: "Imported from Local Inbox",
     expectedCanvasPreviewModeAfterExercise: "result",
     expectedDownloadModalButtons: ["PNG"],
-    downloadModalAbsentButtons: ["Animated GIF", "Animated WebP", "Sprite Sheet", "Export Animation Pack"],
+    downloadModalAbsentButtons: ["Animated GIF", "Animated WebP", "Animated APNG", "Sprite Sheet", "Export Animation Pack"],
     downloadModalClickButtons: ["PNG"]
   });
   await assertWorkflow({
     label: "Animation Generation",
     route: "Route: Codex Handoff",
     buttons: ["Upload Pixel Art", "Choose Animation", "Generate Animation", "Download"],
-    hiddenButtons: ["Import Latest", "Import File", "PNG", "Animated GIF", "Animated WebP", "Official Animations", "User Animations", "Import Animation", "Export Sample", "Use", "5-Direction Sheet", "hatch-pet", "5-Direction hatch-pet"],
+    hiddenButtons: ["Import Latest", "Import File", "PNG", "Animated GIF", "Animated WebP", "Animated APNG", "Official Animations", "User Animations", "Import Animation", "Export Sample", "Use", "5-Direction Sheet", "hatch-pet", "5-Direction hatch-pet"],
     hiddenText: ["Animation Library", "Official Animations", "User Animations", "No user animations yet", "Sprite Actions", "Export Sprite", "Generation Method", "Hop Bounce"],
     requiredText: ["1. Upload Pixel Art", "2. Choose Motion", "3. Generate", "4. Download", "Selected animation", "Choose Animation", "Fixed cells: 256 x 256 px", "5-direction chroma-key sprite sheet"],
     exerciseButton: "Generate Animation",
     expectedAfterExercise: "Animation generated",
     expectedAfterExerciseText: ["Animation frames ready", "Generated from", "Directional Previews", "GIF Preview", "Sprite Sheet Preview", "256 x 256 px"],
-    expectedDownloadModalButtons: ["Animated GIF", "Animated WebP", "Sprite Sheet", "Export Animation Pack"],
-    downloadModalClickButtons: ["Animated WebP", "Sprite Sheet"],
+    expectedDownloadModalButtons: ["Animated GIF", "Animated WebP", "Animated APNG", "Sprite Sheet", "Export Animation Pack"],
+    downloadModalClickButtons: ["Animated WebP", "Animated APNG", "Sprite Sheet"],
     expectedCanvasPreviewModeAfterExercise: "result",
     expectedPreviewImages: 6,
     expectedAnimationPreviewImagesAfterExercise: 6,
@@ -1138,7 +1138,7 @@ async function assertDetachedDirectionSplitRecoverResults() {
   assert(alpha.transparentPixels > 0 && alpha.opaquePixels > 0, "Detached direction split final sheet should preserve transparent character pixels");
 
   await assertDownloadModal({
-    expectedButtons: ["Animated GIF", "Animated WebP", "Sprite Sheet", "Export Animation Pack"],
+    expectedButtons: ["Animated GIF", "Animated WebP", "Animated APNG", "Sprite Sheet", "Export Animation Pack"],
     absentButtons: ["PNG"],
     label: "detached direction split download modal"
   });
@@ -1190,6 +1190,7 @@ async function assertImageEditing() {
   assert(!snapshot.buttons.includes("PNG"), "Image Editing should keep PNG download details inside the modal");
   assert(!snapshot.buttons.includes("Animated GIF"), "Image Editing should hide animated GIF download for non-animation results");
   assert(!snapshot.buttons.includes("Animated WebP"), "Image Editing should hide animated WebP download for non-animation results");
+  assert(!snapshot.buttons.includes("Animated APNG"), "Image Editing should hide animated APNG download for non-animation results");
   assert(snapshot.resultDownloadPanelInWorkspace, "Image Editing should place the result download card under the preview workspace");
   assert(snapshot.resultDownloadActionButtons === 1, "Image Editing should expose one compact Download button");
   assert(snapshot.resultDownloadGridButtonsInWorkspace === 0, "Image Editing should not expose detailed download buttons under the preview");
@@ -1208,7 +1209,7 @@ async function assertImageEditing() {
   );
   await assertDownloadModal({
     expectedButtons: ["PNG"],
-    absentButtons: ["Animated GIF", "Animated WebP", "Sprite Sheet", "Export Animation Pack"],
+    absentButtons: ["Animated GIF", "Animated WebP", "Animated APNG", "Sprite Sheet", "Export Animation Pack"],
     label: "Image Editing non-animation download modal"
   });
   await waitForEval(
@@ -1254,7 +1255,7 @@ async function assertImageEditing() {
   await installDownloadSpy();
   await assertDownloadModal({
     expectedButtons: ["PNG"],
-    absentButtons: ["Animated GIF", "Animated WebP", "Sprite Sheet", "Export Animation Pack"],
+    absentButtons: ["Animated GIF", "Animated WebP", "Animated APNG", "Sprite Sheet", "Export Animation Pack"],
     clickButtons: ["PNG"],
     label: "Image Editing edited result PNG download modal"
   });
@@ -1350,21 +1351,30 @@ async function assertAnimationResultNotEditable() {
 }
 
 async function assertEffectAnimationWorkflow() {
+  await installDownloadSpy();
   await assertWorkflow({
     label: "Effect Animation",
     route: "Route: Codex Handoff",
     buttons: ["Generate Effect", "Download"],
-    hiddenButtons: ["Import Latest", "Import File", "Animated WebP", "Export Animation Pack"],
+    hiddenButtons: ["Import Latest", "Import File", "Animated WebP", "Animated APNG", "Export Animation Pack"],
     hiddenText: ["Sprite Actions", "Export Sprite", "Generation Method"],
     requiredText: ["Slash Arc", "Hit Spark", "Magic Cast", "Projectile", "Impact", "Frames", "Canvas", "Layout", "Loop", "Anchor", "Palette"],
     exerciseButton: "Generate Effect",
     expectedAfterExercise: "Effect imported",
     expectedAfterExerciseText: ["Effect exports ready", "GIF preview", "Sheet preview", "Frame timeline", "GOLD"],
     expectedCanvasPreviewModeAfterExercise: "result",
-    expectedDownloadModalButtons: ["Effect GIF", "Sheet PNG", "Frames ZIP", "Metadata JSON", "Effect Pack ZIP"],
-    downloadModalAbsentButtons: ["PNG", "Animated GIF", "Animated WebP", "Export Animation Pack"],
-    downloadModalClickButtons: ["Effect GIF", "Sheet PNG", "Frames ZIP", "Metadata JSON", "Effect Pack ZIP"]
+    expectedDownloadModalButtons: ["Effect GIF", "Effect APNG", "Sheet PNG", "Frames ZIP", "Metadata JSON", "Effect Pack ZIP"],
+    downloadModalAbsentButtons: ["PNG", "Animated GIF", "Animated WebP", "Animated APNG", "Export Animation Pack"],
+    downloadModalClickButtons: ["Effect GIF", "Effect APNG", "Sheet PNG", "Frames ZIP", "Metadata JSON", "Effect Pack ZIP"]
   });
+  await waitForEval(
+    () => `(window.__uiSmokeDownloads || []).some((item) => item.type === "image/apng" || String(item.dataUrl || "").startsWith("data:image/apng"))`,
+    "Effect Animation APNG download captured"
+  );
+  const apng = await inspectDownloadedApng();
+  assert(apng.found, `Effect Animation APNG download should contain an acTL chunk: ${JSON.stringify(apng)}`);
+  assert(apng.frameCount === 8, `Effect Animation APNG should contain 8 frames, got ${JSON.stringify(apng)}`);
+  assert(apng.loopCount === 0, `Effect Animation APNG should loop forever, got ${JSON.stringify(apng)}`);
 }
 
 async function assertEffectResultNotEditable() {
@@ -2077,6 +2087,39 @@ async function waitForEffectGifLoop(label) {
     await delay(100);
   }
   return result;
+}
+
+async function inspectDownloadedApng() {
+  return evaluate(`(() => {
+    const download = (window.__uiSmokeDownloads || []).slice().reverse().find((item) => {
+      return item.type === "image/apng" || String(item.dataUrl || "").startsWith("data:image/apng");
+    });
+    if (!download?.dataUrl) return { found: false, frameCount: null, loopCount: null, reason: "missing-download" };
+    const base64 = String(download.dataUrl).split(",")[1] || "";
+    const binary = atob(base64);
+    const bytes = new Uint8Array(binary.length);
+    for (let index = 0; index < binary.length; index += 1) bytes[index] = binary.charCodeAt(index);
+    const signature = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
+    for (let index = 0; index < signature.length; index += 1) {
+      if (bytes[index] !== signature[index]) return { found: false, frameCount: null, loopCount: null, reason: "bad-signature" };
+    }
+    const read32 = (offset) => ((bytes[offset] << 24) | (bytes[offset + 1] << 16) | (bytes[offset + 2] << 8) | bytes[offset + 3]) >>> 0;
+    for (let offset = 8; offset + 12 <= bytes.length;) {
+      const length = read32(offset);
+      const type = String.fromCharCode(bytes[offset + 4], bytes[offset + 5], bytes[offset + 6], bytes[offset + 7]);
+      const dataOffset = offset + 8;
+      if (type === "acTL") {
+        return {
+          found: true,
+          frameCount: read32(dataOffset),
+          loopCount: read32(dataOffset + 4),
+          byteLength: bytes.length
+        };
+      }
+      offset = dataOffset + length + 4;
+    }
+    return { found: false, frameCount: null, loopCount: null, reason: "missing-acTL", byteLength: bytes.length };
+  })()`);
 }
 
 async function clickSelector(selector) {

@@ -56,6 +56,7 @@ export interface EffectAnimationMetadata {
   artifacts?: {
     sheet?: string;
     previewGif?: string;
+    previewApng?: string;
     metadata?: string;
     frames?: string[];
   };
@@ -145,10 +146,12 @@ export interface AnimationPackManifest {
     sheet: string;
     previewGif?: string;
     previewWebp?: string;
+    previewApng?: string;
     directionPreviews?: Array<{
       direction: string;
       gif?: string;
       webp?: string;
+      apng?: string;
     }>;
     metadata?: string;
   };
@@ -162,6 +165,7 @@ export interface AnimationLibraryItem {
   manifest: AnimationPackManifest;
   previewDataUrl?: string;
   previewWebpDataUrl?: string;
+  previewApngDataUrl?: string;
   sheetDataUrl: string;
   importedAt?: string;
   updatedAt?: string;

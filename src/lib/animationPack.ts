@@ -23,6 +23,7 @@ export async function importAnimationPackBlob(blob: Blob, fileName = "animation-
   const sheetDataUrl = await zipEntryToDataUrl(sheetEntry, "image/png");
   const previewEntry = manifest.files.previewGif ? zip.file(manifest.files.previewGif) : null;
   const previewWebpEntry = manifest.files.previewWebp ? zip.file(manifest.files.previewWebp) : null;
+  const previewApngEntry = manifest.files.previewApng ? zip.file(manifest.files.previewApng) : null;
   const importedAt = new Date().toISOString();
   const userManifest: AnimationPackManifest = {
     ...manifest,
@@ -38,6 +39,7 @@ export async function importAnimationPackBlob(blob: Blob, fileName = "animation-
     manifest: userManifest,
     previewDataUrl: previewEntry ? await zipEntryToDataUrl(previewEntry, "image/gif") : undefined,
     previewWebpDataUrl: previewWebpEntry ? await zipEntryToDataUrl(previewWebpEntry, "image/webp") : undefined,
+    previewApngDataUrl: previewApngEntry ? await zipEntryToDataUrl(previewApngEntry, "image/apng") : undefined,
     sheetDataUrl,
     importedAt,
     updatedAt: importedAt
@@ -104,18 +106,20 @@ function readFiles(value: unknown): AnimationPackManifest["files"] {
   const sheet = readRequiredString(value, "sheet");
   const previewGif = readOptionalString(value.previewGif);
   const previewWebp = readOptionalString(value.previewWebp);
+  const previewApng = readOptionalString(value.previewApng);
   const directionPreviews = readDirectionPreviewFiles(value.directionPreviews);
   const metadata = readOptionalString(value.metadata);
   [
     sheet,
     previewGif,
     previewWebp,
+    previewApng,
     metadata,
-    ...directionPreviews.flatMap((preview) => [preview.gif, preview.webp])
+    ...directionPreviews.flatMap((preview) => [preview.gif, preview.webp, preview.apng])
   ].filter((path): path is string => Boolean(path)).forEach((path) => {
     if (!isSafeAnimationPackPath(path)) throw new Error(`Animation pack file path is unsafe: ${path}`);
   });
-  return { sheet, previewGif, previewWebp, directionPreviews, metadata };
+  return { sheet, previewGif, previewWebp, previewApng, directionPreviews, metadata };
 }
 
 function readDirectionPreviewFiles(value: unknown): NonNullable<AnimationPackManifest["files"]["directionPreviews"]> {
@@ -125,7 +129,8 @@ function readDirectionPreviewFiles(value: unknown): NonNullable<AnimationPackMan
     return {
       direction: readRequiredString(item, "direction"),
       gif: readOptionalString(item.gif),
-      webp: readOptionalString(item.webp)
+      webp: readOptionalString(item.webp),
+      apng: readOptionalString(item.apng)
     };
   });
 }
