@@ -16,6 +16,49 @@ export interface HistoryItem {
   derivedFromId?: string;
   derivedFromName?: string;
   outboxImportKey?: string;
+  effectAnimation?: EffectAnimationMetadata;
+}
+
+export type EffectQualityRank = "gold" | "silver" | "bronze" | "failed" | "blocked";
+export type EffectLoopMode = "one-shot" | "loop" | "ping-pong-loop";
+
+export interface EffectAnimationMetadata {
+  kind: "effect-animation";
+  name: string;
+  category: string;
+  type: string;
+  style: string;
+  colorPalette: string;
+  frameCount: number;
+  frameSize: {
+    width: number;
+    height: number;
+  };
+  layout: {
+    id?: string;
+    columns: number;
+    rows: number;
+  };
+  loopMode: EffectLoopMode;
+  fps: number;
+  anchor: {
+    x: number;
+    y: number;
+    mode: string;
+  };
+  blendMode: "normal" | "additive" | string;
+  background: "transparent";
+  alphaPremultiplied: boolean;
+  qualityRank: EffectQualityRank;
+  warnings: string[];
+  failureReason?: string;
+  sourceJobId?: string;
+  artifacts?: {
+    sheet?: string;
+    previewGif?: string;
+    metadata?: string;
+    frames?: string[];
+  };
 }
 
 export interface SpriteFrame {
@@ -256,7 +299,7 @@ export interface CodexResultQualityGate {
 
 export interface CodexArtifactStatus {
   jobId: string;
-  artifactKind: "direction-split";
+  artifactKind: "direction-split" | "effect-animation";
   detected: boolean;
   ready: boolean;
   verified: boolean;

@@ -1,6 +1,6 @@
 import { applyPalette, GIFEncoder, quantize } from "gifenc";
 import JSZip from "jszip";
-import type { AnimationPackManifest, SpriteAction, SpriteFrame } from "../types";
+import type { AnimationPackManifest, EffectAnimationMetadata, SpriteAction, SpriteFrame } from "../types";
 import { canvasToBlob, dataUrlToBlob, downloadBlob, loadImage } from "./image";
 import { buildSpriteMetadata, packSpriteSheet, resolvePlaybackFrameIds } from "./sprite";
 
@@ -15,6 +15,13 @@ export interface AnimationPackExportInput {
     webp?: Blob;
   }>;
   metadata?: unknown;
+  frames?: Array<{ name: string; dataUrl: string }>;
+}
+
+export interface EffectPackExportInput {
+  metadata: EffectAnimationMetadata;
+  sheet: Blob | string;
+  previewGif?: Blob;
   frames?: Array<{ name: string; dataUrl: string }>;
 }
 
@@ -157,6 +164,11 @@ export function exportMetadata(spriteName: string, actions: SpriteAction[], fram
   downloadBlob(blob, `${spriteName}.sprite.json`);
 }
 
+export function exportEffectMetadata(metadata: EffectAnimationMetadata, filenameBase = metadata.name) {
+  const blob = new Blob([JSON.stringify(metadata, null, 2)], { type: "application/json" });
+  downloadBlob(blob, `${safePackBaseName(filenameBase)}.effect.json`);
+}
+
 export async function createAnimationPackZip(input: AnimationPackExportInput) {
   const zip = new JSZip();
   const manifest = normalizePackManifestFiles(input.manifest);
@@ -198,6 +210,31 @@ export async function exportAnimationPack(input: AnimationPackExportInput) {
   downloadBlob(blob, `${safePackBaseName(input.manifest.title)}.image-cockpit-animation.zip`);
 }
 
+export async function createEffectPackZip(input: EffectPackExportInput) {
+  const zip = new JSZip();
+  const metadata = normalizeEffectMetadataFiles(input.metadata);
+  zip.file("effect.json", JSON.stringify(metadata, null, 2));
+  zip.file("sheet.png", await sourceToZipData(input.sheet));
+
+  if (input.previewGif) {
+    zip.file("preview.gif", await sourceToZipData(input.previewGif));
+  }
+  if (input.frames) {
+    for (let index = 0; index < input.frames.length; index += 1) {
+      const frame = input.frames[index];
+      const safeFrameName = frame.name.replace(/\.[^.]+$/, "").replace(/[^a-z0-9._-]+/gi, "-");
+      zip.file(`frames/${safeFrameName || `frame-${String(index + 1).padStart(3, "0")}`}.png`, await sourceToZipData(frame.dataUrl));
+    }
+  }
+
+  return zip.generateAsync({ type: "blob" });
+}
+
+export async function exportEffectPack(input: EffectPackExportInput) {
+  const blob = await createEffectPackZip(input);
+  downloadBlob(blob, `${safePackBaseName(input.metadata.name)}.image-cockpit-effect.zip`);
+}
+
 function normalizePackManifestFiles(manifest: AnimationPackManifest): AnimationPackManifest {
   return {
     ...manifest,
@@ -207,6 +244,20 @@ function normalizePackManifestFiles(manifest: AnimationPackManifest): AnimationP
       previewWebp: manifest.files.previewWebp || "preview.webp",
       directionPreviews: manifest.files.directionPreviews,
       metadata: manifest.files.metadata || "metadata.json"
+    }
+  };
+}
+
+function normalizeEffectMetadataFiles(metadata: EffectAnimationMetadata): EffectAnimationMetadata {
+  return {
+    ...metadata,
+    artifacts: {
+      sheet: metadata.artifacts?.sheet || "sheet.png",
+      previewGif: metadata.artifacts?.previewGif || "preview.gif",
+      metadata: metadata.artifacts?.metadata || "effect.json",
+      frames: metadata.artifacts?.frames || Array.from({ length: metadata.frameCount }, (_, index) => {
+        return `frames/frame-${String(index + 1).padStart(3, "0")}.png`;
+      })
     }
   };
 }

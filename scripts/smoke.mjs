@@ -301,6 +301,60 @@ async function runManualHandoffSmoke() {
       "sprite generation job should instruct Codex to use built-in image generation"
     );
 
+    const effectAnimationJob = await postJson(port, "/api/codex/jobs", {
+      workflowMode: "effect-animation",
+      prompt: "Smoke test transparent slash effect animation sheet",
+      negativePrompt: "text, watermark, checkerboard background",
+      jobNotes: "Return an 8-frame transparent effect sheet.",
+      selectedImageName: "tiny.png",
+      selectedImageSize: "1x1",
+      selectedImageSource: "sample",
+      selectedImageDataUrl: tinyPng,
+      grid: { columns: 4, rows: 2, gutter: 0 },
+      action: "slash-arc-crescent-8f",
+      frames: 8,
+      cell: { width: 128, height: 128 },
+      effectContext: {
+        kind: "effect-animation",
+        name: "slash-arc-crescent-8f",
+        category: "slash-arc",
+        type: "crescent",
+        style: "pixel-clean",
+        colorPalette: "cyan-white",
+        frameCount: 8,
+        frameSize: { width: 128, height: 128 },
+        layout: { id: "grid-4x2", columns: 4, rows: 2 },
+        loopMode: "one-shot",
+        fps: 12,
+        anchor: { x: 64, y: 64, mode: "center" },
+        blendMode: "additive",
+        background: "transparent",
+        alphaPremultiplied: false,
+        qualityRank: "blocked",
+        warnings: [],
+        sheetSize: { width: 512, height: 256 },
+        promptContract: ["transparent PNG sheet", "no checkerboard"],
+        negativePrompt: "text, watermark, checkerboard background"
+      }
+    });
+    const effectAnimationJobJson = JSON.parse(await readFile(effectAnimationJob.path, "utf8"));
+    assert(effectAnimationJobJson.workflowMode === "effect-animation", "effect animation job should include workflowMode");
+    assert(effectAnimationJobJson.intent.includes("transparent game VFX animation sheet"), "effect animation job should include VFX intent");
+    assert(!effectAnimationJobJson.selectedImage.assetPath, "effect animation job should not attach the current selected image");
+    assert(effectAnimationJobJson.spriteContext.frames === 8, "effect animation job should include frame count in sprite context");
+    assert(effectAnimationJobJson.spriteContext.grid.columns === 4, "effect animation job should include sheet columns");
+    assert(effectAnimationJobJson.spriteContext.cell.width === 128, "effect animation job should include effect cell size");
+    assert(effectAnimationJobJson.effectContext.category === "slash-arc", "effect animation job should preserve effect category");
+    assert(effectAnimationJobJson.effectContext.layout.rows === 2, "effect animation job should preserve effect layout");
+    assert(
+      effectAnimationJobJson.notes.some((note) => note.includes("real alpha transparency")),
+      "effect animation job should require real alpha transparency"
+    );
+    assert(
+      effectAnimationJobJson.notes.some((note) => note.includes("Do not bake checkerboard")),
+      "effect animation job should forbid baked checkerboard backgrounds"
+    );
+
     const hatchPetJob = await postJson(port, "/api/codex/jobs", {
       workflowMode: "sprite-generate",
       prompt: "Smoke test hatch-pet atlas generation with a canonical base identity",

@@ -71,9 +71,10 @@ type CodexJobRequest = {
   tournamentId?: string;
   tournamentCandidateIndex?: number;
   tournamentCandidateCount?: number;
+  effectContext?: unknown;
 };
 
-type CodexWorkflowMode = "image-generate" | "image-edit" | "sprite-generate" | "sprite-edit";
+type CodexWorkflowMode = "image-generate" | "image-edit" | "sprite-generate" | "sprite-edit" | "effect-animation";
 type CodexRunnerState = "running" | "completed" | "failed" | "unavailable" | "disabled" | "unknown";
 type CodexRunnerPreflightState = "ready" | "disabled" | "unavailable";
 type CodexFailureKind =
@@ -504,6 +505,7 @@ const server = createServer(async (request, response) => {
           variant: includeSpriteContext ? body.spriteVariant ?? "standard" : "",
           directions: includeSpriteContext && Array.isArray(body.directions) ? body.directions : []
         },
+        effectContext: workflowMode === "effect-animation" ? body.effectContext ?? null : null,
         tournament: tournamentId
           ? {
               id: tournamentId,
@@ -593,7 +595,8 @@ function normalizeWorkflowMode(value?: string): CodexWorkflowMode {
     value === "image-generate" ||
     value === "image-edit" ||
     value === "sprite-generate" ||
-    value === "sprite-edit"
+    value === "sprite-edit" ||
+    value === "effect-animation"
   ) {
     return value;
   }
@@ -605,7 +608,7 @@ function workflowUsesSelectedImage(mode: CodexWorkflowMode) {
 }
 
 function workflowUsesSpriteContext(mode: CodexWorkflowMode) {
-  return mode === "sprite-generate" || mode === "sprite-edit";
+  return mode === "sprite-generate" || mode === "sprite-edit" || mode === "effect-animation";
 }
 
 function workflowIntent(mode: CodexWorkflowMode) {
@@ -617,6 +620,9 @@ function workflowIntent(mode: CodexWorkflowMode) {
   }
   if (mode === "sprite-edit") {
     return "Ask local Codex to revise sprite-sheet frames or metadata when available, or record sprite edit context for manual handoff.";
+  }
+  if (mode === "effect-animation") {
+    return "Ask local Codex to use imagegen / built-in image_gen to create a transparent game VFX animation sheet and metadata.";
   }
   return "Ask local Codex to use imagegen / built-in image_gen to generate a real pixel-art image from the prompt, then return image files to the outbox.";
 }
@@ -661,6 +667,17 @@ function workflowNotes(mode: CodexWorkflowMode) {
     return [
       "Use spriteContext.grid, spriteContext.action, and spriteContext.frames when they are populated.",
       "Use jobNotes for frame, transparency, anchor, or export requirements."
+    ];
+  }
+  if (mode === "effect-animation") {
+    return [
+      "Use imagegen / built-in image_gen when available to create a real raster transparent PNG sprite sheet for a game visual effect.",
+      "Use effectContext as the strict output contract: category, type, style, palette, frameCount, frameSize, layout, loopMode, anchor, blendMode, and sheetSize.",
+      "Return one final transparent PNG sheet with the job id filename prefix. Include metadata JSON and preview GIF when feasible.",
+      "The final sheet must use real alpha transparency. Do not bake checkerboard, solid matte backgrounds, UI panels, labels, frame numbers, text, logos, watermarks, or border guides into the image.",
+      "Each populated frame must show visible temporal progression. Do not copy one still effect into every frame.",
+      "Keep the effect inside each cell with alpha padding, no clipping at bounds, no overlap into neighboring cells, and no extra gutters.",
+      blockerSidecarNote
     ];
   }
   return [
@@ -1056,7 +1073,12 @@ function buildCodexRunnerPrompt(job: { id: string; path: string; outboxDir: stri
     "For workflowMode=sprite-generate, inspect all cells before writing the final file and retry if any head is cut off, feet are missing, a head appears below feet, scale changes wildly, or the background is not flat chroma key.",
     "For workflowMode=sprite-generate with spriteContext.variant=hatch-pet, use the installed hatch-pet skill/scripts when available. Build a Codex pet atlas with 8 columns x 9 rows, 192x208 cells, 1536x1872 total, transparent unused cells, contact-sheet QA, and final spritesheet PNG/WebP returned with the job id filename prefix. Include pet.json as a sidecar if produced.",
     "For workflowMode=sprite-generate with spriteContext.variant=directional-hatch-pet, use the installed hatch-pet skill/scripts when available and return exactly five separate Codex pet atlas images: direction-01-front, direction-02-front-three-quarter, direction-03-side, direction-04-back-three-quarter, and direction-05-back. Each atlas must be 8 columns x 9 rows, 192x208 cells, 1536x1872 total, transparent unused cells, and use the job id filename prefix plus the direction suffix. Do not return only one giant combined sheet.",
-    "Use jobNotes, annotationContext, and spriteContext only when those fields are populated for the workflow.",
+    "For workflowMode=effect-animation, use imagegen / built-in image_gen when available to create one real transparent PNG game VFX animation sheet. Never create a procedural, SVG, canvas, diagram, geometric, or placeholder image.",
+    "For workflowMode=effect-animation, follow effectContext exactly: frameCount, frameSize, layout columns/rows, sheetSize, loopMode, anchor, style, palette, category, type, and blendMode. The final PNG must use the job id filename prefix and preferably include '-effect-sheet' in the name.",
+    "For workflowMode=effect-animation, do not bake checkerboard, solid matte backgrounds, preview backgrounds, UI panels, text, logos, watermarks, frame numbers, labels, arrows, or border guides into the image. Use real alpha transparency and no gutters.",
+    "For workflowMode=effect-animation, every populated frame must show readable temporal progression. Reject and retry if frames are static copies, clipped at cell bounds, overlap neighboring cells, or do not match the requested sheet layout.",
+    "For workflowMode=effect-animation, include a compact metadata JSON sidecar and a GIF preview when feasible, both using the same job id filename prefix. The PNG sheet is the required final artifact.",
+    "Use jobNotes, annotationContext, spriteContext, and effectContext only when those fields are populated for the workflow.",
     "When using imagegen / built-in image_gen, isolate generated artifacts per job. Record the generated image path returned by the tool when available; otherwise record a before timestamp and only copy files created after that invocation. Do not blindly copy the newest file from CODEX_HOME/generated_images, because multiple tournament candidates may run in parallel. If you cannot confidently identify the image produced for this exact job and direction, regenerate that direction or return a blocker sidecar instead of mixing another candidate's image.",
     `Write final image result files only into this outbox directory: ${job.outboxDir}`,
     `Use this filename prefix for returned assets: ${job.id}`,

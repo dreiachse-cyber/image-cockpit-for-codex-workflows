@@ -164,7 +164,7 @@ const requiredEnvKeys = [
   "IMAGE_COCKPIT_CODEX_EXEC_ARGS_JSON"
 ];
 
-const requiredWorkflowIds = ["image-generate", "image-edit", "sprite-generate", "sprite-edit"];
+const requiredWorkflowIds = ["image-generate", "image-edit", "sprite-generate", "sprite-edit", "effect-animation"];
 const requiredGitignorePatterns = ["node_modules/", "dist/", "coverage/", ".env", ".env.", "!.env.example", "codex-handoff/"];
 const requiredPackageScripts = [
   "doctor",
@@ -460,6 +460,7 @@ function checkWorkflowIds() {
     "Pixel Art Generation",
     "Image Editing",
     "Animation Generation",
+    "Effect Animation",
     "Initial screen should open the Pixel Art Generation workspace",
     "Initial screen should not show legacy Guided Start options",
     "selectWorkflowTab",
@@ -467,6 +468,7 @@ function checkWorkflowIds() {
     "5-direction chroma-key sprite sheet",
     "Generate Pixel Art",
     "Generate Animation",
+    "Generate Effect",
     "Animation generated",
     "Prompt Examples",
     "prompt-example-trigger",
@@ -712,6 +714,19 @@ function checkWorkflowIds() {
     "resultPreviewFrameHeight",
     "Animation frames ready",
     "Generated from",
+    "Slash Arc",
+    "Hit Spark",
+    "Magic Cast",
+    "Projectile",
+    "Impact",
+    "Effect imported",
+    "Sheet preview",
+    "Frame timeline",
+    "Effect GIF",
+    "Sheet PNG",
+    "Frames ZIP",
+    "Metadata JSON",
+    "Effect Pack ZIP",
     "animationSourceStatus",
     "Codex log fullscreen button",
     "Fullscreen Codex log text area should be taller than normal",
@@ -880,6 +895,7 @@ function checkWorkflowIds() {
     "Preserve the original canvas size and aspect ratio",
     "Do not zoom in, crop, or reframe",
     "workflowMode=sprite-generate",
+    "workflowMode=effect-animation",
     "spriteContext.chromaKey",
     "spriteContext.directions",
     "image-cockpit.direction-split-animation.v1",
@@ -896,6 +912,9 @@ function checkWorkflowIds() {
     "publishVerifiedDirectionSplitArtifact",
     "outbox/.staging/<job-id>/",
     "Do not run git status",
+    "real alpha transparency",
+    "Do not bake checkerboard",
+    "effectContext exactly",
     "Do not place *-qa.json, work files",
     "candidate-contact sheets",
     "preview grids",
@@ -937,6 +956,10 @@ function checkWorkflowIds() {
     "openDownloadModal",
     "result-download-action",
     "download-options-modal",
+    "importEffectAnimationResult",
+    "evaluateEffectAnimationQc",
+    "effectQualityRankAllowsDownload",
+    "exportSelectedEffectPack",
     "CODEX_LOG_HISTORY_LIMIT = MAX_ACTIVE_CODEX_JOBS",
     "codexLogAutoScrollRef",
     "pre.scrollTop = pre.scrollHeight",

@@ -26,11 +26,13 @@ import {
   RefreshCw,
   Scissors,
   Settings,
+  Sparkles,
   Square,
   Terminal,
   Trash2,
   Upload,
-  X
+  X,
+  Zap
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties, UIEvent } from "react";
@@ -38,8 +40,11 @@ import monsterPromptsMarkdown from "../docs/prompt-examples/monster-prompts.md?r
 import professionCharacterPromptsMarkdown from "../docs/prompt-examples/profession-character-prompts.md?raw";
 import {
   createAnimatedWebpBlob,
+  createSpriteSheetBlob,
   createGifBlob,
   exportAnimationPack,
+  exportEffectMetadata,
+  exportEffectPack,
   exportWebP,
   exportFramesZip,
   exportGif,
@@ -91,6 +96,9 @@ import type {
   CodexRunnerPreflight,
   CodexRunnerPreflightResponse,
   CodexRunnerStatus,
+  EffectAnimationMetadata,
+  EffectLoopMode,
+  EffectQualityRank,
   LocalGenerationResponse,
   ImageRectCoordinates,
   ImageSizeCoordinates,
@@ -254,7 +262,30 @@ const languageOptions: Array<{ id: Language; label: string }> = [
 ];
 const supportedLanguageSet = new Set<string>(SUPPORTED_LANGUAGE_IDS);
 
-type WorkflowMode = "image-generate" | "image-edit" | "sprite-generate" | "sprite-edit";
+type WorkflowMode = "image-generate" | "image-edit" | "sprite-generate" | "sprite-edit" | "effect-animation";
+type EffectCategoryId = "slash-arc" | "hit-spark" | "magic-cast" | "projectile" | "impact";
+type EffectStyleId = "pixel-clean" | "painterly-soft" | "arcade-bold" | "anime-flare";
+type EffectPaletteId = "cyan-white" | "violet-gold" | "ember-orange" | "toxic-green" | "mono-white";
+type EffectLayoutId = "grid-4x2" | "horizontal-strip" | "grid-4x4";
+type EffectAnchorMode = "center" | "bottom-center" | "caster-hand" | "projectile-center" | "impact-ground";
+type EffectBackgroundPreview = "checkerboard" | "dark" | "light" | "neutral";
+
+interface EffectCategoryDefinition {
+  id: EffectCategoryId;
+  label: LocalizedText;
+  detail: LocalizedText;
+  types: Array<{ id: string; label: LocalizedText }>;
+  defaultLoop: EffectLoopMode;
+  defaultAnchor: EffectAnchorMode;
+  defaultBlendMode: "normal" | "additive";
+}
+
+interface EffectLayoutOption {
+  id: EffectLayoutId;
+  label: LocalizedText;
+  columns(frameCount: number): number;
+  rows(frameCount: number): number;
+}
 
 const CODEX_PROGRESS_TICK_MS = 1000;
 const CODEX_PROGRESS_ESTIMATE_MS: Record<WorkflowMode | "default", number> = {
@@ -262,8 +293,141 @@ const CODEX_PROGRESS_ESTIMATE_MS: Record<WorkflowMode | "default", number> = {
   "image-edit": 10 * 60 * 1000,
   "sprite-generate": 30 * 60 * 1000,
   "sprite-edit": 8 * 60 * 1000,
+  "effect-animation": 18 * 60 * 1000,
   default: 12 * 60 * 1000
 };
+
+const EFFECT_DEFAULT_FRAME_COUNT = 8;
+const EFFECT_DEFAULT_CANVAS_SIZE = 128;
+const EFFECT_DEFAULT_LAYOUT: EffectLayoutId = "grid-4x2";
+const EFFECT_DEFAULT_FPS = 12;
+
+const effectCategoryDefinitions: EffectCategoryDefinition[] = [
+  {
+    id: "slash-arc",
+    label: { ja: "斬撃軌跡", en: "Slash Arc" },
+    detail: { ja: "剣や爪の一閃、弧を描く残光", en: "Sweeping blade or claw trails with a readable arc." },
+    types: [
+      { id: "crescent", label: { ja: "三日月斬り", en: "Crescent slash" } },
+      { id: "cross", label: { ja: "十字斬り", en: "Cross slash" } },
+      { id: "spinning", label: { ja: "回転斬撃", en: "Spinning slash" } }
+    ],
+    defaultLoop: "one-shot",
+    defaultAnchor: "center",
+    defaultBlendMode: "additive"
+  },
+  {
+    id: "hit-spark",
+    label: { ja: "ヒットスパーク", en: "Hit Spark" },
+    detail: { ja: "命中時の火花、衝突点を強調", en: "Contact sparks that emphasize an impact point." },
+    types: [
+      { id: "burst", label: { ja: "瞬間バースト", en: "Burst spark" } },
+      { id: "metal", label: { ja: "金属火花", en: "Metal spark" } },
+      { id: "shield", label: { ja: "盾受け", en: "Shield clash" } }
+    ],
+    defaultLoop: "one-shot",
+    defaultAnchor: "center",
+    defaultBlendMode: "additive"
+  },
+  {
+    id: "magic-cast",
+    label: { ja: "魔法詠唱", en: "Magic Cast" },
+    detail: { ja: "魔法陣、粒子、発動前の蓄積", en: "Casting circles, particles, and charge-up motion." },
+    types: [
+      { id: "circle", label: { ja: "魔法陣", en: "Magic circle" } },
+      { id: "runes", label: { ja: "ルーン発光", en: "Rune glow" } },
+      { id: "summon", label: { ja: "召喚兆候", en: "Summon tell" } }
+    ],
+    defaultLoop: "loop",
+    defaultAnchor: "bottom-center",
+    defaultBlendMode: "additive"
+  },
+  {
+    id: "projectile",
+    label: { ja: "飛び道具", en: "Projectile" },
+    detail: { ja: "弾、矢、魔法弾の移動フレーム", en: "Traveling bullets, arrows, and energy shots." },
+    types: [
+      { id: "bolt", label: { ja: "魔法弾", en: "Energy bolt" } },
+      { id: "fireball", label: { ja: "火球", en: "Fireball" } },
+      { id: "arrow-trail", label: { ja: "矢の軌跡", en: "Arrow trail" } }
+    ],
+    defaultLoop: "loop",
+    defaultAnchor: "projectile-center",
+    defaultBlendMode: "additive"
+  },
+  {
+    id: "impact",
+    label: { ja: "着弾衝撃", en: "Impact" },
+    detail: { ja: "爆発、土煙、地面への衝突", en: "Explosions, dust puffs, and ground hits." },
+    types: [
+      { id: "explosion", label: { ja: "小爆発", en: "Small explosion" } },
+      { id: "dust", label: { ja: "土煙", en: "Dust puff" } },
+      { id: "shockwave", label: { ja: "衝撃波", en: "Shockwave" } }
+    ],
+    defaultLoop: "one-shot",
+    defaultAnchor: "impact-ground",
+    defaultBlendMode: "normal"
+  }
+];
+
+const effectStyleOptions: Array<{ id: EffectStyleId; label: LocalizedText }> = [
+  { id: "pixel-clean", label: { ja: "Pixel Clean", en: "Pixel Clean" } },
+  { id: "painterly-soft", label: { ja: "Painterly Soft", en: "Painterly Soft" } },
+  { id: "arcade-bold", label: { ja: "Arcade Bold", en: "Arcade Bold" } },
+  { id: "anime-flare", label: { ja: "Anime Flare", en: "Anime Flare" } }
+];
+
+const effectPaletteOptions: Array<{ id: EffectPaletteId; label: LocalizedText; swatches: string[] }> = [
+  { id: "cyan-white", label: { ja: "Cyan / White", en: "Cyan / White" }, swatches: ["#67e8f9", "#f8fafc", "#38bdf8"] },
+  { id: "violet-gold", label: { ja: "Violet / Gold", en: "Violet / Gold" }, swatches: ["#a78bfa", "#fde68a", "#7c3aed"] },
+  { id: "ember-orange", label: { ja: "Ember Orange", en: "Ember Orange" }, swatches: ["#fb923c", "#facc15", "#ef4444"] },
+  { id: "toxic-green", label: { ja: "Toxic Green", en: "Toxic Green" }, swatches: ["#bef264", "#22c55e", "#14b8a6"] },
+  { id: "mono-white", label: { ja: "Mono White", en: "Mono White" }, swatches: ["#ffffff", "#cbd5e1", "#64748b"] }
+];
+
+const effectFrameCountOptions = [4, 6, 8, 12, 16];
+const effectCanvasSizeOptions = [64, 96, 128, 192, 256];
+const effectLayoutOptions: EffectLayoutOption[] = [
+  {
+    id: "grid-4x2",
+    label: { ja: "4 x 2 グリッド", en: "4 x 2 grid" },
+    columns: () => 4,
+    rows: (frameCount) => Math.max(1, Math.ceil(frameCount / 4))
+  },
+  {
+    id: "horizontal-strip",
+    label: { ja: "横一列", en: "Horizontal strip" },
+    columns: (frameCount) => Math.max(1, frameCount),
+    rows: () => 1
+  },
+  {
+    id: "grid-4x4",
+    label: { ja: "4 x 4 グリッド", en: "4 x 4 grid" },
+    columns: () => 4,
+    rows: (frameCount) => Math.max(1, Math.ceil(frameCount / 4))
+  }
+];
+
+const effectLoopModeOptions: Array<{ id: EffectLoopMode; label: LocalizedText }> = [
+  { id: "one-shot", label: { ja: "One-shot", en: "One-shot" } },
+  { id: "loop", label: { ja: "Loop", en: "Loop" } },
+  { id: "ping-pong-loop", label: { ja: "Ping-pong", en: "Ping-pong" } }
+];
+
+const effectAnchorOptions: Array<{ id: EffectAnchorMode; label: LocalizedText }> = [
+  { id: "center", label: { ja: "中央", en: "Center" } },
+  { id: "bottom-center", label: { ja: "足元中央", en: "Bottom center" } },
+  { id: "caster-hand", label: { ja: "手元", en: "Caster hand" } },
+  { id: "projectile-center", label: { ja: "弾芯", en: "Projectile center" } },
+  { id: "impact-ground", label: { ja: "接地点", en: "Impact ground" } }
+];
+
+const effectBackgroundOptions: Array<{ id: EffectBackgroundPreview; label: string }> = [
+  { id: "checkerboard", label: "Checker" },
+  { id: "dark", label: "Dark" },
+  { id: "light", label: "Light" },
+  { id: "neutral", label: "Neutral" }
+];
 
 interface PromptExample {
   id: string;
@@ -369,6 +533,20 @@ interface DirectionSplitNormalizedCell {
   failures: string[];
 }
 
+interface EffectAnimationJobContext extends EffectAnimationMetadata {
+  categoryLabel: string;
+  typeLabel: string;
+  styleLabel: string;
+  paletteLabel: string;
+  sheetSize: {
+    width: number;
+    height: number;
+  };
+  customPrompt: string;
+  promptContract: string[];
+  negativePrompt: string;
+}
+
 interface PendingCodexJob {
   id: string;
   path: string;
@@ -386,6 +564,7 @@ interface PendingCodexJob {
   tournamentId?: string;
   tournamentCandidateIndex?: number;
   tournamentCandidateCount?: number;
+  effectContext?: EffectAnimationJobContext;
 }
 
 interface CodexJobDraft {
@@ -421,6 +600,7 @@ interface CodexJobDraft {
   tournamentId?: string;
   tournamentCandidateIndex?: number;
   tournamentCandidateCount?: number;
+  effectContext?: EffectAnimationJobContext;
 }
 
 interface CodexJobQueueItem {
@@ -443,6 +623,7 @@ interface CodexJobQueueItem {
   tournamentId?: string;
   tournamentCandidateIndex?: number;
   tournamentCandidateCount?: number;
+  effectContext?: EffectAnimationJobContext;
 }
 
 interface ImportLatestOptions {
@@ -1803,6 +1984,11 @@ const baseWorkflowCopy = {
       detail: "Upload or select pixel art, then ask Codex for a 5-direction animation sprite sheet.",
       status: "Upload or select pixel art, then generate animation frames"
     },
+    "effect-animation": {
+      label: "Effect Animation",
+      detail: "Generate transparent VFX sheets for slashes, sparks, casts, projectiles, and impacts.",
+      status: "Set effect type, frames, layout, and QC rules before creating a Codex handoff job"
+    },
     "sprite-edit": {
       label: "4. Sprite Sheet Editing",
       detail: "Tune timeline order, transparency, anchors, QC, and exports.",
@@ -1824,6 +2010,11 @@ const baseWorkflowCopy = {
       label: "アニメーションの生成",
       detail: "ピクセルアートをアップロードまたは選択し、アニメーションシートとframesを生成します。",
       status: "ピクセルアートをアップロードまたは選択して、アニメーションframesを生成します"
+    },
+    "effect-animation": {
+      label: "エフェクトアニメーション",
+      detail: "斬撃、火花、詠唱、飛び道具、着弾の透過VFXシートを生成します。",
+      status: "effect type、frames、layout、QC条件を決めてCodex受け渡しジョブを作成します"
     },
     "sprite-edit": {
       label: "4. スプライトシート編集",
@@ -1920,6 +2111,7 @@ function withWorkflowCopy(overrides: Partial<Record<WorkflowMode, Partial<Workfl
     "image-generate": { ...baseWorkflowCopy.en["image-generate"], ...overrides["image-generate"] },
     "image-edit": { ...baseWorkflowCopy.en["image-edit"], ...overrides["image-edit"] },
     "sprite-generate": { ...baseWorkflowCopy.en["sprite-generate"], ...overrides["sprite-generate"] },
+    "effect-animation": { ...baseWorkflowCopy.en["effect-animation"], ...overrides["effect-animation"] },
     "sprite-edit": { ...baseWorkflowCopy.en["sprite-edit"], ...overrides["sprite-edit"] }
   };
 }
@@ -1946,6 +2138,12 @@ const baseWorkflowFormCopy = {
       notesLabel: "Animation Notes",
       notesPlaceholder: "Motion preset, timing, pose, bounce, or export details"
     },
+    "effect-animation": {
+      promptLabel: "Effect Prompt",
+      negativeLabel: "Avoid",
+      notesLabel: "Effect Notes",
+      notesPlaceholder: "Optional timing, color, silhouette, motion readability, or engine notes"
+    },
     "sprite-edit": {
       promptLabel: "Sprite Prompt",
       negativeLabel: "Avoid",
@@ -1971,6 +2169,12 @@ const baseWorkflowFormCopy = {
       negativeLabel: "避けたい要素",
       notesLabel: "アニメーションメモ",
       notesPlaceholder: "動き、タイミング、ポーズ、揺れ、出力条件を書きます"
+    },
+    "effect-animation": {
+      promptLabel: "エフェクトプロンプト",
+      negativeLabel: "避けたい要素",
+      notesLabel: "エフェクトメモ",
+      notesPlaceholder: "タイミング、色、シルエット、動きの読みやすさ、エンジン用途を書きます"
     },
     "sprite-edit": {
       promptLabel: "スプライトプロンプト",
@@ -2068,6 +2272,7 @@ function withWorkflowFormCopy(overrides: Partial<Record<WorkflowMode, Partial<Wo
     "image-generate": { ...baseWorkflowFormCopy.en["image-generate"], ...overrides["image-generate"] },
     "image-edit": { ...baseWorkflowFormCopy.en["image-edit"], ...overrides["image-edit"] },
     "sprite-generate": { ...baseWorkflowFormCopy.en["sprite-generate"], ...overrides["sprite-generate"] },
+    "effect-animation": { ...baseWorkflowFormCopy.en["effect-animation"], ...overrides["effect-animation"] },
     "sprite-edit": { ...baseWorkflowFormCopy.en["sprite-edit"], ...overrides["sprite-edit"] }
   };
 }
@@ -2562,6 +2767,169 @@ function buildAnimationPresetNotes(preset: AnimationPresetExample) {
   ].join("\n");
 }
 
+function getEffectCategoryById(id: string): EffectCategoryDefinition {
+  return effectCategoryDefinitions.find((category) => category.id === id) ?? effectCategoryDefinitions[0]!;
+}
+
+function getEffectTypeById(category: EffectCategoryDefinition, id: string) {
+  return category.types.find((type) => type.id === id) ?? category.types[0]!;
+}
+
+function effectSlug(value: string) {
+  return value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "effect";
+}
+
+function resolveEffectSheetGrid(layoutId: EffectLayoutId, frameCount: number): GridSettings & { id: EffectLayoutId } {
+  const option = effectLayoutOptions.find((item) => item.id === layoutId) ?? effectLayoutOptions[0]!;
+  const safeFrameCount = clampInteger(frameCount, 1, 64);
+  return {
+    id: option.id,
+    columns: Math.max(1, option.columns(safeFrameCount)),
+    rows: Math.max(1, option.rows(safeFrameCount)),
+    gutter: 0
+  };
+}
+
+function effectAnchorForMode(mode: EffectAnchorMode, canvasSize: number): EffectAnimationMetadata["anchor"] {
+  const center = Math.round(canvasSize / 2);
+  const bottom = Math.round(canvasSize * 0.88);
+  if (mode === "bottom-center" || mode === "impact-ground") return { x: center, y: bottom, mode };
+  if (mode === "caster-hand") return { x: Math.round(canvasSize * 0.58), y: Math.round(canvasSize * 0.46), mode };
+  return { x: center, y: center, mode };
+}
+
+function buildEffectAnimationJobContext({
+  categoryId,
+  typeId,
+  styleId,
+  paletteId,
+  frameCount,
+  canvasSize,
+  layoutId,
+  loopMode,
+  anchorMode,
+  customPrompt,
+  negativePrompt: customNegativePrompt,
+  language
+}: {
+  categoryId: EffectCategoryId;
+  typeId: string;
+  styleId: EffectStyleId;
+  paletteId: EffectPaletteId;
+  frameCount: number;
+  canvasSize: number;
+  layoutId: EffectLayoutId;
+  loopMode: EffectLoopMode;
+  anchorMode: EffectAnchorMode;
+  customPrompt: string;
+  negativePrompt: string;
+  language: Language;
+}): EffectAnimationJobContext {
+  const category = getEffectCategoryById(categoryId);
+  const type = getEffectTypeById(category, typeId);
+  const style = effectStyleOptions.find((item) => item.id === styleId) ?? effectStyleOptions[0]!;
+  const palette = effectPaletteOptions.find((item) => item.id === paletteId) ?? effectPaletteOptions[0]!;
+  const layout = resolveEffectSheetGrid(layoutId, frameCount);
+  const safeFrameCount = clampInteger(frameCount, 1, layout.columns * layout.rows);
+  const safeCanvasSize = clampInteger(canvasSize, 32, 512);
+  const frameSize = { width: safeCanvasSize, height: safeCanvasSize };
+  const sheetSize = { width: safeCanvasSize * layout.columns, height: safeCanvasSize * layout.rows };
+  const categoryLabel = localizedText(category.label, language);
+  const typeLabel = localizedText(type.label, language);
+  const styleLabel = localizedText(style.label, language);
+  const paletteLabel = localizedText(palette.label, language);
+  const layoutLabel = localizedText((effectLayoutOptions.find((item) => item.id === layout.id) ?? effectLayoutOptions[0]!).label, language);
+  const name = `${effectSlug(category.label.en)}-${effectSlug(type.label.en)}-${safeFrameCount}f`;
+  const promptContract = [
+    `Workflow mode: effect-animation.`,
+    `Create exactly ${safeFrameCount} animation frames for a game VFX effect.`,
+    `Return one transparent PNG sprite sheet, not a mockup, not a contact sheet, and not an HTML/CSS preview.`,
+    `Sheet layout: ${layout.columns} columns x ${layout.rows} rows (${layoutLabel}); total canvas ${sheetSize.width}px x ${sheetSize.height}px.`,
+    `Each frame cell is exactly ${safeCanvasSize}px x ${safeCanvasSize}px, evenly aligned with no gutters and no overlapping neighboring cells.`,
+    `Use real alpha transparency. Do not bake in checkerboard, solid matte backgrounds, panels, drop shadows, UI chrome, or preview backgrounds.`,
+    `Do not include text, letters, watermark, logo, frame numbers, arrows, labels, or border guides.`,
+    `Keep the effect centered to anchor ${anchorMode} at (${effectAnchorForMode(anchorMode, safeCanvasSize).x}, ${effectAnchorForMode(anchorMode, safeCanvasSize).y}).`,
+    `Frames must show stable progression with no static copy frames, no random style jumps, and no crop at the cell bounds.`,
+    `Loop mode: ${loopMode}. One-shot effects should start small, peak, and dissipate; loop effects should bridge cleanly from last frame back to first.`,
+    `Effect category: ${categoryLabel}. Effect type: ${typeLabel}. Visual style: ${styleLabel}. Palette: ${paletteLabel}.`,
+    `Blend intent: ${category.defaultBlendMode}; preserve readable alpha edges for game-engine compositing.`
+  ];
+
+  return {
+    kind: "effect-animation",
+    name,
+    category: category.id,
+    type: type.id,
+    style: style.id,
+    colorPalette: palette.id,
+    frameCount: safeFrameCount,
+    frameSize,
+    layout: { id: layout.id, columns: layout.columns, rows: layout.rows },
+    loopMode,
+    fps: EFFECT_DEFAULT_FPS,
+    anchor: effectAnchorForMode(anchorMode, safeCanvasSize),
+    blendMode: category.defaultBlendMode,
+    background: "transparent",
+    alphaPremultiplied: false,
+    qualityRank: "blocked",
+    warnings: [],
+    categoryLabel,
+    typeLabel,
+    styleLabel,
+    paletteLabel,
+    sheetSize,
+    customPrompt: customPrompt.trim(),
+    promptContract,
+    negativePrompt: buildEffectNegativePrompt(customNegativePrompt)
+  };
+}
+
+function buildEffectNegativePrompt(customNegativePrompt: string) {
+  const requiredNegative = [
+    "text",
+    "watermark",
+    "logo",
+    "frame numbers",
+    "letters",
+    "checkerboard background",
+    "solid background",
+    "preview grid",
+    "contact sheet labels",
+    "border guides",
+    "cropped effect",
+    "opaque matte",
+    "shadow baked into background",
+    "photorealistic scene",
+    "character body",
+    "UI icons"
+  ].join(", ");
+  const custom = customNegativePrompt.trim();
+  return custom ? `${requiredNegative}, ${custom}` : requiredNegative;
+}
+
+function buildEffectAnimationPrompt(context: EffectAnimationJobContext) {
+  const extra = context.customPrompt ? [`User effect direction: ${context.customPrompt}`] : [];
+  return [
+    ...context.promptContract,
+    ...extra,
+    `Suggested filename prefix: ${context.name}.`
+  ].join("\n");
+}
+
+function buildEffectAnimationNotes(context: EffectAnimationJobContext, userNotes: string) {
+  return [
+    `Effect Animation MVP contract for ${context.categoryLabel} / ${context.typeLabel}.`,
+    `Frame count: ${context.frameCount}; frame size: ${context.frameSize.width}x${context.frameSize.height}; layout: ${context.layout.columns}x${context.layout.rows}; sheet: ${context.sheetSize.width}x${context.sheetSize.height}.`,
+    `Loop: ${context.loopMode}; anchor: ${context.anchor.mode} (${context.anchor.x}, ${context.anchor.y}); blend: ${context.blendMode}.`,
+    "Quality gate: import only after checking frame count, size, layout, alpha transparency, checkerboard residue, bounds, and static-copy risk. Gold and silver are downloadable; bronze/failed/blocked are quarantined.",
+    userNotes.trim() ? `User notes: ${userNotes.trim()}` : ""
+  ].filter(Boolean).join("\n");
+}
+
+function effectQualityRankAllowsDownload(rank: EffectQualityRank | undefined) {
+  return rank === "gold" || rank === "silver";
+}
+
 const fallbackProviders: ProviderStatus[] = [
   { id: "local-file", label: "Local File", enabled: true, message: "Use images from this machine" },
   { id: "local-generator", label: "Local Generator", enabled: true, message: "Generate local PNG images" },
@@ -2583,6 +2951,10 @@ const workflowOptions: Array<{
   },
   {
     id: "sprite-generate",
+    provider: "codex-handoff"
+  },
+  {
+    id: "effect-animation",
     provider: "codex-handoff"
   }
 ];
@@ -3391,7 +3763,7 @@ export function summarizeCodexImportFailureReason(error: unknown, fallback = "Im
 }
 
 export function buildOutboxImportKey(
-  kind: "single" | "image-edit" | "animation-sheet" | "direction-split" | "bronze-candidate",
+  kind: "single" | "image-edit" | "animation-sheet" | "direction-split" | "effect-animation" | "bronze-candidate",
   options: { jobId?: string; filenames: string[]; manifestName?: string } | string
 ) {
   if (typeof options === "string") return `${kind}:${options}`;
@@ -3666,6 +4038,18 @@ function App() {
   const [animationDirectionPreviews, setAnimationDirectionPreviews] = useState<AnimationDirectionPreview[]>([]);
   const [isAnimationPreviewBuilding, setIsAnimationPreviewBuilding] = useState(false);
   const [animationChromaKey, setAnimationChromaKey] = useState<AnimationChromaKeyName>("green");
+  const [effectCategoryId, setEffectCategoryId] = useState<EffectCategoryId>("slash-arc");
+  const [effectTypeId, setEffectTypeId] = useState("crescent");
+  const [effectStyleId, setEffectStyleId] = useState<EffectStyleId>("pixel-clean");
+  const [effectPaletteId, setEffectPaletteId] = useState<EffectPaletteId>("cyan-white");
+  const [effectFrameCount, setEffectFrameCount] = useState(EFFECT_DEFAULT_FRAME_COUNT);
+  const [effectCanvasSize, setEffectCanvasSize] = useState(EFFECT_DEFAULT_CANVAS_SIZE);
+  const [effectLayoutId, setEffectLayoutId] = useState<EffectLayoutId>(EFFECT_DEFAULT_LAYOUT);
+  const [effectLoopMode, setEffectLoopMode] = useState<EffectLoopMode>("one-shot");
+  const [effectAnchorMode, setEffectAnchorMode] = useState<EffectAnchorMode>("center");
+  const [effectBackgroundPreview, setEffectBackgroundPreview] = useState<EffectBackgroundPreview>("checkerboard");
+  const [effectGifPreviewUrl, setEffectGifPreviewUrl] = useState("");
+  const [isEffectPreviewBuilding, setIsEffectPreviewBuilding] = useState(false);
   const [imageEditComparison, setImageEditComparison] = useState<ImageEditComparison | null>(null);
   const [codexFailureNotices, setCodexFailureNotices] = useState<CodexFailureNotice[]>([]);
   const [codexJobLogs, setCodexJobLogs] = useState<CodexJobLogItem[]>([]);
@@ -3772,10 +4156,89 @@ function App() {
     () => getAnimationPresetById(selectedAnimationPresetId),
     [selectedAnimationPresetId]
   );
+  const activeEffectCategory = useMemo(
+    () => getEffectCategoryById(effectCategoryId),
+    [effectCategoryId]
+  );
+  const activeEffectType = useMemo(
+    () => getEffectTypeById(activeEffectCategory, effectTypeId),
+    [activeEffectCategory, effectTypeId]
+  );
+  const activeEffectStyle = useMemo(
+    () => effectStyleOptions.find((item) => item.id === effectStyleId) ?? effectStyleOptions[0],
+    [effectStyleId]
+  );
+  const activeEffectPalette = useMemo(
+    () => effectPaletteOptions.find((item) => item.id === effectPaletteId) ?? effectPaletteOptions[0],
+    [effectPaletteId]
+  );
+  const activeEffectLayout = useMemo(
+    () => effectLayoutOptions.find((item) => item.id === effectLayoutId) ?? effectLayoutOptions[0],
+    [effectLayoutId]
+  );
+  const effectSheetGrid = useMemo(
+    () => resolveEffectSheetGrid(effectLayoutId, effectFrameCount),
+    [effectFrameCount, effectLayoutId]
+  );
+  const effectSheetGridStyle = useMemo(
+    () =>
+      ({
+        "--sprite-grid-columns": effectSheetGrid.columns,
+        "--sprite-grid-rows": effectSheetGrid.rows
+      }) as CSSProperties,
+    [effectSheetGrid.columns, effectSheetGrid.rows]
+  );
+  const effectSheetSize = useMemo(
+    () => ({
+      width: effectCanvasSize * effectSheetGrid.columns,
+      height: effectCanvasSize * effectSheetGrid.rows
+    }),
+    [effectCanvasSize, effectSheetGrid.columns, effectSheetGrid.rows]
+  );
+  const effectJobContext = useMemo(
+    () =>
+      buildEffectAnimationJobContext({
+        categoryId: effectCategoryId,
+        typeId: effectTypeId,
+        styleId: effectStyleId,
+        paletteId: effectPaletteId,
+        frameCount: effectFrameCount,
+        canvasSize: effectCanvasSize,
+        layoutId: effectLayoutId,
+        loopMode: effectLoopMode,
+        anchorMode: effectAnchorMode,
+        customPrompt: prompt,
+        negativePrompt,
+        language
+      }),
+    [
+      effectAnchorMode,
+      effectCanvasSize,
+      effectCategoryId,
+      effectFrameCount,
+      effectLayoutId,
+      effectLoopMode,
+      effectPaletteId,
+      effectStyleId,
+      effectTypeId,
+      language,
+      negativePrompt,
+      prompt
+    ]
+  );
   const officialAnimationLibrary = OFFICIAL_ANIMATION_LIBRARY;
   const activeAnimationLibraryItems = animationLibraryTab === "official"
     ? officialAnimationLibrary
     : userAnimationLibrary;
+
+  useEffect(() => {
+    const category = getEffectCategoryById(effectCategoryId);
+    if (!category.types.some((item) => item.id === effectTypeId)) {
+      setEffectTypeId(category.types[0]?.id ?? "");
+    }
+    setEffectLoopMode(category.defaultLoop);
+    setEffectAnchorMode(category.defaultAnchor);
+  }, [effectCategoryId, effectTypeId]);
 
   const actionFrames = useMemo(
     () =>
@@ -3785,15 +4248,58 @@ function App() {
     [activeAction.frameIds, frames]
   );
 
-  const selectedAnimationFrames = useMemo(
+  const selectedIsEffectResult = isEffectAnimationHistoryItem(selected);
+  const selectedEffectMetadata = selectedIsEffectResult ? selected?.effectAnimation : undefined;
+  const selectedEffectFrames = useMemo(
     () =>
-      selected
+      selectedIsEffectResult && selected
         ? frames
             .filter((frame) => frame.sourceId === selected.id)
             .slice()
             .sort((left, right) => left.index - right.index)
         : [],
-    [frames, selected]
+    [frames, selected, selectedIsEffectResult]
+  );
+  const selectedEffectSheetGrid = useMemo(
+    () => selectedEffectMetadata?.layout ?? resolveEffectSheetGrid(EFFECT_DEFAULT_LAYOUT, selectedEffectFrames.length || EFFECT_DEFAULT_FRAME_COUNT),
+    [selectedEffectFrames.length, selectedEffectMetadata?.layout]
+  );
+  const selectedEffectSheetGridStyle = useMemo(
+    () =>
+      ({
+        "--sprite-grid-columns": selectedEffectSheetGrid.columns,
+        "--sprite-grid-rows": selectedEffectSheetGrid.rows
+      }) as CSSProperties,
+    [selectedEffectSheetGrid.columns, selectedEffectSheetGrid.rows]
+  );
+  const selectedEffectAction = useMemo<SpriteAction>(() => {
+    const firstFrame = selectedEffectFrames[0];
+    const metadata = selectedEffectMetadata;
+    const baseName = selected?.name.replace(/\.[^.]+$/, "") || metadata?.name || "effect-animation";
+    const cell = metadata?.frameSize ?? (firstFrame ? { width: firstFrame.width, height: firstFrame.height } : activeAction.cell);
+    return {
+      name: `${baseName}_effect`,
+      fps: metadata?.fps ?? EFFECT_DEFAULT_FPS,
+      loop: metadata?.loopMode !== "one-shot",
+      playbackMode: metadata?.loopMode === "ping-pong-loop" ? "ping-pong-reverse" : undefined,
+      frameIds: selectedEffectFrames.map((frame) => frame.id),
+      cell,
+      anchor: metadata?.anchor ?? { x: Math.round(cell.width / 2), y: Math.round(cell.height / 2) }
+    };
+  }, [activeAction.cell, selected, selectedEffectFrames, selectedEffectMetadata]);
+  const selectedEffectExportReady = Boolean(
+    selected && selected.source === "generate" && selectedIsEffectResult && selectedEffectFrames.length > 0
+  );
+
+  const selectedAnimationFrames = useMemo(
+    () =>
+      selected && !selectedIsEffectResult
+        ? frames
+            .filter((frame) => frame.sourceId === selected.id)
+            .slice()
+            .sort((left, right) => left.index - right.index)
+        : [],
+    [frames, selected, selectedIsEffectResult]
   );
 
   const selectedAnimationAction = useMemo<SpriteAction>(() => {
@@ -3846,10 +4352,10 @@ function App() {
 
   const selectedImageEditSource = useMemo(
     () =>
-      selected?.derivedFromId && !selectedAnimationExportReady
+      selected?.derivedFromId && !selectedAnimationExportReady && !selectedEffectExportReady
         ? history.find((item) => item.id === selected.derivedFromId)
         : undefined,
-    [history, selected, selectedAnimationExportReady]
+    [history, selected, selectedAnimationExportReady, selectedEffectExportReady]
   );
 
   const selectedFrame = useMemo(
@@ -3862,8 +4368,12 @@ function App() {
     [frames, selectedFrameId]
   );
   const protectedPersistedFrameIds = useMemo(
-    () => new Set([...activeAction.frameIds, ...selectedAnimationFrames.map((frame) => frame.id)]),
-    [activeAction.frameIds, selectedAnimationFrames]
+    () => new Set([
+      ...activeAction.frameIds,
+      ...selectedAnimationFrames.map((frame) => frame.id),
+      ...selectedEffectFrames.map((frame) => frame.id)
+    ]),
+    [activeAction.frameIds, selectedAnimationFrames, selectedEffectFrames]
   );
   const canPersistLocalState = storageHydrated && storageScreen.mode === "normal";
 
@@ -4233,6 +4743,44 @@ function App() {
       objectUrls.forEach((url) => URL.revokeObjectURL(url));
     };
   }, [frames, language, selectedAnimationExportReady, selectedAnimationPreviewActions]);
+
+  useEffect(() => {
+    if (!selectedEffectExportReady) {
+      setEffectGifPreviewUrl((current) => {
+        if (current) URL.revokeObjectURL(current);
+        return "";
+      });
+      setIsEffectPreviewBuilding(false);
+      return;
+    }
+
+    let cancelled = false;
+    let objectUrl = "";
+    setIsEffectPreviewBuilding(true);
+    void createGifBlob(frames, selectedEffectAction)
+      .then((gifBlob) => {
+        objectUrl = URL.createObjectURL(gifBlob);
+        if (cancelled) {
+          URL.revokeObjectURL(objectUrl);
+          return;
+        }
+        setEffectGifPreviewUrl((current) => {
+          if (current) URL.revokeObjectURL(current);
+          return objectUrl;
+        });
+      })
+      .catch(() => {
+        if (!cancelled) setEffectGifPreviewUrl("");
+      })
+      .finally(() => {
+        if (!cancelled) setIsEffectPreviewBuilding(false);
+      });
+
+    return () => {
+      cancelled = true;
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [frames, selectedEffectAction, selectedEffectExportReady]);
 
   useEffect(() => {
     const runningJobs = codexJobs.filter((job) => job.state === "running");
@@ -4627,10 +5175,12 @@ function App() {
     const includeSpriteContext = workflowUsesSpriteContext(workflowMode);
     const isImageEditJob = workflowMode === "image-edit";
     const isAnimationJob = workflowMode === "sprite-generate";
+    const isEffectJob = workflowMode === "effect-animation";
+    const currentEffectContext = isEffectJob ? effectJobContext : undefined;
     const animationJobGenerationMode: AnimationGenerationMode = "standard";
     const isHatchPetAnimationJob = false;
     const isDirectionalHatchPetAnimationJob = false;
-    const sourceImageForJob = isAnimationJob ? animationSource : selected;
+    const sourceImageForJob = isAnimationJob ? animationSource : isEffectJob ? undefined : selected;
     const animationAction = isDirectionalHatchPetAnimationJob
       ? directionalHatchPetSpriteAction()
       : isHatchPetAnimationJob
@@ -4650,6 +5200,11 @@ function App() {
 
     if (isImageEditJob && selectedIsAnimationResult) {
       setStatus(copy.statusAnimationFinalNotEditable);
+      return null;
+    }
+
+    if (isImageEditJob && selectedIsEffectResult) {
+      setStatus("Effect animation results are export assets; choose a source image or start a new generation.");
       return null;
     }
 
@@ -4680,7 +5235,9 @@ function App() {
       ? selectedAnnotations.map((annotation) => annotationWithSourceImageCoordinates(annotation, sourceImageForJob))
       : [];
 
-    const codexPrompt = isAnimationJob
+    const codexPrompt = isEffectJob && currentEffectContext
+      ? buildEffectAnimationPrompt(currentEffectContext)
+      : isAnimationJob
       ? isDirectionalHatchPetAnimationJob
         ? buildDirectionalHatchPetCodexPrompt({
             sourceName: sourceImageForJob?.name ?? "",
@@ -4707,7 +5264,9 @@ function App() {
             annotations: imageEditAnnotations
           })
         : prompt;
-    const codexJobNotes = isAnimationJob
+    const codexJobNotes = isEffectJob && currentEffectContext
+      ? buildEffectAnimationNotes(currentEffectContext, jobNotes)
+      : isAnimationJob
       ? isDirectionalHatchPetAnimationJob
         ? buildDirectionalHatchPetCodexNotes({
             userNotes: animationPresetNotes,
@@ -4737,13 +5296,15 @@ function App() {
     return {
       workflowMode,
       prompt: codexPrompt,
-      negativePrompt,
+      negativePrompt: isEffectJob && currentEffectContext ? currentEffectContext.negativePrompt : negativePrompt,
       jobNotes: codexJobNotes,
       seed,
       size: isDirectionalHatchPetAnimationJob
         ? `${HATCH_PET_CELL.width * HATCH_PET_GRID.columns}x${HATCH_PET_CELL.height * HATCH_PET_GRID.rows} x ${DIRECTIONAL_HATCH_PET_RESULT_COUNT}`
         : isAnimationJob
           ? `${spriteCell.width * DIRECTION_SPLIT_ANIMATION_GRID.columns}x${spriteCell.height * DIRECTION_SPLIT_ANIMATION_GRID.rows} x ${DIRECTION_SPLIT_ANIMATION_RESULT_COUNT}`
+          : isEffectJob && currentEffectContext
+            ? `${currentEffectContext.sheetSize.width}x${currentEffectContext.sheetSize.height}`
           : size,
       count,
       quality,
@@ -4752,10 +5313,10 @@ function App() {
       selectedImageSource: includeSelectedImage ? sourceImageForJob?.source ?? "" : "",
       selectedImageDataUrl: includeSelectedImage ? sourceImageForJob?.dataUrl ?? "" : "",
       annotations: imageEditAnnotations,
-      grid: includeSpriteContext ? spriteGrid : null,
-      action: includeSpriteContext ? animationAction.name : "",
-      frames: includeSpriteContext ? spriteFrameCount : 0,
-      cell: includeSpriteContext ? spriteCell : null,
+      grid: isEffectJob && currentEffectContext ? { columns: currentEffectContext.layout.columns, rows: currentEffectContext.layout.rows, gutter: 0 } : includeSpriteContext ? spriteGrid : null,
+      action: isEffectJob && currentEffectContext ? currentEffectContext.name : includeSpriteContext ? animationAction.name : "",
+      frames: isEffectJob && currentEffectContext ? currentEffectContext.frameCount : includeSpriteContext ? spriteFrameCount : 0,
+      cell: isEffectJob && currentEffectContext ? currentEffectContext.frameSize : includeSpriteContext ? spriteCell : null,
       chromaKey: isAnimationJob ? chromaDecision.key.name : "",
       spriteVariant: isAnimationJob ? animationJobGenerationMode : undefined,
       directions: isAnimationJob
@@ -4765,15 +5326,20 @@ function App() {
             ? HATCH_PET_STATE_ROWS.map((row) => row.id)
             : ANIMATION_DIRECTIONS
         : [],
-      label: codexJobLabel(workflowMode, isAnimationJob ? animationMotionPrompt : prompt, isAnimationJob ? animationAction.name : undefined),
+      label: codexJobLabel(
+        workflowMode,
+        isEffectJob && currentEffectContext ? currentEffectContext.name : isAnimationJob ? animationMotionPrompt : prompt,
+        isEffectJob && currentEffectContext ? currentEffectContext.typeLabel : isAnimationJob ? animationAction.name : undefined
+      ),
       resultWorkflowMode: workflowMode ?? undefined,
-      resultActionName: isAnimationJob ? animationAction.name : undefined,
-      resultGrid: isAnimationJob ? spriteGrid : undefined,
-      resultCell: isAnimationJob ? spriteCell : undefined,
+      resultActionName: isEffectJob && currentEffectContext ? currentEffectContext.name : isAnimationJob ? animationAction.name : undefined,
+      resultGrid: isEffectJob && currentEffectContext ? { columns: currentEffectContext.layout.columns, rows: currentEffectContext.layout.rows, gutter: 0 } : isAnimationJob ? spriteGrid : undefined,
+      resultCell: isEffectJob && currentEffectContext ? currentEffectContext.frameSize : isAnimationJob ? spriteCell : undefined,
       resultChromaKey: isAnimationJob ? chromaDecision.key.name : undefined,
       resultSpriteVariant: isAnimationJob ? animationJobGenerationMode : undefined,
       resultSourceImageId: isImageEditJob || isAnimationJob ? sourceImageForJob?.id : undefined,
-      resultSourceImageName: isImageEditJob || isAnimationJob ? sourceImageForJob?.name : undefined
+      resultSourceImageName: isImageEditJob || isAnimationJob ? sourceImageForJob?.name : undefined,
+      effectContext: currentEffectContext
     };
   }
 
@@ -4835,7 +5401,8 @@ function App() {
         sourceImageName: draft.resultSourceImageName,
         tournamentId: draft.tournamentId,
         tournamentCandidateIndex: draft.tournamentCandidateIndex,
-        tournamentCandidateCount: draft.tournamentCandidateCount
+        tournamentCandidateCount: draft.tournamentCandidateCount,
+        effectContext: draft.effectContext
       }
     ]);
     setStatus(`${labels.queuedStatus}: ${draft.label}`);
@@ -4870,7 +5437,8 @@ function App() {
           directions: draft.directions,
           tournamentId: draft.tournamentId,
           tournamentCandidateIndex: draft.tournamentCandidateIndex,
-          tournamentCandidateCount: draft.tournamentCandidateCount
+          tournamentCandidateCount: draft.tournamentCandidateCount,
+          effectContext: draft.effectContext
         })
       });
       if (!response.ok) throw new Error(await response.text());
@@ -4898,7 +5466,8 @@ function App() {
           sourceImageName: draft.resultSourceImageName,
           tournamentId: draft.tournamentId,
           tournamentCandidateIndex: draft.tournamentCandidateIndex,
-          tournamentCandidateCount: draft.tournamentCandidateCount
+          tournamentCandidateCount: draft.tournamentCandidateCount,
+          effectContext: draft.effectContext
         };
         setCodexJobs((current) => {
           const withoutQueued = queuedJobId ? current.filter((job) => job.id !== queuedJobId) : current;
@@ -5886,6 +6455,199 @@ function App() {
     return (await importResponse.json()) as CodexOutboxImportResponse;
   }
 
+  function selectEffectAnimationSheetResult(results: CodexOutboxResult[], jobId: string) {
+    const staticResults = results
+      .filter((result) => isStaticImageResult(result) && isUsableOutboxResult(result))
+      .filter((result) => isOutboxResultForJob(result.name, jobId));
+    const sheetCandidates = staticResults.filter((result) => !/(?:gif|preview|thumb|metadata|frame-\d+)/i.test(result.name));
+    return (sheetCandidates.length > 0 ? sheetCandidates : staticResults)
+      .slice()
+      .sort((left, right) => {
+        const leftName = left.name.toLowerCase();
+        const rightName = right.name.toLowerCase();
+        const leftScore = (leftName.includes("sheet") ? 3 : 0) + (leftName.includes("effect") ? 2 : 0) + (leftName.includes("final") ? 1 : 0);
+        const rightScore = (rightName.includes("sheet") ? 3 : 0) + (rightName.includes("effect") ? 2 : 0) + (rightName.includes("final") ? 1 : 0);
+        return rightScore - leftScore || right.size - left.size || right.modifiedAt.localeCompare(left.modifiedAt);
+      })[0];
+  }
+
+  async function importEffectAnimationResult(imported: CodexOutboxImportResponse, pendingJob: CodexJobQueueItem, jobResults: CodexOutboxResult[]) {
+    const context = pendingJob.effectContext ?? effectJobContext;
+    const normalized = await normalizeEffectSheetDataUrl(imported.dataUrl, context);
+    const itemId = createId("hist");
+    const itemName = imported.name.replace(/\.[^.]+$/, "").includes(context.name)
+      ? imported.name
+      : `${context.name}-${imported.name}`;
+    const splitFrames = await splitImageIntoFrames(
+      normalized.dataUrl,
+      itemName.replace(/\.[^.]+$/, ""),
+      { columns: context.layout.columns, rows: context.layout.rows, gutter: 0 },
+      itemId,
+      context.frameSize
+    );
+    const tempFrames = splitFrames.slice(0, context.frameCount).map((frame, index) => ({ ...frame, index }));
+    const qcResult = await evaluateEffectAnimationQc(normalized.dataUrl, tempFrames, context, normalized.warnings);
+    if (!effectQualityRankAllowsDownload(qcResult.rank)) {
+      throw new Error(`Effect QC quarantined for ${pendingJob.id}: ${qcResult.failures.join("; ") || "bronze candidate"}. No history or final download item was added.`);
+    }
+
+    const image = await loadImage(normalized.dataUrl);
+    const metadata: EffectAnimationMetadata = {
+      kind: "effect-animation",
+      name: context.name,
+      category: context.category,
+      type: context.type,
+      style: context.style,
+      colorPalette: context.colorPalette,
+      frameCount: context.frameCount,
+      frameSize: context.frameSize,
+      layout: context.layout,
+      loopMode: context.loopMode,
+      fps: context.fps,
+      anchor: context.anchor,
+      blendMode: context.blendMode,
+      background: "transparent",
+      alphaPremultiplied: false,
+      qualityRank: qcResult.rank,
+      warnings: qcResult.warnings,
+      sourceJobId: pendingJob.id,
+      artifacts: {
+        sheet: imported.name,
+        previewGif: jobResults.find((result) => result.mimeType === "image/gif")?.name,
+        metadata: jobResults.find((result) => result.mimeType === "application/json" || result.name.endsWith(".json"))?.name,
+        frames: tempFrames.map((frame) => `${frame.name}.png`)
+      }
+    };
+    const item: HistoryItem = {
+      id: itemId,
+      name: itemName,
+      dataUrl: normalized.dataUrl,
+      provider: "local-inbox",
+      prompt: context.customPrompt || context.promptContract.join("\n"),
+      seed,
+      size: `${image.width}x${image.height}`,
+      createdAt: new Date().toISOString(),
+      adopted: false,
+      source: "generate",
+      outboxImportKey: buildOutboxImportKey("effect-animation", {
+        jobId: pendingJob.id,
+        filenames: [imported.name]
+      }),
+      effectAnimation: metadata
+    };
+    const inserted = addLocalInboxHistoryItem(item);
+    const framesForInsertedItem = tempFrames.map((frame) => ({
+      ...frame,
+      sourceId: inserted.item.id
+    }));
+    const existingFramesForItem = frames.some((frame) => frame.sourceId === inserted.item.id);
+    if (inserted.added || !existingFramesForItem) {
+      setFrames((current) => [...current, ...framesForInsertedItem]);
+    }
+    setSelectedFrameId("");
+    setStatus(
+      `${language === "ja" ? "エフェクト取り込み完了" : "Effect imported"}: ${itemName} (${metadata.qualityRank}${metadata.warnings.length ? `, ${metadata.warnings.length} warning${metadata.warnings.length === 1 ? "" : "s"}` : ""})`
+    );
+  }
+
+  async function normalizeEffectSheetDataUrl(dataUrl: string, context: EffectAnimationJobContext) {
+    const warnings: string[] = [];
+    const image = await loadImage(dataUrl);
+    const expectedWidth = context.frameSize.width * context.layout.columns;
+    const expectedHeight = context.frameSize.height * context.layout.rows;
+    if (image.width === expectedWidth && image.height === expectedHeight) return { dataUrl, warnings };
+
+    warnings.push(`sheet normalized from ${image.width}x${image.height} to ${expectedWidth}x${expectedHeight}`);
+    const canvas = document.createElement("canvas");
+    canvas.width = expectedWidth;
+    canvas.height = expectedHeight;
+    const canvasContext = canvas.getContext("2d");
+    if (!canvasContext) throw new Error("Effect sheet normalization failed: canvas context unavailable.");
+    canvasContext.clearRect(0, 0, canvas.width, canvas.height);
+    canvasContext.drawImage(image, 0, 0, expectedWidth, expectedHeight);
+    return { dataUrl: canvas.toDataURL("image/png"), warnings };
+  }
+
+  async function evaluateEffectAnimationQc(
+    sheetDataUrl: string,
+    effectFrames: SpriteFrame[],
+    context: EffectAnimationJobContext,
+    inheritedWarnings: string[]
+  ) {
+    const warnings = [...inheritedWarnings];
+    const failures: string[] = [];
+    const sheetImage = await loadImage(sheetDataUrl);
+    const expectedWidth = context.frameSize.width * context.layout.columns;
+    const expectedHeight = context.frameSize.height * context.layout.rows;
+    if (sheetImage.width !== expectedWidth || sheetImage.height !== expectedHeight) {
+      failures.push(`sheet size ${sheetImage.width}x${sheetImage.height} does not match ${expectedWidth}x${expectedHeight}`);
+    }
+    if (effectFrames.length !== context.frameCount) {
+      failures.push(`frame count ${effectFrames.length} does not match ${context.frameCount}`);
+    }
+    if (effectFrames.some((frame) => frame.width !== context.frameSize.width || frame.height !== context.frameSize.height)) {
+      failures.push(`one or more frames do not match ${context.frameSize.width}x${context.frameSize.height}`);
+    }
+
+    const stats = await Promise.all(effectFrames.map((frame) => analyzeEffectFrame(frame.dataUrl)));
+    if (stats.length > 0 && stats.every((stat) => stat.transparentPixels === 0)) {
+      failures.push("alpha transparency is missing from all frames");
+    }
+    const edgeTouchCount = stats.filter((stat) => stat.edgeOpaquePixels > Math.max(8, stat.opaquePixels * 0.04)).length;
+    if (edgeTouchCount > 0) warnings.push(`${edgeTouchCount} frame${edgeTouchCount === 1 ? "" : "s"} touch cell bounds`);
+    const checkerboardRiskCount = stats.filter((stat) => stat.checkerboardRisk).length;
+    if (checkerboardRiskCount > 0) warnings.push(`${checkerboardRiskCount} frame${checkerboardRiskCount === 1 ? "" : "s"} may contain baked checkerboard or matte pixels`);
+    const uniqueFrameCount = new Set(effectFrames.map((frame) => frame.dataUrl)).size;
+    if (effectFrames.length > 1 && uniqueFrameCount <= 1) {
+      failures.push("all frames are static copies");
+    } else if (effectFrames.length > 3 && uniqueFrameCount <= Math.ceil(effectFrames.length / 2)) {
+      warnings.push("multiple frames appear duplicated");
+    }
+
+    const rank: EffectQualityRank = failures.length > 0 ? "bronze" : warnings.length > 0 ? "silver" : "gold";
+    return { rank, warnings, failures };
+  }
+
+  async function analyzeEffectFrame(dataUrl: string) {
+    const image = await loadImage(dataUrl);
+    const canvas = document.createElement("canvas");
+    canvas.width = image.width;
+    canvas.height = image.height;
+    const context = canvas.getContext("2d", { willReadFrequently: true });
+    if (!context) throw new Error("Effect frame QC failed: canvas context unavailable.");
+    context.clearRect(0, 0, canvas.width, canvas.height);
+    context.drawImage(image, 0, 0);
+    const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
+    const data = imageData.data;
+    let opaquePixels = 0;
+    let transparentPixels = 0;
+    let edgeOpaquePixels = 0;
+    let neutralOpaquePixels = 0;
+    for (let y = 0; y < canvas.height; y += 1) {
+      for (let x = 0; x < canvas.width; x += 1) {
+        const offset = (y * canvas.width + x) * 4;
+        const alpha = data[offset + 3];
+        if (alpha <= 8) {
+          transparentPixels += 1;
+          continue;
+        }
+        opaquePixels += 1;
+        if (x === 0 || y === 0 || x === canvas.width - 1 || y === canvas.height - 1) edgeOpaquePixels += 1;
+        const red = data[offset];
+        const green = data[offset + 1];
+        const blue = data[offset + 2];
+        const neutral = Math.max(red, green, blue) - Math.min(red, green, blue) < 12;
+        if (neutral && red >= 120 && red <= 245 && alpha > 220) neutralOpaquePixels += 1;
+      }
+    }
+    return {
+      opaquePixels,
+      transparentPixels,
+      edgeOpaquePixels,
+      checkerboardRisk: neutralOpaquePixels > Math.max(48, opaquePixels * 0.22) && transparentPixels < opaquePixels * 0.4
+    };
+  }
+
   function selectDirectionalHatchPetResults(results: CodexOutboxResult[], jobId: string) {
     const staticImageResults = results.filter(isStaticImageResult);
     const sheetCandidates = staticImageResults.filter((result) => !/(?:animated|animation|gif|preview)/i.test(result.name));
@@ -6026,6 +6788,28 @@ function App() {
         return true;
       }
 
+      if (pendingJob?.workflowMode === "effect-animation") {
+        const effectResult = selectEffectAnimationSheetResult(jobResults, pendingJob.id);
+        if (!effectResult) {
+          if (!options.quietEmpty) setStatus(`${copy.statusInboxEmpty}: ${listData.outboxPath} (waiting for effect sheet)`);
+          return false;
+        }
+        const importedEffect = await fetchOutboxResult(effectResult.name);
+        try {
+          await importEffectAnimationResult(importedEffect, pendingJob, jobResults);
+          clearCodexFailureNotice(pendingJob.id);
+          removeCodexJob(pendingJob.id, "completed");
+          return true;
+        } catch (error) {
+          const qualityError = new Error(`Effect quality gate failed for ${pendingJob.id}: ${summarizeCodexImportFailureReason(error)} Candidate files are quarantined; no history or final download item was added.`);
+          if (options.throwOnError) throw qualityError;
+          const diagnostic = recordCodexImportFailure(pendingJob, qualityError);
+          setStatus(`${diagnostic.title}: ${pendingJob.id}`);
+          removeCodexJob(pendingJob.id, "completed");
+          return false;
+        }
+      }
+
       if (!pendingJob) {
         const directionSplitArtifact = findLatestReadyDirectionSplitArtifact(jobResults);
         if (directionSplitArtifact) {
@@ -6140,8 +6924,44 @@ function App() {
     }
   }
 
+  async function exportSelectedEffectGif() {
+    if (!selectedEffectExportReady) return;
+    const blob = await createGifBlob(frames, selectedEffectAction);
+    downloadBlob(blob, `${selectedEffectAction.name}.gif`);
+  }
+
+  async function exportSelectedEffectSheet() {
+    if (!selectedEffectExportReady) return;
+    const blob = await createSpriteSheetBlob(selectedEffectFrames, selectedEffectAction, selectedEffectSheetGrid.columns);
+    downloadBlob(blob, `${selectedEffectAction.name}_sheet.png`);
+  }
+
+  async function exportSelectedEffectFramesZip() {
+    if (!selectedEffectExportReady) return;
+    await exportFramesZip(selectedEffectFrames, selectedEffectAction);
+  }
+
+  function exportSelectedEffectMetadata() {
+    if (!selectedEffectMetadata) return;
+    exportEffectMetadata(selectedEffectMetadata, selectedImageSafeBaseName({ name: selectedEffectMetadata.name }));
+  }
+
+  async function exportSelectedEffectPack() {
+    if (!selected || !selectedEffectMetadata || !selectedEffectExportReady) return;
+    const previewGif = await createGifBlob(frames, selectedEffectAction);
+    await exportEffectPack({
+      metadata: selectedEffectMetadata,
+      sheet: selected.dataUrl,
+      previewGif,
+      frames: selectedEffectFrames.map((frame, index) => ({
+        name: `frame-${String(index + 1).padStart(3, "0")}`,
+        dataUrl: frame.dataUrl
+      }))
+    });
+  }
+
   function downloadSelectedImage() {
-    if (!selected || selectedIsAnimationResult || !isUsableHistoryDownloadItem(selected)) return;
+    if (!selected || selectedIsAnimationResult || selectedIsEffectResult || !isUsableHistoryDownloadItem(selected)) return;
     const blob = dataUrlToBlob(selected.dataUrl);
     const extension = blob.type.includes("webp") ? "webp" : blob.type.includes("jpeg") ? "jpg" : "png";
     downloadBlob(blob, `${selectedImageSafeBaseName(selected)}.${extension}`);
@@ -6215,7 +7035,11 @@ function App() {
       }
     }
     if (isImageEditWorkflow && item.source === "generate" && frames.some((frame) => frame.sourceId === item.id)) {
-      setStatus(copy.statusAnimationFinalNotEditable);
+      setStatus(isEffectAnimationHistoryItem(item)
+        ? (language === "ja"
+          ? "エフェクト結果は書き出し用の成果物です。編集する場合は元画像を選ぶか新しく生成してください。"
+          : "Effect animation results are export assets. Choose a source image or start a new generation.")
+        : copy.statusAnimationFinalNotEditable);
     }
   }
 
@@ -6315,6 +7139,7 @@ function App() {
   function beginAnnotationDrag(event: React.PointerEvent<HTMLCanvasElement> | React.MouseEvent<HTMLCanvasElement>) {
     if (workflowMode !== "image-edit" || !selected) return;
     if (selectedIsAnimationResult) return;
+    if (selectedIsEffectResult) return;
     if (event.button !== 0) return;
     const point = canvasPoint(event);
     const number = (annotationsByItem[selected.id]?.length ?? 0) + 1;
@@ -6431,8 +7256,27 @@ function App() {
     if (mode === "sprite-generate") {
       setAnimationSourceId(isAnimationSource(nextAnimationSource) ? nextAnimationSource.id : "");
     }
+    if (mode === "effect-animation") {
+      setTool("select");
+      setShowGrid(true);
+      setShowCenter(true);
+      setGrid({ columns: effectSheetGrid.columns, rows: effectSheetGrid.rows, gutter: 0 });
+      setSize(`${effectSheetSize.width}x${effectSheetSize.height}`);
+      if (!prompt.trim() || prompt.includes("idle breathing loop")) {
+        setPrompt("compact readable game VFX with clear frame-to-frame motion and soft transparent alpha edges");
+      }
+      if (!negativePrompt.trim() || negativePrompt === "blur, text, watermark, cropped feet") {
+        setNegativePrompt(buildEffectNegativePrompt(""));
+      }
+    }
     if (mode === "sprite-generate" && !isAnimationSource(nextAnimationSource)) {
       setStatus(copy.statusAnimationSourceRequired);
+      return;
+    }
+    if (mode === "image-edit" && selectedIsEffectResult) {
+      setStatus(language === "ja"
+        ? "エフェクト結果は書き出し用の成果物です。編集する場合は元画像を選ぶか新しく生成してください。"
+        : "Effect animation results are export assets. Choose a source image or start a new generation.");
       return;
     }
     setStatus(mode === "image-edit" && selectedIsAnimationResult ? copy.statusAnimationFinalNotEditable : workflowCopy[language][mode].status);
@@ -6749,6 +7593,7 @@ function App() {
   const codexQueueCopy = codexJobQueueLabels(language);
   const runningCodexJobCount = codexJobs.filter((job) => job.state === "running").length;
   const isAnimationWorkflow = workflowMode === "sprite-generate";
+  const isEffectWorkflow = workflowMode === "effect-animation";
   const runningStandardAnimationJobCount = codexJobs.filter((job) => job.state === "running" && isStandardDirectionSplitJob(job)).length;
   const shouldQueueCodexJob =
     providerId === "codex-handoff" &&
@@ -6756,9 +7601,9 @@ function App() {
       (isAnimationWorkflow && runningStandardAnimationJobCount >= MAX_ACTIVE_STANDARD_ANIMATION_CODEX_JOBS));
   const isImageEditWorkflow = workflowMode === "image-edit";
   const animationSourceReady = !isAnimationWorkflow || isAnimationSource(animationSource);
-  const imageEditSourceReady = !isImageEditWorkflow || Boolean(selected && !selectedIsAnimationResult);
+  const imageEditSourceReady = !isImageEditWorkflow || Boolean(selected && !selectedIsAnimationResult && !selectedIsEffectResult);
   const primaryActionDisabled = isBusy || !animationSourceReady || !imageEditSourceReady;
-  const previewMode = !selected ? "empty" : isPreviewingSelectedFrame ? "frame" : isImageEditWorkflow && !selectedIsAnimationResult ? "edit" : "result";
+  const previewMode = !selected ? "empty" : isPreviewingSelectedFrame ? "frame" : isImageEditWorkflow && !selectedIsAnimationResult && !selectedIsEffectResult ? "edit" : "result";
   const previewStatus = isPreviewingSelectedFrame && selectedFrameForPreview
     ? `${copy.frameLabel}: ${selectedFrameForPreview.index}`
     : `${copy.previewLabel}: ${selected?.name ?? "-"}`;
@@ -6769,7 +7614,7 @@ function App() {
   const selectedImageEditSourceName = selectedImageEditSource?.name ?? (!selectedAnimationExportReady ? selected?.derivedFromName : undefined);
   const showFrameGridControls = SHOW_LOW_PRIORITY_CONTROLS || workflowMode === "sprite-edit";
   const showSpriteTuningControls = SHOW_LOW_PRIORITY_CONTROLS || workflowMode === "sprite-edit";
-  const showAnnotationToolbar = isImageEditWorkflow && !selectedIsAnimationResult;
+  const showAnnotationToolbar = isImageEditWorkflow && !selectedIsAnimationResult && !selectedIsEffectResult;
   const showSpriteActionsPanel = SHOW_SPRITE_ACTIONS_PANEL;
   const animationGenerateBody = copy.animationStepGenerateBody;
   const animationLockedSizeNote = copy.animationStandardLockedSize;
@@ -6779,19 +7624,37 @@ function App() {
       ? copy.hatchPetDownloadBody
       : copy.animationStepDownloadBody;
   const resultDownloadIsAnimation = selectedAnimationExportReady;
+  const resultDownloadIsEffect = selectedEffectExportReady;
   const selectedFinalDownloadAllowed = Boolean(selected && isUsableHistoryDownloadItem(selected));
-  const selectedImageDownloadReady = Boolean(selected && !resultDownloadIsAnimation && selectedFinalDownloadAllowed);
-  const resultDownloadReady = resultDownloadIsAnimation ? selectedAnimationExportReady : selectedImageDownloadReady;
-  const resultDownloadBody = resultDownloadIsAnimation ? selectedAnimationDownloadBody : copy.imageDownloadBody;
+  const selectedImageDownloadReady = Boolean(selected && !resultDownloadIsAnimation && !resultDownloadIsEffect && selectedFinalDownloadAllowed);
+  const resultDownloadReady = resultDownloadIsEffect
+    ? selectedEffectExportReady && selectedFinalDownloadAllowed
+    : resultDownloadIsAnimation
+      ? selectedAnimationExportReady
+      : selectedImageDownloadReady;
+  const resultDownloadBody = resultDownloadIsEffect
+    ? (language === "ja" ? "sheet PNG、frame ZIP、GIF preview、metadata JSONをエフェクト用に書き出します。" : "Export sheet PNG, frame ZIP, GIF preview, and metadata JSON for the effect.")
+    : resultDownloadIsAnimation ? selectedAnimationDownloadBody : copy.imageDownloadBody;
   const resultDownloadStatus = !selected
     ? copy.imageDownloadLocked
     : !selectedFinalDownloadAllowed
       ? (language === "ja" ? "品質チェックで隔離された候補はfinalとしてダウンロードできません。" : "Quality-gated candidates cannot be downloaded as final results.")
+    : resultDownloadIsEffect
+      ? (language === "ja" ? "エフェクト書き出し準備完了" : "Effect exports ready")
     : resultDownloadIsAnimation
       ? copy.animationReady
       : copy.imageDownloadReady;
   const recoverResultsLabel = language === "ja" ? "結果を再取り込み" : "Recover Results";
   const dedupeHistoryLabel = language === "ja" ? "重複整理" : "Dedupe History";
+  const selectedEditSourceIsFinalArtifact = selectedIsAnimationResult || selectedIsEffectResult;
+  const selectedEditSourceFinalTitle = selectedIsEffectResult
+    ? (language === "ja" ? "エフェクト出力" : "Effect output")
+    : copy.animationFinalNotEditableTitle;
+  const selectedEditSourceFinalBody = selectedIsEffectResult
+    ? (language === "ja"
+      ? "エフェクト結果は書き出し用の最終成果物です。編集する場合は画像生成または画像編集で作った画像を選択してください。"
+      : "Effect animation results are export assets. Select a generated or edited image before using numbered edit regions.")
+    : copy.animationFinalNotEditableBody;
 
   function openDownloadModal() {
     if (!resultDownloadReady) return;
@@ -7036,6 +7899,161 @@ function App() {
                 </button>
               </section>
             </div>
+          ) : isEffectWorkflow ? (
+            <div className="effect-steps">
+              <section className="effect-step">
+                <div className="step-heading">
+                  <strong>{language === "ja" ? "1. Effect Type" : "1. Effect Type"}</strong>
+                  <span>{localizedText(activeEffectCategory.detail, language)}</span>
+                </div>
+                <div className="effect-category-grid">
+                  {effectCategoryDefinitions.map((category) => (
+                    <button
+                      key={category.id}
+                      type="button"
+                      className={category.id === effectCategoryId ? "selected" : ""}
+                      onClick={() => setEffectCategoryId(category.id)}
+                    >
+                      <Sparkles size={15} aria-hidden="true" />
+                      <span>
+                        <strong>{localizedText(category.label, language)}</strong>
+                        <small>{localizedText(category.detail, language)}</small>
+                      </span>
+                    </button>
+                  ))}
+                </div>
+                <div className="field-row">
+                  <label className="field">
+                    <span>{language === "ja" ? "Type" : "Type"}</span>
+                    <select value={effectTypeId} onChange={(event) => setEffectTypeId(event.target.value)}>
+                      {activeEffectCategory.types.map((type) => (
+                        <option key={type.id} value={type.id}>{localizedText(type.label, language)}</option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="field">
+                    <span>{language === "ja" ? "Style" : "Style"}</span>
+                    <select value={effectStyleId} onChange={(event) => setEffectStyleId(event.target.value as EffectStyleId)}>
+                      {effectStyleOptions.map((style) => (
+                        <option key={style.id} value={style.id}>{localizedText(style.label, language)}</option>
+                      ))}
+                    </select>
+                  </label>
+                </div>
+                <label className="field">
+                  <span>{language === "ja" ? "Palette" : "Palette"}</span>
+                  <select value={effectPaletteId} onChange={(event) => setEffectPaletteId(event.target.value as EffectPaletteId)}>
+                    {effectPaletteOptions.map((palette) => (
+                      <option key={palette.id} value={palette.id}>{localizedText(palette.label, language)}</option>
+                    ))}
+                  </select>
+                </label>
+                <div className="effect-swatches" aria-label={localizedText(activeEffectPalette.label, language)}>
+                  {activeEffectPalette.swatches.map((swatch) => (
+                    <span key={swatch} style={{ background: swatch }} />
+                  ))}
+                </div>
+              </section>
+
+              <section className="effect-step">
+                <div className="step-heading">
+                  <strong>{language === "ja" ? "2. Sheet" : "2. Sheet"}</strong>
+                  <span>{effectSheetSize.width}x{effectSheetSize.height} / {effectSheetGrid.columns}x{effectSheetGrid.rows}</span>
+                </div>
+                <div className="field-row">
+                  <label className="field">
+                    <span>{language === "ja" ? "Frames" : "Frames"}</span>
+                    <select value={effectFrameCount} onChange={(event) => setEffectFrameCount(Number(event.target.value))}>
+                      {effectFrameCountOptions.map((frameCount) => (
+                        <option key={frameCount} value={frameCount}>{frameCount}</option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="field">
+                    <span>{language === "ja" ? "Canvas" : "Canvas"}</span>
+                    <select value={effectCanvasSize} onChange={(event) => setEffectCanvasSize(Number(event.target.value))}>
+                      {effectCanvasSizeOptions.map((canvasSize) => (
+                        <option key={canvasSize} value={canvasSize}>{canvasSize} x {canvasSize}</option>
+                      ))}
+                    </select>
+                  </label>
+                </div>
+                <div className="field-row">
+                  <label className="field">
+                    <span>{language === "ja" ? "Layout" : "Layout"}</span>
+                    <select value={effectLayoutId} onChange={(event) => setEffectLayoutId(event.target.value as EffectLayoutId)}>
+                      {effectLayoutOptions.map((layoutOption) => (
+                        <option key={layoutOption.id} value={layoutOption.id}>{localizedText(layoutOption.label, language)}</option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="field">
+                    <span>{language === "ja" ? "Loop" : "Loop"}</span>
+                    <select value={effectLoopMode} onChange={(event) => setEffectLoopMode(event.target.value as EffectLoopMode)}>
+                      {effectLoopModeOptions.map((loopOption) => (
+                        <option key={loopOption.id} value={loopOption.id}>{localizedText(loopOption.label, language)}</option>
+                      ))}
+                    </select>
+                  </label>
+                </div>
+                <label className="field">
+                  <span>{language === "ja" ? "Anchor" : "Anchor"}</span>
+                  <select value={effectAnchorMode} onChange={(event) => setEffectAnchorMode(event.target.value as EffectAnchorMode)}>
+                    {effectAnchorOptions.map((anchorOption) => (
+                      <option key={anchorOption.id} value={anchorOption.id}>{localizedText(anchorOption.label, language)}</option>
+                    ))}
+                  </select>
+                </label>
+                <div className="effect-sheet-mini" style={effectSheetGridStyle} aria-label={`${activeEffectLayout.id} ${effectSheetGrid.columns} by ${effectSheetGrid.rows}`}>
+                  {Array.from({ length: effectSheetGrid.columns * effectSheetGrid.rows }, (_, index) => (
+                    <span key={index} className={index < effectFrameCount ? "filled" : ""}>{index + 1}</span>
+                  ))}
+                </div>
+              </section>
+
+              <section className="effect-step">
+                <div className="step-heading">
+                  <strong>{language === "ja" ? "3. Prompt" : "3. Prompt"}</strong>
+                  <span>{localizedText(activeEffectStyle.label, language)} / {effectJobContext.frameCount} frames / {effectJobContext.frameSize.width}px / {effectJobContext.loopMode}</span>
+                </div>
+                <label className="field">
+                  <span>{activeWorkflowFormCopy.promptLabel}</span>
+                  <textarea value={prompt} onChange={(event) => setPrompt(event.target.value)} maxLength={1200} />
+                  <small>{prompt.length} / 1200</small>
+                </label>
+                <label className="field">
+                  <span>{activeWorkflowFormCopy.negativeLabel}</span>
+                  <textarea value={negativePrompt} onChange={(event) => setNegativePrompt(event.target.value)} rows={2} />
+                </label>
+                <label className="field">
+                  <span>{activeWorkflowFormCopy.notesLabel}</span>
+                  <textarea
+                    value={jobNotes}
+                    onChange={(event) => setJobNotes(event.target.value)}
+                    rows={3}
+                    maxLength={1000}
+                    placeholder={activeWorkflowFormCopy.notesPlaceholder}
+                  />
+                  <small>{jobNotes.length} / 1000</small>
+                </label>
+                <div className="effect-background-switch" aria-label={language === "ja" ? "Preview background" : "Preview background"}>
+                  {effectBackgroundOptions.map((background) => (
+                    <button
+                      key={background.id}
+                      type="button"
+                      className={effectBackgroundPreview === background.id ? "active" : ""}
+                      onClick={() => setEffectBackgroundPreview(background.id)}
+                    >
+                      {background.label}
+                    </button>
+                  ))}
+                </div>
+                <button className="primary-button full" onClick={() => void handleGenerate()} disabled={primaryActionDisabled}>
+                  <PrimaryActionIcon providerId={providerId} isBusy={isBusy} />
+                  {shouldQueueCodexJob ? codexQueueCopy.queueAction : language === "ja" ? "エフェクト生成" : "Generate Effect"}
+                </button>
+              </section>
+            </div>
           ) : (
             <>
               <label className="field">
@@ -7053,7 +8071,7 @@ function App() {
                 <section className="image-edit-panel">
                   <div className="step-heading">
                     <strong>{copy.selectedEditSource}</strong>
-                    <span>{selectedIsAnimationResult ? copy.animationFinalNotEditableBody : copy.imageEditRegionsHelp}</span>
+                    <span>{selectedEditSourceIsFinalArtifact ? selectedEditSourceFinalBody : copy.imageEditRegionsHelp}</span>
                   </div>
                   <button className="secondary-button full inline-full" onClick={() => fileInputRef.current?.click()}>
                     <Upload size={16} aria-hidden="true" />
@@ -7074,10 +8092,10 @@ function App() {
                     )}
                   </div>
 
-                  {selectedIsAnimationResult ? (
+                  {selectedEditSourceIsFinalArtifact ? (
                     <div className="edit-final-notice">
-                      <strong>{copy.animationFinalNotEditableTitle}</strong>
-                      <span>{copy.animationFinalNotEditableBody}</span>
+                      <strong>{selectedEditSourceFinalTitle}</strong>
+                      <span>{selectedEditSourceFinalBody}</span>
                     </div>
                   ) : (
                     <>
@@ -7293,7 +8311,7 @@ function App() {
           )}
         </aside>
 
-        <section className={`workspace with-downloads ${resultDownloadIsAnimation ? "showing-animation-result" : "showing-image-result"}`}>
+        <section className={`workspace with-downloads ${resultDownloadIsEffect ? "showing-effect-result" : resultDownloadIsAnimation ? "showing-animation-result" : "showing-image-result"}`}>
           <div className={`panel canvas-panel ${showAnnotationToolbar ? "" : "without-toolbar"}`}>
             <PanelTitle index="2" title={copy.canvasAnnotationTitle} />
             {showAnnotationToolbar && (
@@ -7314,7 +8332,7 @@ function App() {
               }}
             >
               {previewMode === "result" && selected && (
-                <div className={`result-preview-frame ${selectedAnimationExportReady ? "with-animation-previews" : ""}`}>
+                <div className={`result-preview-frame ${selectedEffectExportReady ? "with-effect-previews" : selectedAnimationExportReady ? "with-animation-previews" : ""}`}>
                   {selectedAnimationExportReady ? (
                     <div className="animation-composite-preview">
                       <div className="animation-preview-card direction-preview-card">
@@ -7347,6 +8365,63 @@ function App() {
                             <span className="sprite-sheet-grid-overlay" aria-hidden="true" />
                           </span>
                         </div>
+                      </div>
+                    </div>
+                  ) : selectedEffectExportReady ? (
+                    <div className={`effect-composite-preview effect-bg-${effectBackgroundPreview}`}>
+                      <div className="effect-preview-card effect-gif-card">
+                        <div className="animation-preview-card-heading">
+                          <strong>{language === "ja" ? "GIF preview" : "GIF preview"}</strong>
+                          <small>{selectedEffectMetadata?.qualityRank ?? "checking"}</small>
+                        </div>
+                        <div className="effect-preview-stage">
+                          {isEffectPreviewBuilding ? (
+                            <div className="animation-preview compact-animation-preview">{language === "ja" ? "構築中" : "Building"}</div>
+                          ) : effectGifPreviewUrl ? (
+                            <img src={effectGifPreviewUrl} alt="" />
+                          ) : (
+                            <div className="animation-preview compact-animation-preview">{copy.noFrames}</div>
+                          )}
+                        </div>
+                      </div>
+                      <div className="effect-preview-card effect-sheet-card">
+                        <div className="animation-preview-card-heading">
+                          <strong>{language === "ja" ? "Sheet preview" : "Sheet preview"}</strong>
+                          <small>{selectedEffectSheetGrid.columns}x{selectedEffectSheetGrid.rows}</small>
+                        </div>
+                        <div className="effect-sheet-preview">
+                          <span className="sprite-sheet-grid-preview" style={selectedEffectSheetGridStyle}>
+                            <img className="result-preview-image" src={selected.dataUrl} alt="" />
+                            <span className="sprite-sheet-grid-overlay" aria-hidden="true" />
+                          </span>
+                        </div>
+                      </div>
+                      <div className="effect-preview-card effect-timeline-card">
+                        <div className="animation-preview-card-heading">
+                          <strong>{language === "ja" ? "Frame timeline" : "Frame timeline"}</strong>
+                          <small>{selectedEffectFrames.length}/{selectedEffectMetadata?.frameCount ?? selectedEffectFrames.length}</small>
+                        </div>
+                        <div className="effect-timeline">
+                          {selectedEffectFrames.map((frame, index) => (
+                            <button
+                              key={frame.id}
+                              type="button"
+                              className={selectedFrameId === frame.id ? "selected" : ""}
+                              onClick={() => setSelectedFrameId(frame.id)}
+                            >
+                              <span>{index + 1}</span>
+                              <img src={frame.dataUrl} alt="" />
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                      <div className="effect-qc-strip">
+                        <strong>{(selectedEffectMetadata?.qualityRank ?? "blocked").toUpperCase()}</strong>
+                        <span>
+                          {selectedEffectMetadata?.warnings.length
+                            ? selectedEffectMetadata.warnings.slice(0, 2).join(" / ")
+                            : language === "ja" ? "QC warningなし" : "No QC warnings"}
+                        </span>
                       </div>
                     </div>
                   ) : (
@@ -7434,12 +8509,12 @@ function App() {
                 )
               )}
               <span>{copy.sizeLabel}: {previewSize}</span>
-              <span>{copy.anchorLabel}: {activeAction.anchor.x}, {activeAction.anchor.y}</span>
+              <span>{copy.anchorLabel}: {selectedEffectMetadata ? `${selectedEffectMetadata.anchor.x}, ${selectedEffectMetadata.anchor.y}` : `${activeAction.anchor.x}, ${activeAction.anchor.y}`}</span>
               <span>{copy.zoomLabel}: {copy.zoomFit}</span>
               <span className="swatch" style={{ background: annotationColor }} />
             </div>
           </div>
-          <section className={`panel result-download-panel ${resultDownloadReady ? "complete" : ""} ${resultDownloadIsAnimation ? "animation-result-download" : "image-result-download"}`}>
+          <section className={`panel result-download-panel ${resultDownloadReady ? "complete" : ""} ${resultDownloadIsEffect ? "effect-result-download" : resultDownloadIsAnimation ? "animation-result-download" : "image-result-download"}`}>
             <PanelTitle index="4" title={copy.imageDownloadTitle} />
             <div className="result-download-body">
               <div className="step-heading">
@@ -7498,7 +8573,7 @@ function App() {
             {visibleHistory.map((item) => (
               <button
                 key={item.id}
-                className={`history-item ${selected?.id === item.id ? "selected" : ""}`}
+                className={`history-item ${selected?.id === item.id ? "selected" : ""} ${isEffectAnimationHistoryItem(item) ? "effect-result" : ""}`}
                 onClick={() => selectHistoryResult(item)}
               >
                 <img src={item.dataUrl} alt="" loading="lazy" decoding="async" />
@@ -7506,6 +8581,9 @@ function App() {
                   <strong>{item.name}</strong>
                   <small>{formatTime(item.createdAt)} • {providerLabel(item.provider, language)}</small>
                   <small>{item.size} • {item.source}</small>
+                  {item.effectAnimation && (
+                    <small>Effect • {item.effectAnimation.category} / {item.effectAnimation.type} • {item.effectAnimation.qualityRank}</small>
+                  )}
                 </span>
                 {SHOW_LOW_PRIORITY_CONTROLS && item.adopted && <em>Adopted</em>}
               </button>
@@ -7718,16 +8796,23 @@ function App() {
           language={language}
           selectedName={selected?.name ?? copy.imageDownloadTitle}
           isAnimation={resultDownloadIsAnimation}
+          isEffect={resultDownloadIsEffect}
           body={resultDownloadBody}
           status={resultDownloadStatus}
           imageReady={selectedImageDownloadReady}
           animationReady={selectedAnimationExportReady}
+          effectReady={selectedEffectExportReady && selectedFinalDownloadAllowed}
           onClose={() => setDownloadModalOpen(false)}
           onDownloadImage={downloadSelectedImage}
           onExportGif={() => void exportDirectionalAnimations("gif")}
           onExportWebp={() => void exportDirectionalAnimations("webp")}
           onExportSpriteSheet={() => void exportSpriteSheet(frames, selectedAnimationAction, ANIMATION_FRAME_COUNT)}
           onExportAnimationPack={openSelectedAnimationPackExportModal}
+          onExportEffectGif={() => void exportSelectedEffectGif()}
+          onExportEffectSheet={() => void exportSelectedEffectSheet()}
+          onExportEffectFramesZip={() => void exportSelectedEffectFramesZip()}
+          onExportEffectMetadata={exportSelectedEffectMetadata}
+          onExportEffectPack={() => void exportSelectedEffectPack()}
         />
       )}
       {showAnimationPackExportModal && (
@@ -8206,7 +9291,8 @@ function selectedImageSafeBaseName(item: Pick<HistoryItem, "name">) {
   return baseName.replace(/[<>:"/\\|?*\x00-\x1F]+/g, "-");
 }
 
-function isUsableHistoryDownloadItem(item: Pick<HistoryItem, "name" | "outboxImportKey">) {
+function isUsableHistoryDownloadItem(item: Pick<HistoryItem, "name" | "outboxImportKey" | "effectAnimation">) {
+  if (item.effectAnimation && !effectQualityRankAllowsDownload(item.effectAnimation.qualityRank)) return false;
   const name = normalizeOutboxResultNameForFiltering(item.name);
   const importKey = item.outboxImportKey?.toLowerCase() ?? "";
   return !(
@@ -8893,6 +9979,7 @@ function withCodexJobQueueCopy(overrides: Partial<typeof codexJobQueueCopyBase>)
 function codexJobLabel(mode: WorkflowMode | null, prompt: string, actionName?: string) {
   const shortPrompt = prompt.trim().replace(/\s+/g, " ").slice(0, 54);
   if (mode === "sprite-generate") return `Animation: ${actionName ?? "motion"}${shortPrompt ? ` / ${shortPrompt}` : ""}`;
+  if (mode === "effect-animation") return `Effect: ${actionName ?? "VFX"}${shortPrompt ? ` / ${shortPrompt}` : ""}`;
   if (mode === "image-generate") return shortPrompt ? `Pixel Art: ${shortPrompt}` : "Pixel Art Generation";
   if (mode === "image-edit") return shortPrompt ? `Image Edit: ${shortPrompt}` : "Image Edit";
   if (mode === "sprite-edit") return shortPrompt ? `Sprite Edit: ${shortPrompt}` : "Sprite Edit";
@@ -9083,8 +10170,9 @@ function animationDirectionLabel(directionId: string, language: Language) {
   return directionId;
 }
 
-export function isAnimationResultHistoryItem(item?: Pick<HistoryItem, "name" | "outboxImportKey" | "source">): boolean {
+export function isAnimationResultHistoryItem(item?: Pick<HistoryItem, "name" | "outboxImportKey" | "source" | "effectAnimation">): boolean {
   if (!item) return false;
+  if (isEffectAnimationHistoryItem(item)) return false;
   const name = normalizeOutboxResultNameForFiltering(item.name);
   const importKey = item.outboxImportKey?.toLowerCase() ?? "";
   return (
@@ -9095,8 +10183,14 @@ export function isAnimationResultHistoryItem(item?: Pick<HistoryItem, "name" | "
   );
 }
 
+export function isEffectAnimationHistoryItem(item?: Pick<HistoryItem, "name" | "outboxImportKey" | "effectAnimation">): boolean {
+  if (!item) return false;
+  const importKey = item.outboxImportKey?.toLowerCase() ?? "";
+  return item.effectAnimation?.kind === "effect-animation" || importKey.startsWith("effect-animation:");
+}
+
 export function isAnimationSource(item?: HistoryItem): item is HistoryItem {
-  return Boolean(item && item.source !== "sample" && !isAnimationResultHistoryItem(item));
+  return Boolean(item && item.source !== "sample" && !isAnimationResultHistoryItem(item) && !isEffectAnimationHistoryItem(item));
 }
 
 function animationResultNotSourceMessage(item: Pick<HistoryItem, "name">, language: Language) {
@@ -10159,7 +11253,7 @@ function workflowUsesSelectedImage(mode: WorkflowMode | null) {
 }
 
 function workflowUsesSpriteContext(mode: WorkflowMode | null) {
-  return mode === "sprite-generate" || mode === "sprite-edit";
+  return mode === "sprite-generate" || mode === "sprite-edit" || mode === "effect-animation";
 }
 
 async function loadCodexRunnerPreflight() {
@@ -10506,30 +11600,44 @@ function DownloadOptionsModal({
   language,
   selectedName,
   isAnimation,
+  isEffect,
   body,
   status,
   imageReady,
   animationReady,
+  effectReady,
   onClose,
   onDownloadImage,
   onExportGif,
   onExportWebp,
   onExportSpriteSheet,
-  onExportAnimationPack
+  onExportAnimationPack,
+  onExportEffectGif,
+  onExportEffectSheet,
+  onExportEffectFramesZip,
+  onExportEffectMetadata,
+  onExportEffectPack
 }: {
   language: Language;
   selectedName: string;
   isAnimation: boolean;
+  isEffect: boolean;
   body: string;
   status: string;
   imageReady: boolean;
   animationReady: boolean;
+  effectReady: boolean;
   onClose: () => void;
   onDownloadImage: () => void;
   onExportGif: () => void;
   onExportWebp: () => void;
   onExportSpriteSheet: () => void;
   onExportAnimationPack: () => void;
+  onExportEffectGif: () => void;
+  onExportEffectSheet: () => void;
+  onExportEffectFramesZip: () => void;
+  onExportEffectMetadata: () => void;
+  onExportEffectPack: () => void;
 }) {
   const copy = uiCopy[language];
   return (
@@ -10558,7 +11666,30 @@ function DownloadOptionsModal({
         </div>
 
         <div className="download-grid result-download-grid download-options-grid">
-          {isAnimation ? (
+          {isEffect ? (
+            <>
+              <button onClick={onExportEffectGif} disabled={!effectReady}>
+                <Film size={16} aria-hidden="true" />
+                {language === "ja" ? "Effect GIF" : "Effect GIF"}
+              </button>
+              <button onClick={onExportEffectSheet} disabled={!effectReady}>
+                <FileImage size={16} aria-hidden="true" />
+                {language === "ja" ? "Sheet PNG" : "Sheet PNG"}
+              </button>
+              <button onClick={onExportEffectFramesZip} disabled={!effectReady}>
+                <FileArchive size={16} aria-hidden="true" />
+                {language === "ja" ? "Frames ZIP" : "Frames ZIP"}
+              </button>
+              <button onClick={onExportEffectMetadata} disabled={!effectReady}>
+                <FileJson size={16} aria-hidden="true" />
+                {language === "ja" ? "Metadata JSON" : "Metadata JSON"}
+              </button>
+              <button onClick={onExportEffectPack} disabled={!effectReady}>
+                <FileArchive size={16} aria-hidden="true" />
+                {language === "ja" ? "Effect Pack ZIP" : "Effect Pack ZIP"}
+              </button>
+            </>
+          ) : isAnimation ? (
             <>
               <button onClick={onExportGif} disabled={!animationReady}>
                 <Film size={16} aria-hidden="true" />
@@ -10680,6 +11811,7 @@ function WorkflowIcon({ mode }: { mode: WorkflowMode }) {
   if (mode === "image-generate") return <ImagePlus size={22} aria-hidden="true" />;
   if (mode === "image-edit") return <Brush size={22} aria-hidden="true" />;
   if (mode === "sprite-generate") return <Scissors size={22} aria-hidden="true" />;
+  if (mode === "effect-animation") return <Zap size={22} aria-hidden="true" />;
   return <Grid3X3 size={22} aria-hidden="true" />;
 }
 
@@ -11380,7 +12512,8 @@ function savePendingCodexJobs(jobs: CodexJobQueueItem[]) {
         sourceImageName: job.sourceImageName,
         tournamentId: job.tournamentId,
         tournamentCandidateIndex: job.tournamentCandidateIndex,
-        tournamentCandidateCount: job.tournamentCandidateCount
+        tournamentCandidateCount: job.tournamentCandidateCount,
+        effectContext: job.effectContext
       }));
     if (runningJobs.length > 0) {
       window.localStorage.setItem(PENDING_CODEX_JOB_STORAGE_KEY, JSON.stringify(runningJobs));

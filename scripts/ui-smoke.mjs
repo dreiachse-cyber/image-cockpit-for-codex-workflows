@@ -52,7 +52,9 @@ const mockManifestFirstDirectionSplitMarkerPath = join(tempRoot, "mock-manifest-
 const apiPort = await getOpenPort();
 const vitePort = await getOpenPort();
 const debugPort = await getOpenPort();
+const appUrl = `http://127.0.0.1:${vitePort}/`;
 const screenshotDir = process.env.IMAGE_COCKPIT_UI_SMOKE_SCREENSHOT_DIR;
+const onlyEffectSmoke = process.env.IMAGE_COCKPIT_UI_SMOKE_ONLY_EFFECT === "1";
 
 let apiServer;
 let viteServer;
@@ -78,7 +80,8 @@ try {
   viteServer = startProcess(nodeCommand, ["node_modules/vite/bin/vite.js", "--host", "127.0.0.1", "--port", String(vitePort), "--strictPort"], {
     IMAGE_COCKPIT_API_TARGET: `http://127.0.0.1:${apiPort}`
   });
-  await waitForHttp(`http://127.0.0.1:${vitePort}/`, "Vite app");
+  await waitForHttp(appUrl, "Vite app");
+  console.log(`UI smoke app URL: ${appUrl}`);
 
   browserProcess = startProcess(browserCommand, [
     "--headless=new",
@@ -148,12 +151,18 @@ try {
       }
     `
   });
-  await cdp.send("Page.navigate", { url: `http://127.0.0.1:${vitePort}/` });
+  await cdp.send("Page.navigate", { url: appUrl });
   await waitForEval(
     () => `document.body.innerText.includes("Pixel Art Generation") && Boolean(document.querySelector(".source-panel > .workflow-tabs"))`,
     "initial Pixel Art Generation workspace"
   );
 
+  if (onlyEffectSmoke) {
+    await assertEffectAnimationWorkflow();
+    await assertEffectCategoryMatrix();
+    await assertEffectResultNotEditable();
+    console.log("UI smoke effect-only passed.");
+  } else {
   await assertInitialWorkspace();
   await assertCockpitHealthAndDedupeControls();
   await assertSettingsRecoveryEnvironmentReport();
@@ -209,9 +218,13 @@ try {
     reloadAfterExercise: true
   });
   await assertAnimationResultNotEditable();
+  await assertEffectAnimationWorkflow();
+  await assertEffectCategoryMatrix();
+  await assertEffectResultNotEditable();
   if (!screenshotDir) await assertHistoryIncrementalRendering();
 
   console.log("UI smoke passed.");
+  }
 } finally {
   await cdp?.close();
   await stopProcess(browserProcess);
@@ -228,6 +241,7 @@ async function assertInitialWorkspace() {
   assert(snapshot.buttons.includes("Pixel Art Generation"), "Initial workspace should expose Pixel Art Generation tab");
   assert(snapshot.buttons.includes("Image Editing"), "Initial workspace should expose Image Editing tab");
   assert(snapshot.buttons.includes("Animation Generation"), "Initial workspace should expose Animation Generation tab");
+  assert(snapshot.buttons.includes("Effect Animation"), "Initial workspace should expose Effect Animation tab");
   assert(snapshot.workflowTabsInsidePanel, "Initial workspace should place workflow tabs under 1. Workflow");
   assert(snapshot.canvasVisible, "Initial workspace should render the preview canvas immediately");
   assert(snapshot.resultDownloadPanelInWorkspace, "Initial workspace should place the result download card under the preview workspace");
@@ -1335,6 +1349,81 @@ async function assertAnimationResultNotEditable() {
   await selectWorkflowTab("Pixel Art Generation");
 }
 
+async function assertEffectAnimationWorkflow() {
+  await assertWorkflow({
+    label: "Effect Animation",
+    route: "Route: Codex Handoff",
+    buttons: ["Generate Effect", "Download"],
+    hiddenButtons: ["Import Latest", "Import File", "Animated WebP", "Export Animation Pack"],
+    hiddenText: ["Sprite Actions", "Export Sprite", "Generation Method"],
+    requiredText: ["Slash Arc", "Hit Spark", "Magic Cast", "Projectile", "Impact", "Frames", "Canvas", "Layout", "Loop", "Anchor", "Palette"],
+    exerciseButton: "Generate Effect",
+    expectedAfterExercise: "Effect imported",
+    expectedAfterExerciseText: ["Effect exports ready", "GIF preview", "Sheet preview", "Frame timeline", "GOLD"],
+    expectedCanvasPreviewModeAfterExercise: "result",
+    expectedDownloadModalButtons: ["Effect GIF", "Sheet PNG", "Frames ZIP", "Metadata JSON", "Effect Pack ZIP"],
+    downloadModalAbsentButtons: ["PNG", "Animated GIF", "Animated WebP", "Export Animation Pack"],
+    downloadModalClickButtons: ["Effect GIF", "Sheet PNG", "Frames ZIP", "Metadata JSON", "Effect Pack ZIP"]
+  });
+}
+
+async function assertEffectResultNotEditable() {
+  await selectWorkflowTab("Image Editing");
+  await waitForEval(() => `document.body.innerText.includes("Effect output")`, "Image Editing final effect notice");
+  const snapshot = await pageSnapshot();
+  assert(snapshot.canvasPreviewMode === "result", `Effect results should stay in result preview mode in Image Editing, got ${snapshot.canvasPreviewMode}`);
+  assert(!snapshot.annotationToolbarVisible, "Effect results should not expose the rectangle selection toolbar");
+  assert(snapshot.finalEditNoticeVisible, "Effect results should show the final-artifact edit notice");
+  assert(snapshot.text.includes("Effect animation results are export assets"), "Effect results should update the status copy to export-asset guidance");
+  assert(snapshot.annotationRegionRows === 0, `Effect results should not show numbered edit rows, got ${snapshot.annotationRegionRows}`);
+  assert(snapshot.disabledButtons.includes("Edit Image"), "Effect results should disable the Edit Image action");
+  await assertNoBrowserErrors("Effect result is not editable");
+  await maybeCapture("effect-result-not-editable");
+  await selectWorkflowTab("Pixel Art Generation");
+}
+
+async function assertEffectCategoryMatrix() {
+  const categories = [
+    { label: "Slash Arc", id: "slash-arc" },
+    { label: "Hit Spark", id: "hit-spark" },
+    { label: "Magic Cast", id: "magic-cast" },
+    { label: "Projectile", id: "projectile" },
+    { label: "Impact", id: "impact" }
+  ];
+  await selectWorkflowTab("Effect Animation");
+  for (const category of categories) {
+    await clickEffectCategory(category.label);
+    const historyCountBeforeExercise = await evaluate(`document.querySelectorAll(".history-item").length`);
+    await clickButtonByText("Generate Effect");
+    await waitForEval(
+      () => `document.querySelectorAll(".history-item").length > ${historyCountBeforeExercise} && document.body.innerText.includes("Effect imported")`,
+      `Effect Animation generated ${category.label}`,
+      24000
+    );
+    for (const text of ["Effect exports ready", "GIF preview", "Sheet preview", "Frame timeline", "GOLD"]) {
+      await waitForEval(() => `document.body.innerText.includes(${JSON.stringify(text)})`, `Effect Animation ${category.label} shows ${text}`);
+    }
+    const result = await evaluate(`(() => {
+      const selected = document.querySelector(".history-item.selected")?.innerText.replace(/\\s+/g, " ").trim() || "";
+      return {
+        selected,
+        previewMode: document.querySelector("canvas")?.dataset.previewMode || "",
+        previewName: document.querySelector("canvas")?.dataset.previewName || "",
+        frameButtons: document.querySelectorAll(".effect-timeline button").length,
+        resultImages: document.querySelectorAll(".result-preview-image").length
+      };
+    })()`);
+    assert(result.selected.includes(`Effect • ${category.id}`), `Effect Animation should label selected history as ${category.id}: ${result.selected}`);
+    assert(result.previewMode === "result", `Effect Animation ${category.label} should stay in result preview mode, got ${result.previewMode}`);
+    assert(result.previewName, `Effect Animation ${category.label} should expose a selected preview name`);
+    assert(result.frameButtons === 8, `Effect Animation ${category.label} should render 8 timeline frames, got ${result.frameButtons}`);
+    assert(result.resultImages === 1, `Effect Animation ${category.label} should render one sheet preview image, got ${result.resultImages}`);
+    console.log(`Effect QA ${category.label}: ${result.previewName}`);
+    await maybeCapture(`effect-animation-${category.id}`);
+    await assertNoBrowserErrors(`Effect Animation ${category.label}`);
+  }
+}
+
 async function assertHistoryIncrementalRendering() {
   const bulkHistory = Array.from({ length: 130 }, (_, index) => ({
     id: `bulk-history-${index + 1}`,
@@ -1468,6 +1557,7 @@ async function assertWorkflow({
   assert(snapshot.buttons.includes("Pixel Art Generation"), `${label} should expose the Pixel Art Generation tab`);
   assert(snapshot.buttons.includes("Image Editing"), `${label} should expose the Image Editing tab`);
   assert(snapshot.buttons.includes("Animation Generation"), `${label} should expose the Animation Generation tab`);
+  assert(snapshot.buttons.includes("Effect Animation"), `${label} should expose the Effect Animation tab`);
   assert(snapshot.workflowTabsInsidePanel, `${label} should place workflow tabs under 1. Workflow`);
   assert(!snapshot.workflowTabsInTopbar, `${label} should not place workflow tabs in the global header`);
   assert(snapshot.summary.includes(route), `${label} should select ${route}`);
@@ -1753,6 +1843,22 @@ async function selectWorkflowTab(label) {
     button.click();
   })()`);
   await waitForEval(() => `document.body.innerText.includes(${JSON.stringify(label)})`, `${label} workflow tab`);
+}
+
+async function clickEffectCategory(label) {
+  await waitForEval(
+    () => `Array.from(document.querySelectorAll(".effect-category-grid button")).some((item) => item.innerText.replace(/\\s+/g, " ").trim().startsWith(${JSON.stringify(label)}))`,
+    `${label} effect category button`
+  );
+  await evaluate(`(() => {
+    const button = Array.from(document.querySelectorAll(".effect-category-grid button")).find((item) => item.innerText.replace(/\\s+/g, " ").trim().startsWith(${JSON.stringify(label)}));
+    if (!button) throw new Error("Effect category not found: ${label}");
+    button.click();
+  })()`);
+  await waitForEval(
+    () => `Array.from(document.querySelectorAll(".effect-category-grid button.selected")).some((item) => item.innerText.replace(/\\s+/g, " ").trim().startsWith(${JSON.stringify(label)}))`,
+    `${label} effect category active`
+  );
 }
 
 async function setPromptValue(value) {
@@ -2071,7 +2177,19 @@ async function waitForEval(expressionFactory, label, timeoutMs = 10000) {
     if (await evaluate(expressionFactory())) return;
     await delay(100);
   }
-  throw new Error(`Timed out waiting for ${label}`);
+  let detail = "";
+  try {
+    const snapshot = await evaluate(`({
+      url: location.href,
+      title: document.title,
+      text: document.body?.innerText?.slice(0, 1200) || "",
+      errors: window.__uiSmokeErrors || []
+    })`);
+    detail = ` ${JSON.stringify(snapshot)}`;
+  } catch (error) {
+    detail = ` Unable to collect page snapshot: ${error.message}`;
+  }
+  throw new Error(`Timed out waiting for ${label}.${detail}`);
 }
 
 function startProcess(command, args, env = {}) {
@@ -2378,6 +2496,25 @@ if (job.prompt.includes("temp candidate contact filter setup")) {
   process.exit(0);
 }
 
+if (job.workflowMode === "effect-animation") {
+  const effectContext = job.effectContext || {};
+  const columns = Number(effectContext.layout?.columns || job.spriteContext?.grid?.columns || 4);
+  const rows = Number(effectContext.layout?.rows || job.spriteContext?.grid?.rows || 2);
+  const cellWidth = Number(effectContext.frameSize?.width || job.spriteContext?.cell?.width || 128);
+  const cellHeight = Number(effectContext.frameSize?.height || job.spriteContext?.cell?.height || 128);
+  const frameCount = Number(effectContext.frameCount || job.spriteContext?.frames || columns * rows);
+  const png = makeEffectSheetPng(columns * cellWidth, rows * cellHeight, columns, rows, cellWidth, cellHeight, frameCount);
+  await writeFile(join(outboxDir, \`\${jobId}-effect-sheet.png\`), png);
+  await writeFile(join(outboxDir, \`\${jobId}-effect.json\`), JSON.stringify({
+    schema: "image-cockpit.effect-animation.v1",
+    jobId,
+    effectContext,
+    transparent: true
+  }, null, 2), "utf8");
+  console.log(\`mock effect animation completed \${jobId}\`);
+  process.exit(0);
+}
+
 if (job.workflowMode !== "sprite-generate") {
   await writeFile(join(outboxDir, \`\${jobId}.png\`), makeSpriteSheetPng(512, 512, 1, 1, 512, 512, [0, 255, 0, 255]));
   console.log(\`mock exact image completed \${jobId}\`);
@@ -2512,6 +2649,45 @@ const height = rows * cellHeight;
 const png = makeSpriteSheetPng(width, height, columns, rows, cellWidth, cellHeight, chroma);
 await writeFile(join(outboxDir, \`\${jobId}-mock-sprite-sheet.png\`), png);
 console.log(\`mock sprite sheet completed \${jobId}\`);
+
+function makeEffectSheetPng(width, height, columns, rows, cellWidth, cellHeight, frameCount) {
+  const bytesPerPixel = 4;
+  const stride = 1 + width * bytesPerPixel;
+  const raw = Buffer.alloc(stride * height);
+  for (let y = 0; y < height; y += 1) {
+    const rowOffset = y * stride;
+    raw[rowOffset] = 0;
+    for (let x = 0; x < width; x += 1) {
+      const offset = rowOffset + 1 + x * bytesPerPixel;
+      raw[offset + 3] = 0;
+      const column = Math.floor(x / cellWidth);
+      const row = Math.floor(y / cellHeight);
+      const frameIndex = row * columns + column;
+      if (frameIndex >= frameCount) continue;
+      const localX = x % cellWidth;
+      const localY = y % cellHeight;
+      const cx = cellWidth / 2;
+      const cy = cellHeight / 2;
+      const dx = localX - cx;
+      const dy = localY - cy;
+      const distance = Math.hypot(dx, dy);
+      const progress = frameIndex / Math.max(1, frameCount - 1);
+      const radius = cellWidth * (0.18 + progress * 0.26);
+      const angle = Math.atan2(dy, dx);
+      const targetAngle = -1.8 + progress * 3.2;
+      const angleDelta = Math.abs(Math.atan2(Math.sin(angle - targetAngle), Math.cos(angle - targetAngle)));
+      const arc = Math.abs(distance - radius) < 5 + progress * 3 && angleDelta < 0.75;
+      const spark = Math.abs(dx - (progress - 0.5) * cellWidth * 0.34) < 4 && Math.abs(dy + Math.sin(progress * Math.PI) * 18) < 22;
+      if (arc || spark) {
+        raw[offset] = 64 + Math.round(progress * 90);
+        raw[offset + 1] = 210 + Math.round(progress * 30);
+        raw[offset + 2] = 240;
+        raw[offset + 3] = arc ? 230 : 180;
+      }
+    }
+  }
+  return makePng(width, height, raw);
+}
 
 function makeSpriteSheetPng(width, height, columns, rows, cellWidth, cellHeight, chroma, directionIndex = 0) {
   const bytesPerPixel = 4;
