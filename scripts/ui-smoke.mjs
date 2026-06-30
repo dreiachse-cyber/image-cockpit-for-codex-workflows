@@ -1413,11 +1413,13 @@ async function assertEffectCategoryMatrix() {
         resultImages: document.querySelectorAll(".result-preview-image").length
       };
     })()`);
+    const gifLoop = await waitForEffectGifLoop(category.label);
     assert(result.selected.includes(`Effect • ${category.id}`), `Effect Animation should label selected history as ${category.id}: ${result.selected}`);
     assert(result.previewMode === "result", `Effect Animation ${category.label} should stay in result preview mode, got ${result.previewMode}`);
     assert(result.previewName, `Effect Animation ${category.label} should expose a selected preview name`);
     assert(result.frameButtons === 8, `Effect Animation ${category.label} should render 8 timeline frames, got ${result.frameButtons}`);
     assert(result.resultImages === 1, `Effect Animation ${category.label} should render one sheet preview image, got ${result.resultImages}`);
+    assert(gifLoop.loopCount === 0, `Effect Animation ${category.label} GIF preview should loop forever: ${JSON.stringify(gifLoop)}`);
     console.log(`Effect QA ${category.label}: ${result.previewName}`);
     await maybeCapture(`effect-animation-${category.id}`);
     await assertNoBrowserErrors(`Effect Animation ${category.label}`);
@@ -2037,6 +2039,44 @@ async function inspectImageAlpha(dataUrlExpression) {
     }
     return { width: canvas.width, height: canvas.height, transparentPixels, opaquePixels };
   })()`);
+}
+
+async function inspectEffectGifLoop() {
+  return evaluate(`(async () => {
+    const image = document.querySelector(".effect-gif-card img");
+    if (!image?.src) return { found: false, loopCount: null };
+    const response = await fetch(image.src);
+    const bytes = new Uint8Array(await response.arrayBuffer());
+    const signature = [78, 69, 84, 83, 67, 65, 80, 69, 50, 46, 48];
+    for (let index = 0; index <= bytes.length - 19; index += 1) {
+      if (bytes[index] !== 0x21 || bytes[index + 1] !== 0xff || bytes[index + 2] !== 0x0b) continue;
+      let matches = true;
+      for (let offset = 0; offset < signature.length; offset += 1) {
+        if (bytes[index + 3 + offset] !== signature[offset]) {
+          matches = false;
+          break;
+        }
+      }
+      if (!matches || bytes[index + 14] !== 0x03 || bytes[index + 15] !== 0x01) continue;
+      return {
+        found: true,
+        loopCount: bytes[index + 16] | (bytes[index + 17] << 8),
+        byteLength: bytes.length
+      };
+    }
+    return { found: false, loopCount: null, byteLength: bytes.length };
+  })()`);
+}
+
+async function waitForEffectGifLoop(label) {
+  const deadline = Date.now() + 10000;
+  let result = { found: false, loopCount: null };
+  while (Date.now() < deadline) {
+    result = await inspectEffectGifLoop();
+    if (result.loopCount !== null) return result;
+    await delay(100);
+  }
+  return result;
 }
 
 async function clickSelector(selector) {

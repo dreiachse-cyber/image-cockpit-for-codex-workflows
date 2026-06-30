@@ -4757,7 +4757,7 @@ function App() {
     let cancelled = false;
     let objectUrl = "";
     setIsEffectPreviewBuilding(true);
-    void createGifBlob(frames, selectedEffectAction)
+    void createGifBlob(frames, selectedEffectAction, { forceLoop: true })
       .then((gifBlob) => {
         objectUrl = URL.createObjectURL(gifBlob);
         if (cancelled) {
@@ -6926,7 +6926,7 @@ function App() {
 
   async function exportSelectedEffectGif() {
     if (!selectedEffectExportReady) return;
-    const blob = await createGifBlob(frames, selectedEffectAction);
+    const blob = await createGifBlob(frames, selectedEffectAction, { forceLoop: true });
     downloadBlob(blob, `${selectedEffectAction.name}.gif`);
   }
 
@@ -6948,7 +6948,7 @@ function App() {
 
   async function exportSelectedEffectPack() {
     if (!selected || !selectedEffectMetadata || !selectedEffectExportReady) return;
-    const previewGif = await createGifBlob(frames, selectedEffectAction);
+    const previewGif = await createGifBlob(frames, selectedEffectAction, { forceLoop: true });
     await exportEffectPack({
       metadata: selectedEffectMetadata,
       sheet: selected.dataUrl,

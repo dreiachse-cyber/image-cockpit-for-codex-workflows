@@ -63,7 +63,11 @@ export async function exportFramesZip(frames: SpriteFrame[], action: SpriteActio
   downloadBlob(blob, `${action.name}_frames.zip`);
 }
 
-export async function createGifBlob(frames: SpriteFrame[], action: SpriteAction) {
+export async function createGifBlob(
+  frames: SpriteFrame[],
+  action: SpriteAction,
+  options: { forceLoop?: boolean } = {}
+) {
   const ordered = resolvePlaybackFrameIds(action)
     .map((frameId) => frames.find((frame) => frame.id === frameId))
     .filter((frame): frame is SpriteFrame => Boolean(frame));
@@ -91,7 +95,7 @@ export async function createGifBlob(frames: SpriteFrame[], action: SpriteAction)
       delay: Math.round(1000 / Math.max(1, action.fps)),
       transparent: transparentIndex >= 0,
       transparentIndex: Math.max(0, transparentIndex),
-      repeat: action.loop ? 0 : -1
+      repeat: options.forceLoop || action.loop ? 0 : -1
     });
   }
 
