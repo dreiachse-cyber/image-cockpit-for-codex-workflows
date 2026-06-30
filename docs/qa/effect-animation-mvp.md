@@ -7,7 +7,8 @@ Date: 2026-06-30
 - Branch: `codex/effect-animation-mvp`
 - Commit: branch head for this QA pass; exact hash is recorded in `request-status.md` after push
 - Slot: `slot2`
-- Local QA URL: `http://127.0.0.1:62166/`
+- Deterministic browser QA URL: `http://127.0.0.1:62166/`
+- Real imagegen QA URL: `http://127.0.0.1:5282/` (API `8892`, supervisor `8895`)
 - Viewport: `1280x720`
 - Browser path: headless Chrome/Edge through `scripts/ui-smoke.mjs`
 
@@ -17,7 +18,7 @@ Implemented the `Effect Animation` workflow as a fourth workspace mode beside Pi
 
 The five-category browser matrix used the app UI and local API with the deterministic ui-smoke Codex runner. It verifies the real browser interaction, job queue, outbox import, preview, QC, and export paths for every MVP category.
 
-An additional real Codex runner / built-in `image_gen` trial was run from the local UI for Slash Arc. It verified the external imagegen path, outbox publish, Effect QC import, GIF preview, sheet preview, frame timeline, and history/download readiness with a real generated raster candidate.
+Additional real Codex runner / built-in `image_gen` trials were run from the local UI for all five MVP categories. They verified the external imagegen path, outbox publish, Effect QC import, GIF preview, sheet preview, frame timeline, and history/download readiness with real generated raster candidates.
 
 ## UI Changes
 
@@ -63,17 +64,18 @@ Each trial created a UI job, showed a running/completed job card, imported the f
 | Category | Type | Job id | Result file | Runner result | Import rank | Warning / failure | Screenshot |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | Slash Arc | crescent slash | `codex-job-2026-06-30T13-50-06-636Z-ku2iws` | `codex-job-2026-06-30T13-50-06-636Z-ku2iws-effect-sheet.png` | completed / exit 0 | gold | none after postprocess | `docs/qa/effect-animation-mvp/real-run-slash-arc-import-1280x720.png` |
+| Hit Spark | burst spark | `codex-job-2026-06-30T14-13-20-751Z-xqbvnm` | `hit-spark-burst-spark-8f-codex-job-2026-06-30T14-13-20-751Z-xqbvnm-effect-sheet.png` | completed / exit 0 | gold | none after postprocess | `docs/qa/effect-animation-mvp/real-run-hit-spark-import-1280x720.png` |
+| Magic Cast | magic circle | `codex-job-2026-06-30T14-22-37-567Z-u03dxv` | `magic-cast-magic-circle-8f-codex-job-2026-06-30T14-22-37-567Z-u03dxv-effect-sheet.png` | completed / exit 0 | gold | none after postprocess | `docs/qa/effect-animation-mvp/real-run-magic-cast-import-1280x720.png` |
+| Projectile | energy bolt | `codex-job-2026-06-30T14-28-19-010Z-b9nuuo` | `projectile-energy-bolt-8f-codex-job-2026-06-30T14-28-19-010Z-b9nuuo-effect-sheet.png` | completed / exit 0 | gold | none after postprocess | `docs/qa/effect-animation-mvp/real-run-projectile-import-1280x720.png` |
+| Impact | small explosion | `codex-job-2026-06-30T14-35-00-514Z-pxubvd` | `impact-small-explosion-8f-codex-job-2026-06-30T14-35-00-514Z-pxubvd-effect-sheet.png` | completed / exit 0 | gold | none after postprocess | `docs/qa/effect-animation-mvp/real-run-impact-import-1280x720.png` |
 
 Real runner details:
 
-- Submitted from `http://127.0.0.1:5282/` by opening `Effect Animation` in a browser and pressing `Generate Effect`.
-- Codex runner used built-in `image_gen`. The first transparent request produced an RGB checkerboard-like candidate, so the runner retried with a chroma-key intermediate and postprocessed it to real alpha.
-- Published root outbox files:
-  - `codex-handoff/outbox/codex-job-2026-06-30T13-50-06-636Z-ku2iws-effect-sheet.png`
-  - `codex-handoff/outbox/codex-job-2026-06-30T13-50-06-636Z-ku2iws-effect-preview.gif`
-  - `codex-handoff/outbox/codex-job-2026-06-30T13-50-06-636Z-ku2iws-effect-metadata.json`
-- File QA: sheet PNG `512x256`, `RGBA`, 4x2 cells, 8 frames, corner alpha `0`; GIF preview `128x128`, 8 frames; metadata `status: ok`, `warnings: []`.
-- UI import QA: pending job was restored in browser storage, `Recover Results`/polling imported the sheet as an Effect result, showed GIF preview, sheet preview, 8-frame timeline, `GOLD`, and a completed download panel.
+- Submitted from `http://127.0.0.1:5282/` by opening `Effect Animation` in a browser, selecting each category, and pressing `Generate Effect`.
+- Codex runner used built-in `image_gen`. When native transparent output returned RGB or baked-preview backgrounds, the runner rejected that candidate, retried with a chroma-key intermediate, and postprocessed it to real alpha.
+- Published root outbox files for each real trial include an effect sheet PNG, GIF preview, and metadata JSON sidecar under `codex-handoff/outbox/`.
+- File QA: final sheets were `512x256`, 4x2 cells, 8 frames, real alpha transparency, no baked checkerboard in the final sheet, visible frame progression, and no cell-edge clipping in the runner checks.
+- UI import QA: every real trial imported from the browser session as an Effect result, showed GIF preview, sheet preview, 8-frame timeline, `GOLD`, and a completed download panel.
 
 ## Download Check
 
@@ -102,9 +104,13 @@ No legacy PNG-only, Animated WebP, or Animation Pack options appeared for effect
 - `docs/qa/effect-animation-mvp/ui-smoke-effect-animation-impact-1280x720.png`
 - `docs/qa/effect-animation-mvp/ui-smoke-effect-result-not-editable-1280x720.png`
 - `docs/qa/effect-animation-mvp/real-run-slash-arc-import-1280x720.png`
+- `docs/qa/effect-animation-mvp/real-run-hit-spark-import-1280x720.png`
+- `docs/qa/effect-animation-mvp/real-run-magic-cast-import-1280x720.png`
+- `docs/qa/effect-animation-mvp/real-run-projectile-import-1280x720.png`
+- `docs/qa/effect-animation-mvp/real-run-impact-import-1280x720.png`
 
 ## Follow-up Items
 
 - Character overlay preview is not included in this MVP.
 - Godot, Unity, and Phaser exports are not included beyond portable metadata/effect pack output.
-- External image-model generation was exercised for Slash Arc only. The remaining four categories are covered by deterministic browser/export QA, not by real imagegen generation.
+- Real image-model generation was exercised for all five MVP categories. Further retakes can improve individual art direction, but no category is left unverified for this MVP gate.
