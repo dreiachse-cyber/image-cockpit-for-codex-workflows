@@ -1,0 +1,353 @@
+[
+  {
+    "index": 1,
+    "slug": "knight",
+    "raw_path": "docs/qa/prompt-examples/retake-two-head-chibi/raw-01-knight.png",
+    "public_path": "public/prompt-examples/basic-two-head-chibi-knight.png",
+    "qa_transparent_path": "docs/qa/prompt-examples/retake-two-head-chibi/transparent-01-knight.png",
+    "source_size": [
+      1254,
+      1254
+    ],
+    "key": "#fb03f9",
+    "transparent_pixels": 1349942,
+    "partial_pixels": 1418,
+    "opaque_pixels": 221156,
+    "component_count": 7,
+    "kept_components": 1,
+    "removed_components": 6,
+    "removed_area": 8,
+    "bbox": [
+      309,
+      215,
+      857,
+      981
+    ],
+    "final_bbox": [
+      120,
+      66,
+      392,
+      446
+    ],
+    "scale": 0.4960835509138381,
+    "margins": {
+      "left": 120,
+      "top": 66,
+      "right": 120,
+      "bottom": 66
+    },
+    "edge_touch": false
+  },
+  {
+    "index": 2,
+    "slug": "mage",
+    "raw_path": "docs/qa/prompt-examples/retake-two-head-chibi/raw-02-mage.png",
+    "public_path": "public/prompt-examples/basic-two-head-chibi-mage.png",
+    "qa_transparent_path": "docs/qa/prompt-examples/retake-two-head-chibi/transparent-02-mage.png",
+    "source_size": [
+      1254,
+      1254
+    ],
+    "key": "#fa02f8",
+    "transparent_pixels": 1241134,
+    "partial_pixels": 2146,
+    "opaque_pixels": 329236,
+    "component_count": 5,
+    "kept_components": 1,
+    "removed_components": 4,
+    "removed_area": 9,
+    "bbox": [
+      297,
+      190,
+      970,
+      1055
+    ],
+    "final_bbox": [
+      108,
+      66,
+      404,
+      446
+    ],
+    "scale": 0.4393063583815029,
+    "margins": {
+      "left": 108,
+      "top": 66,
+      "right": 108,
+      "bottom": 66
+    },
+    "edge_touch": false
+  },
+  {
+    "index": 3,
+    "slug": "archer",
+    "raw_path": "docs/qa/prompt-examples/retake-two-head-chibi/raw-03-archer.png",
+    "public_path": "public/prompt-examples/basic-two-head-chibi-archer.png",
+    "qa_transparent_path": "docs/qa/prompt-examples/retake-two-head-chibi/transparent-03-archer.png",
+    "source_size": [
+      1254,
+      1254
+    ],
+    "key": "#fb03f8",
+    "transparent_pixels": 1396057,
+    "partial_pixels": 1448,
+    "opaque_pixels": 175011,
+    "component_count": 7,
+    "kept_components": 1,
+    "removed_components": 6,
+    "removed_area": 6,
+    "bbox": [
+      431,
+      251,
+      826,
+      959
+    ],
+    "final_bbox": [
+      150,
+      66,
+      362,
+      446
+    ],
+    "scale": 0.536723163841808,
+    "margins": {
+      "left": 150,
+      "top": 66,
+      "right": 150,
+      "bottom": 66
+    },
+    "edge_touch": false
+  },
+  {
+    "index": 4,
+    "slug": "healer",
+    "raw_path": "docs/qa/prompt-examples/retake-two-head-chibi/raw-04-healer.png",
+    "public_path": "public/prompt-examples/basic-two-head-chibi-healer.png",
+    "qa_transparent_path": "docs/qa/prompt-examples/retake-two-head-chibi/transparent-04-healer.png",
+    "source_size": [
+      1254,
+      1254
+    ],
+    "key": "#fb03f9",
+    "transparent_pixels": 1359439,
+    "partial_pixels": 1886,
+    "opaque_pixels": 211191,
+    "component_count": 5,
+    "kept_components": 1,
+    "removed_components": 4,
+    "removed_area": 5,
+    "bbox": [
+      367,
+      313,
+      863,
+      987
+    ],
+    "final_bbox": [
+      116,
+      66,
+      396,
+      446
+    ],
+    "scale": 0.5637982195845698,
+    "margins": {
+      "left": 116,
+      "top": 66,
+      "right": 116,
+      "bottom": 66
+    },
+    "edge_touch": false
+  },
+  {
+    "index": 5,
+    "slug": "ninja",
+    "raw_path": "docs/qa/prompt-examples/retake-two-head-chibi/raw-05-ninja.png",
+    "public_path": "public/prompt-examples/basic-two-head-chibi-ninja.png",
+    "qa_transparent_path": "docs/qa/prompt-examples/retake-two-head-chibi/transparent-05-ninja.png",
+    "source_size": [
+      1254,
+      1254
+    ],
+    "key": "#fb03f9",
+    "transparent_pixels": 1405270,
+    "partial_pixels": 1605,
+    "opaque_pixels": 165641,
+    "component_count": 5,
+    "kept_components": 1,
+    "removed_components": 4,
+    "removed_area": 6,
+    "bbox": [
+      410,
+      320,
+      824,
+      997
+    ],
+    "final_bbox": [
+      140,
+      66,
+      372,
+      446
+    ],
+    "scale": 0.5612998522895125,
+    "margins": {
+      "left": 140,
+      "top": 66,
+      "right": 140,
+      "bottom": 66
+    },
+    "edge_touch": false
+  },
+  {
+    "index": 6,
+    "slug": "alchemist",
+    "raw_path": "docs/qa/prompt-examples/retake-two-head-chibi/raw-06-alchemist.png",
+    "public_path": "public/prompt-examples/basic-two-head-chibi-alchemist.png",
+    "qa_transparent_path": "docs/qa/prompt-examples/retake-two-head-chibi/transparent-06-alchemist.png",
+    "source_size": [
+      1254,
+      1254
+    ],
+    "key": "#fa06ea",
+    "transparent_pixels": 1352370,
+    "partial_pixels": 1639,
+    "opaque_pixels": 218507,
+    "component_count": 2,
+    "kept_components": 1,
+    "removed_components": 1,
+    "removed_area": 1,
+    "bbox": [
+      405,
+      208,
+      852,
+      1027
+    ],
+    "final_bbox": [
+      152,
+      66,
+      359,
+      446
+    ],
+    "scale": 0.463980463980464,
+    "margins": {
+      "left": 152,
+      "top": 66,
+      "right": 153,
+      "bottom": 66
+    },
+    "edge_touch": false
+  },
+  {
+    "index": 7,
+    "slug": "pirate",
+    "raw_path": "docs/qa/prompt-examples/retake-two-head-chibi/raw-07-pirate.png",
+    "public_path": "public/prompt-examples/basic-two-head-chibi-pirate.png",
+    "qa_transparent_path": "docs/qa/prompt-examples/retake-two-head-chibi/transparent-07-pirate.png",
+    "source_size": [
+      1254,
+      1254
+    ],
+    "key": "#fb03f9",
+    "transparent_pixels": 1371744,
+    "partial_pixels": 1601,
+    "opaque_pixels": 199171,
+    "component_count": 6,
+    "kept_components": 1,
+    "removed_components": 5,
+    "removed_area": 8,
+    "bbox": [
+      387,
+      275,
+      859,
+      947
+    ],
+    "final_bbox": [
+      122,
+      66,
+      389,
+      446
+    ],
+    "scale": 0.5654761904761905,
+    "margins": {
+      "left": 122,
+      "top": 66,
+      "right": 123,
+      "bottom": 66
+    },
+    "edge_touch": false
+  },
+  {
+    "index": 8,
+    "slug": "robot",
+    "raw_path": "docs/qa/prompt-examples/retake-two-head-chibi/raw-08-robot.png",
+    "public_path": "public/prompt-examples/basic-two-head-chibi-robot.png",
+    "qa_transparent_path": "docs/qa/prompt-examples/retake-two-head-chibi/transparent-08-robot.png",
+    "source_size": [
+      1024,
+      1536
+    ],
+    "key": "#f903ec",
+    "transparent_pixels": 1311948,
+    "partial_pixels": 1847,
+    "opaque_pixels": 259069,
+    "component_count": 2,
+    "kept_components": 1,
+    "removed_components": 1,
+    "removed_area": 1,
+    "bbox": [
+      259,
+      286,
+      747,
+      1173
+    ],
+    "final_bbox": [
+      151,
+      66,
+      360,
+      446
+    ],
+    "scale": 0.42841037204058624,
+    "margins": {
+      "left": 151,
+      "top": 66,
+      "right": 152,
+      "bottom": 66
+    },
+    "edge_touch": false
+  },
+  {
+    "index": 9,
+    "slug": "dragon-tamer",
+    "raw_path": "docs/qa/prompt-examples/retake-two-head-chibi/raw-09-dragon-tamer.png",
+    "public_path": "public/prompt-examples/basic-two-head-chibi-dragon-tamer.png",
+    "qa_transparent_path": "docs/qa/prompt-examples/retake-two-head-chibi/transparent-09-dragon-tamer.png",
+    "source_size": [
+      1254,
+      1254
+    ],
+    "key": "#fb03f8",
+    "transparent_pixels": 1336220,
+    "partial_pixels": 1814,
+    "opaque_pixels": 234482,
+    "component_count": 3,
+    "kept_components": 1,
+    "removed_components": 2,
+    "removed_area": 2,
+    "bbox": [
+      413,
+      183,
+      818,
+      1065
+    ],
+    "final_bbox": [
+      169,
+      66,
+      343,
+      446
+    ],
+    "scale": 0.4308390022675737,
+    "margins": {
+      "left": 169,
+      "top": 66,
+      "right": 169,
+      "bottom": 66
+    },
+    "edge_touch": false
+  }
+]
