@@ -92,3 +92,57 @@ Create a single full-body pixel-art character asset: a large veteran warrior wit
 ```text
 Create a single full-body pixel-art character asset: a hooded mysterious figure with dark layered cloak, subtle glowing charm, hidden face with visible lower jaw only, slim readable silhouette, quiet neutral pose, centered idle-animation-ready stance, clear feet contact, transparent background preferred, crisp 32-bit fantasy RPG pixel-art rendering, no scenery, no readable text, no logo, no watermark. Keep the entire hood, cloak edges, hands, charm, robe hem, and feet fully inside the image with comfortable transparent padding around the character. If transparency is unavailable, use a perfectly flat solid #00ff00 chroma-key background with no shadows, gradients, texture, floor plane, or lighting variation.
 ```
+
+### 13. Two-Head Chibi Knight
+
+```text
+Create a single full-body pixel-art character asset: a two-head-tall chibi knight with an oversized expressive head, tiny armored body, short limbs, round shield, stubby sword, bright determined expression, compact readable silhouette, centered idle-animation-ready stance, clear feet contact, transparent background preferred, crisp 32-bit fantasy RPG pixel-art rendering, no scenery, no readable text, no logo, no watermark. Keep the entire head, helmet, hands, shield, sword, and feet fully inside the image with comfortable transparent padding around the character. If transparency is unavailable, use a perfectly flat solid #00ff00 chroma-key background with no shadows, gradients, texture, floor plane, or lighting variation.
+```
+
+### 14. Two-Head Chibi Mage
+
+```text
+Create a single full-body pixel-art character asset: a two-head-tall chibi mage with an oversized expressive head, tiny robed body, short limbs, wide starry hat, small wand, floating ribbon charm, curious magical expression, compact readable silhouette, centered idle-animation-ready stance, clear feet contact or robe hem contact, transparent background preferred, crisp 32-bit fantasy RPG pixel-art rendering, no scenery, no readable text, no logo, no watermark. Keep the entire head, hat, hands, wand, robe hem, and feet fully inside the image with comfortable transparent padding around the character. If transparency is unavailable, use a perfectly flat solid #00ff00 chroma-key background with no shadows, gradients, texture, floor plane, or lighting variation.
+```
+
+### 15. Two-Head Chibi Archer
+
+```text
+Create a single full-body pixel-art character asset: a two-head-tall chibi archer with an oversized expressive head, tiny ranger body, short limbs, compact bow, tiny quiver, feathered cap, focused friendly expression, compact readable silhouette, centered idle-animation-ready stance, clear feet contact, transparent background preferred, crisp 32-bit fantasy RPG pixel-art rendering, no scenery, no readable text, no logo, no watermark. Keep the entire head, cap, hands, bow, quiver, and feet fully inside the image with comfortable transparent padding around the character. If transparency is unavailable, use a perfectly flat solid #ff00ff chroma-key background because the character uses green clothing; no shadows, gradients, texture, floor plane, or lighting variation.
+```
+
+### 16. Two-Head Chibi Healer
+
+```text
+Create a single full-body pixel-art character asset: a two-head-tall chibi healer with an oversized expressive head, tiny white-and-gold robe body, short limbs, small bell staff, round medicine pouch, gentle reassuring smile, compact readable silhouette, centered idle-animation-ready stance, clear feet contact or robe hem contact, transparent background preferred, crisp 32-bit fantasy RPG pixel-art rendering, no scenery, no readable text, no logo, no watermark. Keep the entire head, hair, hands, staff, pouch, robe hem, and feet fully inside the image with comfortable transparent padding around the character. If transparency is unavailable, use a perfectly flat solid #00ff00 chroma-key background with no shadows, gradients, texture, floor plane, or lighting variation.
+```
+
+### 17. Two-Head Chibi Ninja
+
+```text
+Create a single full-body pixel-art character asset: a two-head-tall chibi ninja with an oversized expressive head, tiny dark shinobi outfit, short limbs, small scarf tails, tiny kunai, alert playful expression, compact readable silhouette, centered idle-animation-ready stance, clear feet contact, transparent background preferred, crisp 32-bit fantasy RPG pixel-art rendering, no scenery, no readable text, no logo, no watermark. Keep the entire head, mask, hands, scarf tails, kunai, and feet fully inside the image with comfortable transparent padding around the character. If transparency is unavailable, use a perfectly flat solid #00ff00 chroma-key background with no shadows, gradients, texture, floor plane, or lighting variation.
+```
+
+### 18. Two-Head Chibi Alchemist
+
+```text
+Create a single full-body pixel-art character asset: a two-head-tall chibi alchemist with an oversized expressive head, tiny apron body, short limbs, round goggles, small potion satchel, one tiny glass flask, excited inventor expression, compact readable silhouette, centered idle-animation-ready stance, clear feet contact, transparent background preferred, crisp 32-bit fantasy RPG pixel-art rendering, no scenery, no readable text, no logo, no watermark. Keep the entire head, goggles, hands, flask, satchel, apron, and feet fully inside the image with comfortable transparent padding around the character. If transparency is unavailable, use a perfectly flat solid #00ff00 chroma-key background with no shadows, gradients, texture, floor plane, or lighting variation.
+```
+
+### 19. Two-Head Chibi Pirate
+
+```text
+Create a single full-body pixel-art character asset: a two-head-tall chibi pirate with an oversized expressive head, tiny coat body, short limbs, small tricorn hat, round belt buckle, tiny cutlass, confident mischievous grin, compact readable silhouette, centered idle-animation-ready stance, clear feet contact, transparent background preferred, crisp 32-bit fantasy RPG pixel-art rendering, no scenery, no readable text, no logo, no watermark. Keep the entire head, hat, hands, cutlass, coat tails, boots, and feet fully inside the image with comfortable transparent padding around the character. If transparency is unavailable, use a perfectly flat solid #00ff00 chroma-key background with no shadows, gradients, texture, floor plane, or lighting variation.
+```
+
+### 20. Two-Head Chibi Robot
+
+```text
+Create a single full-body pixel-art character asset: a two-head-tall chibi robot with an oversized round metal head, tiny mechanical body, short arms and legs, small antenna, glowing chest core, friendly square eyes, compact readable silhouette, centered idle-animation-ready stance, clear feet contact, transparent background preferred, crisp 32-bit fantasy RPG pixel-art rendering, no scenery, no readable text, no logo, no watermark. Keep the entire head, antenna, hands, chest core, legs, and feet fully inside the image with comfortable transparent padding around the character. If transparency is unavailable, use a perfectly flat solid #00ff00 chroma-key background with no shadows, gradients, texture, floor plane, or lighting variation.
+```
+
+### 21. Two-Head Chibi Dragon Tamer
+
+```text
+Create a single full-body pixel-art character asset: a two-head-tall chibi dragon tamer with an oversized expressive head, tiny travel outfit, short limbs, small horned cap, little dragon-scale shoulder cape, training whistle charm, brave cheerful expression, compact readable silhouette, centered idle-animation-ready stance, clear feet contact, transparent background preferred, crisp 32-bit fantasy RPG pixel-art rendering, no scenery, no readable text, no logo, no watermark. Keep the entire head, horned cap, hands, shoulder cape, whistle charm, boots, and feet fully inside the image with comfortable transparent padding around the character. If transparency is unavailable, use a perfectly flat solid #00ff00 chroma-key background with no shadows, gradients, texture, floor plane, or lighting variation.
+```

@@ -3173,6 +3173,132 @@ const basicCharacterPromptExamples: PromptExample[] = [
       "Create a single full-body pixel-art character asset: a hooded mysterious figure with dark layered cloak, subtle glowing charm, hidden face with visible lower jaw only, slim readable silhouette, quiet neutral pose, centered idle-animation-ready stance, clear feet contact, transparent background preferred, crisp 32-bit fantasy RPG pixel-art rendering, no scenery, no readable text, no logo, no watermark. Keep the entire hood, cloak edges, hands, charm, robe hem, and feet fully inside the image with comfortable transparent padding around the character. If transparency is unavailable, use a perfectly flat solid #00ff00 chroma-key background with no shadows, gradients, texture, floor plane, or lighting variation.",
     negativePrompt: BASIC_CHARACTER_NEGATIVE_PROMPT,
     notes: BASIC_CHARACTER_NOTES
+  },
+  {
+    id: "basic-two-head-chibi-knight",
+    category: BASIC_CHARACTER_CATEGORY,
+    title: { en: "Two-Head Chibi Knight", ja: "2頭身ちび騎士" },
+    previewImage: "/prompt-examples/basic-two-head-chibi-knight.png",
+    summary: {
+      en: "Oversized-head chibi knight with round shield and stubby sword.",
+      ja: "大きな頭、丸盾、短い剣を持つ2頭身のちび騎士です。"
+    },
+    prompt:
+      "Create a single full-body pixel-art character asset: a two-head-tall chibi knight with an oversized expressive head, tiny armored body, short limbs, round shield, stubby sword, bright determined expression, compact readable silhouette, centered idle-animation-ready stance, clear feet contact, transparent background preferred, crisp 32-bit fantasy RPG pixel-art rendering, no scenery, no readable text, no logo, no watermark. Keep the entire head, helmet, hands, shield, sword, and feet fully inside the image with comfortable transparent padding around the character. If transparency is unavailable, use a perfectly flat solid #00ff00 chroma-key background with no shadows, gradients, texture, floor plane, or lighting variation.",
+    negativePrompt: BASIC_CHARACTER_NEGATIVE_PROMPT,
+    notes: BASIC_CHARACTER_NOTES
+  },
+  {
+    id: "basic-two-head-chibi-mage",
+    category: BASIC_CHARACTER_CATEGORY,
+    title: { en: "Two-Head Chibi Mage", ja: "2頭身ちび魔法使い" },
+    previewImage: "/prompt-examples/basic-two-head-chibi-mage.png",
+    summary: {
+      en: "Oversized-head chibi mage with starry hat, wand, and ribbon charm.",
+      ja: "星柄の帽子、杖、リボン護符を持つ2頭身のちび魔法使いです。"
+    },
+    prompt:
+      "Create a single full-body pixel-art character asset: a two-head-tall chibi mage with an oversized expressive head, tiny robed body, short limbs, wide starry hat, small wand, floating ribbon charm, curious magical expression, compact readable silhouette, centered idle-animation-ready stance, clear feet contact or robe hem contact, transparent background preferred, crisp 32-bit fantasy RPG pixel-art rendering, no scenery, no readable text, no logo, no watermark. Keep the entire head, hat, hands, wand, robe hem, and feet fully inside the image with comfortable transparent padding around the character. If transparency is unavailable, use a perfectly flat solid #00ff00 chroma-key background with no shadows, gradients, texture, floor plane, or lighting variation.",
+    negativePrompt: BASIC_CHARACTER_NEGATIVE_PROMPT,
+    notes: BASIC_CHARACTER_NOTES
+  },
+  {
+    id: "basic-two-head-chibi-archer",
+    category: BASIC_CHARACTER_CATEGORY,
+    title: { en: "Two-Head Chibi Archer", ja: "2頭身ちび弓使い" },
+    previewImage: "/prompt-examples/basic-two-head-chibi-archer.png",
+    summary: {
+      en: "Oversized-head chibi archer with compact bow, quiver, and feathered cap.",
+      ja: "小さな弓、矢筒、羽根帽子を持つ2頭身のちび弓使いです。"
+    },
+    prompt:
+      "Create a single full-body pixel-art character asset: a two-head-tall chibi archer with an oversized expressive head, tiny ranger body, short limbs, compact bow, tiny quiver, feathered cap, focused friendly expression, compact readable silhouette, centered idle-animation-ready stance, clear feet contact, transparent background preferred, crisp 32-bit fantasy RPG pixel-art rendering, no scenery, no readable text, no logo, no watermark. Keep the entire head, cap, hands, bow, quiver, and feet fully inside the image with comfortable transparent padding around the character. If transparency is unavailable, use a perfectly flat solid #ff00ff chroma-key background because the character uses green clothing; no shadows, gradients, texture, floor plane, or lighting variation.",
+    negativePrompt: BASIC_CHARACTER_NEGATIVE_PROMPT,
+    notes: BASIC_CHARACTER_NOTES
+  },
+  {
+    id: "basic-two-head-chibi-healer",
+    category: BASIC_CHARACTER_CATEGORY,
+    title: { en: "Two-Head Chibi Healer", ja: "2頭身ちびヒーラー" },
+    previewImage: "/prompt-examples/basic-two-head-chibi-healer.png",
+    summary: {
+      en: "Oversized-head chibi healer with bell staff and medicine pouch.",
+      ja: "鈴付きの杖と薬袋を持つ2頭身のちびヒーラーです。"
+    },
+    prompt:
+      "Create a single full-body pixel-art character asset: a two-head-tall chibi healer with an oversized expressive head, tiny white-and-gold robe body, short limbs, small bell staff, round medicine pouch, gentle reassuring smile, compact readable silhouette, centered idle-animation-ready stance, clear feet contact or robe hem contact, transparent background preferred, crisp 32-bit fantasy RPG pixel-art rendering, no scenery, no readable text, no logo, no watermark. Keep the entire head, hair, hands, staff, pouch, robe hem, and feet fully inside the image with comfortable transparent padding around the character. If transparency is unavailable, use a perfectly flat solid #00ff00 chroma-key background with no shadows, gradients, texture, floor plane, or lighting variation.",
+    negativePrompt: BASIC_CHARACTER_NEGATIVE_PROMPT,
+    notes: BASIC_CHARACTER_NOTES
+  },
+  {
+    id: "basic-two-head-chibi-ninja",
+    category: BASIC_CHARACTER_CATEGORY,
+    title: { en: "Two-Head Chibi Ninja", ja: "2頭身ちび忍者" },
+    previewImage: "/prompt-examples/basic-two-head-chibi-ninja.png",
+    summary: {
+      en: "Oversized-head chibi ninja with scarf tails and tiny kunai.",
+      ja: "小さなマフラーとクナイを持つ2頭身のちび忍者です。"
+    },
+    prompt:
+      "Create a single full-body pixel-art character asset: a two-head-tall chibi ninja with an oversized expressive head, tiny dark shinobi outfit, short limbs, small scarf tails, tiny kunai, alert playful expression, compact readable silhouette, centered idle-animation-ready stance, clear feet contact, transparent background preferred, crisp 32-bit fantasy RPG pixel-art rendering, no scenery, no readable text, no logo, no watermark. Keep the entire head, mask, hands, scarf tails, kunai, and feet fully inside the image with comfortable transparent padding around the character. If transparency is unavailable, use a perfectly flat solid #00ff00 chroma-key background with no shadows, gradients, texture, floor plane, or lighting variation.",
+    negativePrompt: BASIC_CHARACTER_NEGATIVE_PROMPT,
+    notes: BASIC_CHARACTER_NOTES
+  },
+  {
+    id: "basic-two-head-chibi-alchemist",
+    category: BASIC_CHARACTER_CATEGORY,
+    title: { en: "Two-Head Chibi Alchemist", ja: "2頭身ちび錬金術師" },
+    previewImage: "/prompt-examples/basic-two-head-chibi-alchemist.png",
+    summary: {
+      en: "Oversized-head chibi alchemist with goggles, flask, and potion satchel.",
+      ja: "ゴーグル、フラスコ、ポーション鞄を持つ2頭身のちび錬金術師です。"
+    },
+    prompt:
+      "Create a single full-body pixel-art character asset: a two-head-tall chibi alchemist with an oversized expressive head, tiny apron body, short limbs, round goggles, small potion satchel, one tiny glass flask, excited inventor expression, compact readable silhouette, centered idle-animation-ready stance, clear feet contact, transparent background preferred, crisp 32-bit fantasy RPG pixel-art rendering, no scenery, no readable text, no logo, no watermark. Keep the entire head, goggles, hands, flask, satchel, apron, and feet fully inside the image with comfortable transparent padding around the character. If transparency is unavailable, use a perfectly flat solid #00ff00 chroma-key background with no shadows, gradients, texture, floor plane, or lighting variation.",
+    negativePrompt: BASIC_CHARACTER_NEGATIVE_PROMPT,
+    notes: BASIC_CHARACTER_NOTES
+  },
+  {
+    id: "basic-two-head-chibi-pirate",
+    category: BASIC_CHARACTER_CATEGORY,
+    title: { en: "Two-Head Chibi Pirate", ja: "2頭身ちび海賊" },
+    previewImage: "/prompt-examples/basic-two-head-chibi-pirate.png",
+    summary: {
+      en: "Oversized-head chibi pirate with tricorn hat, coat, and tiny cutlass.",
+      ja: "三角帽、短いコート、小さなカトラスを持つ2頭身のちび海賊です。"
+    },
+    prompt:
+      "Create a single full-body pixel-art character asset: a two-head-tall chibi pirate with an oversized expressive head, tiny coat body, short limbs, small tricorn hat, round belt buckle, tiny cutlass, confident mischievous grin, compact readable silhouette, centered idle-animation-ready stance, clear feet contact, transparent background preferred, crisp 32-bit fantasy RPG pixel-art rendering, no scenery, no readable text, no logo, no watermark. Keep the entire head, hat, hands, cutlass, coat tails, boots, and feet fully inside the image with comfortable transparent padding around the character. If transparency is unavailable, use a perfectly flat solid #00ff00 chroma-key background with no shadows, gradients, texture, floor plane, or lighting variation.",
+    negativePrompt: BASIC_CHARACTER_NEGATIVE_PROMPT,
+    notes: BASIC_CHARACTER_NOTES
+  },
+  {
+    id: "basic-two-head-chibi-robot",
+    category: BASIC_CHARACTER_CATEGORY,
+    title: { en: "Two-Head Chibi Robot", ja: "2頭身ちびロボ" },
+    previewImage: "/prompt-examples/basic-two-head-chibi-robot.png",
+    summary: {
+      en: "Oversized-head chibi robot with antenna, tiny body, and glowing core.",
+      ja: "アンテナ、小さな機械の体、光るコアを持つ2頭身のちびロボです。"
+    },
+    prompt:
+      "Create a single full-body pixel-art character asset: a two-head-tall chibi robot with an oversized round metal head, tiny mechanical body, short arms and legs, small antenna, glowing chest core, friendly square eyes, compact readable silhouette, centered idle-animation-ready stance, clear feet contact, transparent background preferred, crisp 32-bit fantasy RPG pixel-art rendering, no scenery, no readable text, no logo, no watermark. Keep the entire head, antenna, hands, chest core, legs, and feet fully inside the image with comfortable transparent padding around the character. If transparency is unavailable, use a perfectly flat solid #00ff00 chroma-key background with no shadows, gradients, texture, floor plane, or lighting variation.",
+    negativePrompt: BASIC_CHARACTER_NEGATIVE_PROMPT,
+    notes: BASIC_CHARACTER_NOTES
+  },
+  {
+    id: "basic-two-head-chibi-dragon-tamer",
+    category: BASIC_CHARACTER_CATEGORY,
+    title: { en: "Two-Head Chibi Dragon Tamer", ja: "2頭身ちび竜使い" },
+    previewImage: "/prompt-examples/basic-two-head-chibi-dragon-tamer.png",
+    summary: {
+      en: "Oversized-head chibi dragon tamer with horned cap and scale cape.",
+      ja: "角付き帽子と竜鱗ケープを持つ2頭身のちび竜使いです。"
+    },
+    prompt:
+      "Create a single full-body pixel-art character asset: a two-head-tall chibi dragon tamer with an oversized expressive head, tiny travel outfit, short limbs, small horned cap, little dragon-scale shoulder cape, training whistle charm, brave cheerful expression, compact readable silhouette, centered idle-animation-ready stance, clear feet contact, transparent background preferred, crisp 32-bit fantasy RPG pixel-art rendering, no scenery, no readable text, no logo, no watermark. Keep the entire head, horned cap, hands, shoulder cape, whistle charm, boots, and feet fully inside the image with comfortable transparent padding around the character. If transparency is unavailable, use a perfectly flat solid #00ff00 chroma-key background with no shadows, gradients, texture, floor plane, or lighting variation.",
+    negativePrompt: BASIC_CHARACTER_NEGATIVE_PROMPT,
+    notes: BASIC_CHARACTER_NOTES
   }
 ];
 

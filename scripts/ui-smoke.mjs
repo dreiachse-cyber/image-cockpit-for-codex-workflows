@@ -23,7 +23,16 @@ const basicCharacterPromptExampleChecks = [
   { title: "Androgynous Traveler", promptText: "androgynous fantasy traveler" },
   { title: "Small Village Child", promptText: "small village child NPC" },
   { title: "Large Veteran Warrior", promptText: "large veteran warrior" },
-  { title: "Hooded Mysterious Figure", promptText: "hooded mysterious figure" }
+  { title: "Hooded Mysterious Figure", promptText: "hooded mysterious figure" },
+  { title: "Two-Head Chibi Knight", promptText: "two-head-tall chibi knight" },
+  { title: "Two-Head Chibi Mage", promptText: "two-head-tall chibi mage" },
+  { title: "Two-Head Chibi Archer", promptText: "two-head-tall chibi archer" },
+  { title: "Two-Head Chibi Healer", promptText: "two-head-tall chibi healer" },
+  { title: "Two-Head Chibi Ninja", promptText: "two-head-tall chibi ninja" },
+  { title: "Two-Head Chibi Alchemist", promptText: "two-head-tall chibi alchemist" },
+  { title: "Two-Head Chibi Pirate", promptText: "two-head-tall chibi pirate" },
+  { title: "Two-Head Chibi Robot", promptText: "two-head-tall chibi robot" },
+  { title: "Two-Head Chibi Dragon Tamer", promptText: "two-head-tall chibi dragon tamer" }
 ];
 const expandedPromptExampleChecks = [
   { title: "Boy Warrior Apprentice", promptText: "boy warrior apprentice" },
@@ -31,7 +40,7 @@ const expandedPromptExampleChecks = [
   { title: "Classic Green Slime", promptText: "classic small green slime" },
   { title: "Earth Spirit", promptText: "earth spirit" }
 ];
-const expectedPromptExampleCount = 78;
+const expectedPromptExampleCount = 87;
 const expectedCodexLogHistoryLimit = 3;
 
 if (!browserCommand) {
@@ -475,7 +484,7 @@ async function assertPromptExamples() {
   assert(snapshot.buttons.includes("Use Prompt"), "Prompt Examples should expose use buttons");
   assert(
     snapshot.promptPreviewImages >= expectedPromptExampleCount,
-    `Prompt Examples should show image previews with at least 78 image previews, got ${snapshot.promptPreviewImages}`
+    `Prompt Examples should show image previews with at least 87 image previews, got ${snapshot.promptPreviewImages}`
   );
   assert(snapshot.promptRawTextBlocks === 0, `Prompt Examples should hide raw prompt text, got ${snapshot.promptRawTextBlocks} raw blocks`);
   await waitForEval(
