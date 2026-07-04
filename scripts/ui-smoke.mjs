@@ -38,9 +38,11 @@ const expandedPromptExampleChecks = [
   { title: "Boy Warrior Apprentice", promptText: "boy warrior apprentice" },
   { title: "Middle-Aged Female Captain", promptText: "middle-aged female captain" },
   { title: "Classic Green Slime", promptText: "classic small green slime" },
-  { title: "Earth Spirit", promptText: "earth spirit" }
+  { title: "Earth Spirit", promptText: "earth spirit" },
+  { title: "Slime Scout Girl", promptText: "chibi slime scout girl" },
+  { title: "Shark Pirate Girl", promptText: "chibi shark pirate girl" }
 ];
-const expectedPromptExampleCount = 87;
+const expectedPromptExampleCount = 107;
 const expectedCodexLogHistoryLimit = 3;
 
 if (!browserCommand) {
@@ -484,7 +486,7 @@ async function assertPromptExamples() {
   assert(snapshot.buttons.includes("Use Prompt"), "Prompt Examples should expose use buttons");
   assert(
     snapshot.promptPreviewImages >= expectedPromptExampleCount,
-    `Prompt Examples should show image previews with at least 87 image previews, got ${snapshot.promptPreviewImages}`
+    `Prompt Examples should show image previews with at least ${expectedPromptExampleCount} image previews, got ${snapshot.promptPreviewImages}`
   );
   assert(snapshot.promptRawTextBlocks === 0, `Prompt Examples should hide raw prompt text, got ${snapshot.promptRawTextBlocks} raw blocks`);
   await waitForEval(
@@ -519,6 +521,7 @@ async function assertPromptExamples() {
   assert(promptExampleCounts.categories.includes("Basic Character"), "Prompt Examples should include Basic Character category");
   assert(promptExampleCounts.categories.includes("Profession Character"), "Prompt Examples should include Profession Character category");
   assert(promptExampleCounts.categories.includes("Monster"), "Prompt Examples should include Monster category");
+  assert(promptExampleCounts.categories.includes("Monster Girl Chibi"), "Prompt Examples should include Monster Girl Chibi category");
   assert(!snapshot.text.includes("Create one original pixel-art game asset"), "Prompt Examples should not display raw prompt contents");
   assert(!snapshot.text.includes("Create a single full-body pixel-art character asset"), "Prompt Examples should not display raw basic character prompt contents");
   assert(!snapshot.text.includes("Create a single full-body pixel-art monster asset"), "Prompt Examples should not display raw monster prompt contents");

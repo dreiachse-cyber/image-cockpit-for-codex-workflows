@@ -5,7 +5,7 @@ import { extname, join } from "node:path";
 const root = process.cwd();
 const failures = [];
 const privacyTextExtensions = new Set(["", ".css", ".html", ".js", ".json", ".md", ".mjs", ".ts", ".tsx", ".txt", ".yaml", ".yml"]);
-const expectedPackageVersion = "0.1.4";
+const expectedPackageVersion = "0.1.5";
 
 function slugPromptExampleTitle(value) {
   return value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
@@ -37,6 +37,7 @@ const requiredFiles = [
   "scripts/capture-readme-screenshots.mjs",
   "docs/qa/completed-codex-job-import-storage-quota.md",
   "docs/qa/local-state-oom-safe-mode-retention.md",
+  "docs/qa/v0.1.5-release-prep.md",
   "docs/qa/v0.1.4-release-prep.md",
   "docs/qa/v0.1.3-release-prep.md",
   "docs/qa/v0.1.2-release-prep.md",
@@ -71,6 +72,7 @@ const requiredFiles = [
   "docs/release/v0.1.0-checklist.md",
   "docs/release/v0.1.0-runbook.md",
   "docs/release/v0.1.0-release-notes.md",
+  "docs/release/v0.1.5-release-notes.md",
   "docs/release/v0.1.4-release-notes.md",
   "docs/release/v0.1.3-release-notes.md",
   "docs/release/v0.1.2-release-notes.md",
@@ -139,6 +141,7 @@ const requiredFiles = [
   "docs/prompt-examples/basic-character-prompts.md",
   "docs/prompt-examples/profession-character-prompts.md",
   "docs/prompt-examples/monster-prompts.md",
+  "docs/prompt-examples/monster-girl-prompts.md",
   "public/prompt-examples/basic-boy-adventurer.png",
   "public/prompt-examples/basic-girl-adventurer.png",
   "public/prompt-examples/basic-young-male-hero.png",
@@ -152,7 +155,8 @@ const requiredFiles = [
   "public/prompt-examples/basic-large-veteran-warrior.png",
   "public/prompt-examples/basic-hooded-mysterious-figure.png",
   ...promptPreviewFilesFromMarkdown("docs/prompt-examples/profession-character-prompts.md", "profession"),
-  ...promptPreviewFilesFromMarkdown("docs/prompt-examples/monster-prompts.md", "monster")
+  ...promptPreviewFilesFromMarkdown("docs/prompt-examples/monster-prompts.md", "monster"),
+  ...promptPreviewFilesFromMarkdown("docs/prompt-examples/monster-girl-prompts.md", "monster-girl")
 ];
 
 const requiredEnvKeys = [
@@ -193,6 +197,8 @@ const requiredVerifyCommands = [
 const requiredReviewLocalCommands = ["npm run verify", "npm run ui:smoke", "npm run codex:smoke"];
 const requiredReadmeLinks = [
   "CHANGELOG.md",
+  "docs/release/v0.1.5-release-notes.md",
+  "docs/qa/v0.1.5-release-prep.md",
   "docs/release/v0.1.4-release-notes.md",
   "docs/qa/v0.1.4-release-prep.md",
   "docs/release/v0.1.3-release-notes.md",
@@ -517,7 +523,7 @@ function checkWorkflowIds() {
     "Middle-Aged Female Captain",
     "Classic Green Slime",
     "Earth Spirit",
-    "at least 87 image previews",
+    "at least ${expectedPromptExampleCount} image previews",
     "generated from prompt example",
     "Prompt example loaded into Pixel Art Generation",
     "Generation can take a few minutes.",
@@ -783,13 +789,17 @@ function checkWorkflowIds() {
     "basic-two-head-chibi-dragon-tamer",
     "PROFESSION_CHARACTER_CATEGORY",
     "MONSTER_CATEGORY",
+    "MONSTER_GIRL_CATEGORY",
     "parsePromptCatalogMarkdown",
     "professionCharacterPromptsMarkdown",
     "monsterPromptsMarkdown",
+    "monsterGirlPromptsMarkdown",
     "professionCharacterPromptExamples",
     "monsterPromptExamples",
+    "monsterGirlPromptExamples",
     "docs/prompt-examples/profession-character-prompts.md",
-    "docs/prompt-examples/monster-prompts.md"
+    "docs/prompt-examples/monster-prompts.md",
+    "docs/prompt-examples/monster-girl-prompts.md"
   ].forEach((marker) => {
     if (!appText.includes(marker)) {
       failures.push(`App should include the expanded Prompt Examples catalog: ${marker}`);
@@ -1545,6 +1555,12 @@ function checkPromptCatalogExamples() {
       prefix: "monster",
       expectedCount: 30,
       sampleTitles: ["Classic Green Slime", "Earth Spirit"]
+    },
+    {
+      file: "docs/prompt-examples/monster-girl-prompts.md",
+      prefix: "monster-girl",
+      expectedCount: 20,
+      sampleTitles: ["Slime Scout Girl", "Shark Pirate Girl"]
     }
   ];
 
@@ -1614,10 +1630,12 @@ function checkReleaseDocs() {
   const checklist = readText("docs/release/v0.1.0-checklist.md");
   const runbook = readText("docs/release/v0.1.0-runbook.md");
   const releaseNotes = readText("docs/release/v0.1.0-release-notes.md");
+  const releaseNotes015 = readText("docs/release/v0.1.5-release-notes.md");
   const releaseNotes014 = readText("docs/release/v0.1.4-release-notes.md");
   const releaseNotes013 = readText("docs/release/v0.1.3-release-notes.md");
   const releaseNotes012 = readText("docs/release/v0.1.2-release-notes.md");
   const releaseNotes011 = readText("docs/release/v0.1.1-release-notes.md");
+  const releasePrepQa015 = readText("docs/qa/v0.1.5-release-prep.md");
   const releasePrepQa014 = readText("docs/qa/v0.1.4-release-prep.md");
   const releasePrepQa013 = readText("docs/qa/v0.1.3-release-prep.md");
   const releasePrepQa012 = readText("docs/qa/v0.1.2-release-prep.md");
@@ -1627,7 +1645,7 @@ function checkReleaseDocs() {
   const acceptanceEvidence = readText("docs/release/v0.1.0-acceptance-evidence.md");
   const ownerDecision = readText("docs/release/v0.1.0-owner-decision.md");
   const manualHandoff = readText("docs/usage/manual-handoff.md");
-  if (!readme || !checklist || !runbook || !releaseNotes || !releaseNotes014 || !releaseNotes013 || !releaseNotes012 || !releaseNotes011 || !releasePrepQa014 || !releasePrepQa013 || !releasePrepQa012 || !releasePrepQa || !ownerReview || !finalAudit || !acceptanceEvidence || !ownerDecision || !manualHandoff) return;
+  if (!readme || !checklist || !runbook || !releaseNotes || !releaseNotes015 || !releaseNotes014 || !releaseNotes013 || !releaseNotes012 || !releaseNotes011 || !releasePrepQa015 || !releasePrepQa014 || !releasePrepQa013 || !releasePrepQa012 || !releasePrepQa || !ownerReview || !finalAudit || !acceptanceEvidence || !ownerDecision || !manualHandoff) return;
 
   requiredReadmeLinks.forEach((link) => {
     if (!readme.includes(link)) {
@@ -1651,6 +1669,56 @@ function checkReleaseDocs() {
   ].forEach((line) => {
     if (!runbook.includes(line)) {
       failures.push(`Release runbook is missing safety line: ${line}`);
+    }
+  });
+
+  [
+    "v0.1.5",
+    "Monster Girl Chibi",
+    "モンスター娘ちび",
+    "20 generated transparent PNG preview assets",
+    "107 prompt example cards",
+    "front idle",
+    "side idle",
+    "side run",
+    "side walk",
+    "side attack",
+    "80 unique generated animation jobs",
+    "The app still does not call OpenAI APIs directly",
+    "No model weights, API keys, tokens",
+    "npm run verify",
+    "npm run ui:smoke"
+  ].forEach((line) => {
+    if (!releaseNotes015.includes(line)) {
+      failures.push(`v0.1.5 release notes are missing expected content: ${line}`);
+    }
+  });
+
+  [
+    "v0.1.5 Release Prep QA",
+    "Release approval",
+    "Source branch: `codex/monster-girl-prompt-animation-batch`",
+    "package.json version: `0.1.5`",
+    "package-lock.json root version: `0.1.5`",
+    "docs/release/v0.1.5-release-notes.md",
+    "docs/prompt-examples/monster-girl-prompts.md",
+    "20 Monster Girl Chibi prompt examples",
+    "107 prompt cards",
+    "100 slots",
+    "80 unique generated animation jobs",
+    "codex-handoff/",
+    "npm run doctor",
+    "npm run typecheck",
+    "npm test",
+    "npm run build",
+    "npm run smoke",
+    "npm run release:audit",
+    "npm run ui:smoke",
+    "git diff --check",
+    "Tag push"
+  ].forEach((line) => {
+    if (!releasePrepQa015.includes(line)) {
+      failures.push(`v0.1.5 release prep QA is missing expected content: ${line}`);
     }
   });
 

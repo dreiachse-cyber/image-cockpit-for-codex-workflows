@@ -36,6 +36,7 @@ import {
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties, UIEvent } from "react";
+import monsterGirlPromptsMarkdown from "../docs/prompt-examples/monster-girl-prompts.md?raw";
 import monsterPromptsMarkdown from "../docs/prompt-examples/monster-prompts.md?raw";
 import professionCharacterPromptsMarkdown from "../docs/prompt-examples/profession-character-prompts.md?raw";
 import {
@@ -2973,6 +2974,9 @@ const PROFESSION_CHARACTER_NOTES = `${PROFESSION_CHARACTER_PROMPT_SOURCE}: full-
 const MONSTER_CATEGORY = { en: "Monster", ja: "モンスター" };
 const MONSTER_PROMPT_SOURCE = "docs/prompt-examples/monster-prompts.md";
 const MONSTER_NOTES = `${MONSTER_PROMPT_SOURCE}: full-body animation-ready monster asset.`;
+const MONSTER_GIRL_CATEGORY = { en: "Monster Girl Chibi", ja: "モンスター娘ちび" };
+const MONSTER_GIRL_PROMPT_SOURCE = "docs/prompt-examples/monster-girl-prompts.md";
+const MONSTER_GIRL_NOTES = `${MONSTER_GIRL_PROMPT_SOURCE}: cute two-head-tall monster girl source character for Image Cockpit animation testing.`;
 
 interface PromptCatalogOptions {
   idPrefix: string;
@@ -3324,6 +3328,17 @@ const monsterPromptExamples = parsePromptCatalogMarkdown(monsterPromptsMarkdown,
   notes: MONSTER_NOTES
 });
 
+const monsterGirlPromptExamples = parsePromptCatalogMarkdown(monsterGirlPromptsMarkdown, {
+  idPrefix: "monster-girl",
+  category: MONSTER_GIRL_CATEGORY,
+  sourcePath: MONSTER_GIRL_PROMPT_SOURCE,
+  summary: {
+    en: "Cute two-head-tall monster girl source character prepared for 20x5 animation testing.",
+    ja: "20x5アニメーション検証の元画像にしやすい2頭身ちびモンスター娘素材です。"
+  },
+  notes: MONSTER_GIRL_NOTES
+});
+
 const promptExamples: PromptExample[] = [
   {
     id: "clockwork-mushroom-courier",
@@ -3356,6 +3371,7 @@ const promptExamples: PromptExample[] = [
   ...basicCharacterPromptExamples,
   ...professionCharacterPromptExamples,
   ...monsterPromptExamples,
+  ...monsterGirlPromptExamples,
   {
     id: "ember-slime-companion",
     category: { en: "Creature", ja: "クリーチャー" },
@@ -4222,7 +4238,7 @@ function App() {
     const selectedMime = selected?.dataUrl.match(/^data:([^;,]+)/)?.[1];
     const storageEstimate = storageScreen.preflight?.estimate;
     return buildImageCockpitEnvironmentReport({
-      appVersion: "0.1.4",
+      appVersion: "0.1.5",
       appUrl: window.location.origin,
       route: `${window.location.pathname}${window.location.search}`,
       userAgent: navigator.userAgent,
@@ -7864,7 +7880,7 @@ function App() {
           <Grid3X3 size={18} aria-hidden="true" />
           <strong>Image Cockpit for Codex Workflows</strong>
           <span>{activeWorkflowCopy.label}</span>
-          <small>v0.1.4</small>
+          <small>v0.1.5</small>
         </div>
         <div className="project-strip">
           <LanguageSelect language={language} label={copy.language} onChange={setLanguage} />
@@ -9133,7 +9149,7 @@ function SettingsModal({
           <div className="settings-section">
             <article className="settings-card">
               <small>Image Cockpit</small>
-              <strong>v0.1.4</strong>
+              <strong>v0.1.5</strong>
               <span>{isJa ? "ChatGPTの画像生成可否と、ローカルCodex runner内でimagegenを使えるかは別の状態です。" : "ChatGPT image generation availability and local Codex runner imagegen availability are separate states."}</span>
             </article>
             <article className="settings-card">
@@ -9311,7 +9327,7 @@ function LocalStateRecoveryScreen({
           <Grid3X3 size={18} aria-hidden="true" />
           <strong>Image Cockpit for Codex Workflows</strong>
           <span>Storage recovery</span>
-          <small>v0.1.4</small>
+          <small>v0.1.5</small>
         </div>
       </header>
 
@@ -10743,9 +10759,9 @@ function prepareDirectionSplitCell(
     const hole = largestInteriorTransparentHole(cleaned, width, height, bounds);
     const boundsArea = Math.max(1, (bounds.maxX - bounds.minX + 1) * (bounds.maxY - bounds.minY + 1));
     const holeRatio = hole.count / boundsArea;
-    if (hole.count >= 96 && holeRatio >= 0.025) {
+    if (hole.count >= 1536 && holeRatio >= 0.08) {
       failures.push(`${label}: Character transparency damage detected (${Math.round(holeRatio * 100)}% interior alpha hole)`);
-    } else if (hole.count >= 48 && holeRatio >= 0.012) {
+    } else if (hole.count >= 96 && holeRatio >= 0.025) {
       warnings.push(`${label}: possible interior alpha hole ${Math.round(holeRatio * 100)}%`);
     }
   }

@@ -8,6 +8,7 @@ UIに組み込む前の候補や、手元で試験生成するときのコピー
 - [Basic Character Prompts](./basic-character-prompts.md)
 - [Profession Character Prompts](./profession-character-prompts.md)
 - [Monster Prompts](./monster-prompts.md)
+- [Monster Girl Chibi Prompts](./monster-girl-prompts.md)
 
 ## Shared Direction
 
@@ -17,3 +18,4 @@ UIに組み込む前の候補や、手元で試験生成するときのコピー
 - 背景は透明を優先し、不可なら完全な単色クロマキー背景を使う。
 - 緑系の服・肌・葉・草・体色がある場合は、クロマキー背景を `#ff00ff` に逃がす。
 - 読める文字、ロゴ、ウォーターマーク、背景 scenery は入れない。
+- 2頭身ちびキャラクターは、頭・手・小物・尻尾・羽・足先まで画像内に収め、アニメーション元画像として使いやすい中央立ちにする。

@@ -222,7 +222,7 @@ const server = createServer(async (request, response) => {
       const runner = await checkCodexRunnerPreflight();
       sendJson(response, 200, {
         app: "image-cockpit",
-        version: "0.1.4",
+        version: "0.1.5",
         role: "api",
         port,
         handoffRoot,
@@ -1562,7 +1562,9 @@ async function inspectDirectionSplitArtifact(jobId: string, resultDir = outboxDi
   if (!detected) return emptyDirectionSplitArtifactStatus(jobId);
 
   const candidateCount = bySlug.size + (sourceManifest ? 1 : 0);
-  const expectedChromaKey = await readJobExpectedChromaKey(jobId);
+  const expectedSpriteContext = await readJobExpectedSpriteContext(jobId);
+  const expectedChromaKey = expectedSpriteContext.chromaKey;
+  const expectedAction = expectedSpriteContext.action ?? normalizeActionValue(sourceManifest?.parsed?.action);
   const manifestChromaKey = normalizeChromaKeyValue(readManifestChromaKey(sourceManifest?.parsed));
   const manifestQualityGate = sourceManifest ? qualityGateFromManifest(sourceManifest.parsed) : null;
   const newestCandidateMtimeMs = Math.max(0, ...Array.from(bySlug.values()).map((candidate) => candidate.mtimeMs));
@@ -1732,7 +1734,7 @@ async function inspectDirectionSplitArtifact(jobId: string, resultDir = outboxDi
     };
   }
 
-  const manifestName = await publishVerifiedDirectionSplitArtifact(jobId, candidates, sourceManifest, expectedChromaKey, warnings, resultDir);
+  const manifestName = await publishVerifiedDirectionSplitArtifact(jobId, candidates, sourceManifest, expectedChromaKey, expectedAction, warnings, resultDir);
   const reason = warnings.length > 0 ? "server verified with warnings" : "server verified";
   return {
     jobId,
@@ -1871,6 +1873,7 @@ async function publishVerifiedDirectionSplitArtifact(
   candidates: DirectionSplitCandidateFile[],
   sourceManifest: DirectionSplitSourceManifest,
   expectedChromaKey: string | undefined,
+  expectedAction: string | undefined,
   warnings: string[],
   targetDir = outboxDir
 ) {
@@ -1908,6 +1911,7 @@ async function publishVerifiedDirectionSplitArtifact(
       ),
       warnings,
       directions: directionSplitNames,
+      action: expectedAction,
       framesPerDirection: 8,
       files: Object.fromEntries(directionSplitSlugs.map((slug, index) => [directionSplitNames[index], `${jobId}-${slug}${extname(candidates[index]?.finalName ?? ".png") || ".png"}`])),
       chromaKey: expectedChromaKey ? { name: expectedChromaKey } : undefined,
@@ -1924,14 +1928,23 @@ async function publishVerifiedDirectionSplitArtifact(
   return manifestName;
 }
 
-async function readJobExpectedChromaKey(jobId: string) {
+async function readJobExpectedSpriteContext(jobId: string) {
   try {
     const text = await readFile(join(inboxDir, `${jobId}.json`), "utf8");
-    const parsed = JSON.parse(text) as { spriteContext?: { chromaKey?: unknown } };
-    return normalizeChromaKeyValue(parsed.spriteContext?.chromaKey);
+    const parsed = JSON.parse(text) as { spriteContext?: { action?: unknown; chromaKey?: unknown } };
+    return {
+      action: normalizeActionValue(parsed.spriteContext?.action),
+      chromaKey: normalizeChromaKeyValue(parsed.spriteContext?.chromaKey)
+    };
   } catch {
-    return undefined;
+    return {};
   }
+}
+
+function normalizeActionValue(value: unknown) {
+  if (typeof value !== "string") return undefined;
+  const normalized = value.trim().toLowerCase();
+  return normalized || undefined;
 }
 
 function readManifestChromaKey(manifest?: Record<string, unknown>) {
@@ -2355,12 +2368,15 @@ async function publishTournamentWinner(tournamentId: string, jobId: string) {
     throw new Error("Tournament winner is missing one or more direction files.");
   }
   const sourceManifest = await findDirectionSplitSourceManifest(jobId, jobOutboxDir);
-  const expectedChromaKey = await readJobExpectedChromaKey(jobId);
+  const expectedSpriteContext = await readJobExpectedSpriteContext(jobId);
+  const expectedChromaKey = expectedSpriteContext.chromaKey;
+  const expectedAction = expectedSpriteContext.action ?? normalizeActionValue(sourceManifest?.parsed?.action);
   const manifestName = await publishVerifiedDirectionSplitArtifact(
     jobId,
     candidates,
     sourceManifest,
     expectedChromaKey,
+    expectedAction,
     artifact.warnings,
     outboxDir
   );

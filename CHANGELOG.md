@@ -4,6 +4,28 @@
 
 No unreleased changes yet.
 
+## v0.1.5 - 2026-07-04
+
+Monster Girl Chibi prompt catalog and animation QA release after v0.1.4.
+
+### Added
+
+- Added 20 cute two-head-tall monster girl prompt examples under the new Monster Girl Chibi category.
+- Added 20 generated transparent source preview PNGs for the new prompt examples.
+- Added release QA notes for the MG01-MG20 source preview and animation-generation batch.
+
+### Changed
+
+- Prompt Examples now contain 107 cards and include Monster Girl Chibi alongside Basic Character, Profession Character, and Monster catalogs.
+- Direction-split manifest publishing preserves the expected animation action when final tournament winners are promoted.
+- Direction-split client QA now treats moderate interior alpha holes as warnings, while still blocking severe transparency damage.
+
+### Verification
+
+- v0.1.5 release prep tracks package/app/API version `0.1.5`.
+- The MG01-MG20 batch completed source-preview acceptance and 20x5 animation acceptance through Image Cockpit browser import.
+- The public repository includes the lightweight prompt preview assets, while large generated job outputs and local comparison artifacts remain outside the release.
+
 ## v0.1.4 - 2026-07-01
 
 Experimental Effect Animation MVP release after v0.1.3.
