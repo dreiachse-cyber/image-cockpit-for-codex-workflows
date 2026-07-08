@@ -9,6 +9,7 @@ const tinyPng =
 const tinyPngBytes = Buffer.from(tinyPng.split(",")[1], "base64");
 
 await runManualHandoffSmoke();
+await runMockRunnerGuardSmoke();
 await runMockAutorunSmoke();
 
 console.log("Smoke passed.");
@@ -446,6 +447,59 @@ async function runManualHandoffSmoke() {
   }
 }
 
+async function runMockRunnerGuardSmoke() {
+  const port = String(9300 + Math.floor(Math.random() * 400));
+  const handoffDir = await mkdtemp(join(tmpdir(), "image-cockpit-smoke-mock-guard-"));
+  const mockRunnerPath = join(handoffDir, "mock-codex-runner.mjs");
+  await writeFile(mockRunnerPath, mockRunnerSource(), "utf8");
+
+  const server = startServer({
+    port,
+    handoffDir,
+    env: {
+      IMAGE_COCKPIT_CODEX_AUTORUN: "1",
+      IMAGE_COCKPIT_CODEX_COMMAND: nodeCommand,
+      IMAGE_COCKPIT_CODEX_HELP_ARGS_JSON: JSON.stringify([mockRunnerPath, "--help"]),
+      IMAGE_COCKPIT_CODEX_EXEC_ARGS_JSON: JSON.stringify([mockRunnerPath]),
+      IMAGE_COCKPIT_ARTIFACT_STABLE_MS: "0"
+    }
+  });
+
+  try {
+    await waitForServer(server, port);
+
+    const runnerPreflight = await getJson(port, "/api/codex/runner");
+    assert(runnerPreflight.runner?.state === "unavailable", "unapproved mock runner should not report ready");
+    assert(runnerPreflight.runner?.mode === "mock", "unapproved mock runner should report mock mode");
+    assert(runnerPreflight.runner?.mockRunnerAllowed === false, "unapproved mock runner should expose mockRunnerAllowed=false");
+    assert(runnerPreflight.runner?.errorCode === "mock_runner", "unapproved mock runner should report mock_runner error");
+
+    const health = await getJson(port, "/api/health");
+    assert(health.runner?.state === "unavailable", "health should not report unapproved mock runner as ready");
+    assert(health.runner?.mode === "mock", "health should expose mock runner mode");
+
+    const job = await postJson(port, "/api/codex/jobs", {
+      workflowMode: "image-generate",
+      prompt: "Smoke test unapproved mock runner guard",
+      negativePrompt: "text",
+      jobNotes: "This should not spawn the mock runner.",
+      annotations: [],
+      grid: { columns: 1, rows: 1, gutter: 0 },
+      action: "",
+      frames: 0
+    });
+    assert(job.runner?.state === "unavailable", "unapproved mock runner job should not start running");
+    assert(job.runner?.diagnostic?.kind === "runner_failed", "unapproved mock runner should return a runner diagnostic");
+    const status = await getJson(port, `/api/codex/jobs/${encodeURIComponent(job.id)}/status`);
+    assert(status.status.state === "unavailable", "status endpoint should keep unapproved mock runner unavailable");
+    const outboxList = await getJson(port, "/api/codex/results");
+    assert(!outboxList.results.some((result) => result.name.startsWith(job.id)), "unapproved mock runner should not create fake images");
+  } finally {
+    await stopServer(server);
+    await rm(handoffDir, { recursive: true, force: true });
+  }
+}
+
 async function runMockAutorunSmoke() {
   const port = String(9300 + Math.floor(Math.random() * 400));
   const handoffDir = await mkdtemp(join(tmpdir(), "image-cockpit-smoke-autorun-"));
@@ -457,6 +511,7 @@ async function runMockAutorunSmoke() {
     handoffDir,
     env: {
       IMAGE_COCKPIT_CODEX_AUTORUN: "1",
+      IMAGE_COCKPIT_ALLOW_MOCK_RUNNER: "1",
       IMAGE_COCKPIT_CODEX_COMMAND: nodeCommand,
       IMAGE_COCKPIT_CODEX_HELP_ARGS_JSON: JSON.stringify([mockRunnerPath, "--help"]),
       IMAGE_COCKPIT_CODEX_EXEC_ARGS_JSON: JSON.stringify([

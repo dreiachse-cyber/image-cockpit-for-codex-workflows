@@ -21,6 +21,7 @@ Slot: `slot1`
 - `npm run smoke`: pass
 - `npm run release:audit`: pass
 - `npm run ui:smoke`: pass
+- `npm run imagegen:smoke`: pass, real Codex imagegen returned a 1254x1254 PNG
 - `git diff --check`: pass, CRLF conversion warnings only
 
 ## Browser QA
@@ -59,3 +60,30 @@ Live review URL verification at `http://127.0.0.1:5211/`:
 - Cockpit health rendered `Cockpit: OK` with `3 outbox results available for Recover Results`; `Cockpit: Warning` was absent.
 - Clicking `ピクセルアート生成` displayed a running Codex job and live stdout/stderr in the lower log panel.
 - The mock runner completed and imported `codex-job-2026-07-08T06-55-15-178Z-2rr5hn.png` into the results list.
+
+## Follow-up: Mock Runner Guard and Real Imagegen Verification
+
+After owner review showed green placeholder-like outputs, the review server was confirmed to be running a local mock runner (`review-mock-runner.mjs`) through `node.exe`; those results were not real imagegen results.
+
+Implemented an OSS-facing guard:
+
+- Mock/test runners are detected from command / arg / mock env markers.
+- A mock runner is refused as `unavailable` unless `IMAGE_COCKPIT_ALLOW_MOCK_RUNNER=1` is set explicitly.
+- Job creation with an unapproved mock runner returns a runner diagnostic and does not spawn the mock process or create fake outbox images.
+- Automated smoke tests set `IMAGE_COCKPIT_ALLOW_MOCK_RUNNER=1` only where mock lifecycle wiring is intentional.
+
+Live review URL was restarted with the real Codex runner:
+
+- URL: `http://127.0.0.1:5211/`
+- API: `8791`
+- Supervisor: `8792`
+- Handoff: `.dev-logs/review-handoff-real`
+- Runner health: `mode=codex`, `mockRunnerAllowed=false`
+- Browser health panel: `Cockpit: OK`; no `Cockpit: Warning`; no `mock/test` runner label.
+
+Real imagegen smoke evidence:
+
+- Job: `codex-job-2026-07-08T07-08-13-530Z-3rbu6x`
+- Image: `.dev-logs/real-imagegen-smoke-after-mock-guard/outbox/codex-job-2026-07-08T07-08-13-530Z-3rbu6x-pixel-art-asset.png`
+- Dimensions: `1254x1254`
+- Exit code: `0`

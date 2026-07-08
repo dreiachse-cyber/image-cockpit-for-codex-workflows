@@ -1005,6 +1005,7 @@ const baseUiCopy = {
     codexLogExitFullscreen: "Exit full screen",
     runnerChecking: "Codex runner: checking",
     runnerReady: "Codex runner: ready",
+    runnerMock: "Codex runner: mock/test",
     runnerDisabled: "Codex runner: manual handoff",
     runnerUnavailable: "Codex runner: unavailable",
     statusSelectedAsFrame: "Selected image added as a sprite frame",
@@ -1244,6 +1245,7 @@ const baseUiCopy = {
     codexLogExitFullscreen: "全画面を閉じる",
     runnerChecking: "Codex runner: 確認中",
     runnerReady: "Codex runner: 使用可能",
+    runnerMock: "Codex runner: mock/test",
     runnerDisabled: "Codex runner: 手動受け渡し",
     runnerUnavailable: "Codex runner: 起動不可",
     statusSelectedAsFrame: "選択画像をスプライトフレームに追加しました",
@@ -11813,6 +11815,7 @@ async function loadCodexRunnerPreflight() {
 
 function runnerPreflightLabel(runner: CodexRunnerPreflight | null, copy: Record<string, string>) {
   if (!runner) return copy.runnerChecking;
+  if (runner.state === "ready" && runner.mode === "mock") return copy.runnerMock;
   if (runner.state === "ready") return copy.runnerReady;
   if (runner.state === "disabled") return copy.runnerDisabled;
   return runner.errorCode ? `${copy.runnerUnavailable}: ${runner.errorCode}` : copy.runnerUnavailable;

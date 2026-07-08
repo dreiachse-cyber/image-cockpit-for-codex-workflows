@@ -241,6 +241,7 @@ function apiEnv() {
   if (runnerMode === "mock") {
     return {
       ...env,
+      IMAGE_COCKPIT_ALLOW_MOCK_RUNNER: "1",
       IMAGE_COCKPIT_CODEX_COMMAND: nodeCommand,
       IMAGE_COCKPIT_CODEX_HELP_ARGS_JSON: JSON.stringify([mockRunnerPath, "--help"]),
       IMAGE_COCKPIT_CODEX_EXEC_ARGS_JSON: JSON.stringify([mockRunnerPath]),

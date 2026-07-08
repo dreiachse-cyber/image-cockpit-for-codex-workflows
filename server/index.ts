@@ -2,7 +2,7 @@ import { spawn } from "node:child_process";
 import { closeSync, createWriteStream, existsSync, openSync, readFileSync, readSync, readdirSync } from "node:fs";
 import { copyFile, mkdir, readFile, readdir, stat, writeFile } from "node:fs/promises";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
-import { delimiter, extname, join, resolve, sep } from "node:path";
+import { basename, delimiter, extname, join, resolve, sep } from "node:path";
 import { generateLocalImages, type LocalGenerationRequest } from "./local-generator.js";
 
 loadDotEnv(resolve(".env"));
@@ -30,6 +30,8 @@ const codexExecArgs = parseJsonStringArray("IMAGE_COCKPIT_CODEX_EXEC_ARGS_JSON",
   codexSandbox,
   "-"
 ]);
+const codexRunnerMode = detectCodexRunnerMode(codexCommand, codexLaunchCommand, codexHelpArgs, codexExecArgs);
+const allowMockRunner = process.env.IMAGE_COCKPIT_ALLOW_MOCK_RUNNER === "1";
 const runnerStaleTimeoutMs = parsePositiveNumber("IMAGE_COCKPIT_CODEX_STALE_MS", 30 * 60 * 1000);
 const runnerStaleLogIdleMs = parsePositiveNumber("IMAGE_COCKPIT_CODEX_STALE_LOG_IDLE_MS", 5 * 60 * 1000);
 const runnerCapacityCooldownMs = parsePositiveNumber("IMAGE_COCKPIT_CODEX_CAPACITY_COOLDOWN_MS", 15 * 60 * 1000);
@@ -77,6 +79,7 @@ type CodexJobRequest = {
 type CodexWorkflowMode = "image-generate" | "image-edit" | "sprite-generate" | "sprite-edit" | "effect-animation";
 type CodexRunnerState = "running" | "completed" | "failed" | "unavailable" | "disabled" | "unknown";
 type CodexRunnerPreflightState = "ready" | "disabled" | "unavailable";
+type CodexRunnerMode = "codex" | "custom" | "mock";
 type CodexFailureKind =
   | "policy_or_safety"
   | "usage_limit"
@@ -193,6 +196,8 @@ type CodexRunnerPreflight = {
   message: string;
   command: string;
   launchCommand: string;
+  mode: CodexRunnerMode;
+  mockRunnerAllowed: boolean;
   checkedAt: string;
   autorun: boolean;
   sandbox: string;
@@ -234,7 +239,9 @@ const server = createServer(async (request, response) => {
           state: runner.state,
           message: runner.message,
           checkedAt: runner.checkedAt,
-          autorun: runner.autorun
+          autorun: runner.autorun,
+          mode: runner.mode,
+          mockRunnerAllowed: runner.mockRunnerAllowed
         }
       });
       return;
@@ -733,6 +740,30 @@ async function startCodexRunner(job: { id: string; createdAt: string; path: stri
     return status;
   }
 
+  if (isMockRunnerBlocked()) {
+    const finishedAt = new Date().toISOString();
+    const diagnostic = mockRunnerBlockedDiagnostic();
+    const status: CodexRunnerStatus = {
+      jobId: job.id,
+      state: "unavailable",
+      message: diagnostic.userMessage,
+      command: codexLaunchCommand,
+      requestedCommand: codexCommand,
+      statusPath,
+      logPath,
+      outboxDir: job.outboxDir,
+      finishedAt,
+      diagnostic
+    };
+    await writeFile(
+      logPath,
+      `[${finishedAt}] Codex runner was not started: ${diagnostic.title}: ${diagnostic.userMessage}\n`,
+      "utf8"
+    );
+    await writeRunnerStatus(status);
+    return status;
+  }
+
   const startedAt = new Date().toISOString();
   const status: CodexRunnerStatus = {
     jobId: job.id,
@@ -853,6 +884,17 @@ async function checkCodexRunnerPreflight(): Promise<CodexRunnerPreflight> {
     };
   }
 
+  if (isMockRunnerBlocked()) {
+    const diagnostic = mockRunnerBlockedDiagnostic();
+    return {
+      ...base,
+      state: "unavailable",
+      message: diagnostic.userMessage,
+      errorCode: "mock_runner",
+      setupHint: diagnostic.suggestion
+    };
+  }
+
   return new Promise((resolve) => {
     let settled = false;
     let stderrText = "";
@@ -899,7 +941,10 @@ async function checkCodexRunnerPreflight(): Promise<CodexRunnerPreflight> {
         if (exitCode === 0) {
           finish({
             state: "ready",
-            message: `${codexLaunchCommand} is executable from the local handoff server.`
+            message:
+              codexRunnerMode === "mock"
+                ? "Mock/test runner is executable. This does not prove that Codex imagegen is available."
+                : `${codexLaunchCommand} is executable from the local handoff server.`
           });
           return;
         }
@@ -928,6 +973,8 @@ function createRunnerPreflightBase() {
     message: "",
     command: codexCommand,
     launchCommand: codexLaunchCommand,
+    mode: codexRunnerMode,
+    mockRunnerAllowed: allowMockRunner,
     checkedAt: new Date().toISOString(),
     autorun: codexAutoRun,
     sandbox: codexSandbox,
@@ -993,6 +1040,49 @@ function resolveCommandCandidates(command: string) {
 function selectCodexLaunchCommand(command: string, candidates: string[]) {
   if (command.includes("/") || command.includes("\\") || !isCodexCommandName(command)) return command;
   return candidates.find(isLocalOpenAiCodexCliCommand) ?? candidates.find((candidate) => !isWindowsAppsCodexCommand(candidate)) ?? command;
+}
+
+function detectCodexRunnerMode(
+  command: string,
+  launchCommand: string,
+  helpArgs: readonly string[],
+  execArgs: readonly string[]
+): CodexRunnerMode {
+  const modeProbe = [
+    command,
+    launchCommand,
+    ...helpArgs,
+    ...execArgs,
+    process.env.IMAGE_COCKPIT_MOCK_RUNNER_DELAY_MS ? "IMAGE_COCKPIT_MOCK_RUNNER_DELAY_MS" : ""
+  ]
+    .join("\n")
+    .toLowerCase();
+  if (
+    modeProbe.includes("mock-codex-runner") ||
+    modeProbe.includes("review-mock-runner") ||
+    modeProbe.includes("image-cockpit-ui-smoke") ||
+    modeProbe.includes("image_cockpit_mock_runner_delay_ms")
+  ) {
+    return "mock";
+  }
+
+  if (isCodexCommandName(basename(command)) || isCodexCommandName(basename(launchCommand))) return "codex";
+  return "custom";
+}
+
+function isMockRunnerBlocked() {
+  return codexRunnerMode === "mock" && !allowMockRunner;
+}
+
+function mockRunnerBlockedDiagnostic(): CodexJobDiagnostic {
+  return {
+    kind: "runner_failed",
+    title: "Mock runner configured",
+    userMessage:
+      "A mock/test Codex runner is configured, so Image Cockpit did not start it as a real image generation backend.",
+    suggestion:
+      "Use a real Codex CLI command for imagegen, or set IMAGE_COCKPIT_CODEX_AUTORUN=0 for manual handoff. Set IMAGE_COCKPIT_ALLOW_MOCK_RUNNER=1 only for automated smoke tests."
+  };
 }
 
 function knownCodexCliCandidates(command: string) {

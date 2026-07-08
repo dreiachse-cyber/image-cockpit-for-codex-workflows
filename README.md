@@ -104,9 +104,11 @@ IMAGE_COCKPIT_CODEX_SANDBOX=workspace-write
 IMAGE_COCKPIT_CODEX_APPROVAL=never
 IMAGE_COCKPIT_CODEX_HELP_ARGS_JSON= # optional JSON array for wrapper preflight args
 IMAGE_COCKPIT_CODEX_EXEC_ARGS_JSON= # optional JSON array for wrapper exec args
+IMAGE_COCKPIT_ALLOW_MOCK_RUNNER=0  # keep 0 outside automated smoke tests
 ```
 
 The default runner command is equivalent to `codex exec -c approval_policy="<approval>" --sandbox <sandbox> -`. Advanced wrapper setups can set the two JSON arg arrays when the executable needs extra fixed arguments before the Image Cockpit prompt is piped on stdin.
+Image Cockpit refuses to report a mock/test runner as ready unless `IMAGE_COCKPIT_ALLOW_MOCK_RUNNER=1` is set explicitly for automated smoke tests. A mock runner proves lifecycle wiring only; it is not a real Codex imagegen backend.
 
 Runner status and logs are written locally:
 
@@ -167,7 +169,7 @@ npm run release:audit
 
 GitHub Actions runs the same verification path through `.github/workflows/ci.yml`.
 
-`npm run smoke` covers fallback local image generation, fallback local sprite sheet generation, manual handoff mode, imagegen handoff instructions, and a mock autorun runner that reaches `ready`, creates a job, records `completed`, writes a PNG to the outbox, and imports that PNG through the Local Inbox endpoint. This proves the local workflow and runner lifecycle wiring without claiming that the installed Codex executable completed successfully on every machine.
+`npm run smoke` covers fallback local image generation, fallback local sprite sheet generation, manual handoff mode, imagegen handoff instructions, an unapproved mock-runner guard, and an explicitly approved mock autorun runner that reaches `ready`, creates a job, records `completed`, writes a PNG to the outbox, and imports that PNG through the Local Inbox endpoint. This proves the local workflow and runner lifecycle wiring without claiming that the installed Codex executable completed successfully on every machine.
 
 Optional local browser review smoke:
 

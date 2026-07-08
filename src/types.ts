@@ -191,6 +191,7 @@ export interface CodexJobResponse {
 
 export type CodexRunnerState = "running" | "completed" | "failed" | "unavailable" | "disabled" | "unknown";
 export type CodexRunnerPreflightState = "ready" | "disabled" | "unavailable";
+export type CodexRunnerMode = "codex" | "custom" | "mock";
 export type CodexFailureKind =
   | "policy_or_safety"
   | "usage_limit"
@@ -228,10 +229,14 @@ export interface CodexRunnerPreflight {
   state: CodexRunnerPreflightState;
   message: string;
   command: string;
+  launchCommand?: string;
+  mode?: CodexRunnerMode;
+  mockRunnerAllowed?: boolean;
   checkedAt: string;
   autorun: boolean;
   sandbox: string;
   approval: string;
+  resolvedCommandPaths?: string[];
   errorCode?: string;
   setupHint?: string;
 }
@@ -250,7 +255,7 @@ export interface ImageCockpitApiHealth {
   outboxReadable: boolean;
   statusReadable: boolean;
   logsReadable: boolean;
-  runner: Pick<CodexRunnerPreflight, "state" | "message" | "checkedAt" | "autorun">;
+  runner: Pick<CodexRunnerPreflight, "state" | "message" | "checkedAt" | "autorun" | "mode" | "mockRunnerAllowed">;
 }
 
 export interface ImageCockpitDevSupervisorHealth {

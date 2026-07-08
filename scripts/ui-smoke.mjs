@@ -80,6 +80,7 @@ try {
     IMAGE_COCKPIT_API_PORT: String(apiPort),
     IMAGE_COCKPIT_HANDOFF_DIR: handoffDir,
     IMAGE_COCKPIT_CODEX_AUTORUN: "1",
+    IMAGE_COCKPIT_ALLOW_MOCK_RUNNER: "1",
     IMAGE_COCKPIT_CODEX_COMMAND: nodeCommand,
     IMAGE_COCKPIT_CODEX_HELP_ARGS_JSON: JSON.stringify([mockRunnerPath, "--help"]),
     IMAGE_COCKPIT_CODEX_EXEC_ARGS_JSON: JSON.stringify([mockRunnerPath]),
