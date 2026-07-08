@@ -134,9 +134,9 @@ button {
   font-size: 12px;
   font-weight: 700;
   line-height: 1.15;
-  overflow-wrap: anywhere;
+  overflow-wrap: normal;
   text-align: center;
-  white-space: normal;
+  white-space: nowrap;
   cursor: pointer;
 }
 
@@ -155,13 +155,18 @@ button {
 .source-panel > .workflow-tabs {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 4px;
+  min-height: 66px;
+  height: auto;
+  overflow: visible;
   margin: 0 10px 10px;
   align-self: stretch;
 }
 
 .source-panel > .workflow-tabs button {
-  flex: 1 1 0;
   min-width: 0;
+  padding: 0 6px;
+  font-size: 11px;
 }
 
 .codex-job-shelf {
@@ -1649,6 +1654,51 @@ button {
   font-size: 10px;
   font-style: normal;
   font-weight: 800;
+}
+
+.direction-preset-control {
+  display: grid;
+  gap: 5px;
+}
+
+.segmented-control {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 3px;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  background: #f8faf8;
+  padding: 3px;
+}
+
+.segmented-control button {
+  min-width: 0;
+  min-height: 30px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: #33443a;
+  padding: 0 6px;
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1.15;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.segmented-control button.active {
+  background: #ffffff;
+  color: #0f5d31;
+  box-shadow: 0 0 0 1px var(--line);
+}
+
+.notification-toggle {
+  justify-content: center;
+  color: var(--text-muted);
+}
+
+.notification-toggle svg {
+  color: var(--green);
 }
 
 .motion-mode-tabs {
@@ -3637,7 +3687,7 @@ button:disabled {
 
   .workflow-tabs button {
     flex: 1;
-    min-width: 0;
+    min-width: max-content;
   }
 
   .cockpit {

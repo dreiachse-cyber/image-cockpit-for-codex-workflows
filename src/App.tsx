@@ -3,6 +3,7 @@ import {
   Archive,
   ArrowLeft,
   ArrowRight,
+  Bell,
   Brush,
   CheckCircle2,
   CircleAlert,
@@ -116,8 +117,10 @@ const CANVAS_WIDTH = 920;
 const CANVAS_HEIGHT = 520;
 const IMAGE_DISPLAY_PADDING = 44;
 const LANGUAGE_STORAGE_KEY = "image-cockpit.language";
+const JOB_NOTIFICATION_STORAGE_KEY = "image-cockpit.jobNotifications";
 const SHOW_LOW_PRIORITY_CONTROLS = false;
 const SHOW_SPRITE_ACTIONS_PANEL = false;
+// public/samples stays bundled for README demos, release audit fixtures, and import QA while the official library UI is hidden.
 const SHOW_ANIMATION_LIBRARY = false;
 const ANIMATION_FRAME_COUNT = 8;
 const ANIMATION_DIRECTION_COUNT = 5;
@@ -692,6 +695,16 @@ interface DirectionSplitTournamentCandidateEvaluation {
   error?: string;
 }
 
+interface AnimationTournamentStatusEntry {
+  job: CodexJobQueueItem;
+  status: CodexRunnerStatus | null;
+}
+
+interface AnimationTournamentTerminalStatusEntry {
+  job: CodexJobQueueItem;
+  status: CodexRunnerStatus;
+}
+
 interface CodexFailureNotice {
   id: string;
   jobId: string;
@@ -831,16 +844,20 @@ const baseUiCopy = {
     animationStepSourceBody: "Use a pixel-art image you generated or imported as the animation source.",
     animationMethodTitle: "Generation Method",
     animationStandardSheet: "5-Direction Sheet",
-    animationStandardSheetBody: "Generate a fixed 5 rows x 8 columns game-animation sprite sheet.",
-    animationStandardLockedSize: "Fixed cells: 256 x 256 px. Output sheet: 2048 x 1280 px.",
+    animationStandardSheetBody: "Generate 8 animation frames for each selected direction.",
+    animationStandardLockedSize: "Fixed cells: 256 x 256 px.",
     animationHatchPet: "hatch-pet",
     animationHatchPetBody: "Experimental Codex pet atlas: 8 x 9, 192 x 208 cells, pet.json-ready.",
     animationDirectionalHatchPet: "5-Direction hatch-pet",
     animationDirectionalHatchPetBody: "Generate five separate hatch-pet atlases, one for each direction.",
     animationStepMotionTitle: "2. Choose Motion",
     animationStepMotionBody: "Pick one locked animation preset.",
+    animationDirectionCount: "Directions",
+    animationDirectionFive: "5 directions",
+    animationDirectionThree: "3 directions",
+    animationDirectionOne: "1 direction",
     animationStepGenerateTitle: "3. Generate",
-    animationStepGenerateBody: "Send the uploaded source to Codex and generate a 5-direction chroma-key sprite sheet.",
+    animationStepGenerateBody: "Send the uploaded source to Codex and generate chroma-key direction frames.",
     hatchPetGenerateBody: "Send the uploaded source to Codex and try the hatch-pet workflow for a Codex pet atlas.",
     hatchPetLockedSize: "hatch-pet locks the atlas to 1536 x 1872 with 192 x 208 cells.",
     directionalHatchPetGenerateBody: "Send the uploaded source to Codex and generate five direction-specific hatch-pet atlases.",
@@ -947,6 +964,9 @@ const baseUiCopy = {
     statusCodexRunnerUnavailable: "Codex runner unavailable. Return an outbox image, then use Import Latest",
     statusCodexRunnerFailed: "Codex runner stopped before returning an image",
     statusCodexRunnerCompletedNoImage: "Codex runner completed, but no returned image was found",
+    jobNotifications: "Notify when done",
+    jobNotificationDone: "Codex job complete",
+    jobNotificationFailed: "Codex job needs attention",
     codexFailureTitle: "Generation failed",
     codexFailurePolicyMessage: "The image could not be generated. It may have been blocked by safety or usage-policy checks.",
     codexFailurePolicySuggestion: "Revise the prompt to remove sensitive, explicit, or disallowed details, then try again.",
@@ -1063,14 +1083,18 @@ const baseUiCopy = {
     animationStepSourceBody: "生成または取り込んだピクセルアートをアニメーション元にします。",
     animationMethodTitle: "生成方式",
     animationStandardSheet: "5方向シート",
-    animationStandardSheetBody: "5行 x 8列固定のゲーム用アニメーションsprite sheetを生成します。",
-    animationStandardLockedSize: "1セルは256 x 256 px固定です。出力シートは2048 x 1280 pxです。",
+    animationStandardSheetBody: "選択した各方向に8フレームのゲーム用アニメーションを生成します。",
+    animationStandardLockedSize: "1セルは256 x 256 px固定です。",
     animationHatchPet: "hatch-pet",
     animationHatchPetBody: "実験版のCodex pet atlas。8 x 9、192 x 208セル、pet.json対応です。",
     animationDirectionalHatchPet: "5方向hatch-pet",
     animationDirectionalHatchPetBody: "5方向それぞれにhatch-pet atlasを生成します。",
     animationStepMotionTitle: "2. 動きを選ぶ",
     animationStepMotionBody: "固定プリセットから動きを選びます。",
+    animationDirectionCount: "方向数",
+    animationDirectionFive: "5方向",
+    animationDirectionThree: "3方向",
+    animationDirectionOne: "1方向",
     animationStepGenerateTitle: "3. 生成する",
     animationStepGenerateBody: "アップロード画像からanimation sheetとtimeline framesを生成します。",
     hatchPetGenerateBody: "アップロード画像をCodexに渡し、hatch-pet工程でCodex pet atlasを試作します。",
@@ -1179,6 +1203,9 @@ const baseUiCopy = {
     statusCodexRunnerUnavailable: "Codex runner起動不可。outboxへ画像を戻したらImport Latestを押してください",
     statusCodexRunnerFailed: "Codex runnerが画像を返す前に停止しました",
     statusCodexRunnerCompletedNoImage: "Codex runnerは完了しましたが、戻り画像が見つかりません",
+    jobNotifications: "完了を通知",
+    jobNotificationDone: "Codexジョブ完了",
+    jobNotificationFailed: "Codexジョブ要確認",
     codexFailureTitle: "生成できませんでした",
     codexFailurePolicyMessage: "安全または利用ポリシーの確認により、この画像は生成できなかった可能性があります。",
     codexFailurePolicySuggestion: "センシティブ、露骨、または許可されない可能性のある表現を避けてpromptを調整し、再試行してください。",
@@ -2020,7 +2047,7 @@ const baseWorkflowCopy = {
     },
     "sprite-generate": {
       label: "Animation Generation",
-      detail: "Upload or select pixel art, then ask Codex for a 5-direction animation sprite sheet.",
+      detail: "Upload or select pixel art, then ask Codex for direction-split animation frames.",
       status: "Upload or select pixel art, then generate animation frames"
     },
     "effect-animation": {
@@ -2068,79 +2095,79 @@ const workflowCopy = {
   "zh-CN": withWorkflowCopy({
     "image-generate": { label: "像素艺术生成", detail: "将提示词发送到本地 Codex imagegen，并把生成图像带回 cockpit。", status: "通过本地 Codex imagegen 生成像素艺术" },
     "image-edit": { label: "图像编辑", detail: "在图像上选择编号矩形、添加评论，然后请求 Codex 编辑。", status: "选择编号编辑区域并创建 Codex 交接作业" },
-    "sprite-generate": { label: "动画生成", detail: "上传或选择像素艺术，然后让 Codex 生成 5 方向动画精灵表。", status: "上传或选择像素艺术，然后生成动画帧" },
+    "sprite-generate": { label: "动画生成", detail: "上传或选择像素艺术，然后让 Codex 生成按方向拆分的动画帧。", status: "上传或选择像素艺术，然后生成动画帧" },
     "sprite-edit": { label: "4. 精灵表编辑" }
   }),
   "zh-TW": withWorkflowCopy({
     "image-generate": { label: "像素藝術生成", detail: "將提示詞送到本地 Codex imagegen，並把生成圖像帶回 cockpit。", status: "透過本地 Codex imagegen 生成像素藝術" },
     "image-edit": { label: "圖像編輯", detail: "在圖像上選擇編號矩形、加入註解，然後請 Codex 編輯。", status: "選擇編號編輯區域並建立 Codex 交接作業" },
-    "sprite-generate": { label: "動畫生成", detail: "上傳或選擇像素藝術，然後讓 Codex 生成 5 方向動畫精靈表。", status: "上傳或選擇像素藝術，然後生成動畫影格" },
+    "sprite-generate": { label: "動畫生成", detail: "上傳或選擇像素藝術，然後讓 Codex 生成依方向拆分的動畫影格。", status: "上傳或選擇像素藝術，然後生成動畫影格" },
     "sprite-edit": { label: "4. 精靈表編輯" }
   }),
   ko: withWorkflowCopy({
     "image-generate": { label: "픽셀 아트 생성", detail: "프롬프트를 로컬 Codex imagegen에 보내고 생성 이미지를 cockpit으로 가져옵니다.", status: "로컬 Codex imagegen으로 픽셀 아트를 생성합니다" },
     "image-edit": { label: "이미지 편집", detail: "이미지에 번호가 있는 사각형을 선택하고 영역별 코멘트를 Codex에 전달합니다.", status: "번호가 있는 편집 영역과 코멘트로 Codex 작업을 만듭니다" },
-    "sprite-generate": { label: "애니메이션 생성", detail: "픽셀 아트를 업로드하거나 선택한 뒤 Codex에 5방향 애니메이션 시트를 요청합니다.", status: "픽셀 아트를 업로드하거나 선택한 뒤 애니메이션 프레임을 생성합니다" },
+    "sprite-generate": { label: "애니메이션 생성", detail: "픽셀 아트를 업로드하거나 선택한 뒤 Codex에 방향별 애니메이션 프레임을 요청합니다.", status: "픽셀 아트를 업로드하거나 선택한 뒤 애니메이션 프레임을 생성합니다" },
     "sprite-edit": { label: "4. 스프라이트 시트 편집" }
   }),
   ru: withWorkflowCopy({
     "image-generate": { label: "Генерация пиксель-арта", detail: "Отправьте промпт в локальный Codex imagegen и верните созданное изображение в cockpit.", status: "Создание пиксель-арта через локальный Codex imagegen" },
     "image-edit": { label: "Редактирование изображения", detail: "Выделите нумерованные прямоугольники, добавьте комментарии и попросите Codex отредактировать изображение.", status: "Создайте области правки и задание Codex" },
-    "sprite-generate": { label: "Генерация анимации", detail: "Загрузите или выберите пиксель-арт, затем попросите Codex создать 5-направленный спрайт-лист.", status: "Загрузите или выберите пиксель-арт, затем создайте кадры анимации" },
+    "sprite-generate": { label: "Генерация анимации", detail: "Загрузите или выберите пиксель-арт, затем попросите Codex создать кадры анимации по направлениям.", status: "Загрузите или выберите пиксель-арт, затем создайте кадры анимации" },
     "sprite-edit": { label: "4. Редактирование спрайт-листа" }
   }),
   es: withWorkflowCopy({
     "image-generate": { label: "Generación de pixel art", detail: "Envía el prompt a Codex imagegen local y devuelve la imagen generada al cockpit.", status: "Genera pixel art con el handoff local de Codex imagegen" },
     "image-edit": { label: "Edición de imagen", detail: "Marca rectángulos numerados, comenta cada región y pide a Codex que edite la imagen.", status: "Crea regiones numeradas y un trabajo Codex" },
-    "sprite-generate": { label: "Generación de animación", detail: "Sube o selecciona pixel art y pide a Codex un sprite sheet de 5 direcciones.", status: "Sube o selecciona pixel art y genera fotogramas" },
+    "sprite-generate": { label: "Generación de animación", detail: "Sube o selecciona pixel art y pide a Codex fotogramas separados por dirección.", status: "Sube o selecciona pixel art y genera fotogramas" },
     "sprite-edit": { label: "4. Edición de sprite sheet" }
   }),
   "pt-BR": withWorkflowCopy({
     "image-generate": { label: "Geração de pixel art", detail: "Envie o prompt para o Codex imagegen local e retorne a imagem gerada ao cockpit.", status: "Gere pixel art pelo handoff local do Codex imagegen" },
     "image-edit": { label: "Edição de imagem", detail: "Selecione retângulos numerados, comente cada região e peça a edição ao Codex.", status: "Crie regiões numeradas e um job Codex" },
-    "sprite-generate": { label: "Geração de animação", detail: "Envie ou selecione pixel art e peça ao Codex uma sprite sheet de 5 direções.", status: "Envie ou selecione pixel art e gere os quadros" },
+    "sprite-generate": { label: "Geração de animação", detail: "Envie ou selecione pixel art e peça ao Codex quadros separados por direção.", status: "Envie ou selecione pixel art e gere os quadros" },
     "sprite-edit": { label: "4. Edição de sprite sheet" }
   }),
   de: withWorkflowCopy({
     "image-generate": { label: "Pixel-Art-Erstellung", detail: "Sende den Prompt an lokales Codex imagegen und hole das Bild zurück ins Cockpit.", status: "Pixel-Art über lokales Codex imagegen erstellen" },
     "image-edit": { label: "Bildbearbeitung", detail: "Markiere nummerierte Rechtecke, kommentiere sie und lasse Codex das Bild bearbeiten.", status: "Nummerierte Bereiche und einen Codex-Job erstellen" },
-    "sprite-generate": { label: "Animation erstellen", detail: "Lade Pixel-Art hoch oder wähle sie aus und fordere ein 5-Richtungen-Sprite-Sheet an.", status: "Pixel-Art auswählen und Animationsframes erstellen" },
+    "sprite-generate": { label: "Animation erstellen", detail: "Lade Pixel-Art hoch oder wähle sie aus und fordere richtungsgetrennte Animationsframes an.", status: "Pixel-Art auswählen und Animationsframes erstellen" },
     "sprite-edit": { label: "4. Sprite-Sheet bearbeiten" }
   }),
   fr: withWorkflowCopy({
     "image-generate": { label: "Génération de pixel art", detail: "Envoyez le prompt à Codex imagegen local et ramenez l'image générée dans le cockpit.", status: "Générer du pixel art via le handoff Codex local" },
     "image-edit": { label: "Édition d'image", detail: "Sélectionnez des rectangles numérotés, commentez chaque zone, puis demandez l'édition à Codex.", status: "Créer des zones numérotées et une tâche Codex" },
-    "sprite-generate": { label: "Génération d'animation", detail: "Importez ou sélectionnez du pixel art, puis demandez une sprite sheet à 5 directions.", status: "Importer ou sélectionner du pixel art, puis générer les images" },
+    "sprite-generate": { label: "Génération d'animation", detail: "Importez ou sélectionnez du pixel art, puis demandez des images séparées par direction.", status: "Importer ou sélectionner du pixel art, puis générer les images" },
     "sprite-edit": { label: "4. Édition de sprite sheet" }
   }),
   id: withWorkflowCopy({
     "image-generate": { label: "Pembuatan pixel art", detail: "Kirim prompt ke Codex imagegen lokal dan kembalikan gambar ke cockpit.", status: "Buat pixel art melalui handoff Codex imagegen lokal" },
     "image-edit": { label: "Pengeditan gambar", detail: "Pilih kotak bernomor, beri komentar, lalu minta Codex mengedit gambar.", status: "Buat area edit bernomor dan job Codex" },
-    "sprite-generate": { label: "Pembuatan animasi", detail: "Unggah atau pilih pixel art, lalu minta sprite sheet 5 arah dari Codex.", status: "Unggah atau pilih pixel art, lalu buat frame animasi" },
+    "sprite-generate": { label: "Pembuatan animasi", detail: "Unggah atau pilih pixel art, lalu minta frame animasi yang dipisah per arah dari Codex.", status: "Unggah atau pilih pixel art, lalu buat frame animasi" },
     "sprite-edit": { label: "4. Edit sprite sheet" }
   }),
   tr: withWorkflowCopy({
     "image-generate": { label: "Piksel sanat üretimi", detail: "Promptu yerel Codex imagegen'e gönderip üretilen görseli cockpit'e döndürür.", status: "Yerel Codex imagegen ile piksel sanat üret" },
     "image-edit": { label: "Görsel düzenleme", detail: "Görselde numaralı dikdörtgenler seçin, yorum ekleyin ve Codex'ten düzenleme isteyin.", status: "Numaralı düzenleme alanları ve Codex işi oluştur" },
-    "sprite-generate": { label: "Animasyon üretimi", detail: "Piksel sanatı yükleyin veya seçin, Codex'ten 5 yönlü sprite sheet isteyin.", status: "Piksel sanat seçip animasyon kareleri üret" },
+    "sprite-generate": { label: "Animasyon üretimi", detail: "Piksel sanatı yükleyin veya seçin, Codex'ten yönlere ayrılmış animasyon kareleri isteyin.", status: "Piksel sanat seçip animasyon kareleri üret" },
     "sprite-edit": { label: "4. Sprite sheet düzenleme" }
   }),
   vi: withWorkflowCopy({
     "image-generate": { label: "Tạo pixel art", detail: "Gửi prompt tới Codex imagegen cục bộ và đưa ảnh đã tạo về cockpit.", status: "Tạo pixel art qua handoff Codex imagegen cục bộ" },
     "image-edit": { label: "Chỉnh sửa hình ảnh", detail: "Chọn vùng chữ nhật có số, thêm nhận xét, rồi yêu cầu Codex chỉnh sửa.", status: "Tạo vùng chỉnh sửa có số và job Codex" },
-    "sprite-generate": { label: "Tạo hoạt ảnh", detail: "Tải lên hoặc chọn pixel art, rồi yêu cầu Codex tạo sprite sheet 5 hướng.", status: "Tải lên hoặc chọn pixel art rồi tạo khung hoạt ảnh" },
+    "sprite-generate": { label: "Tạo hoạt ảnh", detail: "Tải lên hoặc chọn pixel art, rồi yêu cầu Codex tạo khung hoạt ảnh tách theo hướng.", status: "Tải lên hoặc chọn pixel art rồi tạo khung hoạt ảnh" },
     "sprite-edit": { label: "4. Chỉnh sửa sprite sheet" }
   }),
   pl: withWorkflowCopy({
     "image-generate": { label: "Generowanie pixel art", detail: "Wyślij prompt do lokalnego Codex imagegen i zwróć obraz do cockpit.", status: "Generuj pixel art przez lokalny handoff Codex imagegen" },
     "image-edit": { label: "Edycja obrazu", detail: "Zaznacz numerowane prostokąty, dodaj komentarze i poproś Codex o edycję.", status: "Utwórz numerowane obszary i zadanie Codex" },
-    "sprite-generate": { label: "Generowanie animacji", detail: "Prześlij lub wybierz pixel art, a potem poproś Codex o sprite sheet w 5 kierunkach.", status: "Prześlij lub wybierz pixel art i generuj klatki" },
+    "sprite-generate": { label: "Generowanie animacji", detail: "Prześlij lub wybierz pixel art, a potem poproś Codex o klatki rozdzielone według kierunku.", status: "Prześlij lub wybierz pixel art i generuj klatki" },
     "sprite-edit": { label: "4. Edycja sprite sheet" }
   }),
   it: withWorkflowCopy({
     "image-generate": { label: "Generazione pixel art", detail: "Invia il prompt a Codex imagegen locale e riporta l'immagine nel cockpit.", status: "Genera pixel art con handoff locale Codex imagegen" },
     "image-edit": { label: "Modifica immagine", detail: "Seleziona rettangoli numerati, commenta ogni area e chiedi a Codex di modificare.", status: "Crea aree numerate e un job Codex" },
-    "sprite-generate": { label: "Generazione animazione", detail: "Carica o seleziona pixel art e chiedi a Codex una sprite sheet a 5 direzioni.", status: "Carica o seleziona pixel art e genera frame" },
+    "sprite-generate": { label: "Generazione animazione", detail: "Carica o seleziona pixel art e chiedi a Codex frame separati per direzione.", status: "Carica o seleziona pixel art e genera frame" },
     "sprite-edit": { label: "4. Modifica sprite sheet" }
   })
 } satisfies Record<Language, WorkflowCopy>;
@@ -2760,10 +2787,36 @@ function getAnimationPresetById(id: string): AnimationPresetExample {
     ?? animationPresetExamples[0]!;
 }
 
-function buildAnimationPresetMotionPrompt(preset: AnimationPresetExample) {
+function adaptAnimationPresetLinesForDirections(lines: string[], directions: readonly string[]) {
+  const hasBack = directions.includes("back");
+  return lines
+    .map((line) => {
+      if (!hasBack && line.startsWith("Back row")) return "";
+      return line
+        .replace(/all five directions/g, "all requested directions")
+        .replace(/All five directions/g, "All requested directions")
+        .replace(/across all five directions/g, "across all requested directions")
+        .replace(/in all five directions/g, "in all requested directions");
+    })
+    .filter(Boolean);
+}
+
+function requestedDirectionIdentityRules(directions: readonly string[]) {
+  const rules = [
+    directions.includes("front") ? "front is straight toward camera" : "",
+    directions.includes("front three-quarter") ? "front three-quarter is diagonal-front" : "",
+    directions.includes("side") ? "side is strict profile" : "",
+    directions.includes("back three-quarter") ? "back three-quarter is diagonal-back" : "",
+    directions.includes("back") ? "back is true straight rear view" : ""
+  ].filter(Boolean);
+  return rules.length > 0 ? rules.join(", ") : "use the requested direction labels exactly";
+}
+
+function buildAnimationPresetMotionPrompt(preset: AnimationPresetExample, directions: readonly string[] = ANIMATION_DIRECTIONS) {
+  const resolvedDirections = normalizeAnimationDirections(directions);
   const presetTitle = preset.title.en;
   const motionSheetLine = animationPresetMotionSheetLines[preset.id] ?? `Create a ${presetTitle.toLowerCase()} animation sprite sheet.`;
-  const presetSpecificLines = animationPresetMotionPromptLines[preset.id] ?? [];
+  const presetSpecificLines = adaptAnimationPresetLinesForDirections(animationPresetMotionPromptLines[preset.id] ?? [], resolvedDirections);
 
   return [
     `Locked animation preset: ${presetTitle}.`,
@@ -2771,12 +2824,14 @@ function buildAnimationPresetMotionPrompt(preset: AnimationPresetExample) {
     "Deform/chibify the uploaded character into a compact full-body pixel-art sprite while preserving the original identity, outfit, palette, silhouette, and props.",
     motionSheetLine,
     ...presetSpecificLines,
-    `Use exactly ${ANIMATION_FRAME_COUNT} animation frames per direction.`,
-    `The sprite sheet must be evenly divided into ${ANIMATION_DIRECTION_COUNT} rows x ${ANIMATION_FRAME_COUNT} columns: five direction rows and eight frame columns.`,
-    `Each cell is fixed at exactly ${ANIMATION_CELL_SIZE}px x ${ANIMATION_CELL_SIZE}px; the complete sheet must be exactly ${ANIMATION_CELL_SIZE * ANIMATION_FRAME_COUNT}px x ${ANIMATION_CELL_SIZE * ANIMATION_DIRECTION_COUNT}px.`,
-    `Direction rows from top to bottom: ${ANIMATION_DIRECTIONS.join(", ")}.`,
-    "Direction identity rules: front is straight toward camera, front three-quarter is diagonal-front, side is strict profile, back three-quarter is diagonal-back, and back is true straight rear view.",
-    "The back row must show the character facing directly away from the camera: centered spine, centered backpack or back silhouette, symmetric shoulders, back of head visible, and no visible eyes, nose, mouth, cheek, side profile, face turn, or looking-over-shoulder pose. Do not duplicate the back three-quarter row in the back row.",
+    `Use exactly ${ANIMATION_FRAME_COUNT} animation frames per requested direction.`,
+    `Requested direction views: ${resolvedDirections.join(", ")}. Do not generate directions that are not listed here.`,
+    `Each requested direction is returned as its own ${DIRECTION_SPLIT_ANIMATION_GRID.columns} x ${DIRECTION_SPLIT_ANIMATION_GRID.rows} direction image; Image Cockpit composes the final ${ANIMATION_FRAME_COUNT} x ${resolvedDirections.length} sheet after import.`,
+    `Each cell is fixed at exactly ${ANIMATION_CELL_SIZE}px x ${ANIMATION_CELL_SIZE}px.`,
+    `Direction identity rules for requested views: ${requestedDirectionIdentityRules(resolvedDirections)}.`,
+    resolvedDirections.includes("back")
+      ? "The back row must show the character facing directly away from the camera: centered spine, centered backpack or back silhouette, symmetric shoulders, back of head visible, and no visible eyes, nose, mouth, cheek, side profile, face turn, or looking-over-shoulder pose. Do not duplicate the back three-quarter row in the back row."
+      : "",
     "In every direction row, keep the full hair silhouette, entire head, hands, held item, compact effect, outfit, and both feet fully visible inside each 256px cell with at least 24px empty padding whenever possible; never let the head touch or disappear beyond the top cell edge.",
     "Projectiles, items, weapons, and effects must stay small enough to remain inside their own 256px cell and must not be used as a reason to crop or resize the character inconsistently.",
     "When the sheet is sliced into equal 256px cells, neighboring frames above, below, left, or right must not intrude into the current cell.",
@@ -2784,11 +2839,12 @@ function buildAnimationPresetMotionPrompt(preset: AnimationPresetExample) {
     ...ANIMATION_SCALE_CONSISTENCY_CONTRACT_LINES,
     "Prefer a transparent background. If true transparency is not available during generation, use only the flat chroma-key color requested elsewhere in this job.",
     "Reject and regenerate before returning if any cell has cropped hair, a cut-off head, missing feet, duplicated heads, body fragments, a changed character, nonuniform scale, or a non-flat background."
-  ].join(" ");
+  ].filter(Boolean).join(" ");
 }
 
-function buildAnimationPresetNotes(preset: AnimationPresetExample) {
-  const presetSpecificLines = animationPresetMotionPromptLines[preset.id] ?? [];
+function buildAnimationPresetNotes(preset: AnimationPresetExample, directions: readonly string[] = ANIMATION_DIRECTIONS) {
+  const resolvedDirections = normalizeAnimationDirections(directions);
+  const presetSpecificLines = adaptAnimationPresetLinesForDirections(animationPresetMotionPromptLines[preset.id] ?? [], resolvedDirections);
   return [
     `Locked animation preset: ${preset.title.en} (${preset.id}).`,
     preset.notes,
@@ -2797,13 +2853,16 @@ function buildAnimationPresetNotes(preset: AnimationPresetExample) {
         ? ["Final prompt contract:", ...presetSpecificLines.map((line) => `- ${line}`)]
         : []
     ),
-    `Standard sheet contract: ${ANIMATION_DIRECTION_COUNT} rows x ${ANIMATION_FRAME_COUNT} columns, ${ANIMATION_CELL_SIZE}px x ${ANIMATION_CELL_SIZE}px per cell, direction rows are ${ANIMATION_DIRECTIONS.join(", ")}.`,
-    "Direction identity note: the back row is a true straight rear view, not back three-quarter; no face, side profile, or looking-over-shoulder pose should appear in that row.",
+    `Standard direction-split contract: ${resolvedDirections.length} requested direction image${resolvedDirections.length === 1 ? "" : "s"}, ${ANIMATION_FRAME_COUNT} frames per direction, ${ANIMATION_CELL_SIZE}px x ${ANIMATION_CELL_SIZE}px per cell, directions are ${resolvedDirections.join(", ")}.`,
+    `Image Cockpit composes the imported result as ${ANIMATION_FRAME_COUNT} columns x ${resolvedDirections.length} rows.`,
+    resolvedDirections.includes("back")
+      ? "Direction identity note: the back row is a true straight rear view, not back three-quarter; no face, side profile, or looking-over-shoulder pose should appear in that row."
+      : "",
     "Framing note: every direction row must keep the full hair silhouette and both feet visible with clear padding inside each cell.",
     "Scale consistency note:",
     ...ANIMATION_SCALE_CONSISTENCY_CONTRACT_LINES.map((line) => `- ${line}`),
     "No free-form user motion prompt was supplied; use the locked preset and the strict sheet contract only."
-  ].join("\n");
+  ].filter(Boolean).join("\n");
 }
 
 function getEffectCategoryById(id: string): EffectCategoryDefinition {
@@ -3875,6 +3934,12 @@ function tournamentCandidateLabel(index: number, count: number) {
   return `candidate ${index + 1}/${count}`;
 }
 
+function animationDirectionPresetLabel(id: AnimationDirectionPresetId, copy: UiCopy) {
+  if (id === "one") return copy.animationDirectionOne;
+  if (id === "three") return copy.animationDirectionThree;
+  return copy.animationDirectionFive;
+}
+
 function activeCodexJobCount(jobs: CodexJobQueueItem[], startingQueuedJobIds: Set<string>) {
   return jobs.filter((job) => job.state === "running" || startingQueuedJobIds.has(job.id)).length;
 }
@@ -4196,7 +4261,7 @@ function App() {
     unimportedResults: 0,
     repairAvailable: false
   });
-  const [prompt, setPrompt] = useState("idle breathing loop with gentle robe sway, ready for a 5-direction sprite sheet");
+  const [prompt, setPrompt] = useState("idle breathing loop with gentle robe sway, ready for direction-split sprite frames");
   const [negativePrompt, setNegativePrompt] = useState("blur, text, watermark, cropped feet");
   const [jobNotes, setJobNotes] = useState("");
   const [seed, setSeed] = useState("24682");
@@ -4243,6 +4308,7 @@ function App() {
   const [settingsOpen, setSettingsOpen] = useState(() => shouldOpenSettingsFromSearch(window.location.search));
   const [settingsTab, setSettingsTab] = useState<SettingsTab>(() => settingsTabFromSearch(window.location.search));
   const [settingsCopyStatus, setSettingsCopyStatus] = useState("");
+  const [jobNotificationsEnabled, setJobNotificationsEnabled] = useState(loadJobNotificationsEnabled);
   const [imagegenSmokeState] = useState<ImagegenSmokeState>("not_run");
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -4255,6 +4321,8 @@ function App() {
   const pendingTournamentDraftsRef = useRef<Map<string, CodexJobDraft[]>>(new Map());
   const retryingFailureJobIdsRef = useRef<Set<string>>(new Set());
   const lastPointerEventAtRef = useRef(0);
+  const originalDocumentTitleRef = useRef(document.title);
+  const documentTitleResetTimerRef = useRef<number | null>(null);
   const settingsAutoDismissedRef = useRef(sessionStorage.getItem("image-cockpit.settings.dismissed") === "1");
   const copy = uiCopy[language];
 
@@ -4717,6 +4785,14 @@ function App() {
     if (canPersistLocalState) saveUserAnimationLibrary(userAnimationLibrary);
   }, [canPersistLocalState, userAnimationLibrary]);
   useEffect(() => saveLanguage(language), [language]);
+  useEffect(() => saveJobNotificationsEnabled(jobNotificationsEnabled), [jobNotificationsEnabled]);
+  useEffect(() => {
+    return () => {
+      if (documentTitleResetTimerRef.current) {
+        window.clearTimeout(documentTitleResetTimerRef.current);
+      }
+    };
+  }, []);
   useEffect(() => {
     if (canPersistLocalState) savePendingCodexJobs(codexJobs);
   }, [canPersistLocalState, codexJobs]);
@@ -5064,18 +5140,14 @@ function App() {
   async function pollCodexAnimationTournament(tournamentId: string, jobs: CodexJobQueueItem[], isCancelled: () => boolean) {
     const expectedCount = jobs[0]?.tournamentCandidateCount ?? STANDARD_ANIMATION_TOURNAMENT_CANDIDATES;
     const minimumReadyCount = Math.min(STANDARD_ANIMATION_TOURNAMENT_MIN_AB_CANDIDATES, expectedCount);
+    if (STANDARD_ANIMATION_TOURNAMENT_MODE === "sequential") {
+      return pollSequentialCodexAnimationTournament(tournamentId, jobs, isCancelled, expectedCount);
+    }
     if (jobs.length < expectedCount || jobs.some((job) => job.state === "queued")) return "pending";
 
-    const statuses = await Promise.all(
-      jobs.map(async (job) => ({
-        job,
-        status: await loadCodexRunnerStatus(job.id)
-      }))
-    );
+    const statuses = await loadAnimationTournamentStatuses(jobs);
     if (isCancelled()) return "cancelled";
-    const terminalStatuses = statuses.filter(
-      (entry): entry is { job: CodexJobQueueItem; status: CodexRunnerStatus } => Boolean(entry.status) && !shouldWaitForCodexRunner(entry.status ?? undefined)
-    );
+    const terminalStatuses = terminalAnimationTournamentStatuses(statuses);
     if (terminalStatuses.length === 0) return "pending";
 
     const evaluations = await Promise.all(
@@ -5094,38 +5166,113 @@ function App() {
       .sort((left, right) => right.score - left.score);
     const winner = comparedEvaluations[0];
     if (!winner) {
-      const primary = evaluations[0];
-      if (primary) {
-        const sharedDiagnosticKind = evaluations.every((evaluation) => evaluation.status.diagnostic?.kind && evaluation.status.diagnostic.kind === primary.status.diagnostic?.kind)
-          ? primary.status.diagnostic?.kind
-          : "";
-        const reasons = sharedDiagnosticKind
-          ? (() => {
-              const failure = codexFailureDisplay(sharedDiagnosticKind, copy, primary.status.diagnostic);
-              return `all ${evaluations.length}/${expectedCount} candidates: ${failure.title}: ${failure.message}`;
-            })()
-          : evaluations
-              .map((evaluation) => {
-                const candidateIndex = evaluation.job.tournamentCandidateIndex ?? 0;
-                const candidateCount = evaluation.job.tournamentCandidateCount ?? expectedCount;
-                return `${tournamentCandidateLabel(candidateIndex, candidateCount)}: ${evaluation.error ?? "no usable final result"}`;
-              })
-              .join("; ");
-        const hasQualityGateFailure = /quality gate|chroma key|direction split qa failed|transparency damage|quarantined/i.test(reasons);
-        recordCodexImportFailure(
-          primary.job,
-          new Error(
-            hasQualityGateFailure
-              ? `Animation quality gate failed: no history or final download item was added. All animation tournament candidates failed. ${reasons}.`
-              : `Needs review candidate: all animation tournament candidates failed. ${reasons}. Raw direction files are still available in hidden candidate work folders.`
-          )
-        );
-      }
-      statuses.forEach(({ job, status }) => removeCodexJob(job.id, status?.state ?? "failed"));
-      setStatus(`Animation tournament failed: ${tournamentId}`);
-      return "terminal";
+      return failCodexAnimationTournament(tournamentId, statuses, evaluations, expectedCount);
     }
 
+    return finalizeCodexAnimationTournamentWinner(tournamentId, winner, statuses, comparedEvaluations, expectedCount, isCancelled);
+  }
+
+  async function loadAnimationTournamentStatuses(jobs: CodexJobQueueItem[]): Promise<AnimationTournamentStatusEntry[]> {
+    return Promise.all(
+      jobs.map(async (job) => ({
+        job,
+        status: await loadCodexRunnerStatus(job.id)
+      }))
+    );
+  }
+
+  function terminalAnimationTournamentStatuses(statuses: AnimationTournamentStatusEntry[]) {
+    return statuses.filter(
+      (entry): entry is AnimationTournamentTerminalStatusEntry => Boolean(entry.status) && !shouldWaitForCodexRunner(entry.status ?? undefined)
+    );
+  }
+
+  function isCleanAnimationTournamentEvaluation(evaluation: DirectionSplitTournamentCandidateEvaluation) {
+    return evaluation.ready && evaluation.warningCount === 0;
+  }
+
+  function sortTournamentEvaluationsByScore(evaluations: DirectionSplitTournamentCandidateEvaluation[]) {
+    return evaluations
+      .slice()
+      .sort((left, right) => right.score - left.score);
+  }
+
+  function sortTournamentEvaluationsByCandidate(evaluations: DirectionSplitTournamentCandidateEvaluation[]) {
+    return evaluations
+      .slice()
+      .sort((left, right) => (left.job.tournamentCandidateIndex ?? 0) - (right.job.tournamentCandidateIndex ?? 0));
+  }
+
+  async function pollSequentialCodexAnimationTournament(
+    tournamentId: string,
+    jobs: CodexJobQueueItem[],
+    isCancelled: () => boolean,
+    expectedCount: number
+  ) {
+    const statuses = await loadAnimationTournamentStatuses(jobs);
+    if (isCancelled()) return "cancelled";
+    const terminalStatuses = terminalAnimationTournamentStatuses(statuses);
+    if (terminalStatuses.length === 0) return "pending";
+
+    const evaluations = sortTournamentEvaluationsByCandidate(await Promise.all(
+      terminalStatuses.map(async ({ job, status }) => evaluateDirectionSplitTournamentCandidate(job, status))
+    ));
+    if (isCancelled()) return "cancelled";
+
+    const cleanWinner = evaluations.find(isCleanAnimationTournamentEvaluation);
+    if (cleanWinner) {
+      return finalizeCodexAnimationTournamentWinner(tournamentId, cleanWinner, statuses, [cleanWinner], expectedCount, isCancelled);
+    }
+
+    const hasActiveCandidate = statuses.some(({ job, status }) => job.state === "queued" || shouldWaitForCodexRunner(status ?? undefined));
+    if (hasActiveCandidate) return "pending";
+
+    const startedNextCandidate = await startNextSequentialTournamentCandidate(tournamentId, evaluations, expectedCount);
+    if (isCancelled()) return "cancelled";
+    if (startedNextCandidate) return "pending";
+
+    const readyEvaluations = sortTournamentEvaluationsByScore(evaluations.filter((evaluation) => evaluation.ready));
+    const warningWinner = readyEvaluations[0];
+    if (warningWinner) {
+      return finalizeCodexAnimationTournamentWinner(tournamentId, warningWinner, statuses, readyEvaluations, expectedCount, isCancelled);
+    }
+
+    return failCodexAnimationTournament(tournamentId, statuses, evaluations, expectedCount);
+  }
+
+  async function startNextSequentialTournamentCandidate(
+    tournamentId: string,
+    evaluations: DirectionSplitTournamentCandidateEvaluation[],
+    expectedCount: number
+  ) {
+    const reserveDrafts = pendingTournamentDraftsRef.current.get(tournamentId) ?? [];
+    const nextDraft = reserveDrafts[0];
+    if (!nextDraft) return false;
+    const remainingDrafts = reserveDrafts.slice(1);
+    if (remainingDrafts.length > 0) {
+      pendingTournamentDraftsRef.current.set(tournamentId, remainingDrafts);
+    } else {
+      pendingTournamentDraftsRef.current.delete(tournamentId);
+    }
+    const sortedEvaluations = sortTournamentEvaluationsByCandidate(evaluations);
+    const latestEvaluation = sortedEvaluations[sortedEvaluations.length - 1];
+    const reason = latestEvaluation?.ready
+      ? `warnings ${latestEvaluation.warningCount}`
+      : latestEvaluation?.error ?? "candidate did not pass";
+    const nextIndex = nextDraft.tournamentCandidateIndex ?? 0;
+    setStatus(`Animation tournament continuing: ${tournamentCandidateLabel(nextIndex, expectedCount)} after ${reason}.`);
+    await submitCodexJobDraft(nextDraft);
+    return true;
+  }
+
+  async function finalizeCodexAnimationTournamentWinner(
+    tournamentId: string,
+    winner: DirectionSplitTournamentCandidateEvaluation,
+    statuses: AnimationTournamentStatusEntry[],
+    comparedEvaluations: DirectionSplitTournamentCandidateEvaluation[],
+    expectedCount: number,
+    isCancelled: () => boolean
+  ) {
     await publishCodexTournamentWinner(tournamentId, winner.job.id);
     if (isCancelled()) return "cancelled";
     await importDirectionSplitAnimationResults(
@@ -5143,13 +5290,55 @@ function App() {
     statuses.forEach(({ job, status }) => {
       clearCodexFailureNotice(job.id);
       const cancelled = cancellationResults.some((result) => result?.jobId === job.id && result.ok);
-      removeCodexJob(job.id, cancelled ? "failed" : status?.state ?? "completed");
+      removeCodexJob(job.id, cancelled ? "failed" : status?.state ?? "completed", { notify: false });
     });
+    pendingTournamentDraftsRef.current.delete(tournamentId);
+    notifyCodexJobFinished(winner.job, winner.warningCount > 0 ? "failed" : "completed");
     const candidateIndex = winner.job.tournamentCandidateIndex ?? 0;
     setStatus(
       `${copy.statusAnimationGenerated}: tournament winner ${tournamentCandidateLabel(candidateIndex, expectedCount)} (${winner.job.id}), score ${Math.round(winner.score)}, warnings ${winner.warningCount}. Compared ${comparedEvaluations.length} usable candidate${comparedEvaluations.length === 1 ? "" : "s"} and cancelled ${cancellationResults.filter((result) => result?.ok).length} remaining runner${cancellationResults.filter((result) => result?.ok).length === 1 ? "" : "s"}. direction-split manifest ok.`
     );
     return "imported";
+  }
+
+  function failCodexAnimationTournament(
+    tournamentId: string,
+    statuses: AnimationTournamentStatusEntry[],
+    evaluations: DirectionSplitTournamentCandidateEvaluation[],
+    expectedCount: number
+  ) {
+    const primary = evaluations[0];
+    if (primary) {
+      const sharedDiagnosticKind = evaluations.every((evaluation) => evaluation.status.diagnostic?.kind && evaluation.status.diagnostic.kind === primary.status.diagnostic?.kind)
+        ? primary.status.diagnostic?.kind
+        : "";
+      const reasons = sharedDiagnosticKind
+        ? (() => {
+            const failure = codexFailureDisplay(sharedDiagnosticKind, copy, primary.status.diagnostic);
+            return `all ${evaluations.length}/${expectedCount} candidates: ${failure.title}: ${failure.message}`;
+          })()
+        : evaluations
+            .map((evaluation) => {
+              const candidateIndex = evaluation.job.tournamentCandidateIndex ?? 0;
+              const candidateCount = evaluation.job.tournamentCandidateCount ?? expectedCount;
+              return `${tournamentCandidateLabel(candidateIndex, candidateCount)}: ${evaluation.error ?? "no usable final result"}`;
+            })
+            .join("; ");
+      const hasQualityGateFailure = /quality gate|chroma key|direction split qa failed|transparency damage|quarantined/i.test(reasons);
+      recordCodexImportFailure(
+        primary.job,
+        new Error(
+          hasQualityGateFailure
+            ? `Animation quality gate failed: no history or final download item was added. All animation tournament candidates failed. ${reasons}.`
+            : `Needs review candidate: all animation tournament candidates failed. ${reasons}. Raw direction files are still available in hidden candidate work folders.`
+        )
+      );
+      notifyCodexJobFinished(primary.job, "failed");
+    }
+    statuses.forEach(({ job, status }) => removeCodexJob(job.id, status?.state ?? "failed", { notify: false }));
+    pendingTournamentDraftsRef.current.delete(tournamentId);
+    setStatus(`Animation tournament failed: ${tournamentId}`);
+    return "terminal";
   }
 
   useEffect(() => {
@@ -5382,8 +5571,8 @@ function App() {
       : grid;
     const spriteCell = isAnimationJob ? (isHatchPetLikeMode(animationJobGenerationMode) ? HATCH_PET_CELL : animationAction.cell) : activeAction.cell;
     const spriteFrameCount = spriteGrid.columns * spriteGrid.rows;
-    const animationMotionPrompt = isAnimationJob ? buildAnimationPresetMotionPrompt(selectedAnimationPreset) : "";
-    const animationPresetNotes = isAnimationJob ? buildAnimationPresetNotes(selectedAnimationPreset) : "";
+    const animationMotionPrompt = isAnimationJob ? buildAnimationPresetMotionPrompt(selectedAnimationPreset, standardAnimationDirections) : "";
+    const animationPresetNotes = isAnimationJob ? buildAnimationPresetNotes(selectedAnimationPreset, standardAnimationDirections) : "";
 
     if (isImageEditJob && selectedIsAnimationResult) {
       setStatus(copy.statusAnimationFinalNotEditable);
@@ -5692,10 +5881,11 @@ function App() {
     }
   }
 
-  function removeCodexJob(jobId: string, finalState?: CodexJobLogItem["state"]) {
+  function removeCodexJob(jobId: string, finalState?: CodexJobLogItem["state"], options: { notify?: boolean } = {}) {
     const removedJob = codexJobs.find((job) => job.id === jobId);
     setCodexJobs((current) => current.filter((job) => job.id !== jobId));
     if (!removedJob || !finalState) return;
+    if (options.notify !== false) notifyCodexJobFinished(removedJob, finalState);
 
     setCodexJobLogs((logs) =>
       mergeCodexJobLogs(logs, [
@@ -5718,6 +5908,34 @@ function App() {
           ])
         );
       });
+  }
+
+  function notifyCodexJobFinished(job: Pick<CodexJobQueueItem, "label">, finalState: CodexJobLogItem["state"]) {
+    if (!jobNotificationsEnabled || finalState === "running" || finalState === "queued") return;
+    const isSuccess = finalState === "completed";
+    const title = isSuccess ? copy.jobNotificationDone : copy.jobNotificationFailed;
+    const body = job.label;
+    if ("Notification" in window && Notification.permission === "granted") {
+      try {
+        new Notification(title, { body });
+        return;
+      } catch {
+        // Fall back to the title pulse below.
+      }
+    }
+    flashDocumentTitle(title);
+  }
+
+  function flashDocumentTitle(title: string) {
+    if (documentTitleResetTimerRef.current) {
+      window.clearTimeout(documentTitleResetTimerRef.current);
+    }
+    const originalTitle = originalDocumentTitleRef.current || document.title;
+    document.title = `${title} - ${originalTitle}`;
+    documentTitleResetTimerRef.current = window.setTimeout(() => {
+      document.title = originalTitle;
+      documentTitleResetTimerRef.current = null;
+    }, 9000);
   }
 
   function recordCodexFailure(job: CodexJobQueueItem, runnerStatus: CodexRunnerStatus) {
@@ -6275,7 +6493,7 @@ function App() {
       : await createTransparentSpriteSheetDataUrl(imported.dataUrl, chromaKey);
     const image = await loadImage(transparentSheetDataUrl);
     if (spriteVariant === "standard" && isSingleDirectionIntermediateSheet(image.width, image.height, spriteCell)) {
-      throw new Error(`Animation quality gate failed: ${imported.name} is a single-direction intermediate sheet (${image.width}x${image.height}), not a final 5-direction animation result.`);
+      throw new Error(`Animation quality gate failed: ${imported.name} is a single-direction intermediate sheet (${image.width}x${image.height}), not a final direction-split animation result.`);
     }
     const baseName = imported.name.replace(/\.[^.]+$/, "");
     const item: HistoryItem = {
@@ -7839,8 +8057,13 @@ function App() {
   const showSpriteTuningControls = SHOW_LOW_PRIORITY_CONTROLS || workflowMode === "sprite-edit";
   const showAnnotationToolbar = isImageEditWorkflow && !selectedIsAnimationResult && !selectedIsEffectResult;
   const showSpriteActionsPanel = SHOW_SPRITE_ACTIONS_PANEL;
+  const selectedAnimationDirections = ANIMATION_DIRECTION_PRESETS[animationDirectionPreset] ?? ANIMATION_DIRECTIONS;
+  const selectedAnimationSheetSize = {
+    width: STANDARD_ANIMATION_CELL.width * ANIMATION_FRAME_COUNT,
+    height: STANDARD_ANIMATION_CELL.height * selectedAnimationDirections.length
+  };
   const animationGenerateBody = copy.animationStepGenerateBody;
-  const animationLockedSizeNote = copy.animationStandardLockedSize;
+  const animationLockedSizeNote = `${copy.animationStandardLockedSize} ${selectedAnimationDirections.length} x ${ANIMATION_FRAME_COUNT} / ${selectedAnimationSheetSize.width} x ${selectedAnimationSheetSize.height} px.`;
   const selectedAnimationDownloadBody = selectedAnimationVariant === "directional-hatch-pet"
     ? copy.directionalHatchPetDownloadBody
     : selectedAnimationVariant === "hatch-pet"
@@ -8035,6 +8258,22 @@ function App() {
                   <Film size={15} aria-hidden="true" />
                   {copy.chooseAnimation}
                 </button>
+                <div className="direction-preset-control">
+                  <small className="step-kicker">{copy.animationDirectionCount}</small>
+                  <div className="segmented-control direction-preset-buttons" aria-label={copy.animationDirectionCount}>
+                    {ANIMATION_DIRECTION_PRESET_IDS.map((presetId) => (
+                      <button
+                        key={presetId}
+                        type="button"
+                        className={animationDirectionPreset === presetId ? "active" : ""}
+                        title={ANIMATION_DIRECTION_PRESETS[presetId].join(" / ")}
+                        onClick={() => setAnimationDirectionPreset(presetId)}
+                      >
+                        {animationDirectionPresetLabel(presetId, copy)}
+                      </button>
+                    ))}
+                  </div>
+                </div>
               </section>
 
               {SHOW_ANIMATION_LIBRARY && (
@@ -8120,6 +8359,15 @@ function App() {
                   <PrimaryActionIcon providerId={providerId} isBusy={isBusy} />
                   {shouldQueueCodexJob ? codexQueueCopy.queueAction : copy.generateLocalSprite}
                 </button>
+                <label className="check-row inline notification-toggle">
+                  <input
+                    type="checkbox"
+                    checked={jobNotificationsEnabled}
+                    onChange={(event) => setJobNotificationsEnabled(event.target.checked)}
+                  />
+                  <Bell size={14} aria-hidden="true" />
+                  <span>{copy.jobNotifications}</span>
+                </label>
               </section>
             </div>
           ) : isEffectWorkflow ? (
@@ -12754,6 +13002,22 @@ function saveLanguage(language: Language) {
     window.localStorage.setItem(LANGUAGE_STORAGE_KEY, language);
   } catch {
     // The selector still works for the current session if storage is unavailable.
+  }
+}
+
+function loadJobNotificationsEnabled() {
+  try {
+    return window.localStorage.getItem(JOB_NOTIFICATION_STORAGE_KEY) !== "0";
+  } catch {
+    return true;
+  }
+}
+
+function saveJobNotificationsEnabled(enabled: boolean) {
+  try {
+    window.localStorage.setItem(JOB_NOTIFICATION_STORAGE_KEY, enabled ? "1" : "0");
+  } catch {
+    // The toggle still applies for the current session if storage is unavailable.
   }
 }
 

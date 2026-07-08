@@ -31,6 +31,8 @@ The local API also exposes `GET /api/codex/runner` so the UI can show whether th
 
 The local generation endpoint is `POST /api/generate`. It writes deterministic fallback PNGs to `codex-handoff/outbox/` and returns data URLs so the browser can add them to the history immediately.
 
+Bundled animation sheets under `public/samples/` are retained as README demo assets, release-audit fixtures, and local import QA inputs. The in-app Official Animation Library remains hidden for now, so these files are not presented as a supported built-in library surface.
+
 Manual handoff steps are documented in `docs/usage/manual-handoff.md`.
 The prompt-only imagegen handoff smoke result is recorded in `docs/qa/imagegen-handoff-smoke.md`.
 

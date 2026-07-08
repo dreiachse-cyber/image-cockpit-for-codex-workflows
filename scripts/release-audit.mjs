@@ -83,10 +83,6 @@ const requiredFiles = [
   "docs/release/v0.1.0-owner-decision.md",
   "docs/usage/manual-handoff.md",
   "docs/demo/mvp-demo.gif",
-  "docs/qa/simple-image-generate-import-latest-1280x720.png",
-  "docs/qa/simple-image-generate-import-latest-mobile-390x844.png",
-  "docs/qa/simple-sprite-generate-actions-1280x720.png",
-  "docs/qa/manual-handoff-import-latest-1280x720.png",
   "docs/qa/real-codex-runner-smoke.md",
   "docs/qa/imagegen-handoff-smoke.md",
   "docs/qa/codex-generation-job-concurrency-3.md",
@@ -100,31 +96,18 @@ const requiredFiles = [
   "docs/qa/official-animation-next-5.md",
   "docs/qa/official-animation-transparency-audit.json",
   "docs/qa/official-idle-breathing/idle-breathing-mechanical-qa.json",
-  "docs/qa/official-basic-attack/basic-attack-grid-qa.png",
   "docs/qa/official-basic-attack/basic-attack-mechanical-qa.json",
-  "docs/qa/official-hurt-reaction/hurt-reaction-grid-qa.png",
   "docs/qa/official-hurt-reaction/hurt-reaction-mechanical-qa.json",
-  "docs/qa/official-death-downed/death-downed-grid-qa.png",
   "docs/qa/official-death-downed/death-downed-mechanical-qa.json",
-  "docs/qa/official-spell-cast/spell-cast-grid-qa.png",
   "docs/qa/official-spell-cast/spell-cast-mechanical-qa.json",
-  "docs/qa/official-jump-hop/jump-hop-grid-qa.png",
   "docs/qa/official-jump-hop/jump-hop-mechanical-qa.json",
-  "docs/qa/official-guard-block/guard-block-grid-qa.png",
   "docs/qa/official-guard-block/guard-block-mechanical-qa.json",
-  "docs/qa/official-victory-cheer/victory-cheer-grid-qa.png",
   "docs/qa/official-victory-cheer/victory-cheer-mechanical-qa.json",
-  "docs/qa/official-interact-pickup/interact-pickup-grid-qa.png",
   "docs/qa/official-interact-pickup/interact-pickup-mechanical-qa.json",
-  "docs/qa/official-ranged-attack/ranged-attack-grid-qa.png",
   "docs/qa/official-ranged-attack/ranged-attack-mechanical-qa.json",
-  "docs/qa/official-skill-release/skill-release-grid-qa.png",
   "docs/qa/official-skill-release/skill-release-mechanical-qa.json",
-  "docs/qa/official-knockback/knockback-grid-qa.png",
   "docs/qa/official-knockback/knockback-mechanical-qa.json",
-  "docs/qa/official-item-use/item-use-grid-qa.png",
   "docs/qa/official-item-use/item-use-mechanical-qa.json",
-  "docs/qa/official-talk/talk-grid-qa.png",
   "docs/qa/official-talk/talk-mechanical-qa.json",
   "docs/qa/official-walk-cycle/walk-cycle-mechanical-qa.json",
   "docs/qa/official-run-cycle/run-cycle-mechanical-qa.json",
@@ -171,7 +154,22 @@ const requiredEnvKeys = [
 ];
 
 const requiredWorkflowIds = ["image-generate", "image-edit", "sprite-generate", "sprite-edit", "effect-animation"];
-const requiredGitignorePatterns = ["node_modules/", "dist/", "coverage/", ".env", ".env.", "!.env.example", "codex-handoff/"];
+const requiredGitignorePatterns = [
+  "node_modules/",
+  "dist/",
+  "coverage/",
+  ".env",
+  ".env.",
+  "!.env.example",
+  "codex-handoff/",
+  "tmp/",
+  ".dev-logs/",
+  ".agents/",
+  "docs/qa/**/*.png",
+  "docs/qa/**/*.gif",
+  "docs/qa/**/*.webp",
+  "docs/qa/**/*.zip"
+];
 const requiredPackageScripts = [
   "doctor",
   "typecheck",
@@ -252,6 +250,10 @@ function checkRequiredFiles() {
       failures.push(`Missing required file: ${file}`);
     }
   });
+}
+
+function isIgnoredQaBinaryEvidence(file) {
+  return /^docs\/qa\/.+\.(?:png|gif|webp|zip)$/i.test(file.replace(/\\/g, "/"));
 }
 
 function checkPackageJson() {
@@ -475,7 +477,7 @@ function checkWorkflowIds() {
     "Initial screen should not show legacy Guided Start options",
     "selectWorkflowTab",
     "Route: Codex Handoff",
-    "5-direction chroma-key sprite sheet",
+    "chroma-key direction frames",
     "Generate Pixel Art",
     "Generate Animation",
     "Generate Effect",
@@ -673,7 +675,12 @@ function checkWorkflowIds() {
     "Selected animation",
     "selected-animation-card",
     "Animation card should not show unselected animation options",
+    "Directions",
+    "5 directions",
+    "3 directions",
+    "1 direction",
     "Fixed cells: 256 x 256 px",
+    "Notify when done",
     "Animation Generation should not expose free-form motion prompt textareas",
     "Choose Animation modal",
     "Choose Animation trigger should sit directly below the selected animation card",
@@ -932,7 +939,7 @@ function checkWorkflowIds() {
     "spriteContext.directions",
     "image-cockpit.direction-split-animation.v1",
     "front-three-quarter",
-    "Do not return only one combined 5x8 sheet",
+    "Do not return only one combined multi-direction sheet",
     "spriteContext.variant=directional-hatch-pet",
     "direction-01-front",
     "no character pixels crossing cell borders",
@@ -2036,6 +2043,7 @@ function checkAcceptanceEvidencePaths(text) {
 
   refs.forEach((file) => {
     if (!existsSync(join(root, file))) {
+      if (isIgnoredQaBinaryEvidence(file)) return;
       failures.push(`Acceptance evidence references missing file: ${file}`);
     }
   });

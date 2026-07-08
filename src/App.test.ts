@@ -24,6 +24,7 @@ import {
   isOutboxResultForJob,
   isLikelyFrameGarbageComponent,
   isUsableOutboxResult,
+  normalizeAnimationDirections,
   resolveInitialLanguage,
   redactEnvironmentReportText,
   selectDirectionSplitAnimationResults,
@@ -684,6 +685,57 @@ describe("Codex outbox job result matching", () => {
     expect(selection.waitingForFinalManifest).toBe(false);
     expect(selection.ready).toBe(true);
     expect(selection.directionResults).toHaveLength(5);
+  });
+
+  it("imports selected one- and three-direction standard animation manifests without waiting for five rows", () => {
+    const jobId = "codex-job-2026-07-08T01-00-00-000Z";
+    const threeDirectionResults = [
+      makeOutboxResult(`${jobId}-manifest.json`, "application/json"),
+      makeOutboxResult(`${jobId}-front.png`),
+      makeOutboxResult(`${jobId}-side.png`),
+      makeOutboxResult(`${jobId}-back.png`)
+    ];
+    const threeDirectionManifest = {
+      schema: "image-cockpit.direction-split-animation.v1" as const,
+      directions: ["front", "side", "back"],
+      files: {
+        front: `${jobId}-front.png`,
+        side: `${jobId}-side.png`,
+        back: `${jobId}-back.png`
+      }
+    };
+
+    const threeDirectionSelection = selectDirectionSplitAnimationResults(
+      threeDirectionResults,
+      jobId,
+      threeDirectionManifest,
+      ["front", "side", "back"]
+    );
+
+    expect(normalizeAnimationDirections(["front", "side", "back"])).toEqual(["front", "side", "back"]);
+    expect(threeDirectionSelection.ready).toBe(true);
+    expect(threeDirectionSelection.directions).toEqual(["front", "side", "back"]);
+    expect(threeDirectionSelection.directionResults.map((result) => result.name)).toEqual([
+      `${jobId}-front.png`,
+      `${jobId}-side.png`,
+      `${jobId}-back.png`
+    ]);
+
+    const oneDirectionSelection = selectDirectionSplitAnimationResults(
+      [makeOutboxResult(`${jobId}-manifest.json`, "application/json"), makeOutboxResult(`${jobId}-front.png`)],
+      jobId,
+      {
+        schema: "image-cockpit.direction-split-animation.v1",
+        directions: ["front"],
+        files: { front: `${jobId}-front.png` }
+      },
+      ["front"]
+    );
+
+    expect(normalizeAnimationDirections(["front"])).toEqual(["front"]);
+    expect(oneDirectionSelection.ready).toBe(true);
+    expect(oneDirectionSelection.directions).toEqual(["front"]);
+    expect(oneDirectionSelection.missingDirections).toEqual([]);
   });
 
   it("waits for server verified artifacts even when manifest and direction images are visible", () => {

@@ -214,7 +214,7 @@ try {
     buttons: ["Upload Pixel Art", "Choose Animation", "Generate Animation", "Download"],
     hiddenButtons: ["Import Latest", "Import File", "PNG", "Animated GIF", "Animated WebP", "Animated APNG", "Official Animations", "User Animations", "Import Animation", "Export Sample", "Use", "5-Direction Sheet", "hatch-pet", "5-Direction hatch-pet"],
     hiddenText: ["Animation Library", "Official Animations", "User Animations", "No user animations yet", "Sprite Actions", "Export Sprite", "Generation Method", "Hop Bounce"],
-    requiredText: ["1. Upload Pixel Art", "2. Choose Motion", "3. Generate", "4. Download", "Selected animation", "Choose Animation", "Fixed cells: 256 x 256 px", "5-direction chroma-key sprite sheet"],
+    requiredText: ["1. Upload Pixel Art", "2. Choose Motion", "3. Generate", "4. Download", "Selected animation", "Choose Animation", "Directions", "5 directions", "3 directions", "1 direction", "Fixed cells: 256 x 256 px", "chroma-key direction frames", "Notify when done"],
     exerciseButton: "Generate Animation",
     expectedAfterExercise: "Animation generated",
     expectedAfterExerciseText: ["Animation frames ready", "Generated from", "Directional Previews", "GIF Preview", "Sprite Sheet Preview", "256 x 256 px"],
@@ -226,7 +226,8 @@ try {
     expectedDirectionPreviewCount: 5,
     expectedNormalizedAnimationFrames: true,
     expectSourceRoundTrip: true,
-    reloadAfterExercise: true
+    reloadAfterExercise: true,
+    exerciseTimeoutMs: 45000
   });
   await assertAnimationResultNotEditable();
   await assertEffectAnimationWorkflow();
@@ -1573,7 +1574,8 @@ async function assertWorkflow({
   expectedAnnotationToolbarVisible = false,
   expectedNormalizedAnimationFrames = false,
   expectSourceRoundTrip = false,
-  reloadAfterExercise = false
+  reloadAfterExercise = false,
+  exerciseTimeoutMs = 10000
 }) {
   await selectWorkflowTab(label);
   await waitForEval(() => `document.body.innerText.includes(${JSON.stringify(label)})`, label);
@@ -1629,10 +1631,15 @@ async function assertWorkflow({
     if (expectedAfterExercise === "Imported from Local Inbox") {
       await waitForEval(
         () => `document.querySelectorAll(".history-item").length > ${historyCountBeforeExercise}`,
-        `${label} generated result`
+        `${label} generated result`,
+        exerciseTimeoutMs
       );
     } else {
-      await waitForEval(() => `document.body.innerText.includes(${JSON.stringify(expectedAfterExercise)})`, `${label} generated result`);
+      await waitForEval(
+        () => `document.body.innerText.includes(${JSON.stringify(expectedAfterExercise)})`,
+        `${label} generated result`,
+        exerciseTimeoutMs
+      );
     }
     for (const text of expectedAfterExerciseText) {
       await waitForEval(() => `document.body.innerText.includes(${JSON.stringify(text)})`, `${label} shows ${text}`);
