@@ -133,9 +133,9 @@ const MAX_ACTIVE_STANDARD_ANIMATION_CODEX_JOBS = STANDARD_ANIMATION_TOURNAMENT_C
 type StandardAnimationTournamentMode = "sequential" | "parallel";
 // sequential: generate one candidate first and accept it immediately when it passes the
 // quality gate with zero warnings; only escalate to extra candidates on failure/warnings.
-// parallel: legacy behavior that races all candidates and A/B compares the first usable two.
+// parallel: default OSS-safe behavior that starts all candidates and A/B compares the first usable two.
 const STANDARD_ANIMATION_TOURNAMENT_MODE: StandardAnimationTournamentMode =
-  import.meta.env.VITE_STANDARD_ANIMATION_TOURNAMENT_MODE === "parallel" ? "parallel" : "sequential";
+  import.meta.env.VITE_STANDARD_ANIMATION_TOURNAMENT_MODE === "sequential" ? "sequential" : "parallel";
 const CODEX_LOG_POLL_INTERVAL_MS = 2000;
 const CODEX_LOG_TAIL_BYTES = 32768;
 const CODEX_LOG_HISTORY_LIMIT = MAX_ACTIVE_CODEX_JOBS;
@@ -151,12 +151,11 @@ const DIRECTION_SPLIT_ANIMATION_GRID: GridSettings = { columns: 4, rows: 2, gutt
 const DIRECTION_SPLIT_ANIMATION_FILE_SLUGS = ["front", "front-three-quarter", "side", "back-three-quarter", "back"];
 const DIRECTION_SPLIT_ANIMATION_RESULT_COUNT = ANIMATION_DIRECTION_COUNT;
 
-type AnimationDirectionPresetId = "five" | "three" | "one";
-const ANIMATION_DIRECTION_PRESET_IDS: AnimationDirectionPresetId[] = ["five", "three", "one"];
+type AnimationDirectionPresetId = "five" | "three";
+const ANIMATION_DIRECTION_PRESET_IDS: AnimationDirectionPresetId[] = ["five", "three"];
 const ANIMATION_DIRECTION_PRESETS: Record<AnimationDirectionPresetId, string[]> = {
   five: ANIMATION_DIRECTIONS,
-  three: ["front", "side", "back"],
-  one: ["front"]
+  three: ["front", "side", "back"]
 };
 
 export function animationDirectionSlug(direction: string) {
@@ -855,7 +854,6 @@ const baseUiCopy = {
     animationDirectionCount: "Directions",
     animationDirectionFive: "5 directions",
     animationDirectionThree: "3 directions",
-    animationDirectionOne: "1 direction",
     animationStepGenerateTitle: "3. Generate",
     animationStepGenerateBody: "Send the uploaded source to Codex and generate chroma-key direction frames.",
     hatchPetGenerateBody: "Send the uploaded source to Codex and try the hatch-pet workflow for a Codex pet atlas.",
@@ -1095,7 +1093,6 @@ const baseUiCopy = {
     animationDirectionCount: "方向数",
     animationDirectionFive: "5方向",
     animationDirectionThree: "3方向",
-    animationDirectionOne: "1方向",
     animationStepGenerateTitle: "3. 生成する",
     animationStepGenerateBody: "アップロード画像からanimation sheetとtimeline framesを生成します。",
     hatchPetGenerateBody: "アップロード画像をCodexに渡し、hatch-pet工程でCodex pet atlasを試作します。",
@@ -3937,7 +3934,6 @@ function tournamentCandidateLabel(index: number, count: number) {
 }
 
 function animationDirectionPresetLabel(id: AnimationDirectionPresetId, copy: UiCopy) {
-  if (id === "one") return copy.animationDirectionOne;
   if (id === "three") return copy.animationDirectionThree;
   return copy.animationDirectionFive;
 }

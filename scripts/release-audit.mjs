@@ -678,7 +678,6 @@ function checkWorkflowIds() {
     "Directions",
     "5 directions",
     "3 directions",
-    "1 direction",
     "Fixed cells: 256 x 256 px",
     "Notify when done",
     "Animation Generation should not expose free-form motion prompt textareas",
@@ -766,6 +765,26 @@ function checkWorkflowIds() {
   ].forEach((marker) => {
     if (!uiSmokeText.includes(marker)) {
       failures.push(`UI smoke should cover workspace workflow review: ${marker}`);
+    }
+  });
+
+  [
+    "parallel: default OSS-safe behavior",
+    'import.meta.env.VITE_STANDARD_ANIMATION_TOURNAMENT_MODE === "sequential" ? "sequential" : "parallel"',
+    'const ANIMATION_DIRECTION_PRESET_IDS: AnimationDirectionPresetId[] = ["five", "three"];'
+  ].forEach((marker) => {
+    if (!appText.includes(marker)) {
+      failures.push(`App should keep standard animation on the parallel 3-candidate default and 3/5 direction presets: ${marker}`);
+    }
+  });
+
+  [
+    [appText, "animationDirectionOne"],
+    [appText, 'ANIMATION_DIRECTION_PRESET_IDS: AnimationDirectionPresetId[] = ["five", "three", "one"]'],
+    [uiSmokeText, '"1 direction"']
+  ].forEach(([text, marker]) => {
+    if (text.includes(marker)) {
+      failures.push(`Animation Generation should not expose the removed 1-direction preset: ${marker}`);
     }
   });
 
