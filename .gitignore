@@ -8,3 +8,14 @@ coverage/
 *.log
 codex-handoff/
 docs/qa/animation-delivery-reliability/**/handoff/
+
+# Local scratch and agent working folders
+tmp/
+.dev-logs/
+.agents/
+
+# QA evidence binaries stay local; publish them as release assets instead
+docs/qa/**/*.png
+docs/qa/**/*.gif
+docs/qa/**/*.webp
+docs/qa/**/*.zip

@@ -1,0 +1,9 @@
+# Normalize text line endings to LF in the repository
+* text=auto
+
+# Binary assets
+*.png binary
+*.gif binary
+*.webp binary
+*.ico binary
+*.zip binary
