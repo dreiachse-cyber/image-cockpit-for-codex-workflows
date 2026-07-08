@@ -717,7 +717,7 @@ interface CodexFailureNotice {
   diagnostic: CodexJobDiagnostic;
 }
 
-type CockpitHealthState = "checking" | "ok" | "warning" | "broken" | "repairing";
+export type CockpitHealthState = "checking" | "ok" | "warning" | "broken" | "repairing";
 
 interface CockpitHealthReport {
   state: CockpitHealthState;
@@ -3948,6 +3948,18 @@ function activeStandardDirectionSplitJobCount(jobs: CodexJobQueueItem[], startin
   return jobs.filter((job) => (job.state === "running" || startingQueuedJobIds.has(job.id)) && isStandardDirectionSplitJob(job)).length;
 }
 
+export function summarizeCockpitHealthStatus(hasApiHealth: boolean, mismatches: readonly string[], unimportedResults: number) {
+  const state: CockpitHealthState = !hasApiHealth ? "broken" : mismatches.length > 0 ? "warning" : "ok";
+  const message = !hasApiHealth
+    ? "Cockpit connection issue: API route is not Image Cockpit."
+    : mismatches.length > 0
+      ? mismatches[0] ?? "Cockpit warning."
+      : unimportedResults > 0
+        ? `Cockpit OK. ${unimportedResults} outbox result${unimportedResults === 1 ? "" : "s"} available for Recover Results.`
+        : "Cockpit OK.";
+  return { state, message };
+}
+
 function canStartCodexJobDraft(draft: CodexJobDraft, jobs: CodexJobQueueItem[], startingQueuedJobIds: Set<string>) {
   if (activeCodexJobCount(jobs, startingQueuedJobIds) >= MAX_ACTIVE_CODEX_JOBS) return false;
   if (!isStandardDirectionSplitDraft(draft)) return true;
@@ -5840,34 +5852,37 @@ function App() {
         const before = history.find((item) => item.id === draft.resultSourceImageId) ?? selected;
         if (before) setImageEditComparison({ before, jobId: data.id });
       }
+      const submittedJob: CodexJobQueueItem = {
+        id: data.id,
+        path: data.path,
+        outboxPath: data.outboxPath,
+        state: "running",
+        label: draft.label,
+        createdAt: data.createdAt,
+        workflowMode: draft.resultWorkflowMode,
+        actionName: draft.resultActionName,
+        grid: draft.resultGrid,
+        cell: draft.resultCell,
+        chromaKey: draft.resultChromaKey,
+        spriteVariant: draft.resultSpriteVariant,
+        directions: draft.resultDirections,
+        sourceImageId: draft.resultSourceImageId,
+        sourceImageName: draft.resultSourceImageName,
+        tournamentId: draft.tournamentId,
+        tournamentCandidateIndex: draft.tournamentCandidateIndex,
+        tournamentCandidateCount: draft.tournamentCandidateCount,
+        effectContext: draft.effectContext
+      };
       if (shouldWaitForCodexRunner(data.runner)) {
-        const runningJob: CodexJobQueueItem = {
-          id: data.id,
-          path: data.path,
-          outboxPath: data.outboxPath,
-          state: "running",
-          label: draft.label,
-          createdAt: data.createdAt,
-          workflowMode: draft.resultWorkflowMode,
-          actionName: draft.resultActionName,
-          grid: draft.resultGrid,
-          cell: draft.resultCell,
-          chromaKey: draft.resultChromaKey,
-          spriteVariant: draft.resultSpriteVariant,
-          directions: draft.resultDirections,
-          sourceImageId: draft.resultSourceImageId,
-          sourceImageName: draft.resultSourceImageName,
-          tournamentId: draft.tournamentId,
-          tournamentCandidateIndex: draft.tournamentCandidateIndex,
-          tournamentCandidateCount: draft.tournamentCandidateCount,
-          effectContext: draft.effectContext
-        };
         setCodexJobs((current) => {
           const withoutQueued = queuedJobId ? current.filter((job) => job.id !== queuedJobId) : current;
-          return [...withoutQueued, runningJob];
+          return [...withoutQueued, submittedJob];
         });
       } else if (queuedJobId) {
         removeCodexJob(queuedJobId);
+      }
+      if (data.runner && !shouldWaitForCodexRunner(data.runner)) {
+        recordTerminalCodexRunnerJob(submittedJob, data.runner);
       }
 
       setStatus(`${copy.statusCodexJobWritten}: ${data.path}. ${runnerStatusMessage(data.runner, copy)}.`);
@@ -5908,6 +5923,27 @@ function App() {
           ])
         );
       });
+  }
+
+  function recordTerminalCodexRunnerJob(job: CodexJobQueueItem, runnerStatus: CodexRunnerStatus) {
+    setCodexJobLogs((logs) =>
+      mergeCodexJobLogs(logs, [
+        createCodexJobLogItem(job, {
+          text: runnerStatus.message,
+          exists: Boolean(runnerStatus.logPath),
+          modifiedAt: runnerStatus.finishedAt ?? runnerStatus.startedAt ?? new Date().toISOString(),
+          readAt: new Date().toISOString()
+        }, runnerStatus.state)
+      ])
+    );
+    if (runnerStatus.diagnostic) recordCodexFailure(job, runnerStatus);
+    if (runnerStatus.logPath) {
+      void loadCodexJobLog(job.id)
+        .then((log) => {
+          setCodexJobLogs((logs) => mergeCodexJobLogs(logs, [createCodexJobLogItem(job, log, runnerStatus.state)]));
+        })
+        .catch(() => undefined);
+    }
   }
 
   function notifyCodexJobFinished(job: Pick<CodexJobQueueItem, "label">, finalState: CodexJobLogItem["state"]) {
@@ -6335,14 +6371,7 @@ function App() {
     }
 
     const repairAvailable = Boolean(supervisorHealth);
-    const state: CockpitHealthState = !apiHealth ? "broken" : mismatches.length > 0 || unimportedResults > 0 ? "warning" : "ok";
-    const message = !apiHealth
-      ? "Cockpit connection issue: API route is not Image Cockpit."
-      : mismatches.length > 0
-        ? mismatches[0] ?? "Cockpit warning."
-        : unimportedResults > 0
-          ? `${unimportedResults} outbox result${unimportedResults === 1 ? "" : "s"} can be recovered.`
-          : "Cockpit OK.";
+    const { state, message } = summarizeCockpitHealthStatus(Boolean(apiHealth), mismatches, unimportedResults);
 
     setCockpitHealth({
       state,

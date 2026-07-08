@@ -33,6 +33,7 @@ import {
   shouldOpenSettingsFromSearch,
   shouldReportCompletedCodexImportFailure,
   shouldWaitForCodexRunner,
+  summarizeCockpitHealthStatus,
   summarizeCodexImportFailureReason,
   SUPPORTED_LANGUAGE_IDS
 } from "./App";
@@ -96,6 +97,29 @@ describe("Codex runner wait state", () => {
     expect(reason).toContain("local file");
     expect(reason).not.toContain("D:\\codex");
     expect(reason).not.toContain("stack line");
+  });
+});
+
+describe("Cockpit health status", () => {
+  it("keeps recoverable outbox results informational instead of warning", () => {
+    expect(summarizeCockpitHealthStatus(true, [], 82)).toEqual({
+      state: "ok",
+      message: "Cockpit OK. 82 outbox results available for Recover Results."
+    });
+  });
+
+  it("still warns on Cockpit route or supervisor mismatches", () => {
+    expect(summarizeCockpitHealthStatus(true, ["API port mismatch: UI reached 8791."], 0)).toEqual({
+      state: "warning",
+      message: "API port mismatch: UI reached 8791."
+    });
+  });
+
+  it("reports a broken state when API health is missing", () => {
+    expect(summarizeCockpitHealthStatus(false, [], 0)).toEqual({
+      state: "broken",
+      message: "Cockpit connection issue: API route is not Image Cockpit."
+    });
   });
 });
 

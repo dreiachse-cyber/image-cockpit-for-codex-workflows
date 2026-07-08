@@ -14,8 +14,9 @@ Slot: `slot1`
 
 ## Automated Verification
 
+- `npm run doctor`: pass
 - `npm run typecheck`: pass
-- `npm test`: pass, 3 files / 62 tests
+- `npm test`: pass, 3 files / 65 tests
 - `npm run build`: pass, existing Vite chunk-size warning only
 - `npm run smoke`: pass
 - `npm run release:audit`: pass
@@ -39,3 +40,22 @@ In-app browser verified the local app at `http://127.0.0.1:5211/`.
 
 - `public/samples/` remains bundled for README demo assets, release audit fixtures, and local import QA; the official Animation Library UI remains hidden.
 - Sequential standard animation tournament now starts reserve candidates only when the current candidate is terminal and not clean, and finalizes with the best usable warning candidate only after reserves are exhausted.
+
+## Follow-up: Cockpit Health and Manual Runner Visibility
+
+After owner review at `http://127.0.0.1:5211/`, two OSS-facing workflow issues were reproduced and addressed:
+
+- Recoverable old `codex-handoff/outbox/` results no longer turn Cockpit health into `Warning`; the health state stays `OK` and points reviewers to `Recover Results`.
+- When `IMAGE_COCKPIT_CODEX_AUTORUN=0` or the runner reaches another terminal state immediately, the submitted job is still recorded in the Codex log panel instead of disappearing from the lower job/log area.
+
+Added regression coverage in `src/App.test.ts`:
+
+- `summarizeCockpitHealthStatus(true, [], 82)` returns `ok`, not `warning`.
+- Cockpit route / supervisor mismatches still return `warning`.
+- Missing API health still returns `broken`.
+
+Live review URL verification at `http://127.0.0.1:5211/`:
+
+- Cockpit health rendered `Cockpit: OK` with `3 outbox results available for Recover Results`; `Cockpit: Warning` was absent.
+- Clicking `ピクセルアート生成` displayed a running Codex job and live stdout/stderr in the lower log panel.
+- The mock runner completed and imported `codex-job-2026-07-08T06-55-15-178Z-2rr5hn.png` into the results list.
