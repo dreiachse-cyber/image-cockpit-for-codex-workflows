@@ -106,3 +106,15 @@ Verification:
 - `npm run build`: pass, existing Vite chunk-size warning only
 - `git diff --check`: pass, CRLF conversion warnings only
 - `npm run ui:smoke`: first run hit the existing source-card timing assertion; immediate retry passed
+
+## Follow-up: Direction Preset Layout
+
+After the `1方向` option was removed, the direction preset segmented control still used the generic 3-column grid and left an empty-looking slot. The direction preset control now has its own 2-column grid so `5方向` and `3方向` fill the control evenly.
+
+Verification:
+
+- `npm run typecheck`: pass
+- `npm test`: pass, 3 files / 65 tests
+- `npm run release:audit`: pass
+- `git diff --check`: pass, CRLF conversion warnings only
+- `npm run ui:smoke`: pass

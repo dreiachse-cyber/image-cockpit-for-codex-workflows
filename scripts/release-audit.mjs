@@ -779,6 +779,15 @@ function checkWorkflowIds() {
   });
 
   [
+    ".direction-preset-buttons",
+    "grid-template-columns: repeat(2, minmax(0, 1fr));"
+  ].forEach((marker) => {
+    if (!stylesText.includes(marker)) {
+      failures.push(`Direction preset control should render as a balanced 2-option segmented control: ${marker}`);
+    }
+  });
+
+  [
     [appText, "animationDirectionOne"],
     [appText, 'ANIMATION_DIRECTION_PRESET_IDS: AnimationDirectionPresetId[] = ["five", "three", "one"]'],
     [uiSmokeText, '"1 direction"']
