@@ -127,6 +127,12 @@ const MAX_ACTIVE_CODEX_JOBS = 3;
 const STANDARD_ANIMATION_TOURNAMENT_CANDIDATES = readIntegerEnv("VITE_STANDARD_ANIMATION_TOURNAMENT_CANDIDATES", 3, 1, 3);
 const STANDARD_ANIMATION_TOURNAMENT_MIN_AB_CANDIDATES = Math.min(2, STANDARD_ANIMATION_TOURNAMENT_CANDIDATES);
 const MAX_ACTIVE_STANDARD_ANIMATION_CODEX_JOBS = STANDARD_ANIMATION_TOURNAMENT_CANDIDATES;
+type StandardAnimationTournamentMode = "sequential" | "parallel";
+// sequential: generate one candidate first and accept it immediately when it passes the
+// quality gate with zero warnings; only escalate to extra candidates on failure/warnings.
+// parallel: legacy behavior that races all candidates and A/B compares the first usable two.
+const STANDARD_ANIMATION_TOURNAMENT_MODE: StandardAnimationTournamentMode =
+  import.meta.env.VITE_STANDARD_ANIMATION_TOURNAMENT_MODE === "parallel" ? "parallel" : "sequential";
 const CODEX_LOG_POLL_INTERVAL_MS = 2000;
 const CODEX_LOG_TAIL_BYTES = 32768;
 const CODEX_LOG_HISTORY_LIMIT = MAX_ACTIVE_CODEX_JOBS;
@@ -141,6 +147,31 @@ const DIRECTION_SPLIT_ANIMATION_SCHEMA = "image-cockpit.direction-split-animatio
 const DIRECTION_SPLIT_ANIMATION_GRID: GridSettings = { columns: 4, rows: 2, gutter: 0 };
 const DIRECTION_SPLIT_ANIMATION_FILE_SLUGS = ["front", "front-three-quarter", "side", "back-three-quarter", "back"];
 const DIRECTION_SPLIT_ANIMATION_RESULT_COUNT = ANIMATION_DIRECTION_COUNT;
+
+type AnimationDirectionPresetId = "five" | "three" | "one";
+const ANIMATION_DIRECTION_PRESET_IDS: AnimationDirectionPresetId[] = ["five", "three", "one"];
+const ANIMATION_DIRECTION_PRESETS: Record<AnimationDirectionPresetId, string[]> = {
+  five: ANIMATION_DIRECTIONS,
+  three: ["front", "side", "back"],
+  one: ["front"]
+};
+
+export function animationDirectionSlug(direction: string) {
+  return direction.trim().toLowerCase().replace(/[_\s]+/g, "-");
+}
+
+export function normalizeAnimationDirections(directions?: readonly string[] | null): string[] {
+  if (!Array.isArray(directions) || directions.length === 0) return ANIMATION_DIRECTIONS;
+  const requestedSlugs = directions
+    .filter((direction): direction is string => typeof direction === "string")
+    .map(animationDirectionSlug);
+  const ordered = ANIMATION_DIRECTIONS.filter((direction) => requestedSlugs.includes(animationDirectionSlug(direction)));
+  return ordered.length > 0 ? ordered : ANIMATION_DIRECTIONS;
+}
+
+function animationSheetGridForDirections(directions: readonly string[]): GridSettings {
+  return { columns: ANIMATION_FRAME_COUNT, rows: Math.max(1, directions.length), gutter: 0 };
+}
 const DIRECTION_SPLIT_DETACHED_WARN_DISTANCE = 80;
 const DIRECTION_SPLIT_DETACHED_FAIL_DISTANCE = 250;
 const DIRECTION_SPLIT_CENTER_WARN_DRIFT = 24;
@@ -497,6 +528,7 @@ interface DirectionSplitSelection {
   bronzeCandidate: boolean;
   artifactStatus?: CodexArtifactStatus;
   manifestResult?: CodexOutboxResult;
+  directions: string[];
   directionResults: CodexOutboxResult[];
   missingDirections: string[];
 }
@@ -512,7 +544,7 @@ interface ReadyDirectionSplitArtifact {
 
 type DirectionSplitImportContext = Pick<
   CodexJobQueueItem,
-  "id" | "actionName" | "cell" | "chromaKey" | "sourceImageId" | "sourceImageName"
+  "id" | "actionName" | "cell" | "chromaKey" | "sourceImageId" | "sourceImageName" | "directions"
 >;
 
 interface DirectionSplitPreparedCell {
@@ -561,6 +593,7 @@ interface PendingCodexJob {
   cell?: SpriteAction["cell"];
   chromaKey?: AnimationChromaKeyName;
   spriteVariant?: AnimationGenerationMode;
+  directions?: string[];
   sourceImageId?: string;
   sourceImageName?: string;
   tournamentId?: string;
@@ -597,6 +630,7 @@ interface CodexJobDraft {
   resultCell?: SpriteAction["cell"];
   resultChromaKey?: AnimationChromaKeyName;
   resultSpriteVariant?: AnimationGenerationMode;
+  resultDirections?: string[];
   resultSourceImageId?: string;
   resultSourceImageName?: string;
   tournamentId?: string;
@@ -620,6 +654,7 @@ interface CodexJobQueueItem {
   cell?: SpriteAction["cell"];
   chromaKey?: AnimationChromaKeyName;
   spriteVariant?: AnimationGenerationMode;
+  directions?: string[];
   sourceImageId?: string;
   sourceImageName?: string;
   tournamentId?: string;
@@ -3692,23 +3727,26 @@ export function isGenericStaticImageResult(result: CodexOutboxResult) {
 export function selectDirectionSplitAnimationResults(
   results: CodexOutboxResult[],
   jobId: string,
-  manifest: DirectionSplitAnimationManifest | null = null
+  manifest: DirectionSplitAnimationManifest | null = null,
+  expectedDirections?: readonly string[]
 ): DirectionSplitSelection {
   const artifactStatus = results.find((result) => result.artifact?.jobId === jobId && result.artifact.artifactKind === "direction-split")?.artifact;
   const manifestResult = results.find((result) => isDirectionSplitAnimationManifestName(result.name, jobId));
   const staticImageResults = results.filter(isStaticImageResult);
   const manifestFiles = manifest ? directionSplitManifestFiles(manifest) : new Map<string, string>();
-  const byDirection = ANIMATION_DIRECTIONS.map((direction, index) => {
-    const slug = DIRECTION_SPLIT_ANIMATION_FILE_SLUGS[index];
+  const directions = normalizeAnimationDirections(expectedDirections ?? manifest?.directions);
+  const byDirection = directions.map((direction) => {
+    const canonicalIndex = ANIMATION_DIRECTIONS.indexOf(direction);
+    const slug = DIRECTION_SPLIT_ANIMATION_FILE_SLUGS[canonicalIndex] ?? animationDirectionSlug(direction);
     const manifestFile = manifestFiles.get(direction) ?? manifestFiles.get(slug);
     if (manifestFile) {
       const manifestBaseName = manifestFile.split(/[\\/]/).pop() ?? manifestFile;
       return staticImageResults.find((result) => result.name === manifestBaseName);
     }
-    return staticImageResults.find((result) => directionSplitResultDirectionIndex(result.name, jobId) === index);
+    return staticImageResults.find((result) => directionSplitResultDirectionIndex(result.name, jobId) === canonicalIndex);
   });
   const missingDirections = byDirection
-    .map((result, index) => (result ? "" : ANIMATION_DIRECTIONS[index]))
+    .map((result, index) => (result ? "" : directions[index]))
     .filter(Boolean);
   const hasManifest = Boolean(manifestResult || manifest);
   const hasDirectionFiles = byDirection.some(Boolean);
@@ -3733,6 +3771,7 @@ export function selectDirectionSplitAnimationResults(
     bronzeCandidate,
     artifactStatus,
     manifestResult,
+    directions,
     directionResults: byDirection.filter((result): result is CodexOutboxResult => Boolean(result)),
     missingDirections
   };
@@ -3753,7 +3792,7 @@ export function findReadyDirectionSplitArtifacts(results: CodexOutboxResult[]): 
 
     const jobResults = results.filter((result) => !shouldIgnoreOutboxResultName(result.name) && isOutboxResultForJob(result.name, jobId));
     const selection = selectDirectionSplitAnimationResults(jobResults, jobId);
-    if (!selection.ready || !selection.manifestResult || selection.directionResults.length !== DIRECTION_SPLIT_ANIMATION_RESULT_COUNT) {
+    if (!selection.ready || !selection.manifestResult || selection.directionResults.length !== selection.directions.length) {
       return [];
     }
 
@@ -3816,8 +3855,8 @@ function directionSplitManifestFiles(manifest: DirectionSplitAnimationManifest) 
   return files;
 }
 
-function directionSplitAnimationFileSet(jobIdPrefix: string) {
-  return DIRECTION_SPLIT_ANIMATION_FILE_SLUGS.map((slug) => `${jobIdPrefix}-${slug}.png`);
+function directionSplitAnimationFileSet(jobIdPrefix: string, directions: readonly string[] = ANIMATION_DIRECTIONS) {
+  return directions.map((direction) => `${jobIdPrefix}-${animationDirectionSlug(direction)}.png`);
 }
 
 function isStandardDirectionSplitJob(job: Pick<CodexJobQueueItem, "workflowMode" | "spriteVariant">) {
@@ -4183,6 +4222,7 @@ function App() {
   const [animationDirectionPreviews, setAnimationDirectionPreviews] = useState<AnimationDirectionPreview[]>([]);
   const [isAnimationPreviewBuilding, setIsAnimationPreviewBuilding] = useState(false);
   const [animationChromaKey, setAnimationChromaKey] = useState<AnimationChromaKeyName>("green");
+  const [animationDirectionPreset, setAnimationDirectionPreset] = useState<AnimationDirectionPresetId>("five");
   const [effectCategoryId, setEffectCategoryId] = useState<EffectCategoryId>("slash-arc");
   const [effectTypeId, setEffectTypeId] = useState("crescent");
   const [effectStyleId, setEffectStyleId] = useState<EffectStyleId>("pixel-clean");
@@ -4212,6 +4252,7 @@ function App() {
   const historyLoadMoreRef = useRef<HTMLDivElement | null>(null);
   const historyRef = useRef<HistoryItem[]>([]);
   const startingQueuedJobIdsRef = useRef<Set<string>>(new Set());
+  const pendingTournamentDraftsRef = useRef<Map<string, CodexJobDraft[]>>(new Map());
   const retryingFailureJobIdsRef = useRef<Set<string>>(new Set());
   const lastPointerEventAtRef = useRef(0);
   const settingsAutoDismissedRef = useRef(sessionStorage.getItem("image-cockpit.settings.dismissed") === "1");
@@ -4483,8 +4524,8 @@ function App() {
         ? buildDirectionalHatchPetPreviewActions(selectedAnimationAction, selectedAnimationFrames)
         : selectedAnimationVariant === "hatch-pet"
         ? buildHatchPetStatePreviewActions(selectedAnimationAction, selectedAnimationFrames)
-        : buildAnimationDirectionPreviewActions(selectedAnimationAction, selectedAnimationFrames),
-    [selectedAnimationAction, selectedAnimationFrames, selectedAnimationVariant]
+        : buildAnimationDirectionPreviewActions(selectedAnimationAction, selectedAnimationFrames, selected?.animationDirections),
+    [selectedAnimationAction, selectedAnimationFrames, selectedAnimationVariant, selected]
   );
 
   const selectedAnimationSource = useMemo(
@@ -5331,12 +5372,13 @@ function App() {
       : isHatchPetAnimationJob
       ? hatchPetSpriteAction()
       : normalizeAnimationAction(activeAction);
+    const standardAnimationDirections = ANIMATION_DIRECTION_PRESETS[animationDirectionPreset] ?? ANIMATION_DIRECTIONS;
     const spriteGrid = isAnimationJob
       ? isDirectionalHatchPetAnimationJob
         ? DIRECTIONAL_HATCH_PET_GRID
         : isHatchPetAnimationJob
           ? HATCH_PET_GRID
-          : ANIMATION_SHEET_GRID
+          : animationSheetGridForDirections(standardAnimationDirections)
       : grid;
     const spriteCell = isAnimationJob ? (isHatchPetLikeMode(animationJobGenerationMode) ? HATCH_PET_CELL : animationAction.cell) : activeAction.cell;
     const spriteFrameCount = spriteGrid.columns * spriteGrid.rows;
@@ -5400,7 +5442,8 @@ function App() {
             motionPrompt: animationMotionPrompt,
             actionName: animationAction.name,
             chromaKey: chromaDecision.key,
-            cell: spriteCell
+            cell: spriteCell,
+            directions: standardAnimationDirections
           })
       : isImageEditJob
         ? buildImageEditCodexPrompt({
@@ -5429,7 +5472,8 @@ function App() {
             chromaKey: chromaDecision.key,
             chromaReason: chromaDecision.reason,
             grid: spriteGrid,
-            cell: spriteCell
+            cell: spriteCell,
+            directions: standardAnimationDirections
           })
       : isImageEditJob
         ? buildImageEditCodexNotes({
@@ -5447,7 +5491,7 @@ function App() {
       size: isDirectionalHatchPetAnimationJob
         ? `${HATCH_PET_CELL.width * HATCH_PET_GRID.columns}x${HATCH_PET_CELL.height * HATCH_PET_GRID.rows} x ${DIRECTIONAL_HATCH_PET_RESULT_COUNT}`
         : isAnimationJob
-          ? `${spriteCell.width * DIRECTION_SPLIT_ANIMATION_GRID.columns}x${spriteCell.height * DIRECTION_SPLIT_ANIMATION_GRID.rows} x ${DIRECTION_SPLIT_ANIMATION_RESULT_COUNT}`
+          ? `${spriteCell.width * DIRECTION_SPLIT_ANIMATION_GRID.columns}x${spriteCell.height * DIRECTION_SPLIT_ANIMATION_GRID.rows} x ${standardAnimationDirections.length}`
           : isEffectJob && currentEffectContext
             ? `${currentEffectContext.sheetSize.width}x${currentEffectContext.sheetSize.height}`
           : size,
@@ -5469,7 +5513,7 @@ function App() {
           ? ANIMATION_DIRECTIONS
           : isHatchPetAnimationJob
             ? HATCH_PET_STATE_ROWS.map((row) => row.id)
-            : ANIMATION_DIRECTIONS
+            : standardAnimationDirections
         : [],
       label: codexJobLabel(
         workflowMode,
@@ -5482,6 +5526,7 @@ function App() {
       resultCell: isEffectJob && currentEffectContext ? currentEffectContext.frameSize : isAnimationJob ? spriteCell : undefined,
       resultChromaKey: isAnimationJob ? chromaDecision.key.name : undefined,
       resultSpriteVariant: isAnimationJob ? animationJobGenerationMode : undefined,
+      resultDirections: isAnimationJob && animationJobGenerationMode === "standard" ? standardAnimationDirections : undefined,
       resultSourceImageId: isImageEditJob || isAnimationJob ? sourceImageForJob?.id : undefined,
       resultSourceImageName: isImageEditJob || isAnimationJob ? sourceImageForJob?.name : undefined,
       effectContext: currentEffectContext
@@ -5496,7 +5541,9 @@ function App() {
       jobNotes: [
         draft.jobNotes,
         `Animation tournament ${tournamentId}, ${tournamentCandidateLabel(index, STANDARD_ANIMATION_TOURNAMENT_CANDIDATES)}.`,
-        "Generate this candidate independently from the same source and motion contract. Do not copy another candidate. Image Cockpit will compare the first two usable candidates and import only the better final result."
+        STANDARD_ANIMATION_TOURNAMENT_MODE === "sequential"
+          ? "Generate this candidate independently from the same source and motion contract. Do not copy another candidate. Image Cockpit accepts the first candidate that passes the quality gate cleanly and only starts additional candidates when needed."
+          : "Generate this candidate independently from the same source and motion contract. Do not copy another candidate. Image Cockpit will compare the first two usable candidates and import only the better final result."
       ].filter(Boolean).join("\n"),
       tournamentId,
       tournamentCandidateIndex: index,
@@ -5506,18 +5553,28 @@ function App() {
 
   async function submitOrQueueCodexAnimationTournament(draft: CodexJobDraft) {
     const tournamentDrafts = buildCodexAnimationTournamentDrafts(draft);
+    const tournamentId = tournamentDrafts[0]?.tournamentId ?? "";
+    const initialDrafts = STANDARD_ANIMATION_TOURNAMENT_MODE === "sequential" ? tournamentDrafts.slice(0, 1) : tournamentDrafts;
+    const reserveDrafts = tournamentDrafts.slice(initialDrafts.length);
+    if (tournamentId && reserveDrafts.length > 0) {
+      pendingTournamentDraftsRef.current.set(tournamentId, reserveDrafts);
+    }
     const canStartTournamentNow =
       activeCodexJobCount(codexJobs, startingQueuedJobIdsRef.current) === 0 &&
       activeStandardDirectionSplitJobCount(codexJobs, startingQueuedJobIdsRef.current) === 0;
     if (!canStartTournamentNow) {
-      tournamentDrafts.forEach(enqueueCodexJobDraft);
-      setStatus(`Animation tournament queued: ${tournamentDrafts.length} candidates.`);
+      initialDrafts.forEach(enqueueCodexJobDraft);
+      setStatus(`Animation tournament queued: ${initialDrafts.length}/${tournamentDrafts.length} candidates (${STANDARD_ANIMATION_TOURNAMENT_MODE} mode).`);
       return;
     }
-    const runnerStatuses = await Promise.all(tournamentDrafts.map((candidateDraft) => submitCodexJobDraft(candidateDraft)));
+    const runnerStatuses = await Promise.all(initialDrafts.map((candidateDraft) => submitCodexJobDraft(candidateDraft)));
     const startedCount = runnerStatuses.filter((runnerStatus) => shouldWaitForCodexRunner(runnerStatus ?? undefined)).length;
     if (startedCount > 0) {
-      setStatus(`Animation tournament started: ${startedCount}/${tournamentDrafts.length} candidates.`);
+      setStatus(
+        STANDARD_ANIMATION_TOURNAMENT_MODE === "sequential"
+          ? `Animation tournament started: candidate 1/${tournamentDrafts.length} (sequential mode; extra candidates run only if needed).`
+          : `Animation tournament started: ${startedCount}/${tournamentDrafts.length} candidates.`
+      );
       return;
     }
     const terminalStatus = runnerStatuses.find((runnerStatus): runnerStatus is CodexRunnerStatus => Boolean(runnerStatus));
@@ -5542,6 +5599,7 @@ function App() {
         cell: draft.resultCell,
         chromaKey: draft.resultChromaKey,
         spriteVariant: draft.resultSpriteVariant,
+        directions: draft.resultDirections,
         sourceImageId: draft.resultSourceImageId,
         sourceImageName: draft.resultSourceImageName,
         tournamentId: draft.tournamentId,
@@ -5607,6 +5665,7 @@ function App() {
           cell: draft.resultCell,
           chromaKey: draft.resultChromaKey,
           spriteVariant: draft.resultSpriteVariant,
+          directions: draft.resultDirections,
           sourceImageId: draft.resultSourceImageId,
           sourceImageName: draft.resultSourceImageName,
           tournamentId: draft.tournamentId,
@@ -6338,7 +6397,8 @@ function App() {
       id: artifact.jobId,
       actionName: manifestActionName(manifest),
       cell: manifest?.cell ?? STANDARD_ANIMATION_CELL,
-      chromaKey: manifestChromaKeyName(manifest, animationChromaKey)
+      chromaKey: manifestChromaKeyName(manifest, animationChromaKey),
+      directions: manifest?.directions ? normalizeAnimationDirections(manifest.directions) : undefined
     };
   }
 
@@ -6367,7 +6427,7 @@ function App() {
     try {
       manifest = parseDirectionSplitAnimationManifest(await fetchOutboxResult(artifact.manifestResult.name));
       const selection = selectDirectionSplitAnimationResults(artifact.jobResults, artifact.jobId, manifest);
-      if (!selection.ready || selection.directionResults.length !== DIRECTION_SPLIT_ANIMATION_RESULT_COUNT) {
+      if (!selection.ready || selection.directionResults.length !== selection.directions.length) {
         const missing = selection.missingDirections.join(", ") || "direction images";
         throw new Error(`Direction split import failed for ${artifact.jobId}: missing ${missing}. Outbox files are still available.`);
       }
@@ -6452,8 +6512,8 @@ function App() {
       const jobResults = results.filter((result) => !shouldIgnoreOutboxResultName(result.name) && isOutboxResultForJob(result.name, job.id));
       const manifestResult = jobResults.find((result) => isDirectionSplitAnimationManifestName(result.name, job.id));
       const manifest = manifestResult ? parseDirectionSplitAnimationManifest(await fetchCodexJobOutboxResult(job.id, manifestResult.name)) : null;
-      const selection = selectDirectionSplitAnimationResults(jobResults, job.id, manifest);
-      if (!selection.ready || !selection.manifestResult || selection.directionResults.length !== DIRECTION_SPLIT_ANIMATION_RESULT_COUNT) {
+      const selection = selectDirectionSplitAnimationResults(jobResults, job.id, manifest, job.directions);
+      if (!selection.ready || !selection.manifestResult || selection.directionResults.length !== selection.directions.length) {
         const reason =
           selection.artifactStatus?.reason ??
           (selection.missingDirections.length > 0
@@ -6465,7 +6525,7 @@ function App() {
       const importedResults = await Promise.all(selection.directionResults.map((result) => fetchCodexJobOutboxResult(job.id, result.name)));
       const actionName = job.actionName ?? manifestActionName(manifest);
       const chromaKey = animationChromaKeys[job.chromaKey ?? manifestChromaKeyName(manifest, animationChromaKey)];
-      const composed = await composeDirectionSplitAnimationSheet(importedResults, chromaKey, job.cell ?? manifest?.cell ?? STANDARD_ANIMATION_CELL, actionName);
+      const composed = await composeDirectionSplitAnimationSheet(importedResults, chromaKey, job.cell ?? manifest?.cell ?? STANDARD_ANIMATION_CELL, actionName, selection.directions);
       const artifactWarnings = selection.artifactStatus?.warnings?.length ?? 0;
       const warningCount = composed.warnings.length + artifactWarnings;
       const artifactQuality = selection.artifactStatus?.quality;
@@ -6501,7 +6561,9 @@ function App() {
     const actionName = importContext.actionName ?? manifestActionName(manifest);
     const spriteCell = importContext.cell ?? manifest?.cell ?? STANDARD_ANIMATION_CELL;
     const chromaKey = animationChromaKeys[importContext.chromaKey ?? manifestChromaKeyName(manifest, animationChromaKey)];
-    const composed = await composeDirectionSplitAnimationSheet(importedResults, chromaKey, spriteCell, actionName);
+    const sheetDirections = normalizeAnimationDirections(importContext.directions ?? manifest?.directions);
+    const sheetGrid = animationSheetGridForDirections(sheetDirections);
+    const composed = await composeDirectionSplitAnimationSheet(importedResults, chromaKey, spriteCell, actionName, sheetDirections);
     const image = await loadImage(composed.dataUrl);
     const itemName = `${importContext.id}-direction-split-animation-sheet.png`;
     const item: HistoryItem = {
@@ -6517,6 +6579,7 @@ function App() {
       source: "generate",
       derivedFromId: importContext.sourceImageId,
       derivedFromName: importContext.sourceImageName,
+      animationDirections: sheetDirections,
       outboxImportKey: buildOutboxImportKey("direction-split", {
         jobId: importContext.id,
         filenames: importedResults.map((result) => result.name),
@@ -6530,12 +6593,12 @@ function App() {
       setStatus(`${copy.statusInboxImported}: ${item.name} (already imported)`);
       return { added: false, item: duplicate.item, frameCount: 0 };
     }
-    const newFrames = await splitImageIntoFrames(composed.dataUrl, itemName.replace(/\.[^.]+$/, ""), ANIMATION_SHEET_GRID, item.id, spriteCell);
+    const newFrames = await splitImageIntoFrames(composed.dataUrl, itemName.replace(/\.[^.]+$/, ""), sheetGrid, item.id, spriteCell);
     if (newFrames.length === 0) throw new Error("Returned direction split animation could not be split into frames.");
 
     setAnimationGenerationMode("standard");
     setAnimationChromaKey(chromaKey.name);
-    setGrid(ANIMATION_SHEET_GRID);
+    setGrid(sheetGrid);
     addLocalInboxHistoryItem(item);
     setFrames((current) => [...current, ...newFrames]);
     setActiveActionName(actionName);
@@ -6858,7 +6921,7 @@ function App() {
       if (pendingJob?.workflowMode === "sprite-generate" && (pendingJob.spriteVariant ?? "standard") === "standard") {
         const manifestResult = jobResults.find((result) => isDirectionSplitAnimationManifestName(result.name, pendingJob.id));
         const manifest = manifestResult ? parseDirectionSplitAnimationManifest(await fetchOutboxResult(manifestResult.name)) : null;
-        const directionSplitSelection = selectDirectionSplitAnimationResults(jobResults, pendingJob.id, manifest);
+        const directionSplitSelection = selectDirectionSplitAnimationResults(jobResults, pendingJob.id, manifest, pendingJob.directions);
         if (directionSplitSelection.detected) {
           if (directionSplitSelection.waitingForFinalManifest) {
             setStatus(`${copy.statusCodexJobPending}: ${pendingJob.id} (waiting for final manifest)`);
@@ -10306,14 +10369,15 @@ function renumberAnnotations(annotations: Annotation[]) {
   return annotations.map((annotation, index) => ({ ...annotation, number: index + 1 }));
 }
 
-function buildAnimationDirectionPreviewActions(action: SpriteAction, actionFrames: SpriteFrame[]) {
+function buildAnimationDirectionPreviewActions(action: SpriteAction, actionFrames: SpriteFrame[], directions?: readonly string[]) {
   const directionCount =
     actionFrames.length >= ANIMATION_FRAME_COUNT * ANIMATION_DIRECTION_COUNT
       ? ANIMATION_DIRECTION_COUNT
       : Math.max(1, Math.ceil(actionFrames.length / ANIMATION_FRAME_COUNT));
+  const directionIds = directions && directions.length === directionCount ? directions : ANIMATION_DIRECTIONS;
 
   return Array.from({ length: directionCount }, (_, index) => {
-    const directionId = ANIMATION_DIRECTIONS[index] ?? `direction-${index + 1}`;
+    const directionId = directionIds[index] ?? `direction-${index + 1}`;
     const rowFrames = actionFrames.slice(index * ANIMATION_FRAME_COUNT, (index + 1) * ANIMATION_FRAME_COUNT);
     return {
       directionId,
@@ -10437,34 +10501,37 @@ function buildAnimationCodexPrompt({
   motionPrompt,
   actionName,
   chromaKey,
-  cell
+  cell,
+  directions = ANIMATION_DIRECTIONS
 }: {
   sourceName: string;
   motionPrompt: string;
   actionName: string;
   chromaKey: AnimationChromaKey;
   cell: SpriteAction["cell"];
+  directions?: readonly string[];
 }) {
   const motion = motionPrompt.trim() || actionName;
+  const directionCountWord = directions.length === 1 ? "one" : String(directions.length);
   return [
     "このキャラクターをデフォルメして、方向別アニメーション素材として画像生成してほしい。",
     `Use the uploaded source image "${sourceName}" as the character reference.`,
     `Extract only the single character and create a direction-split pixel-art animation set of that same character ${motion}.`,
-    "Do not return one combined 5x8 sheet for the standard animation workflow. Return five separate direction images, and Image Cockpit will compose the final 5x8 sheet after import.",
+    `Do not return one combined ${directions.length}x${ANIMATION_FRAME_COUNT} sheet for the standard animation workflow. Return ${directionCountWord} separate direction image${directions.length === 1 ? "" : "s"}, and Image Cockpit will compose the final ${ANIMATION_FRAME_COUNT}x${directions.length} sheet after import.`,
     `Each direction image must be exactly ${cell.width * DIRECTION_SPLIT_ANIMATION_GRID.columns}x${cell.height * DIRECTION_SPLIT_ANIMATION_GRID.rows}px: ${DIRECTION_SPLIT_ANIMATION_GRID.columns} columns x ${DIRECTION_SPLIT_ANIMATION_GRID.rows} rows, no gutters, no extra outer margin, exactly ${ANIMATION_FRAME_COUNT} cells.`,
-    `Required directions and file suffixes: ${ANIMATION_DIRECTIONS.map((direction, index) => `${direction}=${DIRECTION_SPLIT_ANIMATION_FILE_SLUGS[index]}`).join(", ")}.`,
+    `Required directions and file suffixes: ${directions.map((direction) => `${direction}=${animationDirectionSlug(direction)}`).join(", ")}. Do not generate directions that are not listed.`,
     `Each cell must be exactly ${cell.width}x${cell.height} pixels. Fill frames left-to-right on row 1, then left-to-right on row 2.`,
     "Every cell must contain exactly one full-body character, centered inside that cell, with the entire head, hair, hands, held item, weapon, projectile, compact effect, clothing, and both feet visible.",
     "Keep at least 24 pixels of empty chroma-key padding inside every cell above the head, below the feet, and on both sides. Never enlarge the character, held item, projectile, or effect to fill the cell.",
     "The character center and foot baseline must stay aligned across all eight frames in the same direction image; do not drift left, right, up, or down between frames.",
     "Do not crop the head, feet, hair, held item, weapon, projectile, or effects. Do not let body parts, items, projectiles, or effects cross cell borders. Do not place heads or body fragments under the feet.",
     "Use consistent character scale, baseline, foot contact point, silhouette size, palette, outfit, and pixel density across all direction images.",
-    "Hard consistency requirement across all five direction images: keep the same chibi body proportions, same head-to-body ratio, same head size, same limb thickness, same outfit colors, same clothing layers, and same prop design. Do not redesign any direction or make one direction older, younger, more realistic, differently dressed, or scaled differently than the others.",
+    "Hard consistency requirement across all requested direction images: keep the same chibi body proportions, same head-to-body ratio, same head size, same limb thickness, same outfit colors, same clothing layers, and same prop design. Do not redesign any direction or make one direction older, younger, more realistic, differently dressed, or scaled differently than the others.",
     ...ANIMATION_SCALE_CONSISTENCY_CONTRACT_LINES,
     `Prefer a transparent background in every cell. If true transparency is not available during generation, use a flat ${chromaKey.label} background (${chromaKey.hex}) in every cell; do not use black, white, gradients, scenery, shadows, UI, text, logos, watermarks, letters, or numbers.`,
     "If you add a temporary guide grid, use a temporary 1-pixel pure cyan #00FFFF guide grid only on the exact 4x2 cell boundaries for each direction image; no labels, numbers, text, UI, or decorative borders.",
-    "Quality gate before returning: inspect all 40 cells and regenerate if any cell is cropped, has missing feet, has a cut-off head, contains multiple heads, has a head below the feet, has a different character, or uses a non-flat background.",
-    `Return exactly these direction files using the real job id prefix: ${directionSplitAnimationFileSet("<job-id>").join(", ")}.`,
+    `Quality gate before returning: inspect all ${directions.length * ANIMATION_FRAME_COUNT} cells and regenerate if any cell is cropped, has missing feet, has a cut-off head, contains multiple heads, has a head below the feet, has a different character, or uses a non-flat background.`,
+    `Return exactly these direction files using the real job id prefix: ${directionSplitAnimationFileSet("<job-id>", directions).join(", ")}.`,
     `Also return <job-id>-manifest.json with schema "${DIRECTION_SPLIT_ANIMATION_SCHEMA}".`
   ].join(" ");
 }
@@ -10474,21 +10541,23 @@ function buildAnimationCodexNotes({
   chromaKey,
   chromaReason,
   grid,
-  cell
+  cell,
+  directions = ANIMATION_DIRECTIONS
 }: {
   userNotes: string;
   chromaKey: AnimationChromaKey;
   chromaReason: string;
   grid: GridSettings;
   cell: SpriteAction["cell"];
+  directions?: readonly string[];
 }) {
   return [
     userNotes.trim(),
-    `Animation sprite workflow: generate five source-image-driven direction images through Codex imagegen / built-in image_gen, then Image Cockpit will remove the ${chromaKey.label} background and compose the final sheet.`,
+    `Animation sprite workflow: generate ${directions.length} source-image-driven direction image${directions.length === 1 ? "" : "s"} through Codex imagegen / built-in image_gen, then Image Cockpit will remove the ${chromaKey.label} background and compose the final sheet.`,
     `Chroma key decision: ${chromaKey.name} ${chromaKey.hex}. ${chromaReason}`,
     `Final app sheet layout after import: ${grid.columns} columns x ${grid.rows} rows, ${cell.width}x${cell.height} per cell.`,
     `Raw returned direction layout: ${DIRECTION_SPLIT_ANIMATION_GRID.columns} columns x ${DIRECTION_SPLIT_ANIMATION_GRID.rows} rows per direction image, ${cell.width}x${cell.height} per cell.`,
-    `Required direction files: ${directionSplitAnimationFileSet("<job-id>").join(", ")}.`,
+    `Required direction files: ${directionSplitAnimationFileSet("<job-id>", directions).join(", ")}.`,
     `Manifest schema: ${DIRECTION_SPLIT_ANIMATION_SCHEMA}; include directions, files, grid, cell, and framesPerDirection=${ANIMATION_FRAME_COUNT}.`,
     "Cell QA is mandatory: one full-body character per cell, consistent baseline and scale, at least 24px inner padding, no cropping, no duplicated heads, no body fragments under feet, no character parts, items, projectiles, or effects crossing cell borders.",
     "Scale consistency QA is mandatory: compare every direction and frame against the front ready stance, and reject any result where a direction or lower pose was auto-enlarged to fill the cell.",
@@ -10612,7 +10681,8 @@ async function composeDirectionSplitAnimationSheet(
   importedResults: CodexOutboxImportResponse[],
   chromaKey: AnimationChromaKey,
   cell: SpriteAction["cell"],
-  actionName?: string
+  actionName?: string,
+  directions: readonly string[] = ANIMATION_DIRECTIONS
 ) {
   const preparedCells: DirectionSplitPreparedCell[] = [];
   const warnings: string[] = [];
@@ -10620,9 +10690,9 @@ async function composeDirectionSplitAnimationSheet(
   const expectedWidth = cell.width * DIRECTION_SPLIT_ANIMATION_GRID.columns;
   const expectedHeight = cell.height * DIRECTION_SPLIT_ANIMATION_GRID.rows;
 
-  for (let directionIndex = 0; directionIndex < DIRECTION_SPLIT_ANIMATION_RESULT_COUNT; directionIndex += 1) {
+  for (let directionIndex = 0; directionIndex < directions.length; directionIndex += 1) {
     const result = importedResults[directionIndex];
-    const direction = ANIMATION_DIRECTIONS[directionIndex];
+    const direction = directions[directionIndex];
     if (!result) {
       failures.push(`${direction}: missing direction image`);
       continue;
@@ -10659,7 +10729,7 @@ async function composeDirectionSplitAnimationSheet(
   }
 
   const normalizedCells = normalizeDirectionSplitCells(preparedCells, cell);
-  const qa = validateDirectionSplitAnimationCells(normalizedCells, cell, directionSplitMotionProfileForAction(actionName));
+  const qa = validateDirectionSplitAnimationCells(normalizedCells, cell, directionSplitMotionProfileForAction(actionName), directions);
   warnings.push(...normalizedCells.flatMap((frame) => frame.warnings), ...qa.warnings);
   failures.push(...normalizedCells.flatMap((frame) => frame.failures), ...qa.failures);
 
@@ -10669,7 +10739,7 @@ async function composeDirectionSplitAnimationSheet(
 
   const canvas = document.createElement("canvas");
   canvas.width = cell.width * ANIMATION_FRAME_COUNT;
-  canvas.height = cell.height * ANIMATION_DIRECTION_COUNT;
+  canvas.height = cell.height * directions.length;
   const context = canvas.getContext("2d");
   if (!context) throw new Error("Could not compose direction split animation sheet.");
   context.clearRect(0, 0, canvas.width, canvas.height);
@@ -10832,14 +10902,15 @@ function directionSplitMotionProfileForAction(actionName?: string): DirectionSpl
 function validateDirectionSplitAnimationCells(
   cells: DirectionSplitNormalizedCell[],
   cell: SpriteAction["cell"],
-  motionProfile: DirectionSplitMotionProfile = "standard"
+  motionProfile: DirectionSplitMotionProfile = "standard",
+  directions: readonly string[] = ANIMATION_DIRECTIONS
 ) {
   const warnings: string[] = [];
   const failures: string[] = [];
   const motionThresholds = DIRECTION_SPLIT_MOTION_THRESHOLDS[motionProfile];
   const idleMotionRows: Array<{ direction: string; averageMotion: number; maxMotion: number }> = [];
 
-  ANIMATION_DIRECTIONS.forEach((direction, directionIndex) => {
+  directions.forEach((direction, directionIndex) => {
     const rowCells = cells
       .filter((frame) => frame.directionIndex === directionIndex)
       .sort((left, right) => left.frameIndex - right.frameIndex);
@@ -10914,13 +10985,13 @@ function validateDirectionSplitAnimationCells(
     }
   });
 
-  if (motionProfile === "idle-breathing" && idleMotionRows.length === ANIMATION_DIRECTIONS.length) {
+  if (motionProfile === "idle-breathing" && idleMotionRows.length === directions.length) {
     const readableRows = idleMotionRows.filter((row) => row.averageMotion >= motionThresholds.failAverage || row.maxMotion >= motionThresholds.failMax).length;
     const averageIdleMotion = averageNumber(idleMotionRows.map((row) => row.averageMotion));
     const maxIdleMotion = Math.max(...idleMotionRows.map((row) => row.maxMotion));
-    if (readableRows < DIRECTION_SPLIT_IDLE_MIN_READABLE_MOTION_ROWS) {
+    if (readableRows < Math.min(DIRECTION_SPLIT_IDLE_MIN_READABLE_MOTION_ROWS, directions.length)) {
       failures.push(
-        `idle breathing motion too static across directions (${readableRows}/${ANIMATION_DIRECTIONS.length} readable rows, ${formatMotionPercent(averageIdleMotion)} average frame change)`
+        `idle breathing motion too static across directions (${readableRows}/${directions.length} readable rows, ${formatMotionPercent(averageIdleMotion)} average frame change)`
       );
     } else if (averageIdleMotion < motionThresholds.warnAverage && maxIdleMotion < motionThresholds.failMax) {
       warnings.push(`idle breathing motion is subtle overall (${formatMotionPercent(averageIdleMotion)} average frame change)`);
@@ -12720,6 +12791,7 @@ function savePendingCodexJobs(jobs: CodexJobQueueItem[]) {
         cell: job.cell,
         chromaKey: job.chromaKey,
         spriteVariant: job.spriteVariant,
+        directions: job.directions,
         sourceImageId: job.sourceImageId,
         sourceImageName: job.sourceImageName,
         tournamentId: job.tournamentId,

@@ -17,6 +17,7 @@ export interface HistoryItem {
   derivedFromName?: string;
   outboxImportKey?: string;
   effectAnimation?: EffectAnimationMetadata;
+  animationDirections?: string[];
 }
 
 export type EffectQualityRank = "gold" | "silver" | "bronze" | "failed" | "blocked";

@@ -273,11 +273,13 @@ const server = createServer(async (request, response) => {
     }
 
     if (request.method === "POST" && pathname === "/api/generate") {
-      const body = (await readJson(request)) as LocalGenerationRequest;
-      if (!body.prompt?.trim()) {
-        sendJson(response, 400, { error: "Prompt is required for local generation" });
+      const rawBody = await readJson(request);
+      const validation = validateLocalGenerationRequest(rawBody);
+      if (!validation.ok) {
+        sendJson(response, 400, { error: validation.error });
         return;
       }
+      const body = validation.request;
       const createdAt = new Date().toISOString();
       const id = `local-gen-${createdAt.replace(/[:.]/g, "-")}`;
       const results = await generateLocalImages(body, outboxDir, id);
@@ -1066,10 +1068,10 @@ function buildCodexRunnerPrompt(job: { id: string; path: string; outboxDir: stri
     "For workflowMode=image-edit, inspect selectedImage.assetPath, use imagegen / built-in image_gen editing when available, follow numbered annotationContext region comments plus prompt/jobNotes, use imageRectNormalized/imageRectPixels when present, preserve the original canvas size/aspect ratio, keep the full character including head, hair, hands, equipment, and both feet visible, do not zoom, crop, or reframe into a portrait/detail shot, preserve transparency or use a flat chroma fallback, change only requested regions when possible, and return a real edited PNG or WebP with the job id filename prefix. Never create a procedural, SVG, canvas, diagram, geometric, or placeholder image.",
     "For workflowMode=sprite-generate, inspect selectedImage.assetPath, then use imagegen / built-in image_gen when available to create the requested sprite sheet assets from the source character image. Never create a procedural, SVG, canvas, diagram, geometric, or placeholder image.",
     "For workflowMode=sprite-generate, follow spriteContext.grid, spriteContext.cell, spriteContext.directions, spriteContext.variant, and spriteContext.chromaKey exactly. Keep one full-body character centered inside each strict cell with padding, no cropping, no duplicated heads, and no body parts crossing cells.",
-    "For workflowMode=sprite-generate with spriteContext.variant=standard, return exactly five separate direction PNG/WebP images using the suffixes front, front-three-quarter, side, back-three-quarter, and back. Each direction image must be 4 columns x 2 rows, 256x256 cells unless spriteContext.cell says otherwise. Do not return only one combined 5x8 sheet.",
+    "For workflowMode=sprite-generate with spriteContext.variant=standard, return exactly one separate direction PNG/WebP image per entry in spriteContext.directions, using the direction name with spaces replaced by dashes as the filename suffix (full set: front, front-three-quarter, side, back-three-quarter, back). If spriteContext.directions is empty, return all five. Each direction image must be 4 columns x 2 rows, 256x256 cells unless spriteContext.cell says otherwise. Do not return only one combined multi-direction sheet, and do not return directions that were not requested.",
     "For workflowMode=sprite-generate with spriteContext.variant=standard, each of the eight cells in every direction image must be a distinct animation frame for spriteContext.action, not a repeated still pose. Static or nearly static rows are failed material even when the directions, padding, and chroma key are otherwise correct.",
-    "For idle breathing, the feet must stay planted but at least three of the five direction sheets must show readable frame-to-frame breathing or secondary motion: 2-4px shoulder/chest/head change plus hair, scarf, cape, cloth, or equipment follow-through. Regenerate any direction whose frames look nearly identical before writing the final manifest.",
-    "For standard direction-split output, keep generated direction images, source manifests, contact sheets, comparison sheets, QA files, and all candidates under outbox/.staging/<job-id>/ or another non-root work folder while work is still in progress. Do not write, copy, or manifest root outbox <job-id>-*.png or <job-id>-manifest.json until the complete five-direction set is normalized, self-checked, and no further regeneration is planned. The final runner step must publish only the five final direction PNG/WebP files into the root outbox and write the final <job-id>-manifest.json last. Image Cockpit will verify artifacts after the runner has finished and may rewrite the manifest after completion.",
+    "For idle breathing, the feet must stay planted but most of the requested direction sheets must show readable frame-to-frame breathing or secondary motion: 2-4px shoulder/chest/head change plus hair, scarf, cape, cloth, or equipment follow-through. Regenerate any direction whose frames look nearly identical before writing the final manifest.",
+    "For standard direction-split output, keep generated direction images, source manifests, contact sheets, comparison sheets, QA files, and all candidates under outbox/.staging/<job-id>/ or another non-root work folder while work is still in progress. Do not write, copy, or manifest root outbox <job-id>-*.png or <job-id>-manifest.json until the complete requested direction set is normalized, self-checked, and no further regeneration is planned. The final runner step must publish only the requested final direction PNG/WebP files into the root outbox and write the final <job-id>-manifest.json last. Image Cockpit will verify artifacts after the runner has finished and may rewrite the manifest after completion.",
     "For workflowMode=sprite-generate, inspect all cells before writing the final file and retry if any head is cut off, feet are missing, a head appears below feet, scale changes wildly, or the background is not flat chroma key.",
     "For workflowMode=sprite-generate with spriteContext.variant=hatch-pet, use the installed hatch-pet skill/scripts when available. Build a Codex pet atlas with 8 columns x 9 rows, 192x208 cells, 1536x1872 total, transparent unused cells, contact-sheet QA, and final spritesheet PNG/WebP returned with the job id filename prefix. Include pet.json as a sidecar if produced.",
     "For workflowMode=sprite-generate with spriteContext.variant=directional-hatch-pet, use the installed hatch-pet skill/scripts when available and return exactly five separate Codex pet atlas images: direction-01-front, direction-02-front-three-quarter, direction-03-side, direction-04-back-three-quarter, and direction-05-back. Each atlas must be 8 columns x 9 rows, 192x208 cells, 1536x1872 total, transparent unused cells, and use the job id filename prefix plus the direction suffix. Do not return only one giant combined sheet.",
@@ -1547,13 +1549,16 @@ async function inspectDirectionSplitArtifact(jobId: string, resultDir = outboxDi
   const bySlug = new Map<string, DirectionSplitCandidateFile>();
   let sourceManifest: DirectionSplitSourceManifest = null;
 
-  for (const slug of directionSplitSlugs) {
+  const expectedSpriteContext = await readJobExpectedSpriteContext(jobId);
+  const expectedSlugs = expectedSpriteContext.directionSlugs ?? directionSplitSlugs;
+
+  for (const slug of expectedSlugs) {
     const candidate = await findDirectionSplitCandidateFile(jobId, slug, resultDir);
     if (candidate) {
       bySlug.set(slug, candidate);
       files.push(candidate.finalName);
     } else {
-      missingDirections.push(directionSplitNames[directionSplitSlugs.indexOf(slug)] ?? slug);
+      missingDirections.push(directionNameForSlug(slug));
     }
   }
 
@@ -1562,7 +1567,6 @@ async function inspectDirectionSplitArtifact(jobId: string, resultDir = outboxDi
   if (!detected) return emptyDirectionSplitArtifactStatus(jobId);
 
   const candidateCount = bySlug.size + (sourceManifest ? 1 : 0);
-  const expectedSpriteContext = await readJobExpectedSpriteContext(jobId);
   const expectedChromaKey = expectedSpriteContext.chromaKey;
   const expectedAction = expectedSpriteContext.action ?? normalizeActionValue(sourceManifest?.parsed?.action);
   const manifestChromaKey = normalizeChromaKeyValue(readManifestChromaKey(sourceManifest?.parsed));
@@ -1637,7 +1641,7 @@ async function inspectDirectionSplitArtifact(jobId: string, resultDir = outboxDi
     };
   }
 
-  const candidates = directionSplitSlugs.map((slug) => bySlug.get(slug)).filter((candidate): candidate is DirectionSplitCandidateFile => Boolean(candidate));
+  const candidates = expectedSlugs.map((slug) => bySlug.get(slug)).filter((candidate): candidate is DirectionSplitCandidateFile => Boolean(candidate));
   const newestMtimeMs = Math.max(...candidates.map((candidate) => candidate.mtimeMs), sourceManifest?.mtimeMs ?? 0);
   const stable = artifactStableMs <= 0 || Date.now() - newestMtimeMs >= artifactStableMs;
   if (!stable) {
@@ -1734,7 +1738,7 @@ async function inspectDirectionSplitArtifact(jobId: string, resultDir = outboxDi
     };
   }
 
-  const manifestName = await publishVerifiedDirectionSplitArtifact(jobId, candidates, sourceManifest, expectedChromaKey, expectedAction, warnings, resultDir);
+  const manifestName = await publishVerifiedDirectionSplitArtifact(jobId, candidates, sourceManifest, expectedChromaKey, expectedAction, warnings, resultDir, expectedSlugs);
   const reason = warnings.length > 0 ? "server verified with warnings" : "server verified";
   return {
     jobId,
@@ -1746,7 +1750,7 @@ async function inspectDirectionSplitArtifact(jobId: string, resultDir = outboxDi
     reason,
     missingDirections,
     warnings,
-    files: directionSplitSlugs.map((slug) => `${jobId}-${slug}${extname(bySlug.get(slug)?.finalName ?? ".png") || ".png"}`),
+    files: expectedSlugs.map((slug) => `${jobId}-${slug}${extname(bySlug.get(slug)?.finalName ?? ".png") || ".png"}`),
     manifestName,
     stable: true,
     candidateCount,
@@ -1875,7 +1879,8 @@ async function publishVerifiedDirectionSplitArtifact(
   expectedChromaKey: string | undefined,
   expectedAction: string | undefined,
   warnings: string[],
-  targetDir = outboxDir
+  targetDir = outboxDir,
+  expectedSlugs: string[] = directionSplitSlugs
 ) {
   await mkdir(targetDir, { recursive: true });
   for (const candidate of candidates) {
@@ -1910,10 +1915,10 @@ async function publishVerifiedDirectionSplitArtifact(
         warnings
       ),
       warnings,
-      directions: directionSplitNames,
+      directions: expectedSlugs.map(directionNameForSlug),
       action: expectedAction,
       framesPerDirection: 8,
-      files: Object.fromEntries(directionSplitSlugs.map((slug, index) => [directionSplitNames[index], `${jobId}-${slug}${extname(candidates[index]?.finalName ?? ".png") || ".png"}`])),
+      files: Object.fromEntries(expectedSlugs.map((slug, index) => [directionNameForSlug(slug), `${jobId}-${slug}${extname(candidates[index]?.finalName ?? ".png") || ".png"}`])),
       chromaKey: expectedChromaKey ? { name: expectedChromaKey } : undefined,
       sourceManifest: sourceManifest
         ? {
@@ -1928,17 +1933,40 @@ async function publishVerifiedDirectionSplitArtifact(
   return manifestName;
 }
 
-async function readJobExpectedSpriteContext(jobId: string) {
+async function readJobExpectedSpriteContext(jobId: string): Promise<{
+  action?: string;
+  chromaKey?: string;
+  directionSlugs?: string[];
+}> {
   try {
     const text = await readFile(join(inboxDir, `${jobId}.json`), "utf8");
-    const parsed = JSON.parse(text) as { spriteContext?: { action?: unknown; chromaKey?: unknown } };
+    const parsed = JSON.parse(text) as { spriteContext?: { action?: unknown; chromaKey?: unknown; directions?: unknown } };
     return {
       action: normalizeActionValue(parsed.spriteContext?.action),
-      chromaKey: normalizeChromaKeyValue(parsed.spriteContext?.chromaKey)
+      chromaKey: normalizeChromaKeyValue(parsed.spriteContext?.chromaKey),
+      directionSlugs: normalizeDirectionSlugsValue(parsed.spriteContext?.directions)
     };
   } catch {
     return {};
   }
+}
+
+function directionSlugForName(name: string) {
+  return name.trim().toLowerCase().replace(/[_\s]+/g, "-");
+}
+
+function directionNameForSlug(slug: string) {
+  const index = directionSplitSlugs.indexOf(slug);
+  return index >= 0 ? directionSplitNames[index] : slug;
+}
+
+function normalizeDirectionSlugsValue(value: unknown): string[] | undefined {
+  if (!Array.isArray(value)) return undefined;
+  const requested = value
+    .filter((item): item is string => typeof item === "string")
+    .map(directionSlugForName);
+  const ordered = directionSplitSlugs.filter((slug) => requested.includes(slug));
+  return ordered.length > 0 && ordered.length < directionSplitSlugs.length ? ordered : undefined;
 }
 
 function normalizeActionValue(value: unknown) {
@@ -2362,13 +2390,14 @@ async function publishTournamentWinner(tournamentId: string, jobId: string) {
   if (!artifact.ready || !artifact.verified) {
     throw new Error(`Tournament winner is not ready for root publish: ${artifact.reason}`);
   }
-  const candidates = (await Promise.all(directionSplitSlugs.map((slug) => findDirectionSplitCandidateFile(jobId, slug, jobOutboxDir))))
+  const expectedSpriteContext = await readJobExpectedSpriteContext(jobId);
+  const expectedSlugs = expectedSpriteContext.directionSlugs ?? directionSplitSlugs;
+  const candidates = (await Promise.all(expectedSlugs.map((slug) => findDirectionSplitCandidateFile(jobId, slug, jobOutboxDir))))
     .filter((candidate): candidate is DirectionSplitCandidateFile => Boolean(candidate));
-  if (candidates.length !== directionSplitSlugs.length) {
+  if (candidates.length !== expectedSlugs.length) {
     throw new Error("Tournament winner is missing one or more direction files.");
   }
   const sourceManifest = await findDirectionSplitSourceManifest(jobId, jobOutboxDir);
-  const expectedSpriteContext = await readJobExpectedSpriteContext(jobId);
   const expectedChromaKey = expectedSpriteContext.chromaKey;
   const expectedAction = expectedSpriteContext.action ?? normalizeActionValue(sourceManifest?.parsed?.action);
   const manifestName = await publishVerifiedDirectionSplitArtifact(
@@ -2378,7 +2407,8 @@ async function publishTournamentWinner(tournamentId: string, jobId: string) {
     expectedChromaKey,
     expectedAction,
     artifact.warnings,
-    outboxDir
+    outboxDir,
+    expectedSlugs
   );
   const publishedResults = (await listOutboxResults()).filter((result) => isJobOutboxFileName(jobId, result.name));
   return {
@@ -2494,6 +2524,36 @@ function extensionForMimeType(mimeType: string) {
 
 function parseJsonText<T = unknown>(text: string): T {
   return JSON.parse(text.replace(/^\uFEFF/, "")) as T;
+}
+
+type LocalGenerationRequestValidation =
+  | { ok: true; request: LocalGenerationRequest }
+  | { ok: false; error: string };
+
+function validateLocalGenerationRequest(value: unknown): LocalGenerationRequestValidation {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return { ok: false, error: "Request body must be a JSON object." };
+  }
+  const body = value as Record<string, unknown>;
+  const optionalStringFields = ["workflowMode", "prompt", "negativePrompt", "jobNotes", "seed", "size", "action"] as const;
+  for (const field of optionalStringFields) {
+    if (body[field] !== undefined && typeof body[field] !== "string") {
+      return { ok: false, error: `Field "${field}" must be a string when provided.` };
+    }
+  }
+  if (typeof body.prompt !== "string" || !body.prompt.trim()) {
+    return { ok: false, error: "Prompt is required for local generation" };
+  }
+  if (body.size !== undefined && body.size !== "" && !/^\d{2,4}x\d{2,4}(\s*x\s*\d{1,2})?$/i.test(String(body.size).trim())) {
+    return { ok: false, error: 'Field "size" must look like "512x512" when provided.' };
+  }
+  if (body.count !== undefined) {
+    const count = body.count;
+    if (typeof count !== "number" || !Number.isFinite(count) || !Number.isInteger(count) || count < 1 || count > 8) {
+      return { ok: false, error: 'Field "count" must be an integer between 1 and 8 when provided.' };
+    }
+  }
+  return { ok: true, request: body as LocalGenerationRequest };
 }
 
 function readJson(request: IncomingMessage) {
