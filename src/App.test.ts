@@ -22,9 +22,11 @@ import {
   isAnimationSource,
   isGenericStaticImageResult,
   isOutboxResultForJob,
+  isTransientAnimationTournamentEvaluationError,
   isLikelyFrameGarbageComponent,
   isUsableOutboxResult,
   normalizeAnimationDirections,
+  resolveAnimationTournamentCandidateDirections,
   resolveInitialLanguage,
   redactEnvironmentReportText,
   selectDirectionSplitAnimationResults,
@@ -32,6 +34,7 @@ import {
   shouldIgnoreOutboxResultName,
   shouldOpenSettingsFromSearch,
   shouldReportCompletedCodexImportFailure,
+  shouldWaitForAnimationTournamentArtifacts,
   shouldWaitForCodexRunner,
   summarizeCockpitHealthStatus,
   summarizeCodexImportFailureReason,
@@ -106,6 +109,20 @@ describe("Cockpit health status", () => {
       state: "ok",
       message: "Cockpit OK. 82 outbox results available for Recover Results."
     });
+  });
+
+  it("keeps transient tournament artifact stabilization out of terminal failure handling", () => {
+    expect(isTransientAnimationTournamentEvaluationError("waiting for stable verified artifacts")).toBe(true);
+    expect(isTransientAnimationTournamentEvaluationError("Artifacts are still stabilizing.")).toBe(true);
+    expect(isTransientAnimationTournamentEvaluationError("missing side direction")).toBe(false);
+    expect(shouldWaitForAnimationTournamentArtifacts({ waitingForVerifiedArtifacts: true, missingDirections: [] })).toBe(true);
+    expect(shouldWaitForAnimationTournamentArtifacts({ waitingForVerifiedArtifacts: true, missingDirections: ["side"] })).toBe(false);
+  });
+
+  it("evaluates Direction Repair against only its requested directions", () => {
+    const requested = ["front", "front three-quarter", "side", "back three-quarter", "back"];
+    expect(resolveAnimationTournamentCandidateDirections(requested)).toEqual(requested);
+    expect(resolveAnimationTournamentCandidateDirections(requested, ["side"])).toEqual(["side"]);
   });
 
   it("still warns on Cockpit route or supervisor mismatches", () => {

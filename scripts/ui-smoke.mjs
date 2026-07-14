@@ -588,6 +588,15 @@ async function assertAnimationPresetExamples() {
     return Boolean(trigger && selectedCard && selectedCard.nextElementSibling === trigger);
   })()`);
   assert(triggerPlacement, "Choose Animation trigger should sit directly below the selected animation card");
+  const profileSnapshot = await pageSnapshot();
+  assert(profileSnapshot.text.includes("Generation profile"), "Animation Generation should expose the generation profile selector");
+  assert(["Fast", "Balanced", "Best"].every((label) => profileSnapshot.buttons.includes(label) || profileSnapshot.text.includes(label)), "Generation profile should expose Fast, Balanced, and Best");
+  const defaultBest = await evaluate(`document.querySelector(".generation-profile-buttons button.active")?.innerText.includes("Best")`);
+  assert(defaultBest, "Best should remain the default animation generation profile");
+  await clickSelector(".generation-profile-buttons button:nth-child(2)");
+  const balancedActive = await evaluate(`document.querySelector(".generation-profile-buttons button.active")?.innerText.includes("Balanced")`);
+  assert(balancedActive, "Balanced profile should be selectable");
+  await clickSelector(".generation-profile-buttons button:nth-child(3)");
 
   await clickButtonByText("Choose Animation");
   await waitForEval(() => `document.querySelector(".animation-preset-modal")?.innerText.includes("Idle Breathing")`, "Choose Animation modal");
@@ -1681,6 +1690,11 @@ async function assertWorkflow({
       await assertNormalizedAnimationFrames(label);
     }
     if (expectSourceRoundTrip) {
+      await waitForEval(
+        () => `document.querySelectorAll(".codex-job-row").length === 0`,
+        `${label} releases every tournament job before source round trip`,
+        15000
+      );
       await assertSourceStatusRoundTrip(label, ".animation-source-status.source-status-button", { restoreSelectedResult: true });
     }
     if (expectedCanvasPreviewModeAfterExercise) {
@@ -1858,7 +1872,7 @@ async function assertSourceStatusRoundTrip(label, selector, { restoreSelectedRes
   if (label === "Animation Generation") {
     assert(
       after.animationSourceCard.includes(sourceName),
-      `${label} should keep the clicked source in the Animation Generation source card`
+      `${label} should keep the clicked source in the Animation Generation source card: source=${JSON.stringify(sourceName)}, card=${JSON.stringify(after.animationSourceCard)}, jobs=${after.codexJobRows}`
     );
     assert(!after.disabledButtons.includes("Generate Animation"), `${label} should allow generating another animation from the clicked source`);
   }
@@ -2223,7 +2237,7 @@ async function pageSnapshot() {
       .filter(Boolean),
     animationSourceStatus: document.querySelector(".animation-source-status")?.innerText || "",
     animationSourceButton: Boolean(document.querySelector(".animation-source-status.source-status-button")),
-    animationSourceCard: document.querySelector(".animation-step.complete .source-preview")?.innerText.replace(/\s+/g, " ").trim() || "",
+    animationSourceCard: document.querySelector(".animation-step.complete .source-preview")?.innerText.replace(/\\s+/g, " ").trim() || "",
     imageEditSourceStatus: document.querySelector(".image-edit-source-status")?.innerText || "",
     imageEditSourceButton: Boolean(document.querySelector(".image-edit-source-status.source-status-button")),
     imageEditSourceImages: document.querySelectorAll(".image-edit-source-status img").length,

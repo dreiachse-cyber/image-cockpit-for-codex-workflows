@@ -452,9 +452,10 @@ function checkWorkflowIds() {
   const uiSmokeText = readText("scripts/ui-smoke.mjs");
   const exportersText = readText("src/lib/exporters.ts");
   const animationPackText = readText("src/lib/animationPack.ts");
+  const animationTournamentText = readText("src/lib/animationTournament.ts");
   const realCodexSmokeText = readText("scripts/real-codex-runner-smoke.mjs");
   const imageEditFullBodyQaText = readText("docs/qa/image-edit-full-body-fit.md");
-  if (!appText || !stylesText || !smokeText || !uiSmokeText || !realCodexSmokeText) return;
+  if (!appText || !stylesText || !smokeText || !uiSmokeText || !realCodexSmokeText || !animationTournamentText) return;
 
   requiredWorkflowIds.forEach((workflowId) => {
     if (!appText.includes(workflowId)) {
@@ -769,12 +770,16 @@ function checkWorkflowIds() {
   });
 
   [
-    "parallel: default OSS-safe behavior",
-    'import.meta.env.VITE_STANDARD_ANIMATION_TOURNAMENT_MODE === "sequential" ? "sequential" : "parallel"',
+    'useState<AnimationGenerationProfile>("best")',
+    'initialCandidates: 3',
+    'maximumCandidates: 3',
+    'shouldStartBalancedAdditionalCandidate',
+    'batchMatrixRunId',
+    'batchMatrixCellKey',
     'const ANIMATION_DIRECTION_PRESET_IDS: AnimationDirectionPresetId[] = ["five", "three"];'
   ].forEach((marker) => {
-    if (!appText.includes(marker)) {
-      failures.push(`App should keep standard animation on the parallel 3-candidate default and 3/5 direction presets: ${marker}`);
+    if (!`${appText}\n${animationTournamentText}`.includes(marker)) {
+      failures.push(`App should keep Best on the 3-candidate fallback, support adaptive Balanced, and keep 3/5 direction presets: ${marker}`);
     }
   });
 

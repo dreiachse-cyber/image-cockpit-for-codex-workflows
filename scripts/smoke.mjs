@@ -17,7 +17,7 @@ console.log("Smoke passed.");
 async function runManualHandoffSmoke() {
   const port = String(8900 + Math.floor(Math.random() * 400));
   const handoffDir = await mkdtemp(join(tmpdir(), "image-cockpit-smoke-manual-"));
-  const server = startServer({
+  let server = startServer({
     port,
     handoffDir,
     env: {
@@ -293,6 +293,164 @@ async function runManualHandoffSmoke() {
     assert(generateJobJson.annotationContext.annotationCount === 0, "generation job should not carry edit annotations");
     assert(generateJobJson.spriteContext.frames === 0, "generation job should not carry sprite context");
 
+    const persistentTournamentId = "smoke-persistent-balanced-tournament";
+    const tournamentRegistration = {
+      tournamentId: persistentTournamentId,
+      idempotencyKey: "smoke:persistent:balanced:v1",
+      sourceFingerprint: "smoke-source-fingerprint-v1",
+      motionRecipeId: "walk",
+      presetId: "walk-cycle",
+      generationProfile: "balanced",
+      requestedDirections: ["front", "side", "back"],
+      maximumCandidateCount: 3,
+      initialCandidateCount: 2,
+      clientContext: {
+        label: "Smoke persistent tournament",
+        workflowMode: "sprite-generate",
+        actionName: "walk",
+        sourceImageId: "hist-smoke-source",
+        sourceImageName: "tiny.png",
+        batchMatrixRunId: "batch-matrix-smoke",
+        batchMatrixCellKey: "hist-smoke-source:walk-cycle"
+      },
+      jobTemplate: {
+        workflowMode: "sprite-generate",
+        prompt: "Smoke test persistent balanced tournament",
+        selectedImageName: "tiny.png",
+        selectedImageSize: "1x1",
+        selectedImageSource: "import",
+        selectedImageDataUrl: tinyPng,
+        grid: { columns: 8, rows: 3, gutter: 0 },
+        action: "walk",
+        frames: 24,
+        cell: { width: 256, height: 256 },
+        chromaKey: "green",
+        spriteVariant: "standard",
+        directions: ["front", "side", "back"]
+      }
+    };
+    const registeredTournament = await postJson(port, "/api/codex/tournaments", tournamentRegistration);
+    assert(registeredTournament.created === true, "first tournament registration should create the persistent manifest");
+    assert(registeredTournament.tournament.generationProfile === "balanced", "tournament manifest should persist the generation profile");
+    assert(registeredTournament.tournament.candidates.length === 3, "Balanced should persist a 2+1 candidate plan");
+    assert(registeredTournament.tournament.clientContext.batchMatrixRunId === "batch-matrix-smoke", "Batch Matrix run identity should persist across reloads");
+    assert(registeredTournament.tournament.clientContext.batchMatrixCellKey === "hist-smoke-source:walk-cycle", "Batch Matrix cells should keep an exact persistent lookup key");
+    const duplicateRegistration = await postJson(port, "/api/codex/tournaments", tournamentRegistration);
+    assert(duplicateRegistration.created === false, "same tournament idempotency key should reuse the manifest");
+    const candidateA = await postJson(port, `/api/codex/tournaments/${persistentTournamentId}/candidates`, { candidateIndex: 0 });
+    const duplicateCandidateA = await postJson(port, `/api/codex/tournaments/${persistentTournamentId}/candidates`, { candidateIndex: 0 });
+    assert(candidateA.job.id === duplicateCandidateA.job.id, "duplicate tournament candidate POST should not start another job");
+    assert(duplicateCandidateA.reused === true, "duplicate tournament candidate POST should report reused=true");
+    const candidateC = await postJson(port, `/api/codex/tournaments/${persistentTournamentId}/candidates`, {
+      candidateIndex: 2,
+      reason: "one initial candidate failed"
+    });
+    assert(candidateC.tournament.thirdCandidateReason === "one initial candidate failed", "adaptive candidate reason should persist in the manifest");
+    const failedCandidateEvaluation = await postJson(port, `/api/codex/tournaments/${persistentTournamentId}/evaluation`, {
+      jobId: candidateC.job.id,
+      ready: false,
+      warningCount: Number.MAX_SAFE_INTEGER,
+      reason: "smoke terminal failure"
+    });
+    assert(failedCandidateEvaluation.tournament.candidates[2].warningCount === 0, "failed evaluations should not persist the client warning sentinel");
+    const templateJson = JSON.parse(await readFile(join(handoffDir, "outbox", ".tournaments", persistentTournamentId, "template.json"), "utf8"));
+    assert(templateJson.selectedImageDataUrl === "", "persistent tournament template should not duplicate the source Data URL");
+    assert(templateJson.selectedImageAssetPath, "persistent tournament template should use a content-addressed source asset reference");
+    const candidateAJson = JSON.parse(await readFile(candidateA.job.path, "utf8"));
+    const candidateCJson = JSON.parse(await readFile(candidateC.job.path, "utf8"));
+    assert(candidateAJson.selectedImage.assetPath === candidateCJson.selectedImage.assetPath, "tournament candidates should share one content-addressed source asset");
+    await stopServer(server);
+    server = startServer({
+      port,
+      handoffDir,
+      env: {
+        IMAGE_COCKPIT_CODEX_AUTORUN: "0",
+        IMAGE_COCKPIT_ARTIFACT_STABLE_MS: "0"
+      }
+    });
+    await waitForServer(server, port);
+    const restoredTournament = await getJson(port, `/api/codex/tournaments/${persistentTournamentId}`);
+    assert(restoredTournament.tournament.candidates[0].jobId === candidateA.job.id, "API restart should restore candidate A from disk manifest");
+    assert(restoredTournament.tournament.candidates[2].jobId === candidateC.job.id, "API restart should restore adaptive candidate C without duplication");
+    for (const slug of ["front", "side", "back"]) {
+      await writeFile(join(candidateA.job.outboxPath, `${candidateA.job.id}-${slug}.png`), tinyPngBytes);
+    }
+    await writeFile(join(candidateA.job.outboxPath, `${candidateA.job.id}-manifest.json`), JSON.stringify({
+      schema: "image-cockpit.direction-split-animation.v1",
+      jobId: candidateA.job.id,
+      action: "walk",
+      directions: ["front", "side", "back"],
+      files: {
+        front: `${candidateA.job.id}-front.png`,
+        side: `${candidateA.job.id}-side.png`,
+        back: `${candidateA.job.id}-back.png`
+      },
+      chromaKey: { name: "green" }
+    }, null, 2), "utf8");
+    await getJson(port, `/api/codex/jobs/${candidateA.job.id}/results`);
+    const evaluatedCandidate = await postJson(port, `/api/codex/tournaments/${persistentTournamentId}/evaluation`, {
+      jobId: candidateA.job.id,
+      ready: true,
+      score: 3210,
+      warningCount: 2,
+      qualityReportRef: `${candidateA.job.id}-manifest.json#animationQuality`,
+      reason: "smoke verified"
+    });
+    assert(evaluatedCandidate.tournament.candidates[0].state === "quality-evaluated", "verified tournament evaluation should persist");
+    const transientRegression = await postJson(port, `/api/codex/tournaments/${persistentTournamentId}/evaluation`, {
+      jobId: candidateA.job.id,
+      ready: false,
+      score: null,
+      warningCount: Number.MAX_SAFE_INTEGER,
+      reason: "transient stability read"
+    });
+    assert(transientRegression.tournament.candidates[0].state === "quality-evaluated", "transient reread should not downgrade an immutable evaluated candidate");
+    assert(transientRegression.tournament.candidates[0].score === 3210, "transient reread should preserve the evaluated candidate score");
+    assert(transientRegression.tournament.candidates[0].warningCount === 2, "transient reread should preserve the evaluated warning count");
+    const acceptedWinner = await postJson(port, `/api/codex/tournaments/${persistentTournamentId}/winner`, { jobId: candidateA.job.id });
+    assert(acceptedWinner.tournament.state === "accepted", "verified candidate should become the persistent tournament winner");
+    const failedRepair = await postJson(port, `/api/codex/tournaments/${persistentTournamentId}/repairs`, { directions: ["side"] });
+    await postJson(port, `/api/codex/tournaments/${persistentTournamentId}/evaluation`, {
+      jobId: failedRepair.job.id,
+      ready: false,
+      score: null,
+      warningCount: 0,
+      reason: "simulated transient client race"
+    });
+    const recoveredAfterRepairFailure = await getJson(port, `/api/codex/tournaments/${persistentTournamentId}`);
+    assert(recoveredAfterRepairFailure.tournament.state === "accepted", "failed Direction Repair should restore the accepted winner state");
+    assert(Object.values(recoveredAfterRepairFailure.tournament.directionStates).every((direction) => direction.state === "accepted"), "failed Direction Repair should restore every winner direction state");
+    const repair = await postJson(port, `/api/codex/tournaments/${persistentTournamentId}/repairs`, { directions: ["side"] });
+    assert(repair.job.id !== failedRepair.job.id, "failed Direction Repair should allow one bounded retry with a new job id");
+    await writeFile(join(repair.job.outboxPath, `${repair.job.id}-side.png`), tinyPngBytes);
+    await writeFile(join(repair.job.outboxPath, `${repair.job.id}-manifest.json`), JSON.stringify({
+      schema: "image-cockpit.direction-split-animation.v1",
+      jobId: repair.job.id,
+      action: "walk",
+      directions: ["side"],
+      files: { side: `${repair.job.id}-side.png` },
+      chromaKey: { name: "green" },
+      quality: "gold",
+      qualityGate: {
+        classification: "usable-final",
+        reason: "server verified repair",
+        historyAllowed: true,
+        downloadAllowed: true,
+        retryable: false
+      }
+    }, null, 2), "utf8");
+    await getJson(port, `/api/codex/jobs/${repair.job.id}/results`);
+    await postJson(port, `/api/codex/artifacts/${repair.job.id}/animation-quality`, { report: animationQualityReport });
+    const acceptedRepair = await postJson(port, `/api/codex/tournaments/${persistentTournamentId}/repairs/accept`, { jobId: repair.job.id });
+    assert(acceptedRepair.tournament.state === "accepted", "verified Direction Repair should return the tournament to accepted");
+    assert(acceptedRepair.repairedDirections.join(",") === "side", "Direction Repair should replace only the requested direction");
+    assert(acceptedRepair.beforeHashes.front === acceptedRepair.afterHashes.front, "Direction Repair should preserve the front hash");
+    assert(acceptedRepair.beforeHashes.back === acceptedRepair.afterHashes.back, "Direction Repair should preserve the back hash");
+    assert(acceptedRepair.tournament.directionStates.side.jobId === repair.job.id, "accepted Direction Repair should attribute the repaired direction to the repair job");
+    assert(acceptedRepair.tournament.directionStates.front.jobId === candidateA.job.id, "accepted Direction Repair should attribute untargeted directions to the preserved winner");
+    const cancelledTournament = await postJson(port, `/api/codex/tournaments/${persistentTournamentId}/cancel`, {});
+    assert(cancelledTournament.tournament.state === "cancelled", "tournament cancel should persist a terminal cancelled state");
+
     const tournamentJob = await postJson(port, "/api/codex/jobs", {
       workflowMode: "sprite-generate",
       prompt: "Smoke test hidden tournament Quality v2 persistence",
@@ -527,7 +685,7 @@ async function runMockRunnerGuardSmoke() {
   const mockRunnerPath = join(handoffDir, "mock-codex-runner.mjs");
   await writeFile(mockRunnerPath, mockRunnerSource(), "utf8");
 
-  const server = startServer({
+  let server = startServer({
     port,
     handoffDir,
     env: {
@@ -580,25 +738,26 @@ async function runMockAutorunSmoke() {
   const mockRunnerPath = join(handoffDir, "mock-codex-runner.mjs");
   await writeFile(mockRunnerPath, mockRunnerSource(), "utf8");
 
-  const server = startServer({
+  const autorunEnv = {
+    IMAGE_COCKPIT_CODEX_AUTORUN: "1",
+    IMAGE_COCKPIT_ALLOW_MOCK_RUNNER: "1",
+    IMAGE_COCKPIT_CODEX_COMMAND: nodeCommand,
+    IMAGE_COCKPIT_CODEX_HELP_ARGS_JSON: JSON.stringify([mockRunnerPath, "--help"]),
+    IMAGE_COCKPIT_CODEX_EXEC_ARGS_JSON: JSON.stringify([
+      mockRunnerPath,
+      "exec",
+      "-c",
+      'approval_policy="never"',
+      "--sandbox",
+      "workspace-write",
+      "-"
+    ]),
+    IMAGE_COCKPIT_ARTIFACT_STABLE_MS: "0"
+  };
+  let server = startServer({
     port,
     handoffDir,
-    env: {
-      IMAGE_COCKPIT_CODEX_AUTORUN: "1",
-      IMAGE_COCKPIT_ALLOW_MOCK_RUNNER: "1",
-      IMAGE_COCKPIT_CODEX_COMMAND: nodeCommand,
-      IMAGE_COCKPIT_CODEX_HELP_ARGS_JSON: JSON.stringify([mockRunnerPath, "--help"]),
-      IMAGE_COCKPIT_CODEX_EXEC_ARGS_JSON: JSON.stringify([
-        mockRunnerPath,
-        "exec",
-        "-c",
-        'approval_policy="never"',
-        "--sandbox",
-        "workspace-write",
-        "-"
-      ]),
-      IMAGE_COCKPIT_ARTIFACT_STABLE_MS: "0"
-    }
+    env: autorunEnv
   });
 
   try {
@@ -611,6 +770,26 @@ async function runMockAutorunSmoke() {
       runnerPreflight.runner?.resolvedCommandPaths?.some((path) => path === nodeCommand),
       "mock autorun preflight should expose resolved command path"
     );
+
+    const resumableJob = await postJson(port, "/api/codex/jobs", {
+      workflowMode: "image-generate",
+      prompt: "Smoke test API restart resume",
+      negativePrompt: "text",
+      jobNotes: "Delay completion so the API can restart.",
+      annotations: [],
+      grid: { columns: 1, rows: 1, gutter: 0 },
+      action: "",
+      frames: 0
+    });
+    assert(resumableJob.runner?.state === "running", "restart-resume fixture should start in running state");
+    const originalStartedAt = resumableJob.runner.startedAt;
+    await stopServer(server);
+    server = startServer({ port, handoffDir, env: autorunEnv });
+    await waitForServer(server, port);
+    const resumedStatus = await waitForJobState(port, resumableJob.id, "completed");
+    assert(resumedStatus.status.resumeCount === 1, "API restart should resume an untracked running job once");
+    assert(resumedStatus.status.initialStartedAt === originalStartedAt, "resumed runner should preserve the initial start time");
+    assert(resumedStatus.status.resumedAt, "resumed runner should record resumedAt");
 
     const job = await postJson(port, "/api/codex/jobs", {
       workflowMode: "image-generate",
@@ -690,6 +869,20 @@ async function runMockAutorunSmoke() {
     const failedStatus = await waitForJobDiagnostic(port, failedJob.id, "policy_or_safety");
     assert(failedStatus.status.state === "failed", "policy stderr job should fail runner");
     assert(failedStatus.status.diagnostic?.kind === "policy_or_safety", "policy stderr should return policy_or_safety diagnostic");
+
+    const modelCapacityJob = await postJson(port, "/api/codex/jobs", {
+      workflowMode: "image-generate",
+      prompt: "Smoke test model at capacity runner failed",
+      negativePrompt: "text",
+      jobNotes: "Trigger transient model capacity diagnostic.",
+      annotations: [],
+      grid: { columns: 1, rows: 1, gutter: 0 },
+      action: "",
+      frames: 0
+    });
+    const modelCapacityStatus = await waitForJobDiagnostic(port, modelCapacityJob.id, "runner_failed");
+    assert(modelCapacityStatus.status.state === "failed", "model capacity stderr should fail the runner");
+    assert(modelCapacityStatus.status.diagnostic?.kind === "runner_failed", "model capacity should not be misclassified from echoed prompt instructions");
 
     const noImageJob = await postJson(port, "/api/codex/jobs", {
       workflowMode: "image-generate",
@@ -848,6 +1041,10 @@ if (job.id !== jobId) {
   process.exit(4);
 }
 
+if (job.prompt.includes("API restart resume")) {
+  await new Promise((resolve) => setTimeout(resolve, 1500));
+}
+
 if (job.prompt.includes("policy blocked sidecar")) {
   await writeFile(join(outboxDir, \`\${jobId}-blocked.json\`), JSON.stringify({
     status: "blocked",
@@ -873,6 +1070,11 @@ if (job.prompt.includes("imagegen unavailable sidecar")) {
 if (job.prompt.includes("policy runner failed")) {
   console.error("content policy safety blocked by image generation");
   process.exit(12);
+}
+
+if (job.prompt.includes("model at capacity runner failed")) {
+  console.error("ERROR: Selected model is at capacity. Please try a different model.");
+  process.exit(13);
 }
 
 if (job.prompt.includes("no image returned")) {

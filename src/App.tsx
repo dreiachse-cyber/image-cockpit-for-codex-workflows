@@ -58,6 +58,13 @@ import { importAnimationPackBlob } from "./lib/animationPack";
 import { animationExportAnchor, animationNormalizationFootline } from "./lib/animationAlignment";
 import { buildAnimationQualityReport } from "./lib/animationQuality";
 import type { AnimationQualityFrameInput } from "./lib/animationQuality";
+import {
+  ANIMATION_GENERATION_PROFILES,
+  animationGenerationProfileDefinition,
+  shouldStartBalancedAdditionalCandidate,
+  tournamentNeedsAllStartedCandidates
+} from "./lib/animationTournament";
+import type { AnimationGenerationProfile } from "./lib/animationTournament";
 import { createId, dataUrlToBlob, downloadBlob, loadImage, readFileAsDataUrl } from "./lib/image";
 import { OFFICIAL_ANIMATION_LIBRARY } from "./lib/officialAnimations";
 import { calculateGridCells, summarizeFrames } from "./lib/sprite";
@@ -132,15 +139,7 @@ const ANIMATION_DIRECTION_COUNT = 5;
 const ANIMATION_CELL_SIZE = 256;
 const MIN_ANIMATION_CELL_SIZE = ANIMATION_CELL_SIZE;
 const MAX_ACTIVE_CODEX_JOBS = 3;
-const STANDARD_ANIMATION_TOURNAMENT_CANDIDATES = readIntegerEnv("VITE_STANDARD_ANIMATION_TOURNAMENT_CANDIDATES", 3, 1, 3);
-const STANDARD_ANIMATION_TOURNAMENT_MIN_AB_CANDIDATES = Math.min(2, STANDARD_ANIMATION_TOURNAMENT_CANDIDATES);
-const MAX_ACTIVE_STANDARD_ANIMATION_CODEX_JOBS = STANDARD_ANIMATION_TOURNAMENT_CANDIDATES;
-type StandardAnimationTournamentMode = "sequential" | "parallel";
-// sequential: generate one candidate first and accept it immediately when it passes the
-// quality gate with zero warnings; only escalate to extra candidates on failure/warnings.
-// parallel: default OSS-safe behavior that starts all candidates and A/B compares the first usable two.
-const STANDARD_ANIMATION_TOURNAMENT_MODE: StandardAnimationTournamentMode =
-  import.meta.env.VITE_STANDARD_ANIMATION_TOURNAMENT_MODE === "sequential" ? "sequential" : "parallel";
+const MAX_ACTIVE_STANDARD_ANIMATION_CODEX_JOBS = MAX_ACTIVE_CODEX_JOBS;
 const CODEX_LOG_POLL_INTERVAL_MS = 2000;
 const CODEX_LOG_TAIL_BYTES = 32768;
 const CODEX_LOG_HISTORY_LIMIT = MAX_ACTIVE_CODEX_JOBS;
@@ -255,7 +254,7 @@ type BaseLanguage = "ja" | "en";
 type LocalizedText = Record<BaseLanguage, string> & Partial<Record<Language, string>>;
 type AnimationGenerationMode = "standard" | "hatch-pet" | "directional-hatch-pet";
 type AnimationChromaKeyName = "green" | "magenta";
-type CodexJobQueueState = "queued" | "running";
+type CodexJobQueueState = "queued" | "running" | "evaluating";
 type CodexJobProgressPhase = "queued" | "starting" | "generating" | "checking" | "extended";
 
 interface AnimationChromaKey {
@@ -594,6 +593,7 @@ interface PendingCodexJob {
   id: string;
   path: string;
   createdAt: string;
+  state?: "running" | "evaluating";
   outboxPath?: string;
   label?: string;
   workflowMode?: WorkflowMode;
@@ -608,6 +608,9 @@ interface PendingCodexJob {
   tournamentId?: string;
   tournamentCandidateIndex?: number;
   tournamentCandidateCount?: number;
+  generationProfile?: AnimationGenerationProfile;
+  sourceFingerprint?: string;
+  repairDirections?: string[];
   effectContext?: EffectAnimationJobContext;
 }
 
@@ -645,6 +648,12 @@ interface CodexJobDraft {
   tournamentId?: string;
   tournamentCandidateIndex?: number;
   tournamentCandidateCount?: number;
+  generationProfile?: AnimationGenerationProfile;
+  sourceFingerprint?: string;
+  idempotencyKey?: string;
+  repairDirections?: string[];
+  repairOfJobId?: string;
+  presetId?: string;
   effectContext?: EffectAnimationJobContext;
 }
 
@@ -669,6 +678,9 @@ interface CodexJobQueueItem {
   tournamentId?: string;
   tournamentCandidateIndex?: number;
   tournamentCandidateCount?: number;
+  generationProfile?: AnimationGenerationProfile;
+  sourceFingerprint?: string;
+  repairDirections?: string[];
   effectContext?: EffectAnimationJobContext;
 }
 
@@ -720,6 +732,47 @@ interface AnimationTournamentStatusEntry {
 interface AnimationTournamentTerminalStatusEntry {
   job: CodexJobQueueItem;
   status: CodexRunnerStatus;
+}
+
+interface AnimationTournamentManifestClient {
+  schema: "image-cockpit.animation-tournament.v1";
+  schemaVersion: 1;
+  tournamentId: string;
+  idempotencyKey: string;
+  sourceFingerprint: string;
+  motionRecipeId?: string;
+  presetId?: string;
+  generationProfile: AnimationGenerationProfile;
+  requestedDirections: string[];
+  maximumCandidateCount: number;
+  initialCandidateCount: number;
+  candidates: Array<{
+    index: number;
+    state: "queued" | "running" | "artifact-ready" | "quality-evaluated" | "accepted" | "repairing" | "failed" | "cancelled";
+    idempotencyKey: string;
+    jobId?: string;
+    createdAt?: string;
+    updatedAt: string;
+    score?: number;
+    warningCount?: number;
+    reason?: string;
+    repairDirections?: string[];
+  }>;
+  directionStates: Record<string, { state: string; updatedAt: string; jobId?: string; reason?: string }>;
+  qualityReportRefs: string[];
+  winnerCandidateId?: string;
+  acceptedDirectionHashes: Record<string, string>;
+  retryCount: number;
+  thirdCandidateReason?: string;
+  state: "queued" | "running" | "accepted" | "failed" | "cancelled";
+  clientContext?: Record<string, unknown>;
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface AnimationTournamentMonitorEntry {
+  manifest: AnimationTournamentManifestClient;
+  restoredAt: string;
 }
 
 interface CodexFailureNotice {
@@ -3988,10 +4041,15 @@ export function summarizeCockpitHealthStatus(hasApiHealth: boolean, mismatches: 
   return { state, message };
 }
 
-function canStartCodexJobDraft(draft: CodexJobDraft, jobs: CodexJobQueueItem[], startingQueuedJobIds: Set<string>) {
-  if (activeCodexJobCount(jobs, startingQueuedJobIds) >= MAX_ACTIVE_CODEX_JOBS) return false;
+function canStartCodexJobDraft(
+  draft: CodexJobDraft,
+  jobs: CodexJobQueueItem[],
+  startingQueuedJobIds: Set<string>,
+  reservedTournamentStarts = 0
+) {
+  if (activeCodexJobCount(jobs, startingQueuedJobIds) + reservedTournamentStarts >= MAX_ACTIVE_CODEX_JOBS) return false;
   if (!isStandardDirectionSplitDraft(draft)) return true;
-  return activeStandardDirectionSplitJobCount(jobs, startingQueuedJobIds) < MAX_ACTIVE_STANDARD_ANIMATION_CODEX_JOBS;
+  return activeStandardDirectionSplitJobCount(jobs, startingQueuedJobIds) + reservedTournamentStarts < MAX_ACTIVE_STANDARD_ANIMATION_CODEX_JOBS;
 }
 
 function isSingleDirectionIntermediateSheet(width: number, height: number, cell: SpriteAction["cell"]) {
@@ -4291,6 +4349,7 @@ function App() {
   const [providerId, setProviderId] = useState<ProviderId>("codex-handoff");
   const [animationGenerationMode, setAnimationGenerationMode] = useState<AnimationGenerationMode>("standard");
   const [animationSourceId, setAnimationSourceId] = useState("");
+  const [animationSourceFingerprint, setAnimationSourceFingerprint] = useState("");
   const [providers, setProviders] = useState<ProviderStatus[]>(fallbackProviders);
   const [runnerPreflight, setRunnerPreflight] = useState<CodexRunnerPreflight | null>(null);
   const [cockpitHealth, setCockpitHealth] = useState<CockpitHealthReport>({
@@ -4328,6 +4387,12 @@ function App() {
   const [isAnimationPreviewBuilding, setIsAnimationPreviewBuilding] = useState(false);
   const [animationChromaKey, setAnimationChromaKey] = useState<AnimationChromaKeyName>("green");
   const [animationDirectionPreset, setAnimationDirectionPreset] = useState<AnimationDirectionPresetId>("five");
+  const [animationGenerationProfile, setAnimationGenerationProfile] = useState<AnimationGenerationProfile>("best");
+  const [animationTournamentMonitors, setAnimationTournamentMonitors] = useState<AnimationTournamentMonitorEntry[]>([]);
+  const [directionRepairSelections, setDirectionRepairSelections] = useState<Record<string, string[]>>({});
+  const [batchMatrixSourceIds, setBatchMatrixSourceIds] = useState<string[]>([]);
+  const [batchMatrixPresetIds, setBatchMatrixPresetIds] = useState<string[]>(["idle-breathing", "walk-cycle"]);
+  const [isBatchMatrixStarting, setIsBatchMatrixStarting] = useState(false);
   const [effectCategoryId, setEffectCategoryId] = useState<EffectCategoryId>("slash-arc");
   const [effectTypeId, setEffectTypeId] = useState("crescent");
   const [effectStyleId, setEffectStyleId] = useState<EffectStyleId>("pixel-clean");
@@ -4358,7 +4423,10 @@ function App() {
   const historyLoadMoreRef = useRef<HTMLDivElement | null>(null);
   const historyRef = useRef<HistoryItem[]>([]);
   const startingQueuedJobIdsRef = useRef<Set<string>>(new Set());
-  const pendingTournamentDraftsRef = useRef<Map<string, CodexJobDraft[]>>(new Map());
+  const startingPersistedTournamentCandidatesRef = useRef<Set<string>>(new Set());
+  const pollingAnimationTournamentIdsRef = useRef<Set<string>>(new Set());
+  const serverTournamentRestoreStartedRef = useRef(false);
+  const batchMatrixInitializedRef = useRef(false);
   const retryingFailureJobIdsRef = useRef<Set<string>>(new Set());
   const lastPointerEventAtRef = useRef(0);
   const originalDocumentTitleRef = useRef(document.title);
@@ -4370,6 +4438,16 @@ function App() {
     () => history.find((item) => item.id === selectedId) ?? history[0],
     [history, selectedId]
   );
+  const batchMatrixSources = useMemo(
+    () => history.filter((item) => isAnimationSource(item)).slice(0, 12),
+    [history]
+  );
+
+  useEffect(() => {
+    if (batchMatrixInitializedRef.current || batchMatrixSources.length < 2) return;
+    batchMatrixInitializedRef.current = true;
+    setBatchMatrixSourceIds(batchMatrixSources.slice(0, 2).map((item) => item.id));
+  }, [batchMatrixSources]);
   const selectedHistoryIndex = useMemo(
     () => (selected?.id ? history.findIndex((item) => item.id === selected.id) : -1),
     [history, selected?.id]
@@ -4441,6 +4519,24 @@ function App() {
     if (isAnimationSource(selected)) return selected;
     return undefined;
   }, [animationSourceId, history, selected]);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!animationSource?.dataUrl) {
+      setAnimationSourceFingerprint("");
+      return;
+    }
+    void fingerprintImageSource(animationSource.dataUrl)
+      .then((fingerprint) => {
+        if (!cancelled) setAnimationSourceFingerprint(fingerprint);
+      })
+      .catch(() => {
+        if (!cancelled) setAnimationSourceFingerprint("");
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [animationSource?.dataUrl]);
 
   const activeAction = useMemo(
     () => actions.find((action) => action.name === activeActionName) ?? actions[0],
@@ -4838,6 +4934,84 @@ function App() {
   }, [canPersistLocalState, codexJobs]);
 
   useEffect(() => {
+    if (!storageHydrated || serverTournamentRestoreStartedRef.current) return;
+    serverTournamentRestoreStartedRef.current = true;
+    let cancelled = false;
+
+    const restore = async () => {
+      const response = await fetch("/api/codex/tournaments");
+      if (!response.ok) throw new Error(await response.text());
+      const manifests = ((await response.json()) as { tournaments: AnimationTournamentManifestClient[] }).tournaments;
+      if (cancelled) return;
+      setAnimationTournamentMonitors(manifests.slice(0, 12).map((manifest) => ({ manifest, restoredAt: new Date().toISOString() })));
+      const existingIds = new Set(codexJobs.map((job) => job.id));
+      const restored: CodexJobQueueItem[] = [];
+      const resumableManifests = manifests.filter((item) => item.state === "queued" || item.state === "running");
+      for (const manifest of resumableManifests) {
+        for (const candidate of manifest.candidates) {
+          if (
+            !candidate.jobId ||
+            existingIds.has(candidate.jobId) ||
+            candidate.state === "accepted" ||
+            candidate.state === "failed" ||
+            candidate.state === "cancelled"
+          ) continue;
+          restored.push(tournamentQueueItemFromManifest(manifest, candidate.index, {
+            id: candidate.jobId,
+            path: `server-tournament:${manifest.tournamentId}:${candidate.jobId}`,
+            outboxPath: undefined,
+            createdAt: candidate.createdAt ?? manifest.createdAt
+          }));
+          existingIds.add(candidate.jobId);
+        }
+      }
+      if (restored.length > 0 && !cancelled) {
+        setCodexJobs((current) => [...current, ...restored.filter((job) => !current.some((item) => item.id === job.id))]);
+      }
+
+    };
+
+    void restore().catch((error) => {
+      if (!cancelled) setStatus(error instanceof Error ? `Tournament resume failed: ${error.message}` : "Tournament resume failed.");
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [storageHydrated]);
+
+  useEffect(() => {
+    if (!storageHydrated || animationTournamentMonitors.length === 0) return;
+    const startingCount = startingPersistedTournamentCandidatesRef.current.size;
+    let availableGlobalSlots = Math.max(0, MAX_ACTIVE_CODEX_JOBS - activeCodexJobCount(codexJobs, startingQueuedJobIdsRef.current) - startingCount);
+    let availableAnimationSlots = Math.max(
+      0,
+      MAX_ACTIVE_STANDARD_ANIMATION_CODEX_JOBS - activeStandardDirectionSplitJobCount(codexJobs, startingQueuedJobIdsRef.current) - startingCount
+    );
+    if (availableGlobalSlots === 0 || availableAnimationSlots === 0) return;
+
+    const missingInitialCandidates = animationTournamentMonitors
+      .map(({ manifest }) => manifest)
+      .filter((manifest) => manifest.state === "queued" || manifest.state === "running")
+      .flatMap((manifest) => manifest.candidates
+        .slice(0, manifest.initialCandidateCount)
+        .filter((candidate) => !candidate.jobId && candidate.state === "queued")
+        .map((candidate) => ({ manifest, candidateIndex: candidate.index }))
+      );
+
+    for (const { manifest, candidateIndex } of missingInitialCandidates) {
+      if (availableGlobalSlots <= 0 || availableAnimationSlots <= 0) break;
+      const key = `${manifest.tournamentId}:${candidateIndex}`;
+      if (startingPersistedTournamentCandidatesRef.current.has(key)) continue;
+      startingPersistedTournamentCandidatesRef.current.add(key);
+      availableGlobalSlots -= 1;
+      availableAnimationSlots -= 1;
+      void startPersistedTournamentCandidate(manifest, candidateIndex, "resume registered initial candidate after reload")
+        .catch((error) => setStatus(error instanceof Error ? error.message : "Could not resume a tournament candidate."))
+        .finally(() => startingPersistedTournamentCandidatesRef.current.delete(key));
+    }
+  }, [animationTournamentMonitors, codexJobs, storageHydrated]);
+
+  useEffect(() => {
     if (settingsOpen || settingsAutoDismissedRef.current) return;
     const hasStorageProblem = storageScreen.mode === "safe" || storageScreen.mode === "recovery" || storageScreen.mode === "reset";
     const hasApiProblem = cockpitHealth.state === "broken";
@@ -5085,15 +5259,18 @@ function App() {
   }, [frames, selectedEffectAction, selectedEffectExportReady]);
 
   useEffect(() => {
-    const runningJobs = codexJobs.filter((job) => job.state === "running");
-    if (runningJobs.length === 0) return;
+    const pollableJobs = codexJobs.filter((job) => job.state === "running" || job.state === "evaluating");
+    if (pollableJobs.length === 0) return;
     let cancelled = false;
 
     const pollForReturnedImages = async () => {
       const tournamentGroups = new Map<string, CodexJobQueueItem[]>();
       const individualJobs: CodexJobQueueItem[] = [];
+      const directionRepairJobs: CodexJobQueueItem[] = [];
       for (const job of codexJobs) {
-        if (isAnimationTournamentJob(job) && job.tournamentId) {
+        if (isAnimationTournamentJob(job) && job.tournamentId && job.repairDirections?.length) {
+          directionRepairJobs.push(job);
+        } else if (isAnimationTournamentJob(job) && job.tournamentId) {
           const group = tournamentGroups.get(job.tournamentId) ?? [];
           group.push(job);
           tournamentGroups.set(job.tournamentId, group);
@@ -5107,16 +5284,20 @@ function App() {
           if (!cancelled) setStatus(error instanceof Error ? error.message : copy.statusInboxError);
           return "pending";
         })),
+        ...directionRepairJobs.map((job) => pollCodexDirectionRepair(job, () => cancelled).catch((error) => {
+          if (!cancelled) setStatus(error instanceof Error ? error.message : `Direction Repair failed: ${job.id}`);
+          return "pending";
+        })),
         ...Array.from(tournamentGroups.entries())
-          .filter(([, jobs]) => jobs.some((job) => job.state === "running"))
-          .map(([tournamentId, jobs]) => pollCodexAnimationTournament(tournamentId, jobs, () => cancelled).catch((error) => {
+          .filter(([, jobs]) => jobs.some((job) => job.state === "running" || job.state === "evaluating"))
+          .map(([tournamentId, jobs]) => pollCodexAnimationTournament(tournamentId, jobs).catch((error) => {
             if (!cancelled) setStatus(error instanceof Error ? error.message : `Animation tournament failed: ${tournamentId}`);
             return "pending";
           }))
       ]);
 
-      if (!cancelled && outcomes.every((outcome) => outcome === "pending")) {
-        setStatus(`${copy.statusCodexJobPending}: ${runningJobs.map((job) => job.id).join(", ")}`);
+      if (!cancelled && outcomes.every((outcome) => outcome === "pending") && !codexJobs.some((job) => job.state === "queued")) {
+        setStatus(`${copy.statusCodexJobPending}: ${pollableJobs.map((job) => job.id).join(", ")}`);
       }
     };
 
@@ -5177,39 +5358,402 @@ function App() {
     return "pending";
   }
 
-  async function pollCodexAnimationTournament(tournamentId: string, jobs: CodexJobQueueItem[], isCancelled: () => boolean) {
-    const expectedCount = jobs[0]?.tournamentCandidateCount ?? STANDARD_ANIMATION_TOURNAMENT_CANDIDATES;
-    const minimumReadyCount = Math.min(STANDARD_ANIMATION_TOURNAMENT_MIN_AB_CANDIDATES, expectedCount);
-    if (STANDARD_ANIMATION_TOURNAMENT_MODE === "sequential") {
-      return pollSequentialCodexAnimationTournament(tournamentId, jobs, isCancelled, expectedCount);
-    }
-    if (jobs.length < expectedCount || jobs.some((job) => job.state === "queued")) return "pending";
-
-    const statuses = await loadAnimationTournamentStatuses(jobs);
+  async function pollCodexDirectionRepair(job: CodexJobQueueItem, isCancelled: () => boolean) {
+    if (!job.tournamentId) return "terminal";
+    const runnerStatus = await loadCodexRunnerStatus(job.id);
     if (isCancelled()) return "cancelled";
+    if (shouldWaitForCodexRunner(runnerStatus ?? undefined)) return "pending";
+    const evaluation = await evaluateDirectionSplitTournamentCandidate(job, runnerStatus);
+    if (isCancelled()) return "cancelled";
+    if (!evaluation.ready && isTransientAnimationTournamentEvaluationError(evaluation.error)) return "pending";
+    await recordCodexAnimationTournamentEvaluation(job.tournamentId, evaluation);
+    const manifest = await loadCodexAnimationTournament(job.tournamentId);
+    updateAnimationTournamentMonitor(manifest);
+    clearCodexFailureNotice(job.id);
+    removeCodexJob(job.id, runnerStatus?.state ?? (evaluation.ready ? "completed" : "failed"), { notify: false });
+    if (evaluation.ready) {
+      setStatus(`Direction Repair ready for review: ${job.repairDirections?.join(", ")}. Untargeted directions remain locked until acceptance.`);
+    } else {
+      recordCodexImportFailure(job, new Error(`Direction Repair failed Quality Gate v2: ${evaluation.error ?? "no usable repair artifact"}`));
+      setStatus(`Direction Repair failed: ${evaluation.error ?? job.id}`);
+    }
+    return "terminal";
+  }
+
+  async function pollCodexAnimationTournament(tournamentId: string, jobs: CodexJobQueueItem[]) {
+    if (pollingAnimationTournamentIdsRef.current.has(tournamentId)) return "pending";
+    pollingAnimationTournamentIdsRef.current.add(tournamentId);
+    try {
+      return await pollCodexAnimationTournamentUnlocked(tournamentId, jobs);
+    } finally {
+      pollingAnimationTournamentIdsRef.current.delete(tournamentId);
+    }
+  }
+
+  async function pollCodexAnimationTournamentUnlocked(tournamentId: string, jobs: CodexJobQueueItem[]) {
+    const manifest = await loadCodexAnimationTournament(tournamentId).catch(() => legacyAnimationTournamentManifest(tournamentId, jobs));
+    const isLegacyTournament = manifest.idempotencyKey.startsWith("legacy:");
+    if (!isLegacyTournament) updateAnimationTournamentMonitor(manifest);
+    const expectedCount = manifest.maximumCandidateCount;
+    const profile = manifest.generationProfile;
+    const knownJobIds = new Set(jobs.map((job) => job.id));
+    const trackedJobs = isLegacyTournament
+      ? jobs
+      : [
+          ...jobs,
+          ...manifest.candidates
+            .filter((candidate) => candidate.jobId && !candidate.repairDirections?.length && !knownJobIds.has(candidate.jobId))
+            .map((candidate) => tournamentQueueItemFromManifest(manifest, candidate.index, {
+              id: candidate.jobId!,
+              path: `server-tournament:${manifest.tournamentId}:${candidate.jobId}`,
+              outboxPath: undefined,
+              createdAt: candidate.createdAt ?? manifest.createdAt
+            }))
+        ];
+    const statuses = await loadAnimationTournamentStatuses(trackedJobs);
     const terminalStatuses = terminalAnimationTournamentStatuses(statuses);
     if (terminalStatuses.length === 0) return "pending";
 
-    const evaluations = await Promise.all(
+    const evaluations = sortTournamentEvaluationsByCandidate(await Promise.all(
       terminalStatuses.map(async ({ job, status }) => evaluateDirectionSplitTournamentCandidate(job, status))
+    ));
+    const transientEvaluations = evaluations.filter((evaluation) =>
+      !evaluation.ready && isTransientAnimationTournamentEvaluationError(evaluation.error)
     );
-    if (isCancelled()) return "cancelled";
+    if (!isLegacyTournament) {
+      await Promise.all(
+        evaluations
+          .filter((evaluation) => !transientEvaluations.includes(evaluation))
+          .map((evaluation) => recordCodexAnimationTournamentEvaluation(tournamentId, evaluation))
+      );
+    }
+    const terminalJobIds = new Set(terminalStatuses.map(({ job }) => job.id));
+    setCodexJobs((current) => current.map((job) =>
+      terminalJobIds.has(job.id) && job.state === "running"
+        ? { ...job, state: "evaluating" }
+        : job
+    ));
+    if (transientEvaluations.length > 0) return "pending";
 
     const readyEvaluations = evaluations.filter((evaluation) => evaluation.ready);
-    const allCandidatesTerminal = statuses.every(({ status }) => Boolean(status) && !shouldWaitForCodexRunner(status ?? undefined));
-    if (readyEvaluations.length < minimumReadyCount && !allCandidatesTerminal) return "pending";
+    const activeCandidate = statuses.some(({ job, status }) => job.state === "queued" || shouldWaitForCodexRunner(status ?? undefined));
 
-    const comparedEvaluations = (readyEvaluations.length >= minimumReadyCount ? readyEvaluations
-      .slice()
-      .sort((left, right) => Date.parse(left.status.finishedAt ?? left.job.createdAt) - Date.parse(right.status.finishedAt ?? right.job.createdAt))
-      .slice(0, minimumReadyCount) : readyEvaluations)
-      .sort((left, right) => right.score - left.score);
+    if (profile === "fast") {
+      if (activeCandidate) return "pending";
+      const winner = sortTournamentEvaluationsByScore(readyEvaluations)[0];
+      return winner
+        ? finalizeCodexAnimationTournamentWinner(tournamentId, winner, statuses, [winner], expectedCount)
+        : failCodexAnimationTournament(tournamentId, statuses, evaluations, expectedCount);
+    }
+
+    if (profile === "balanced") {
+      const initialEvaluations = evaluations.filter((evaluation) => (evaluation.job.tournamentCandidateIndex ?? 0) < manifest.initialCandidateCount);
+      const initialActive = statuses.some(({ job, status }) =>
+        (job.tournamentCandidateIndex ?? 0) < manifest.initialCandidateCount &&
+        (job.state === "queued" || shouldWaitForCodexRunner(status ?? undefined))
+      );
+      if (initialEvaluations.length < manifest.initialCandidateCount || initialActive) return "pending";
+      const decision = shouldStartBalancedAdditionalCandidate(initialEvaluations);
+      const adaptiveCandidate = manifest.candidates[manifest.initialCandidateCount];
+      if (decision.startAdditionalCandidate && adaptiveCandidate && !adaptiveCandidate.jobId) {
+        await startPersistedTournamentCandidate(manifest, adaptiveCandidate.index, decision.reason);
+        setStatus(`Balanced tournament added candidate C: ${decision.reason}.`);
+        return "pending";
+      }
+      if (adaptiveCandidate?.jobId) {
+        const adaptiveStatus = statuses.find(({ job }) => job.id === adaptiveCandidate.jobId);
+        if (!adaptiveStatus || shouldWaitForCodexRunner(adaptiveStatus.status ?? undefined)) return "pending";
+      }
+    }
+
+    const startedCandidateCount = manifest.candidates.filter((candidate) => candidate.jobId).length;
+    if (tournamentNeedsAllStartedCandidates(profile, startedCandidateCount, terminalStatuses.length) || activeCandidate) return "pending";
+
+    const comparedEvaluations = sortTournamentEvaluationsByScore(readyEvaluations);
     const winner = comparedEvaluations[0];
     if (!winner) {
       return failCodexAnimationTournament(tournamentId, statuses, evaluations, expectedCount);
     }
 
-    return finalizeCodexAnimationTournamentWinner(tournamentId, winner, statuses, comparedEvaluations, expectedCount, isCancelled);
+    return finalizeCodexAnimationTournamentWinner(tournamentId, winner, statuses, comparedEvaluations, expectedCount);
+  }
+
+  function legacyAnimationTournamentManifest(tournamentId: string, jobs: CodexJobQueueItem[]): AnimationTournamentManifestClient {
+    const now = new Date().toISOString();
+    const expectedCount = jobs[0]?.tournamentCandidateCount ?? Math.max(1, jobs.length);
+    const directions = jobs[0]?.directions ?? ANIMATION_DIRECTIONS;
+    return {
+      schema: "image-cockpit.animation-tournament.v1",
+      schemaVersion: 1,
+      tournamentId,
+      idempotencyKey: `legacy:${tournamentId}`,
+      sourceFingerprint: jobs[0]?.sourceFingerprint ?? "legacy",
+      generationProfile: jobs[0]?.generationProfile ?? "best",
+      requestedDirections: directions,
+      maximumCandidateCount: expectedCount,
+      initialCandidateCount: expectedCount,
+      candidates: Array.from({ length: expectedCount }, (_, index) => {
+        const job = jobs.find((item) => (item.tournamentCandidateIndex ?? 0) === index);
+        return {
+          index,
+          state: job ? "running" as const : "queued" as const,
+          idempotencyKey: `legacy:${tournamentId}:${index}`,
+          jobId: job?.id,
+          createdAt: job?.createdAt,
+          updatedAt: now
+        };
+      }),
+      directionStates: Object.fromEntries(directions.map((direction) => [direction, { state: "running", updatedAt: now }])),
+      qualityReportRefs: [],
+      acceptedDirectionHashes: {},
+      retryCount: 0,
+      state: "running",
+      createdAt: jobs[0]?.createdAt ?? now,
+      updatedAt: now
+    };
+  }
+
+  async function loadCodexAnimationTournament(tournamentId: string) {
+    const response = await fetch(`/api/codex/tournaments/${encodeURIComponent(tournamentId)}`);
+    if (!response.ok) throw new Error(await response.text());
+    return ((await response.json()) as { tournament: AnimationTournamentManifestClient }).tournament;
+  }
+
+  function updateAnimationTournamentMonitor(manifest: AnimationTournamentManifestClient) {
+    setAnimationTournamentMonitors((current) => [
+      { manifest, restoredAt: new Date().toISOString() },
+      ...current.filter((entry) => entry.manifest.tournamentId !== manifest.tournamentId)
+    ].slice(0, 12));
+  }
+
+  function tournamentQueueItemFromManifest(
+    manifest: AnimationTournamentManifestClient,
+    candidateIndex: number,
+    job: Pick<CodexJobResponse, "id" | "path" | "outboxPath" | "createdAt">
+  ): CodexJobQueueItem {
+    const context = manifest.clientContext ?? {};
+    const candidate = manifest.candidates[candidateIndex];
+    const baseLabel = typeof context.label === "string" ? context.label : "Animation tournament";
+    const candidateDirections = resolveAnimationTournamentCandidateDirections(manifest.requestedDirections, candidate?.repairDirections);
+    const isRepairCandidate = Boolean(candidate?.repairDirections?.length);
+    return {
+      id: job.id,
+      path: job.path,
+      outboxPath: job.outboxPath,
+      state: candidate?.state === "quality-evaluated" ? "evaluating" : "running",
+      label: isRepairCandidate
+        ? `${baseLabel} (repair: ${candidateDirections.join(", ")})`
+        : `${baseLabel} (${tournamentCandidateLabel(candidateIndex, manifest.maximumCandidateCount)})`,
+      createdAt: job.createdAt,
+      workflowMode: context.workflowMode === "sprite-generate" ? "sprite-generate" : "sprite-generate",
+      actionName: typeof context.actionName === "string" ? context.actionName : manifest.motionRecipeId,
+      grid: isRepairCandidate
+        ? animationSheetGridForDirections(candidateDirections)
+        : context.grid && typeof context.grid === "object" ? context.grid as GridSettings : animationSheetGridForDirections(candidateDirections),
+      cell: context.cell && typeof context.cell === "object" ? context.cell as SpriteAction["cell"] : STANDARD_ANIMATION_CELL,
+      chromaKey: context.chromaKey === "magenta" ? "magenta" : "green",
+      spriteVariant: "standard",
+      directions: candidateDirections,
+      sourceImageId: typeof context.sourceImageId === "string" ? context.sourceImageId : undefined,
+      sourceImageName: typeof context.sourceImageName === "string" ? context.sourceImageName : undefined,
+      tournamentId: manifest.tournamentId,
+      tournamentCandidateIndex: candidateIndex,
+      tournamentCandidateCount: manifest.maximumCandidateCount,
+      generationProfile: manifest.generationProfile,
+      sourceFingerprint: manifest.sourceFingerprint,
+      repairDirections: candidate?.repairDirections
+    };
+  }
+
+  async function recordCodexAnimationTournamentEvaluation(
+    tournamentId: string,
+    evaluation: DirectionSplitTournamentCandidateEvaluation
+  ) {
+    const response = await fetch(`/api/codex/tournaments/${encodeURIComponent(tournamentId)}/evaluation`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        jobId: evaluation.job.id,
+        ready: evaluation.ready,
+        score: evaluation.score,
+        warningCount: evaluation.ready ? evaluation.warningCount : undefined,
+        qualityReportRef: evaluation.animationQuality ? `${evaluation.job.id}-manifest.json#animationQuality` : undefined,
+        reason: evaluation.error
+      })
+    });
+    if (!response.ok) throw new Error(await response.text());
+    updateAnimationTournamentMonitor(((await response.json()) as { tournament: AnimationTournamentManifestClient }).tournament);
+  }
+
+  async function startPersistedTournamentCandidate(
+    manifest: AnimationTournamentManifestClient,
+    candidateIndex: number,
+    reason: string
+  ) {
+    const response = await fetch(`/api/codex/tournaments/${encodeURIComponent(manifest.tournamentId)}/candidates`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ candidateIndex, reason })
+    });
+    if (!response.ok) throw new Error(await response.text());
+    const payload = (await response.json()) as {
+      job: CodexJobResponse;
+      tournament: AnimationTournamentManifestClient;
+    };
+    updateAnimationTournamentMonitor(payload.tournament);
+    const queueItem = tournamentQueueItemFromManifest(payload.tournament, candidateIndex, payload.job);
+    if (shouldWaitForCodexRunner(payload.job.runner)) {
+      setCodexJobs((current) => current.some((job) => job.id === queueItem.id) ? current : [...current, queueItem]);
+    } else if (payload.job.runner) {
+      recordTerminalCodexRunnerJob(queueItem, payload.job.runner);
+    }
+    return queueItem;
+  }
+
+  async function cancelTournamentFromUi(tournamentId: string) {
+    const response = await fetch(`/api/codex/tournaments/${encodeURIComponent(tournamentId)}/cancel`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: "{}"
+    });
+    if (!response.ok) throw new Error(await response.text());
+    const manifest = ((await response.json()) as { tournament: AnimationTournamentManifestClient }).tournament;
+    updateAnimationTournamentMonitor(manifest);
+    setCodexJobs((current) => current.filter((job) => job.tournamentId !== tournamentId));
+    setStatus(`Animation tournament cancelled: ${tournamentId}`);
+  }
+
+  function toggleDirectionRepairSelection(tournamentId: string, direction: string) {
+    setDirectionRepairSelections((current) => {
+      const selected = new Set(current[tournamentId] ?? []);
+      if (selected.has(direction)) selected.delete(direction);
+      else selected.add(direction);
+      return { ...current, [tournamentId]: Array.from(selected) };
+    });
+  }
+
+  async function startDirectionRepairFromUi(manifest: AnimationTournamentManifestClient) {
+    const directions = directionRepairSelections[manifest.tournamentId] ?? [];
+    if (directions.length === 0) {
+      setStatus("Select one or more directions to Repair.");
+      return;
+    }
+    const response = await fetch(`/api/codex/tournaments/${encodeURIComponent(manifest.tournamentId)}/repairs`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ directions })
+    });
+    if (!response.ok) throw new Error(await response.text());
+    const payload = (await response.json()) as {
+      job: CodexJobResponse;
+      tournament: AnimationTournamentManifestClient;
+    };
+    updateAnimationTournamentMonitor(payload.tournament);
+    const candidate = payload.tournament.candidates.find((item) => item.jobId === payload.job.id);
+    if (!candidate) throw new Error("Direction Repair candidate was not persisted.");
+    const queueItem = tournamentQueueItemFromManifest(payload.tournament, candidate.index, payload.job);
+    setCodexJobs((current) => current.some((job) => job.id === queueItem.id) ? current : [...current, queueItem]);
+    setStatus(`Direction Repair started: ${directions.join(", ")} (${payload.job.id}).`);
+  }
+
+  async function acceptDirectionRepairFromUi(manifest: AnimationTournamentManifestClient, repairJobId: string) {
+    const response = await fetch(`/api/codex/tournaments/${encodeURIComponent(manifest.tournamentId)}/repairs/accept`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ jobId: repairJobId })
+    });
+    if (!response.ok) throw new Error(await response.text());
+    const payload = (await response.json()) as {
+      tournament: AnimationTournamentManifestClient;
+      repairedDirections: string[];
+      unchangedDirections: string[];
+      beforeHashes: Record<string, string>;
+      afterHashes: Record<string, string>;
+    };
+    updateAnimationTournamentMonitor(payload.tournament);
+    setDirectionRepairSelections((current) => ({ ...current, [manifest.tournamentId]: [] }));
+    await refreshAcceptedTournamentArtifact(payload.tournament);
+    setStatus(`Direction Repair accepted: ${payload.repairedDirections.join(", ")}. ${payload.unchangedDirections.length} untargeted direction hashes unchanged.`);
+  }
+
+  async function refreshAcceptedTournamentArtifact(manifest: AnimationTournamentManifestClient) {
+    const winnerJobId = manifest.winnerCandidateId;
+    if (!winnerJobId) throw new Error("Accepted tournament winner is missing.");
+    const winner = manifest.candidates.find((candidate) => candidate.jobId === winnerJobId);
+    if (!winner) throw new Error("Accepted tournament winner candidate is missing.");
+    const job = tournamentQueueItemFromManifest(manifest, winner.index, {
+      id: winnerJobId,
+      path: `server-tournament:${manifest.tournamentId}:${winnerJobId}`,
+      createdAt: winner.createdAt ?? manifest.createdAt
+    });
+    const evaluation = await evaluateDirectionSplitTournamentCandidate(job, {
+      jobId: winnerJobId,
+      state: "completed",
+      message: "Direction Repair accepted",
+      finishedAt: new Date().toISOString()
+    });
+    if (!evaluation.ready) throw new Error(evaluation.error ?? "Accepted repaired artifact could not be refreshed.");
+    const retainedHistory = historyRef.current.filter((item) => !(item.outboxImportKey?.includes(winnerJobId) && item.name.includes("direction-split-animation-sheet")));
+    historyRef.current = retainedHistory;
+    setHistory(retainedHistory);
+    await importDirectionSplitAnimationResults(evaluation.importedResults, evaluation.manifest, job, evaluation.manifestResult?.name);
+  }
+
+  function toggleBatchMatrixSource(sourceId: string) {
+    setBatchMatrixSourceIds((current) => current.includes(sourceId)
+      ? current.filter((id) => id !== sourceId)
+      : [...current, sourceId].slice(-4));
+  }
+
+  function toggleBatchMatrixPreset(presetId: string) {
+    setBatchMatrixPresetIds((current) => current.includes(presetId)
+      ? current.filter((id) => id !== presetId)
+      : [...current, presetId].slice(-4));
+  }
+
+  async function runAnimationBatchMatrix() {
+    const sources = batchMatrixSourceIds
+      .map((id) => batchMatrixSources.find((source) => source.id === id))
+      .filter((source): source is HistoryItem => Boolean(source));
+    const presets = batchMatrixPresetIds.map(getAnimationPresetById);
+    if (sources.length < 2 || presets.length < 2) {
+      setStatus("Batch Matrix requires at least 2 sources and 2 motions.");
+      return;
+    }
+    const cellCount = sources.length * presets.length;
+    const profile = animationGenerationProfileDefinition(animationGenerationProfile);
+    const candidatePlan = cellCount * profile.initialCandidates;
+    if (!window.confirm(`Queue ${cellCount} animation cells (${candidatePlan} initial candidates, max ${cellCount * profile.maximumCandidates}) using ${profile.label}? Accepted artifacts will not be overwritten.`)) return;
+
+    setIsBatchMatrixStarting(true);
+    try {
+      let queuedCandidates = 0;
+      const batchMatrixRunId = `batch-matrix_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
+      for (const source of sources) {
+        for (const preset of presets) {
+          const draft = await buildCodexJobDraft({ animationSource: source, animationPreset: preset, generationProfile: animationGenerationProfile });
+          if (!draft) continue;
+          const tournamentDrafts = buildCodexAnimationTournamentDrafts(draft);
+          const tournamentId = tournamentDrafts[0]?.tournamentId ?? "";
+          const definition = animationGenerationProfileDefinition(draft.generationProfile ?? "best");
+          const manifest = await registerCodexAnimationTournament(
+            tournamentId,
+            draft,
+            definition.initialCandidates,
+            definition.maximumCandidates,
+            {
+              batchMatrixRunId,
+              batchMatrixCellKey: `${source.id}:${preset.id}`
+            }
+          );
+          updateAnimationTournamentMonitor(manifest);
+          queuedCandidates += definition.initialCandidates;
+        }
+      }
+      setStatus(`Batch Matrix queued: ${sources.length} sources × ${presets.length} motions, ${queuedCandidates} initial candidates. Concurrency is capped at ${MAX_ACTIVE_CODEX_JOBS}.`);
+    } finally {
+      setIsBatchMatrixStarting(false);
+    }
   }
 
   async function loadAnimationTournamentStatuses(jobs: CodexJobQueueItem[]): Promise<AnimationTournamentStatusEntry[]> {
@@ -5243,78 +5787,14 @@ function App() {
       .sort((left, right) => (left.job.tournamentCandidateIndex ?? 0) - (right.job.tournamentCandidateIndex ?? 0));
   }
 
-  async function pollSequentialCodexAnimationTournament(
-    tournamentId: string,
-    jobs: CodexJobQueueItem[],
-    isCancelled: () => boolean,
-    expectedCount: number
-  ) {
-    const statuses = await loadAnimationTournamentStatuses(jobs);
-    if (isCancelled()) return "cancelled";
-    const terminalStatuses = terminalAnimationTournamentStatuses(statuses);
-    if (terminalStatuses.length === 0) return "pending";
-
-    const evaluations = sortTournamentEvaluationsByCandidate(await Promise.all(
-      terminalStatuses.map(async ({ job, status }) => evaluateDirectionSplitTournamentCandidate(job, status))
-    ));
-    if (isCancelled()) return "cancelled";
-
-    const cleanWinner = evaluations.find(isCleanAnimationTournamentEvaluation);
-    if (cleanWinner) {
-      return finalizeCodexAnimationTournamentWinner(tournamentId, cleanWinner, statuses, [cleanWinner], expectedCount, isCancelled);
-    }
-
-    const hasActiveCandidate = statuses.some(({ job, status }) => job.state === "queued" || shouldWaitForCodexRunner(status ?? undefined));
-    if (hasActiveCandidate) return "pending";
-
-    const startedNextCandidate = await startNextSequentialTournamentCandidate(tournamentId, evaluations, expectedCount);
-    if (isCancelled()) return "cancelled";
-    if (startedNextCandidate) return "pending";
-
-    const readyEvaluations = sortTournamentEvaluationsByScore(evaluations.filter((evaluation) => evaluation.ready));
-    const warningWinner = readyEvaluations[0];
-    if (warningWinner) {
-      return finalizeCodexAnimationTournamentWinner(tournamentId, warningWinner, statuses, readyEvaluations, expectedCount, isCancelled);
-    }
-
-    return failCodexAnimationTournament(tournamentId, statuses, evaluations, expectedCount);
-  }
-
-  async function startNextSequentialTournamentCandidate(
-    tournamentId: string,
-    evaluations: DirectionSplitTournamentCandidateEvaluation[],
-    expectedCount: number
-  ) {
-    const reserveDrafts = pendingTournamentDraftsRef.current.get(tournamentId) ?? [];
-    const nextDraft = reserveDrafts[0];
-    if (!nextDraft) return false;
-    const remainingDrafts = reserveDrafts.slice(1);
-    if (remainingDrafts.length > 0) {
-      pendingTournamentDraftsRef.current.set(tournamentId, remainingDrafts);
-    } else {
-      pendingTournamentDraftsRef.current.delete(tournamentId);
-    }
-    const sortedEvaluations = sortTournamentEvaluationsByCandidate(evaluations);
-    const latestEvaluation = sortedEvaluations[sortedEvaluations.length - 1];
-    const reason = latestEvaluation?.ready
-      ? `warnings ${latestEvaluation.warningCount}`
-      : latestEvaluation?.error ?? "candidate did not pass";
-    const nextIndex = nextDraft.tournamentCandidateIndex ?? 0;
-    setStatus(`Animation tournament continuing: ${tournamentCandidateLabel(nextIndex, expectedCount)} after ${reason}.`);
-    await submitCodexJobDraft(nextDraft);
-    return true;
-  }
-
   async function finalizeCodexAnimationTournamentWinner(
     tournamentId: string,
     winner: DirectionSplitTournamentCandidateEvaluation,
     statuses: AnimationTournamentStatusEntry[],
     comparedEvaluations: DirectionSplitTournamentCandidateEvaluation[],
-    expectedCount: number,
-    isCancelled: () => boolean
+    expectedCount: number
   ) {
     await publishCodexTournamentWinner(tournamentId, winner.job.id);
-    if (isCancelled()) return "cancelled";
     await importDirectionSplitAnimationResults(
       winner.importedResults,
       winner.manifest,
@@ -5332,8 +5812,7 @@ function App() {
       const cancelled = cancellationResults.some((result) => result?.jobId === job.id && result.ok);
       removeCodexJob(job.id, cancelled ? "failed" : status?.state ?? "completed", { notify: false });
     });
-    pendingTournamentDraftsRef.current.delete(tournamentId);
-    notifyCodexJobFinished(winner.job, winner.warningCount > 0 ? "failed" : "completed");
+    notifyCodexJobFinished(winner.job, "completed");
     const candidateIndex = winner.job.tournamentCandidateIndex ?? 0;
     setStatus(
       `${copy.statusAnimationGenerated}: tournament winner ${tournamentCandidateLabel(candidateIndex, expectedCount)} (${winner.job.id}), score ${Math.round(winner.score)}, warnings ${winner.warningCount}. Compared ${comparedEvaluations.length} usable candidate${comparedEvaluations.length === 1 ? "" : "s"} and cancelled ${cancellationResults.filter((result) => result?.ok).length} remaining runner${cancellationResults.filter((result) => result?.ok).length === 1 ? "" : "s"}. direction-split manifest ok.`
@@ -5376,7 +5855,6 @@ function App() {
       notifyCodexJobFinished(primary.job, "failed");
     }
     statuses.forEach(({ job, status }) => removeCodexJob(job.id, status?.state ?? "failed", { notify: false }));
-    pendingTournamentDraftsRef.current.delete(tournamentId);
     setStatus(`Animation tournament failed: ${tournamentId}`);
     return "terminal";
   }
@@ -5430,7 +5908,8 @@ function App() {
   }, [codexFailureNotices, language]);
 
   useEffect(() => {
-    if (activeCodexJobCount(codexJobs, startingQueuedJobIdsRef.current) >= MAX_ACTIVE_CODEX_JOBS) return;
+    const reservedTournamentStarts = startingPersistedTournamentCandidatesRef.current.size;
+    if (activeCodexJobCount(codexJobs, startingQueuedJobIdsRef.current) + reservedTournamentStarts >= MAX_ACTIVE_CODEX_JOBS) return;
 
     const queuedJobsToStart: CodexJobQueueItem[] = [];
     const plannedStartingIds = new Set(startingQueuedJobIdsRef.current);
@@ -5438,10 +5917,10 @@ function App() {
       .filter((job) => job.state === "queued" && job.request)
     ) {
       if (!job.request) continue;
-      if (!canStartCodexJobDraft(job.request, codexJobs, plannedStartingIds)) continue;
+      if (!canStartCodexJobDraft(job.request, codexJobs, plannedStartingIds, reservedTournamentStarts)) continue;
       queuedJobsToStart.push(job);
       plannedStartingIds.add(job.id);
-      if (activeCodexJobCount(codexJobs, plannedStartingIds) >= MAX_ACTIVE_CODEX_JOBS) break;
+      if (activeCodexJobCount(codexJobs, plannedStartingIds) + reservedTournamentStarts >= MAX_ACTIVE_CODEX_JOBS) break;
     }
 
     queuedJobsToStart.forEach((job) => {
@@ -5585,7 +6064,11 @@ function App() {
     }
   }
 
-  async function buildCodexJobDraft(): Promise<CodexJobDraft | null> {
+  async function buildCodexJobDraft(options?: {
+    animationSource?: HistoryItem;
+    animationPreset?: AnimationPresetExample;
+    generationProfile?: AnimationGenerationProfile;
+  }): Promise<CodexJobDraft | null> {
     const includeSelectedImage = workflowUsesSelectedImage(workflowMode);
     const includeSpriteContext = workflowUsesSpriteContext(workflowMode);
     const isImageEditJob = workflowMode === "image-edit";
@@ -5595,7 +6078,8 @@ function App() {
     const animationJobGenerationMode: AnimationGenerationMode = "standard";
     const isHatchPetAnimationJob = false;
     const isDirectionalHatchPetAnimationJob = false;
-    const sourceImageForJob = isAnimationJob ? animationSource : isEffectJob ? undefined : selected;
+    const sourceImageForJob = isAnimationJob ? options?.animationSource ?? animationSource : isEffectJob ? undefined : selected;
+    const animationPresetForJob = options?.animationPreset ?? selectedAnimationPreset;
     const animationAction = isDirectionalHatchPetAnimationJob
       ? directionalHatchPetSpriteAction()
       : isHatchPetAnimationJob
@@ -5611,8 +6095,8 @@ function App() {
       : grid;
     const spriteCell = isAnimationJob ? (isHatchPetLikeMode(animationJobGenerationMode) ? HATCH_PET_CELL : animationAction.cell) : activeAction.cell;
     const spriteFrameCount = spriteGrid.columns * spriteGrid.rows;
-    const animationMotionPrompt = isAnimationJob ? buildAnimationPresetMotionPrompt(selectedAnimationPreset, standardAnimationDirections) : "";
-    const animationPresetNotes = isAnimationJob ? buildAnimationPresetNotes(selectedAnimationPreset, standardAnimationDirections) : "";
+    const animationMotionPrompt = isAnimationJob ? buildAnimationPresetMotionPrompt(animationPresetForJob, standardAnimationDirections) : "";
+    const animationPresetNotes = isAnimationJob ? buildAnimationPresetNotes(animationPresetForJob, standardAnimationDirections) : "";
 
     if (isImageEditJob && selectedIsAnimationResult) {
       setStatus(copy.statusAnimationFinalNotEditable);
@@ -5635,7 +6119,7 @@ function App() {
       return null;
     }
 
-    if (isAnimationJob && sourceImageForJob) {
+    if (isAnimationJob && sourceImageForJob && !options?.animationSource) {
       setAnimationSourceId(sourceImageForJob.id);
     }
 
@@ -5646,6 +6130,10 @@ function App() {
     if (isAnimationJob) {
       setAnimationChromaKey(chromaDecision.key.name);
     }
+
+    const sourceFingerprint = isAnimationJob && sourceImageForJob
+      ? (sourceImageForJob.id === animationSource?.id ? animationSourceFingerprint : "") || await fingerprintImageSource(sourceImageForJob.dataUrl)
+      : "";
 
     const imageEditAnnotations = isImageEditJob && sourceImageForJob
       ? selectedAnnotations.map((annotation) => annotationWithSourceImageCoordinates(annotation, sourceImageForJob))
@@ -5758,56 +6246,117 @@ function App() {
       resultDirections: isAnimationJob && animationJobGenerationMode === "standard" ? standardAnimationDirections : undefined,
       resultSourceImageId: isImageEditJob || isAnimationJob ? sourceImageForJob?.id : undefined,
       resultSourceImageName: isImageEditJob || isAnimationJob ? sourceImageForJob?.name : undefined,
+      generationProfile: isAnimationJob ? options?.generationProfile ?? animationGenerationProfile : undefined,
+      sourceFingerprint: isAnimationJob ? sourceFingerprint : undefined,
+      presetId: isAnimationJob ? animationPresetForJob.id : undefined,
       effectContext: currentEffectContext
     };
   }
 
   function buildCodexAnimationTournamentDrafts(draft: CodexJobDraft) {
     const tournamentId = createId("anim-tournament");
-    return Array.from({ length: STANDARD_ANIMATION_TOURNAMENT_CANDIDATES }, (_, index) => ({
+    const profile = draft.generationProfile ?? "best";
+    const profileDefinition = animationGenerationProfileDefinition(profile);
+    return Array.from({ length: profileDefinition.maximumCandidates }, (_, index) => ({
       ...draft,
-      label: `${draft.label} (${tournamentCandidateLabel(index, STANDARD_ANIMATION_TOURNAMENT_CANDIDATES)})`,
+      label: `${draft.label} (${tournamentCandidateLabel(index, profileDefinition.maximumCandidates)})`,
       jobNotes: [
         draft.jobNotes,
-        `Animation tournament ${tournamentId}, ${tournamentCandidateLabel(index, STANDARD_ANIMATION_TOURNAMENT_CANDIDATES)}.`,
-        STANDARD_ANIMATION_TOURNAMENT_MODE === "sequential"
-          ? "Generate this candidate independently from the same source and motion contract. Do not copy another candidate. Image Cockpit accepts the first candidate that passes the quality gate cleanly and only starts additional candidates when needed."
-          : "Generate this candidate independently from the same source and motion contract. Do not copy another candidate. Image Cockpit will compare the first two usable candidates and import only the better final result."
+        `Animation tournament ${tournamentId}, ${tournamentCandidateLabel(index, profileDefinition.maximumCandidates)}, profile ${profile}.`,
+        profile === "fast"
+          ? "Generate one efficient candidate. Image Cockpit will not start an automatic fallback candidate."
+          : profile === "balanced"
+            ? "Generate independently. Candidate C starts only if the first two candidates are failed, warned, low identity, low scoring, or too close to call."
+            : "Generate independently. Image Cockpit waits for all three started candidates before selecting the best result."
       ].filter(Boolean).join("\n"),
       tournamentId,
       tournamentCandidateIndex: index,
-      tournamentCandidateCount: STANDARD_ANIMATION_TOURNAMENT_CANDIDATES
+      tournamentCandidateCount: profileDefinition.maximumCandidates,
+      generationProfile: profile,
+      idempotencyKey: `${tournamentId}:candidate:${index}`
     }));
   }
 
   async function submitOrQueueCodexAnimationTournament(draft: CodexJobDraft) {
     const tournamentDrafts = buildCodexAnimationTournamentDrafts(draft);
     const tournamentId = tournamentDrafts[0]?.tournamentId ?? "";
-    const initialDrafts = STANDARD_ANIMATION_TOURNAMENT_MODE === "sequential" ? tournamentDrafts.slice(0, 1) : tournamentDrafts;
-    const reserveDrafts = tournamentDrafts.slice(initialDrafts.length);
-    if (tournamentId && reserveDrafts.length > 0) {
-      pendingTournamentDraftsRef.current.set(tournamentId, reserveDrafts);
-    }
-    const canStartTournamentNow =
-      activeCodexJobCount(codexJobs, startingQueuedJobIdsRef.current) === 0 &&
-      activeStandardDirectionSplitJobCount(codexJobs, startingQueuedJobIdsRef.current) === 0;
-    if (!canStartTournamentNow) {
-      initialDrafts.forEach(enqueueCodexJobDraft);
-      setStatus(`Animation tournament queued: ${initialDrafts.length}/${tournamentDrafts.length} candidates (${STANDARD_ANIMATION_TOURNAMENT_MODE} mode).`);
-      return;
-    }
-    const runnerStatuses = await Promise.all(initialDrafts.map((candidateDraft) => submitCodexJobDraft(candidateDraft)));
-    const startedCount = runnerStatuses.filter((runnerStatus) => shouldWaitForCodexRunner(runnerStatus ?? undefined)).length;
-    if (startedCount > 0) {
-      setStatus(
-        STANDARD_ANIMATION_TOURNAMENT_MODE === "sequential"
-          ? `Animation tournament started: candidate 1/${tournamentDrafts.length} (sequential mode; extra candidates run only if needed).`
-          : `Animation tournament started: ${startedCount}/${tournamentDrafts.length} candidates.`
-      );
-      return;
-    }
-    const terminalStatus = runnerStatuses.find((runnerStatus): runnerStatus is CodexRunnerStatus => Boolean(runnerStatus));
-    setStatus(terminalStatus ? runnerStatusMessage(terminalStatus, copy) : copy.statusCodexJobError);
+    const profile = draft.generationProfile ?? "best";
+    const profileDefinition = animationGenerationProfileDefinition(profile);
+    const manifest = await registerCodexAnimationTournament(tournamentId, draft, profileDefinition.initialCandidates, profileDefinition.maximumCandidates);
+    updateAnimationTournamentMonitor(manifest);
+    setStatus(
+      profile === "balanced"
+        ? `Animation tournament registered: 2 initial candidates; candidate C is adaptive. Open runner slots will start automatically.`
+        : `Animation tournament registered: ${profileDefinition.initialCandidates}/${tournamentDrafts.length} candidates (${profile}). Open runner slots will start automatically.`
+    );
+  }
+
+  async function registerCodexAnimationTournament(
+    tournamentId: string,
+    draft: CodexJobDraft,
+    initialCandidateCount: number,
+    maximumCandidateCount: number,
+    clientContextExtensions: Record<string, unknown> = {}
+  ) {
+    const response = await fetch("/api/codex/tournaments", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        tournamentId,
+        idempotencyKey: `${tournamentId}:${draft.sourceFingerprint ?? "source"}:${draft.resultActionName ?? draft.action}`,
+        sourceFingerprint: draft.sourceFingerprint,
+        motionRecipeId: draft.resultActionName ?? draft.action,
+        presetId: draft.presetId ?? selectedAnimationPresetId,
+        generationProfile: draft.generationProfile ?? "best",
+        requestedDirections: draft.resultDirections ?? draft.directions,
+        maximumCandidateCount,
+        initialCandidateCount,
+        jobTemplate: codexJobRequestFromDraft(draft),
+        clientContext: {
+          label: draft.label,
+          workflowMode: draft.resultWorkflowMode,
+          actionName: draft.resultActionName,
+          grid: draft.resultGrid,
+          cell: draft.resultCell,
+          chromaKey: draft.resultChromaKey,
+          spriteVariant: draft.resultSpriteVariant,
+          directions: draft.resultDirections,
+          sourceImageId: draft.resultSourceImageId,
+          sourceImageName: draft.resultSourceImageName,
+          ...clientContextExtensions
+        }
+      })
+    });
+    if (!response.ok) throw new Error(await response.text());
+    return ((await response.json()) as { tournament: AnimationTournamentManifestClient }).tournament;
+  }
+
+  function codexJobRequestFromDraft(draft: CodexJobDraft) {
+    return {
+      workflowMode: draft.workflowMode,
+      prompt: draft.prompt,
+      negativePrompt: draft.negativePrompt,
+      jobNotes: draft.jobNotes,
+      seed: draft.seed,
+      size: draft.size,
+      count: draft.count,
+      quality: draft.quality,
+      selectedImageName: draft.selectedImageName,
+      selectedImageSize: draft.selectedImageSize,
+      selectedImageSource: draft.selectedImageSource,
+      selectedImageDataUrl: draft.selectedImageDataUrl,
+      annotations: draft.annotations,
+      grid: draft.grid,
+      action: draft.action,
+      frames: draft.frames,
+      cell: draft.cell,
+      chromaKey: draft.chromaKey,
+      spriteVariant: draft.spriteVariant,
+      directions: draft.directions,
+      generationProfile: draft.generationProfile,
+      sourceFingerprint: draft.sourceFingerprint,
+      effectContext: draft.effectContext
+    };
   }
 
   function enqueueCodexJobDraft(draft: CodexJobDraft) {
@@ -5834,6 +6383,9 @@ function App() {
         tournamentId: draft.tournamentId,
         tournamentCandidateIndex: draft.tournamentCandidateIndex,
         tournamentCandidateCount: draft.tournamentCandidateCount,
+        generationProfile: draft.generationProfile,
+        sourceFingerprint: draft.sourceFingerprint,
+        repairDirections: draft.repairDirections,
         effectContext: draft.effectContext
       }
     ]);
@@ -5843,10 +6395,15 @@ function App() {
   async function submitCodexJobDraft(draft: CodexJobDraft, queuedJobId?: string): Promise<CodexRunnerStatus | null> {
     setIsBusy(true);
     try {
-      const response = await fetch("/api/codex/jobs", {
+      const isTournamentCandidate = Boolean(draft.tournamentId) && typeof draft.tournamentCandidateIndex === "number";
+      const response = await fetch(isTournamentCandidate
+        ? `/api/codex/tournaments/${encodeURIComponent(draft.tournamentId ?? "")}/candidates`
+        : "/api/codex/jobs", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
+        body: JSON.stringify(isTournamentCandidate ? {
+          candidateIndex: draft.tournamentCandidateIndex
+        } : {
           workflowMode: draft.workflowMode,
           prompt: draft.prompt,
           negativePrompt: draft.negativePrompt,
@@ -5875,7 +6432,9 @@ function App() {
       });
       if (!response.ok) throw new Error(await response.text());
 
-      const data = (await response.json()) as CodexJobResponse;
+      const responseData = (await response.json()) as CodexJobResponse | { job: CodexJobResponse; tournament?: AnimationTournamentManifestClient };
+      const data = "job" in responseData ? responseData.job : responseData;
+      if ("tournament" in responseData && responseData.tournament) updateAnimationTournamentMonitor(responseData.tournament);
       if (draft.resultWorkflowMode === "image-edit") {
         const before = history.find((item) => item.id === draft.resultSourceImageId) ?? selected;
         if (before) setImageEditComparison({ before, jobId: data.id });
@@ -5899,6 +6458,9 @@ function App() {
         tournamentId: draft.tournamentId,
         tournamentCandidateIndex: draft.tournamentCandidateIndex,
         tournamentCandidateCount: draft.tournamentCandidateCount,
+        generationProfile: draft.generationProfile,
+        sourceFingerprint: draft.sourceFingerprint,
+        repairDirections: draft.repairDirections,
         effectContext: draft.effectContext
       };
       if (shouldWaitForCodexRunner(data.runner)) {
@@ -6754,7 +7316,16 @@ function App() {
       body: JSON.stringify({ jobId })
     });
     if (!response.ok) throw new Error(await response.text());
-    return (await response.json()) as { ok: boolean; tournamentId: string; jobId: string; outboxPath: string; results: CodexOutboxResult[] };
+    const payload = (await response.json()) as {
+      ok: boolean;
+      tournamentId: string;
+      jobId: string;
+      outboxPath: string;
+      results: CodexOutboxResult[];
+      tournament: AnimationTournamentManifestClient;
+    };
+    updateAnimationTournamentMonitor(payload.tournament);
+    return payload;
   }
 
   async function cancelCodexJob(jobId: string) {
@@ -6805,6 +7376,17 @@ function App() {
       const manifest = manifestResult ? parseDirectionSplitAnimationManifest(await fetchCodexJobOutboxResult(job.id, manifestResult.name)) : null;
       const selection = selectDirectionSplitAnimationResults(jobResults, job.id, manifest, job.directions);
       if (!selection.ready || !selection.manifestResult || selection.directionResults.length !== selection.directions.length) {
+        if (shouldWaitForAnimationTournamentArtifacts(selection)) {
+          const detail = selection.artifactStatus?.reason;
+          const suffix = detail && !/waiting for stable verified artifacts/i.test(detail) ? `: ${detail}` : "";
+          return {
+            ...emptyEvaluation,
+            manifest,
+            manifestResult: selection.manifestResult,
+            directionResults: selection.directionResults,
+            error: `waiting for stable verified artifacts${suffix}`
+          };
+        }
         const reason =
           selection.artifactStatus?.reason ??
           (selection.missingDirections.length > 0
@@ -8373,6 +8955,29 @@ function App() {
                     ))}
                   </div>
                 </div>
+                <div className="direction-preset-control generation-profile-control">
+                  <small className="step-kicker">Generation profile</small>
+                  <div className="segmented-control generation-profile-buttons" aria-label="Animation generation profile">
+                    {(Object.keys(ANIMATION_GENERATION_PROFILES) as AnimationGenerationProfile[]).map((profile) => {
+                      const definition = animationGenerationProfileDefinition(profile);
+                      return (
+                        <button
+                          key={profile}
+                          type="button"
+                          className={animationGenerationProfile === profile ? "active" : ""}
+                          title={definition.description}
+                          onClick={() => setAnimationGenerationProfile(profile)}
+                        >
+                          {definition.label}
+                          <small>{definition.initialCandidates}{definition.maximumCandidates > definition.initialCandidates ? "+1" : ""} candidate{definition.maximumCandidates === 1 ? "" : "s"}</small>
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <span className="generation-profile-summary">
+                    {animationGenerationProfileDefinition(animationGenerationProfile).description}
+                  </span>
+                </div>
               </section>
 
               {SHOW_ANIMATION_LIBRARY && (
@@ -8454,6 +9059,11 @@ function App() {
                   <span>{animationGenerateBody}</span>
                 </div>
                 <small className="step-kicker">{animationLockedSizeNote}</small>
+                <div className="animation-source-fingerprint">
+                  <span>Actual source</span>
+                  <strong>{animationSource?.name ?? "-"}</strong>
+                  <code title={animationSourceFingerprint}>{animationSourceFingerprint ? animationSourceFingerprint.slice(0, 16) : "fingerprinting..."}</code>
+                </div>
                 <button className="primary-button full" onClick={() => void handleGenerate()} disabled={primaryActionDisabled}>
                   <PrimaryActionIcon providerId={providerId} isBusy={isBusy} />
                   {shouldQueueCodexJob ? codexQueueCopy.queueAction : copy.generateLocalSprite}
@@ -8468,6 +9078,156 @@ function App() {
                   <span>{copy.jobNotifications}</span>
                 </label>
               </section>
+              {animationTournamentMonitors.length > 0 && (
+                <section className="animation-step tournament-monitor">
+                  <div className="step-heading">
+                    <strong>Tournament Monitor</strong>
+                    <span>Persistent candidates, directions, phase, elapsed time, and warnings.</span>
+                  </div>
+                  {animationTournamentMonitors.slice(0, 3).map(({ manifest }) => (
+                    <article className={`tournament-monitor-card state-${manifest.state}`} key={manifest.tournamentId}>
+                      <header>
+                        <span>
+                          <strong>{manifest.generationProfile.toUpperCase()}</strong>
+                          <code title={manifest.tournamentId}>{manifest.tournamentId.slice(-12)}</code>
+                        </span>
+                        <em>{manifest.state} · {formatDurationSinceAt(manifest.createdAt, Date.now())}</em>
+                      </header>
+                      <div className="tournament-candidate-grid">
+                        {manifest.candidates.map((candidate) => (
+                          <button
+                            key={candidate.index}
+                            type="button"
+                            className={`tournament-candidate state-${candidate.state}`}
+                            disabled={Boolean(candidate.jobId) || candidate.state === "cancelled" || manifest.state === "accepted"}
+                            title={candidate.reason ?? candidate.jobId ?? "Not started"}
+                            onClick={() => void startPersistedTournamentCandidate(manifest, candidate.index, "manual resume")}
+                          >
+                            <strong>{String.fromCharCode(65 + candidate.index)}</strong>
+                            <span>{candidate.state}</span>
+                            {typeof candidate.warningCount === "number" && candidate.warningCount > 0 && <em>{candidate.warningCount} warning</em>}
+                          </button>
+                        ))}
+                      </div>
+                      <div className="tournament-direction-grid">
+                        {manifest.requestedDirections.map((direction) => (
+                          <button
+                            type="button"
+                            key={direction}
+                            className={`${directionRepairSelections[manifest.tournamentId]?.includes(direction) ? "selected" : ""} state-${manifest.directionStates[direction]?.state ?? "queued"}`}
+                            disabled={manifest.state !== "accepted" || manifest.directionStates[direction]?.state === "repairing"}
+                            onClick={() => toggleDirectionRepairSelection(manifest.tournamentId, direction)}
+                          >
+                            {direction}<small>{manifest.directionStates[direction]?.state ?? "queued"}</small>
+                          </button>
+                        ))}
+                      </div>
+                      {manifest.thirdCandidateReason && <p>Candidate C: {manifest.thirdCandidateReason}</p>}
+                      {manifest.state === "accepted" && (
+                        <div className="tournament-repair-actions">
+                          <button
+                            className="secondary-button mini"
+                            type="button"
+                            disabled={(directionRepairSelections[manifest.tournamentId]?.length ?? 0) === 0 || manifest.retryCount >= 2}
+                            onClick={() => void startDirectionRepairFromUi(manifest)}
+                          >
+                            <RefreshCw size={13} aria-hidden="true" /> Repair selected ({manifest.retryCount}/2 used)
+                          </button>
+                          {manifest.candidates.filter((candidate) => candidate.repairDirections?.length && candidate.state === "quality-evaluated" && candidate.jobId).map((candidate) => (
+                            <button
+                              className="primary-button mini"
+                              type="button"
+                              key={candidate.jobId}
+                              onClick={() => void acceptDirectionRepairFromUi(manifest, candidate.jobId ?? "")}
+                            >
+                              <CheckCircle2 size={13} aria-hidden="true" /> Accept Repair {candidate.repairDirections?.join(", ")}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                      {(manifest.state === "queued" || manifest.state === "running") && (
+                        <button className="secondary-button mini" type="button" onClick={() => void cancelTournamentFromUi(manifest.tournamentId)}>
+                          <X size={13} aria-hidden="true" /> Cancel tournament
+                        </button>
+                      )}
+                    </article>
+                  ))}
+                </section>
+              )}
+              {batchMatrixSources.length >= 2 && (
+                <section className="animation-step batch-matrix-panel">
+                  <div className="step-heading">
+                    <strong>Batch Matrix</strong>
+                    <span>Characters are rows, motions are columns. Jobs obey the global {MAX_ACTIVE_CODEX_JOBS}-runner limit.</span>
+                  </div>
+                  <div className="batch-matrix-picker">
+                    <div>
+                      <small className="step-kicker">Characters</small>
+                      {batchMatrixSources.slice(0, 6).map((source) => (
+                        <label key={source.id}>
+                          <input type="checkbox" checked={batchMatrixSourceIds.includes(source.id)} onChange={() => toggleBatchMatrixSource(source.id)} />
+                          <span title={source.name}>{source.name}</span>
+                        </label>
+                      ))}
+                    </div>
+                    <div>
+                      <small className="step-kicker">Motions</small>
+                      {animationPresetExamples.slice(0, 8).map((preset) => (
+                        <label key={preset.id}>
+                          <input type="checkbox" checked={batchMatrixPresetIds.includes(preset.id)} onChange={() => toggleBatchMatrixPreset(preset.id)} />
+                          <span>{localizedText(preset.title, language)}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    className="secondary-button full"
+                    disabled={isBatchMatrixStarting || batchMatrixSourceIds.length < 2 || batchMatrixPresetIds.length < 2}
+                    onClick={() => void runAnimationBatchMatrix()}
+                  >
+                    {isBatchMatrixStarting ? <Loader2 size={14} className="spin" aria-hidden="true" /> : <Grid3X3 size={14} aria-hidden="true" />}
+                    Queue {batchMatrixSourceIds.length} × {batchMatrixPresetIds.length} Matrix
+                  </button>
+                  <div className="batch-matrix-table" style={{ "--batch-columns": Math.max(1, batchMatrixPresetIds.length) } as CSSProperties}>
+                    <span className="batch-corner">source / motion</span>
+                    {batchMatrixPresetIds.map((presetId) => <strong key={presetId}>{localizedText(getAnimationPresetById(presetId).title, language)}</strong>)}
+                    {batchMatrixSourceIds.flatMap((sourceId) => {
+                      const source = batchMatrixSources.find((item) => item.id === sourceId);
+                      if (!source) return [];
+                      return [
+                        <strong key={`${sourceId}:label`} title={source.name}>{source.name}</strong>,
+                        ...batchMatrixPresetIds.map((presetId) => {
+                          const batchMatrixCellKey = `${sourceId}:${presetId}`;
+                          const monitor = animationTournamentMonitors.find(({ manifest }) =>
+                            manifest.clientContext?.batchMatrixCellKey === batchMatrixCellKey
+                          ) ?? animationTournamentMonitors.find(({ manifest }) =>
+                            !manifest.clientContext?.batchMatrixCellKey &&
+                            manifest.presetId === presetId &&
+                            manifest.clientContext?.sourceImageId === sourceId
+                          );
+                          const manifest = monitor?.manifest;
+                          const started = manifest?.candidates.filter((candidate) => candidate.jobId).length ?? 0;
+                          const finished = manifest?.candidates.filter((candidate) => ["quality-evaluated", "accepted", "failed", "cancelled"].includes(candidate.state)).length ?? 0;
+                          const warnings = manifest?.candidates.reduce((sum, candidate) => sum + (candidate.warningCount ?? 0), 0) ?? 0;
+                          return (
+                            <button
+                              type="button"
+                              key={`${sourceId}:${presetId}`}
+                              className={`batch-cell state-${manifest?.state ?? "idle"}`}
+                              title={manifest?.thirdCandidateReason ?? manifest?.tournamentId ?? "Not queued"}
+                              onClick={() => manifest && setStatus(`Batch cell ${source.name} / ${localizedText(getAnimationPresetById(presetId).title, language)}: ${manifest.state}, ${finished}/${started} terminal, ${warnings} warnings.`)}
+                            >
+                              <span>{manifest?.state ?? "idle"}</span>
+                              <small>{started} jobs · {finished} done{warnings ? ` · ${warnings} warn` : ""}</small>
+                            </button>
+                          );
+                        })
+                      ];
+                    })}
+                  </div>
+                </section>
+              )}
             </div>
           ) : isEffectWorkflow ? (
             <div className="effect-steps">
@@ -8710,7 +9470,11 @@ function App() {
                 <div className="button-row primary-action-row">
                   <button className="primary-button" onClick={() => void handleGenerate()} disabled={primaryActionDisabled}>
                     <PrimaryActionIcon providerId={providerId} isBusy={isBusy} />
-                    {shouldQueueCodexJob ? codexQueueCopy.queueAction : primaryActionLabel(providerId, workflowMode, copy)}
+                    {isImageEditWorkflow && selectedEditSourceIsFinalArtifact
+                      ? copy.editImage
+                      : shouldQueueCodexJob
+                        ? codexQueueCopy.queueAction
+                        : primaryActionLabel(providerId, workflowMode, copy)}
                   </button>
                   <p className="action-note">{copy.generationMayTakeMinutes}</p>
                 </div>
@@ -10191,10 +10955,10 @@ function CodexJobShelf({
         {jobs.map((job) => (
           <div className="codex-job-row" key={job.id}>
             <span className={`codex-job-state ${job.state}`}>
-              {job.state === "running" ? labels.running : labels.queued}
+              {job.state === "running" ? labels.running : job.state === "evaluating" ? labels.evaluating : labels.queued}
             </span>
             <strong>{job.label}</strong>
-            <small>{job.state === "running" ? job.id : labels.waitingForSlot}</small>
+            <small>{job.state === "running" ? job.id : job.state === "evaluating" ? labels.waitingForTournament : labels.waitingForSlot}</small>
             {job.state === "running" && <CodexJobProgress job={job} labels={labels} />}
           </div>
         ))}
@@ -10519,6 +11283,7 @@ const codexJobQueueCopyBase = {
   activeSlots: "Active",
   running: "Running",
   queued: "Queued",
+  evaluating: "Evaluating",
   progressLabel: "Codex job progress",
   elapsed: "Elapsed",
   phaseQueued: "Queued",
@@ -10527,6 +11292,7 @@ const codexJobQueueCopyBase = {
   phaseChecking: "Checking output",
   phaseExtended: "Still working",
   waitingForSlot: "Waiting for an open slot",
+  waitingForTournament: "Runner slot released; comparing tournament candidates",
   queueAction: "Queue Codex Job",
   queuedStatus: "Codex job queued"
 };
@@ -10537,6 +11303,7 @@ const codexJobQueueCopy = {
     activeSlots: "Active",
     running: "Running",
     queued: "Queued",
+    evaluating: "Evaluating",
     progressLabel: "Codex job progress",
     elapsed: "Elapsed",
     phaseQueued: "Queued",
@@ -10545,6 +11312,7 @@ const codexJobQueueCopy = {
     phaseChecking: "Checking output",
     phaseExtended: "Still working",
     waitingForSlot: "Waiting for an open slot",
+    waitingForTournament: "Runner slot released; comparing tournament candidates",
     queueAction: "Queue Codex Job",
     queuedStatus: "Codex job queued"
   },
@@ -10553,6 +11321,7 @@ const codexJobQueueCopy = {
     activeSlots: "実行枠",
     running: "実行中",
     queued: "待機中",
+    evaluating: "評価中",
     progressLabel: "Codexジョブ進行目安",
     elapsed: "経過",
     phaseQueued: "待機中",
@@ -10561,6 +11330,7 @@ const codexJobQueueCopy = {
     phaseChecking: "出力確認中",
     phaseExtended: "生成継続中",
     waitingForSlot: "空き枠待ち",
+    waitingForTournament: "実行枠を解放し、候補比較を待っています",
     queueAction: "キューに追加",
     queuedStatus: "Codexキューに追加しました"
   },
@@ -12056,6 +12826,23 @@ export function shouldWaitForCodexRunner(status?: CodexRunnerStatus) {
   return status.state === "running";
 }
 
+export function isTransientAnimationTournamentEvaluationError(error?: string) {
+  return /waiting for stable verified artifacts|artifacts? (?:are )?still stabilizing/i.test(error ?? "");
+}
+
+export function shouldWaitForAnimationTournamentArtifacts(
+  selection: Pick<DirectionSplitSelection, "waitingForVerifiedArtifacts" | "missingDirections">
+) {
+  return selection.waitingForVerifiedArtifacts && selection.missingDirections.length === 0;
+}
+
+export function resolveAnimationTournamentCandidateDirections(
+  requestedDirections: readonly string[],
+  repairDirections?: readonly string[]
+) {
+  return normalizeAnimationDirections(repairDirections?.length ? repairDirections : requestedDirections);
+}
+
 function runnerStatusMessage(status: CodexRunnerStatus | undefined, copy: Record<string, string>) {
   if (!status || status.state === "running") return copy.statusCodexJobPending;
   if (status.diagnostic) {
@@ -13183,6 +13970,13 @@ function saveJobNotificationsEnabled(enabled: boolean) {
   }
 }
 
+async function fingerprintImageSource(dataUrl: string) {
+  const response = await fetch(dataUrl);
+  if (!response.ok) throw new Error("Could not read the selected animation source for fingerprinting.");
+  const digest = await crypto.subtle.digest("SHA-256", await response.arrayBuffer());
+  return Array.from(new Uint8Array(digest), (value) => value.toString(16).padStart(2, "0")).join("");
+}
+
 function loadPendingCodexJobs(): CodexJobQueueItem[] {
   try {
     const stored = window.localStorage.getItem(PENDING_CODEX_JOB_STORAGE_KEY);
@@ -13193,7 +13987,7 @@ function loadPendingCodexJobs(): CodexJobQueueItem[] {
       .filter(isStoredPendingCodexJob)
       .map((job) => ({
         ...job,
-        state: "running" as const,
+        state: job.state === "evaluating" ? "evaluating" as const : "running" as const,
         label: job.label ?? codexJobLabel(job.workflowMode ?? null, "", job.actionName)
       }));
   } catch {
@@ -13204,12 +13998,13 @@ function loadPendingCodexJobs(): CodexJobQueueItem[] {
 function savePendingCodexJobs(jobs: CodexJobQueueItem[]) {
   try {
     const runningJobs: PendingCodexJob[] = jobs
-      .filter((job) => job.state === "running" && Boolean(job.path))
+      .filter((job) => (job.state === "running" || job.state === "evaluating") && Boolean(job.path))
       .map((job) => ({
         id: job.id,
         path: job.path ?? "",
         outboxPath: job.outboxPath,
         createdAt: job.createdAt,
+        state: job.state === "evaluating" ? "evaluating" : "running",
         label: job.label,
         workflowMode: job.workflowMode,
         actionName: job.actionName,
@@ -13223,6 +14018,9 @@ function savePendingCodexJobs(jobs: CodexJobQueueItem[]) {
         tournamentId: job.tournamentId,
         tournamentCandidateIndex: job.tournamentCandidateIndex,
         tournamentCandidateCount: job.tournamentCandidateCount,
+        generationProfile: job.generationProfile,
+        sourceFingerprint: job.sourceFingerprint,
+        repairDirections: job.repairDirections,
         effectContext: job.effectContext
       }));
     if (runningJobs.length > 0) {

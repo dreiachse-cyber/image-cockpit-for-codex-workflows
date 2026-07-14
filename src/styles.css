@@ -251,6 +251,12 @@ button {
   color: #6a4b0f;
 }
 
+.codex-job-state.evaluating {
+  border-color: #a9bfd9;
+  background: #edf5ff;
+  color: #1f4d7a;
+}
+
 .codex-progress-meter {
   min-width: 0;
   display: grid;
@@ -1673,6 +1679,258 @@ button {
 
 .direction-preset-buttons {
   grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.generation-profile-control {
+  margin-top: 6px;
+}
+
+.generation-profile-buttons button {
+  display: grid;
+  gap: 2px;
+  align-content: center;
+  min-height: 46px;
+}
+
+.generation-profile-buttons button small {
+  color: var(--text-muted);
+  font-size: 9px;
+  font-weight: 700;
+}
+
+.generation-profile-summary {
+  color: var(--text-muted);
+  font-size: 10px;
+  line-height: 1.4;
+}
+
+.animation-source-fingerprint {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  background: #f8faf8;
+  padding: 6px 8px;
+  font-size: 10px;
+}
+
+.animation-source-fingerprint span,
+.animation-source-fingerprint code {
+  color: var(--text-muted);
+}
+
+.animation-source-fingerprint strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tournament-monitor {
+  gap: 8px;
+}
+
+.tournament-monitor-card {
+  display: grid;
+  gap: 7px;
+  border: 1px solid var(--line);
+  border-left: 3px solid #8aa596;
+  border-radius: 6px;
+  background: #fbfdfb;
+  padding: 8px;
+}
+
+.tournament-monitor-card.state-running {
+  border-left-color: var(--green);
+}
+
+.tournament-monitor-card.state-accepted {
+  border-left-color: #2c8b50;
+  background: #f3fbf5;
+}
+
+.tournament-monitor-card.state-failed,
+.tournament-monitor-card.state-cancelled {
+  border-left-color: #c96b58;
+}
+
+.tournament-monitor-card > header,
+.tournament-monitor-card > header span {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.tournament-monitor-card > header code,
+.tournament-monitor-card > header em,
+.tournament-monitor-card p {
+  color: var(--text-muted);
+  font-size: 9px;
+}
+
+.tournament-candidate-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 4px;
+}
+
+.tournament-candidate {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 2px 5px;
+  align-items: center;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  background: #fff;
+  padding: 5px;
+  color: var(--text);
+  text-align: left;
+}
+
+.tournament-candidate > span,
+.tournament-candidate > em {
+  overflow: hidden;
+  color: var(--text-muted);
+  font-size: 8px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tournament-candidate > em {
+  grid-column: 1 / -1;
+  color: #a35c18;
+}
+
+.tournament-candidate.state-running,
+.tournament-candidate.state-repairing {
+  border-color: var(--green);
+}
+
+.tournament-candidate.state-accepted,
+.tournament-candidate.state-quality-evaluated {
+  background: var(--green-soft);
+}
+
+.tournament-candidate.state-failed,
+.tournament-candidate.state-cancelled {
+  background: #fff4f1;
+}
+
+.tournament-direction-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+}
+
+.tournament-direction-grid > button {
+  display: grid;
+  gap: 1px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 3px 6px;
+  background: #fff;
+  color: var(--text);
+  font-size: 8px;
+  text-align: left;
+}
+
+.tournament-direction-grid > button.selected {
+  border-color: var(--green);
+  background: var(--green-soft);
+  box-shadow: 0 0 0 1px var(--green);
+}
+
+.tournament-direction-grid small {
+  color: var(--text-muted);
+  font-size: 7px;
+}
+
+.tournament-repair-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.batch-matrix-picker {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+
+.batch-matrix-picker > div {
+  display: grid;
+  align-content: start;
+  gap: 3px;
+  max-height: 124px;
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  background: #fff;
+  padding: 6px;
+}
+
+.batch-matrix-picker label {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 5px;
+  align-items: center;
+  font-size: 9px;
+}
+
+.batch-matrix-picker label span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.batch-matrix-table {
+  display: grid;
+  grid-template-columns: minmax(76px, 0.8fr) repeat(var(--batch-columns), minmax(74px, 1fr));
+  gap: 3px;
+  overflow-x: auto;
+}
+
+.batch-matrix-table > strong,
+.batch-corner {
+  overflow: hidden;
+  padding: 4px;
+  color: var(--text-muted);
+  font-size: 8px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.batch-cell {
+  display: grid;
+  gap: 2px;
+  min-height: 42px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: #fff;
+  padding: 5px;
+  color: var(--text);
+  text-align: left;
+}
+
+.batch-cell.state-running,
+.batch-cell.state-queued {
+  border-color: var(--green);
+}
+
+.batch-cell.state-accepted {
+  background: var(--green-soft);
+}
+
+.batch-cell.state-failed,
+.batch-cell.state-cancelled {
+  background: #fff4f1;
+}
+
+.batch-cell small {
+  color: var(--text-muted);
+  font-size: 7px;
 }
 
 .segmented-control button {

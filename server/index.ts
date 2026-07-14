@@ -1,6 +1,7 @@
 import { spawn } from "node:child_process";
+import { createHash } from "node:crypto";
 import { closeSync, createWriteStream, existsSync, openSync, readFileSync, readSync, readdirSync } from "node:fs";
-import { copyFile, mkdir, readFile, readdir, stat, writeFile } from "node:fs/promises";
+import { copyFile, mkdir, readFile, readdir, rename, stat, writeFile } from "node:fs/promises";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { basename, delimiter, extname, join, resolve, sep } from "node:path";
 import { generateLocalImages, type LocalGenerationRequest } from "./local-generator.js";
@@ -46,7 +47,9 @@ const artifactStableMs = parsePositiveNumber("IMAGE_COCKPIT_ARTIFACT_STABLE_MS",
 
 const runnerStatuses = new Map<string, CodexRunnerStatus>();
 const runnerProcesses = new Map<string, ReturnType<typeof spawn>>();
+const resumingRunnerJobs = new Map<string, Promise<CodexRunnerStatus>>();
 const cancellingRunnerJobIds = new Set<string>();
+const animationTournamentLocks = new Map<string, Promise<void>>();
 let cachedRunnerCapacityBlock: RunnerCapacityBlock | null = null;
 
 type CodexJobRequest = {
@@ -73,7 +76,74 @@ type CodexJobRequest = {
   tournamentId?: string;
   tournamentCandidateIndex?: number;
   tournamentCandidateCount?: number;
+  generationProfile?: AnimationGenerationProfile;
+  idempotencyKey?: string;
+  sourceFingerprint?: string;
+  motionRecipeId?: string;
+  presetId?: string;
+  selectedImageAssetPath?: string;
+  repairDirections?: unknown;
+  repairOfJobId?: string;
   effectContext?: unknown;
+};
+
+type AnimationGenerationProfile = "fast" | "balanced" | "best";
+type AnimationTournamentCandidateState = "queued" | "running" | "artifact-ready" | "quality-evaluated" | "accepted" | "repairing" | "failed" | "cancelled";
+type AnimationTournamentDirectionState = AnimationTournamentCandidateState;
+
+type AnimationTournamentCandidate = {
+  index: number;
+  state: AnimationTournamentCandidateState;
+  idempotencyKey: string;
+  jobId?: string;
+  createdAt?: string;
+  updatedAt: string;
+  qualityReportRef?: string;
+  score?: number;
+  warningCount?: number;
+  reason?: string;
+  repairDirections?: string[];
+};
+
+type AnimationTournamentManifest = {
+  schema: "image-cockpit.animation-tournament.v1";
+  schemaVersion: 1;
+  tournamentId: string;
+  idempotencyKey: string;
+  sourceFingerprint: string;
+  sourceAssetRef?: string;
+  motionRecipeId?: string;
+  presetId?: string;
+  generationProfile: AnimationGenerationProfile;
+  requestedDirections: string[];
+  maximumCandidateCount: number;
+  initialCandidateCount: number;
+  candidates: AnimationTournamentCandidate[];
+  directionStates: Record<string, { state: AnimationTournamentDirectionState; updatedAt: string; jobId?: string; reason?: string }>;
+  qualityReportRefs: string[];
+  winnerCandidateId?: string;
+  acceptedDirectionHashes: Record<string, string>;
+  retryCount: number;
+  thirdCandidateReason?: string;
+  state: "queued" | "running" | "accepted" | "failed" | "cancelled";
+  templateRef: string;
+  clientContext?: Record<string, unknown>;
+  createdAt: string;
+  updatedAt: string;
+};
+
+type AnimationTournamentRegistrationRequest = {
+  tournamentId?: unknown;
+  idempotencyKey?: unknown;
+  sourceFingerprint?: unknown;
+  motionRecipeId?: unknown;
+  presetId?: unknown;
+  generationProfile?: unknown;
+  requestedDirections?: unknown;
+  maximumCandidateCount?: unknown;
+  initialCandidateCount?: unknown;
+  jobTemplate?: unknown;
+  clientContext?: unknown;
 };
 
 type CodexWorkflowMode = "image-generate" | "image-edit" | "sprite-generate" | "sprite-edit" | "effect-animation";
@@ -104,6 +174,9 @@ type CodexRunnerStatus = {
   command?: string;
   requestedCommand?: string;
   startedAt?: string;
+  initialStartedAt?: string;
+  resumedAt?: string;
+  resumeCount?: number;
   finishedAt?: string;
   exitCode?: number | null;
   signal?: NodeJS.Signals | null;
@@ -470,6 +543,111 @@ const server = createServer(async (request, response) => {
       return;
     }
 
+    if (request.method === "GET" && pathname === "/api/codex/tournaments") {
+      const manifests = await listAnimationTournamentManifests();
+      sendJson(response, 200, { tournaments: manifests });
+      return;
+    }
+
+    if (request.method === "POST" && pathname === "/api/codex/tournaments") {
+      const registration = (await readJson(request)) as AnimationTournamentRegistrationRequest;
+      const result = await registerAnimationTournament(registration);
+      sendJson(response, result.created ? 201 : 200, result);
+      return;
+    }
+
+    const tournamentManifestMatch = pathname.match(/^\/api\/codex\/tournaments\/([^/]+)$/);
+    if (request.method === "GET" && tournamentManifestMatch) {
+      const tournamentId = decodeURIComponent(tournamentManifestMatch[1]);
+      if (!isSafeTournamentId(tournamentId)) {
+        sendJson(response, 400, { error: "Unsupported or unsafe tournament id" });
+        return;
+      }
+      const manifest = await refreshAnimationTournamentManifest(tournamentId);
+      if (!manifest) {
+        sendJson(response, 404, { error: "Tournament manifest was not found" });
+        return;
+      }
+      sendJson(response, 200, { tournament: manifest });
+      return;
+    }
+
+    const tournamentCandidateMatch = pathname.match(/^\/api\/codex\/tournaments\/([^/]+)\/candidates$/);
+    if (request.method === "POST" && tournamentCandidateMatch) {
+      const tournamentId = decodeURIComponent(tournamentCandidateMatch[1]);
+      const body = (await readJson(request)) as { candidateIndex?: unknown; reason?: unknown };
+      const candidateIndex = normalizeCandidateIndex(body.candidateIndex);
+      if (!isSafeTournamentId(tournamentId)) {
+        sendJson(response, 400, { error: "Unsupported or unsafe tournament candidate request" });
+        return;
+      }
+      const result = await startAnimationTournamentCandidate(
+        tournamentId,
+        candidateIndex,
+        typeof body.reason === "string" ? body.reason : undefined
+      );
+      sendJson(response, result.reused ? 200 : 201, result);
+      return;
+    }
+
+    const tournamentEvaluationMatch = pathname.match(/^\/api\/codex\/tournaments\/([^/]+)\/evaluation$/);
+    if (request.method === "POST" && tournamentEvaluationMatch) {
+      const tournamentId = decodeURIComponent(tournamentEvaluationMatch[1]);
+      if (!isSafeTournamentId(tournamentId)) {
+        sendJson(response, 400, { error: "Unsupported or unsafe tournament evaluation request" });
+        return;
+      }
+      const body = (await readJson(request)) as {
+        jobId?: unknown;
+        ready?: unknown;
+        score?: unknown;
+        warningCount?: unknown;
+        qualityReportRef?: unknown;
+        reason?: unknown;
+      };
+      sendJson(response, 200, {
+        tournament: await recordAnimationTournamentEvaluation(tournamentId, body)
+      });
+      return;
+    }
+
+    const tournamentCancelMatch = pathname.match(/^\/api\/codex\/tournaments\/([^/]+)\/cancel$/);
+    if (request.method === "POST" && tournamentCancelMatch) {
+      const tournamentId = decodeURIComponent(tournamentCancelMatch[1]);
+      if (!isSafeTournamentId(tournamentId)) {
+        sendJson(response, 400, { error: "Unsupported or unsafe tournament cancel request" });
+        return;
+      }
+      sendJson(response, 200, await cancelAnimationTournament(tournamentId));
+      return;
+    }
+
+    const tournamentRepairMatch = pathname.match(/^\/api\/codex\/tournaments\/([^/]+)\/repairs$/);
+    if (request.method === "POST" && tournamentRepairMatch) {
+      const tournamentId = decodeURIComponent(tournamentRepairMatch[1]);
+      const body = (await readJson(request)) as { directions?: unknown };
+      if (!isSafeTournamentId(tournamentId)) {
+        sendJson(response, 400, { error: "Unsupported or unsafe tournament repair request" });
+        return;
+      }
+      const result = await startAnimationDirectionRepair(tournamentId, body.directions);
+      sendJson(response, result.reused ? 200 : 201, result);
+      return;
+    }
+
+    const tournamentRepairAcceptMatch = pathname.match(/^\/api\/codex\/tournaments\/([^/]+)\/repairs\/accept$/);
+    if (request.method === "POST" && tournamentRepairAcceptMatch) {
+      const tournamentId = decodeURIComponent(tournamentRepairAcceptMatch[1]);
+      const body = (await readJson(request)) as { jobId?: unknown };
+      const jobId = typeof body.jobId === "string" ? body.jobId : "";
+      if (!isSafeTournamentId(tournamentId) || !isSafeJobId(jobId)) {
+        sendJson(response, 400, { error: "Unsupported or unsafe tournament repair acceptance request" });
+        return;
+      }
+      sendJson(response, 200, await acceptAnimationDirectionRepair(tournamentId, jobId));
+      return;
+    }
+
     const tournamentWinnerMatch = pathname.match(/^\/api\/codex\/tournaments\/([^/]+)\/winner$/);
     if (request.method === "POST" && tournamentWinnerMatch) {
       const tournamentId = decodeURIComponent(tournamentWinnerMatch[1]);
@@ -479,8 +657,8 @@ const server = createServer(async (request, response) => {
         sendJson(response, 400, { error: "Unsupported or unsafe tournament winner request" });
         return;
       }
-      const result = await publishTournamentWinner(tournamentId, jobId);
-      sendJson(response, 200, result);
+      const { result, tournament } = await publishAndAcceptTournamentWinner(tournamentId, jobId);
+      sendJson(response, 200, { ...result, tournament });
       return;
     }
 
@@ -491,78 +669,8 @@ const server = createServer(async (request, response) => {
         return;
       }
 
-      const createdAt = new Date().toISOString();
-      const id = createCodexJobId(createdAt);
-      const workflowMode = normalizeWorkflowMode(body.workflowMode);
-      const includeSelectedImage = workflowUsesSelectedImage(workflowMode);
-      const includeSpriteContext = workflowUsesSpriteContext(workflowMode);
-      const includeAnnotations = workflowMode === "image-edit";
-      const tournamentId = resolveTournamentIdForJobRequest(workflowMode, body);
-      const jobOutboxDir = tournamentId ? tournamentJobOutboxDir(tournamentId, id) : outboxDir;
-      if (tournamentId) await mkdir(jobOutboxDir, { recursive: true });
-      const selectedImageAsset = includeSelectedImage ? await writeSelectedImageAsset(id, body) : null;
-      const annotations = includeAnnotations && Array.isArray(body.annotations) ? body.annotations : [];
-      const job = {
-        id,
-        createdAt,
-        kind: "image-cockpit.codex-handoff",
-        workflowMode,
-        intent: workflowIntent(workflowMode),
-        prompt: body.prompt,
-        negativePrompt: body.negativePrompt ?? "",
-        jobNotes: body.jobNotes ?? "",
-        generationHints: {
-          seed: body.seed ?? "",
-          size: body.size ?? "1024x1024",
-          count: body.count ?? 1,
-          quality: body.quality ?? "auto"
-        },
-        selectedImage: {
-          name: includeSelectedImage ? body.selectedImageName ?? "" : "",
-          size: includeSelectedImage ? body.selectedImageSize ?? "" : "",
-          source: includeSelectedImage ? body.selectedImageSource ?? "" : "",
-          assetPath: selectedImageAsset?.path ?? "",
-          mimeType: selectedImageAsset?.mimeType ?? "",
-          originalSource: selectedImageAsset?.source ?? ""
-        },
-        annotationContext: {
-          annotations,
-          annotationCount: annotations.length,
-          coordinateSpace: "Image Cockpit canvas coordinates plus source image normalized and pixel rectangles",
-          canvasSize: { width: 920, height: 520 }
-        },
-        spriteContext: {
-          action: includeSpriteContext ? body.action ?? "" : "",
-          frames: includeSpriteContext ? body.frames ?? 0 : 0,
-          grid: includeSpriteContext ? body.grid ?? null : null,
-          cell: includeSpriteContext ? body.cell ?? null : null,
-          chromaKey: includeSpriteContext ? body.chromaKey ?? "" : "",
-          variant: includeSpriteContext ? body.spriteVariant ?? "standard" : "",
-          directions: includeSpriteContext && Array.isArray(body.directions) ? body.directions : []
-        },
-        effectContext: workflowMode === "effect-animation" ? body.effectContext ?? null : null,
-        tournament: tournamentId
-          ? {
-              id: tournamentId,
-              candidateIndex: normalizeCandidateIndex(body.tournamentCandidateIndex),
-              candidateCount: normalizeCandidateCount(body.tournamentCandidateCount),
-              hiddenOutbox: true
-            }
-          : undefined,
-        returnTo: {
-          outboxDir: jobOutboxDir,
-          expected: ["png", "webp", "gif", "json"]
-        },
-        notes: [
-          "This app does not call OpenAI APIs directly.",
-          "Codex or the user should perform generation/editing externally and place results in the outbox or import them through the UI.",
-          ...workflowNotes(workflowMode)
-        ]
-      };
-      const path = join(inboxDir, `${id}.json`);
-      await writeFile(path, JSON.stringify(job, null, 2), "utf8");
-      const runner = await startCodexRunner({ id, createdAt, path, outboxDir: jobOutboxDir });
-      sendJson(response, 200, { id, path, inboxPath: inboxDir, outboxPath: jobOutboxDir, createdAt, runner });
+      const result = await createCodexJob(body);
+      sendJson(response, result.reused ? 200 : 201, result);
       return;
     }
 
@@ -596,7 +704,667 @@ async function isDirectoryReadable(path: string) {
   }
 }
 
+async function createCodexJob(body: CodexJobRequest) {
+  const workflowMode = normalizeWorkflowMode(body.workflowMode);
+  const tournamentId = resolveTournamentIdForJobRequest(workflowMode, body);
+  if (tournamentId && body.idempotencyKey) {
+    const manifest = await readAnimationTournamentManifest(tournamentId);
+    const existing = manifest?.candidates.find((candidate) => candidate.idempotencyKey === body.idempotencyKey && candidate.jobId);
+    if (existing?.jobId) return codexJobResponse(existing.jobId, true);
+  }
+
+  const createdAt = new Date().toISOString();
+  const id = createCodexJobId(createdAt);
+  const includeSelectedImage = workflowUsesSelectedImage(workflowMode);
+  const includeSpriteContext = workflowUsesSpriteContext(workflowMode);
+  const includeAnnotations = workflowMode === "image-edit";
+  const jobOutboxDir = tournamentId ? tournamentJobOutboxDir(tournamentId, id) : outboxDir;
+  if (tournamentId) await mkdir(jobOutboxDir, { recursive: true });
+  const selectedImageAsset = includeSelectedImage ? await writeSelectedImageAsset(id, body) : null;
+  const annotations = includeAnnotations && Array.isArray(body.annotations) ? body.annotations : [];
+  const repairDirections = normalizeDirectionNames(body.repairDirections);
+  const job = {
+    id,
+    createdAt,
+    kind: "image-cockpit.codex-handoff",
+    workflowMode,
+    intent: workflowIntent(workflowMode),
+    prompt: body.prompt,
+    negativePrompt: body.negativePrompt ?? "",
+    jobNotes: body.jobNotes ?? "",
+    generationHints: {
+      seed: body.seed ?? "",
+      size: body.size ?? "1024x1024",
+      count: body.count ?? 1,
+      quality: body.quality ?? "auto"
+    },
+    selectedImage: {
+      name: includeSelectedImage ? body.selectedImageName ?? "" : "",
+      size: includeSelectedImage ? body.selectedImageSize ?? "" : "",
+      source: includeSelectedImage ? body.selectedImageSource ?? "" : "",
+      assetPath: selectedImageAsset?.path ?? "",
+      fingerprint: selectedImageAsset?.fingerprint ?? body.sourceFingerprint ?? "",
+      mimeType: selectedImageAsset?.mimeType ?? "",
+      originalSource: selectedImageAsset?.source ?? ""
+    },
+    annotationContext: {
+      annotations,
+      annotationCount: annotations.length,
+      coordinateSpace: "Image Cockpit canvas coordinates plus source image normalized and pixel rectangles",
+      canvasSize: { width: 920, height: 520 }
+    },
+    spriteContext: {
+      action: includeSpriteContext ? body.action ?? "" : "",
+      frames: includeSpriteContext ? body.frames ?? 0 : 0,
+      grid: includeSpriteContext ? body.grid ?? null : null,
+      cell: includeSpriteContext ? body.cell ?? null : null,
+      chromaKey: includeSpriteContext ? body.chromaKey ?? "" : "",
+      variant: includeSpriteContext ? body.spriteVariant ?? "standard" : "",
+      directions: includeSpriteContext && Array.isArray(body.directions) ? body.directions : []
+    },
+    effectContext: workflowMode === "effect-animation" ? body.effectContext ?? null : null,
+    tournament: tournamentId
+      ? {
+          id: tournamentId,
+          candidateIndex: normalizeCandidateIndex(body.tournamentCandidateIndex),
+          candidateCount: normalizeCandidateCount(body.tournamentCandidateCount),
+          generationProfile: normalizeAnimationGenerationProfile(body.generationProfile),
+          idempotencyKey: body.idempotencyKey ?? "",
+          repairOfJobId: isSafeJobId(body.repairOfJobId ?? "") ? body.repairOfJobId : undefined,
+          repairDirections,
+          hiddenOutbox: true
+        }
+      : undefined,
+    returnTo: {
+      outboxDir: jobOutboxDir,
+      expected: ["png", "webp", "gif", "json"]
+    },
+    notes: [
+      "This app does not call OpenAI APIs directly.",
+      "Codex or the user should perform generation/editing externally and place results in the outbox or import them through the UI.",
+      ...workflowNotes(workflowMode)
+    ]
+  };
+  const path = join(inboxDir, `${id}.json`);
+  await writeFile(path, JSON.stringify(job, null, 2), "utf8");
+  const runner = await startCodexRunner({ id, createdAt, path, outboxDir: jobOutboxDir });
+  if (tournamentId) {
+    await attachJobToAnimationTournament(tournamentId, normalizeCandidateIndex(body.tournamentCandidateIndex), id, createdAt, runner, repairDirections);
+  }
+  return { id, path, inboxPath: inboxDir, outboxPath: jobOutboxDir, createdAt, runner, reused: false };
+}
+
+async function codexJobResponse(jobId: string, reused: boolean) {
+  const path = join(inboxDir, `${jobId}.json`);
+  const parsed = parseJsonText<{ createdAt?: string; returnTo?: { outboxDir?: string } }>(await readFile(path, "utf8"));
+  const runner = await getRunnerStatus(jobId);
+  return {
+    id: jobId,
+    path,
+    inboxPath: inboxDir,
+    outboxPath: resolveSafeOutboxSubdir(parsed.returnTo?.outboxDir) ?? outboxDir,
+    createdAt: parsed.createdAt ?? runner.startedAt ?? new Date().toISOString(),
+    runner,
+    reused
+  };
+}
+
+function animationTournamentDir(tournamentId: string) {
+  return join(tournamentWorkRootDir, tournamentId);
+}
+
+function animationTournamentManifestPath(tournamentId: string) {
+  return join(animationTournamentDir(tournamentId), "tournament.json");
+}
+
+function animationTournamentTemplatePath(tournamentId: string) {
+  return join(animationTournamentDir(tournamentId), "template.json");
+}
+
+async function registerAnimationTournament(registration: AnimationTournamentRegistrationRequest) {
+  const tournamentId = typeof registration.tournamentId === "string" ? registration.tournamentId : "";
+  const idempotencyKey = typeof registration.idempotencyKey === "string" ? registration.idempotencyKey.trim() : "";
+  if (!isSafeTournamentId(tournamentId) || !isSafeIdempotencyKey(idempotencyKey)) {
+    throw new Error("Tournament id and idempotency key are required and must be safe.");
+  }
+  const existing = await readAnimationTournamentManifest(tournamentId);
+  if (existing) {
+    if (existing.idempotencyKey !== idempotencyKey) throw new Error("Tournament id already exists with a different idempotency key.");
+    return { created: false, tournament: await refreshAnimationTournamentManifest(tournamentId) };
+  }
+
+  const profile = normalizeAnimationGenerationProfile(registration.generationProfile);
+  const profilePlan = animationGenerationProfilePlan(profile);
+  const maximumCandidateCount = normalizeBoundedInteger(registration.maximumCandidateCount, profilePlan.maximumCandidates, 1, 3);
+  const initialCandidateCount = normalizeBoundedInteger(registration.initialCandidateCount, profilePlan.initialCandidates, 1, maximumCandidateCount);
+  const requestedDirections = normalizeDirectionNames(registration.requestedDirections);
+  if (requestedDirections.length !== 3 && requestedDirections.length !== 5) throw new Error("Animation tournaments require 3 or 5 directions.");
+  if (!registration.jobTemplate || typeof registration.jobTemplate !== "object") throw new Error("Tournament job template is required.");
+  const jobTemplate = JSON.parse(JSON.stringify(registration.jobTemplate)) as CodexJobRequest;
+  if (!jobTemplate.prompt?.trim()) throw new Error("Tournament job template prompt is required.");
+  const selectedImageAsset = await writeSelectedImageAsset(tournamentId, jobTemplate);
+  const sourceFingerprint = typeof registration.sourceFingerprint === "string" && registration.sourceFingerprint.trim()
+    ? registration.sourceFingerprint.trim()
+    : selectedImageAsset?.fingerprint ?? "";
+  if (!sourceFingerprint) throw new Error("Tournament source fingerprint is required.");
+  jobTemplate.selectedImageDataUrl = "";
+  jobTemplate.selectedImageAssetPath = selectedImageAsset?.path;
+  jobTemplate.sourceFingerprint = sourceFingerprint;
+  jobTemplate.generationProfile = profile;
+  jobTemplate.directions = requestedDirections;
+  const now = new Date().toISOString();
+  const manifest: AnimationTournamentManifest = {
+    schema: "image-cockpit.animation-tournament.v1",
+    schemaVersion: 1,
+    tournamentId,
+    idempotencyKey,
+    sourceFingerprint,
+    sourceAssetRef: selectedImageAsset?.path ? basename(selectedImageAsset.path) : undefined,
+    motionRecipeId: normalizeShortText(registration.motionRecipeId),
+    presetId: normalizeShortText(registration.presetId),
+    generationProfile: profile,
+    requestedDirections,
+    maximumCandidateCount,
+    initialCandidateCount,
+    candidates: Array.from({ length: maximumCandidateCount }, (_, index) => ({
+      index,
+      state: "queued" as const,
+      idempotencyKey: `${idempotencyKey}:candidate:${index}`,
+      updatedAt: now
+    })),
+    directionStates: Object.fromEntries(requestedDirections.map((direction) => [direction, { state: "queued" as const, updatedAt: now }])),
+    qualityReportRefs: [],
+    acceptedDirectionHashes: {},
+    retryCount: 0,
+    state: "queued",
+    templateRef: "template.json",
+    clientContext: registration.clientContext && typeof registration.clientContext === "object"
+      ? JSON.parse(JSON.stringify(registration.clientContext)) as Record<string, unknown>
+      : undefined,
+    createdAt: now,
+    updatedAt: now
+  };
+  await mkdir(animationTournamentDir(tournamentId), { recursive: true });
+  await writeJsonAtomic(animationTournamentTemplatePath(tournamentId), jobTemplate);
+  await writeAnimationTournamentManifest(manifest);
+  return { created: true, tournament: manifest };
+}
+
+async function startAnimationTournamentCandidate(tournamentId: string, candidateIndex: number, reason?: string) {
+  return withAnimationTournamentLock(tournamentId, () => startAnimationTournamentCandidateUnlocked(tournamentId, candidateIndex, reason));
+}
+
+async function startAnimationTournamentCandidateUnlocked(tournamentId: string, candidateIndex: number, reason?: string) {
+  const manifest = await readAnimationTournamentManifestRequired(tournamentId);
+  const candidate = manifest.candidates[candidateIndex];
+  if (!candidate) throw new Error("Tournament candidate index is outside the registered plan.");
+  if (candidate.jobId) return { reused: true, job: await codexJobResponse(candidate.jobId, true), tournament: await refreshAnimationTournamentManifest(tournamentId) };
+  const template = parseJsonText<CodexJobRequest>(await readFile(animationTournamentTemplatePath(tournamentId), "utf8"));
+  const candidateLabel = `candidate ${candidateIndex + 1}/${manifest.maximumCandidateCount}`;
+  const body: CodexJobRequest = {
+    ...template,
+    jobNotes: [
+      template.jobNotes ?? "",
+      `Animation tournament ${tournamentId}, ${candidateLabel}, profile ${manifest.generationProfile}.`,
+      "Generate this candidate independently from the same source and motion contract. Do not copy another candidate.",
+      reason ? `Adaptive candidate reason: ${reason}.` : ""
+    ].filter(Boolean).join("\n"),
+    tournamentId,
+    tournamentCandidateIndex: candidateIndex,
+    tournamentCandidateCount: manifest.maximumCandidateCount,
+    generationProfile: manifest.generationProfile,
+    idempotencyKey: candidate.idempotencyKey,
+    sourceFingerprint: manifest.sourceFingerprint
+  };
+  if (candidateIndex >= manifest.initialCandidateCount && reason) manifest.thirdCandidateReason = reason;
+  candidate.reason = reason;
+  candidate.updatedAt = new Date().toISOString();
+  await writeAnimationTournamentManifest(manifest);
+  const job = await createCodexJob(body);
+  return { reused: false, job, tournament: await refreshAnimationTournamentManifest(tournamentId) };
+}
+
+async function attachJobToAnimationTournament(
+  tournamentId: string,
+  candidateIndex: number,
+  jobId: string,
+  createdAt: string,
+  runner: CodexRunnerStatus,
+  repairDirections: string[] = []
+) {
+  const manifest = await readAnimationTournamentManifest(tournamentId);
+  const candidate = manifest?.candidates[candidateIndex];
+  if (!manifest || !candidate) return;
+  candidate.jobId = candidate.jobId ?? jobId;
+  candidate.createdAt = candidate.createdAt ?? createdAt;
+  candidate.state = runner.state === "running" ? "running" : runner.state === "completed" ? "artifact-ready" : "failed";
+  candidate.updatedAt = new Date().toISOString();
+  manifest.state = candidate.state === "running" ? "running" : manifest.state;
+  if (candidate.state === "running") {
+    const activeDirections = repairDirections.length > 0 ? repairDirections : manifest.requestedDirections;
+    activeDirections.forEach((direction) => {
+      manifest.directionStates[direction] = { state: "running", updatedAt: candidate.updatedAt, jobId };
+    });
+  }
+  await writeAnimationTournamentManifest(manifest);
+}
+
+async function recordAnimationTournamentEvaluation(
+  tournamentId: string,
+  body: { jobId?: unknown; ready?: unknown; score?: unknown; warningCount?: unknown; qualityReportRef?: unknown; reason?: unknown }
+) {
+  return withAnimationTournamentLock(tournamentId, () => recordAnimationTournamentEvaluationUnlocked(tournamentId, body));
+}
+
+async function recordAnimationTournamentEvaluationUnlocked(
+  tournamentId: string,
+  body: { jobId?: unknown; ready?: unknown; score?: unknown; warningCount?: unknown; qualityReportRef?: unknown; reason?: unknown }
+) {
+  const manifest = await readAnimationTournamentManifestRequired(tournamentId);
+  const jobId = typeof body.jobId === "string" ? body.jobId : "";
+  const candidate = manifest.candidates.find((item) => item.jobId === jobId);
+  if (!candidate) throw new Error("Tournament evaluation job was not registered.");
+  // Candidate artifacts are immutable after terminal publication. Once a candidate has
+  // passed evaluation, a later transient read/stability failure must not downgrade the
+  // persisted score or replace its warning count with the client failure sentinel.
+  if (body.ready !== true && candidate.state === "quality-evaluated") return manifest;
+  candidate.state = body.ready === true ? "quality-evaluated" : "failed";
+  candidate.score = typeof body.score === "number" && Number.isFinite(body.score) ? body.score : undefined;
+  candidate.warningCount = body.ready === true && typeof body.warningCount === "number" && Number.isFinite(body.warningCount)
+    ? Math.min(999, Math.max(0, Math.floor(body.warningCount)))
+    : 0;
+  candidate.reason = typeof body.reason === "string" ? body.reason.slice(0, 400) : candidate.reason;
+  candidate.qualityReportRef = typeof body.qualityReportRef === "string" ? body.qualityReportRef.slice(0, 200) : candidate.qualityReportRef;
+  if (candidate.qualityReportRef && !manifest.qualityReportRefs.includes(candidate.qualityReportRef)) manifest.qualityReportRefs.push(candidate.qualityReportRef);
+  candidate.updatedAt = new Date().toISOString();
+  const evaluationDirections = candidate.repairDirections?.length ? candidate.repairDirections : manifest.requestedDirections;
+  if (body.ready === true) {
+    evaluationDirections.forEach((direction) => {
+      manifest.directionStates[direction] = {
+        state: "quality-evaluated",
+        updatedAt: candidate.updatedAt,
+        jobId,
+        reason: candidate.warningCount ? `${candidate.warningCount} candidate warning(s)` : "candidate passed Quality Gate v2"
+      };
+    });
+  }
+  if (candidate.repairDirections?.length && manifest.winnerCandidateId) {
+    manifest.state = "accepted";
+    manifest.requestedDirections
+      .filter((direction) => body.ready !== true || !candidate.repairDirections?.includes(direction))
+      .forEach((direction) => {
+        manifest.directionStates[direction] = {
+          state: "accepted",
+          updatedAt: candidate.updatedAt,
+          jobId: manifest.winnerCandidateId,
+          reason: body.ready === true ? "untargeted direction preserved from accepted winner" : "restored accepted winner after failed Direction Repair"
+        };
+      });
+  }
+  await writeAnimationTournamentManifest(manifest);
+  return manifest;
+}
+
+async function acceptAnimationTournamentWinner(tournamentId: string, jobId: string) {
+  const manifest = await readAnimationTournamentManifestRequired(tournamentId);
+  const winner = manifest.candidates.find((candidate) => candidate.jobId === jobId);
+  if (!winner) throw new Error("Tournament winner job is not registered in the tournament manifest.");
+  const jobOutboxDir = tournamentJobOutboxDir(tournamentId, jobId);
+  const hashes: Record<string, string> = {};
+  for (const direction of manifest.requestedDirections) {
+    const slug = directionSlug(direction);
+    const candidate = await findDirectionSplitCandidateFile(jobId, slug, jobOutboxDir);
+    if (!candidate) throw new Error(`Tournament winner is missing ${direction}.`);
+    hashes[direction] = await hashFile(candidate.path);
+    manifest.directionStates[direction] = { state: "accepted", updatedAt: new Date().toISOString(), jobId };
+  }
+  manifest.acceptedDirectionHashes = hashes;
+  manifest.winnerCandidateId = jobId;
+  manifest.state = "accepted";
+  manifest.candidates.forEach((candidate) => {
+    candidate.state = candidate.jobId === jobId ? "accepted" : candidate.jobId ? "cancelled" : candidate.state;
+    candidate.updatedAt = new Date().toISOString();
+  });
+  await writeAnimationTournamentManifest(manifest);
+  return manifest;
+}
+
+async function cancelAnimationTournament(tournamentId: string) {
+  return withAnimationTournamentLock(tournamentId, () => cancelAnimationTournamentUnlocked(tournamentId));
+}
+
+async function cancelAnimationTournamentUnlocked(tournamentId: string) {
+  const manifest = await readAnimationTournamentManifestRequired(tournamentId);
+  const results = [];
+  for (const candidate of manifest.candidates) {
+    if (!candidate.jobId) {
+      candidate.state = "cancelled";
+      continue;
+    }
+    const status = await getRunnerStatus(candidate.jobId);
+    if (status.state === "running") results.push(await cancelCodexRunner(candidate.jobId));
+    candidate.state = "cancelled";
+    candidate.updatedAt = new Date().toISOString();
+  }
+  manifest.state = "cancelled";
+  await writeAnimationTournamentManifest(manifest);
+  return { ok: true, tournament: manifest, results };
+}
+
+async function startAnimationDirectionRepair(tournamentId: string, requestedDirections: unknown) {
+  return withAnimationTournamentLock(tournamentId, () => startAnimationDirectionRepairUnlocked(tournamentId, requestedDirections));
+}
+
+async function startAnimationDirectionRepairUnlocked(tournamentId: string, requestedDirections: unknown) {
+  const manifest = await readAnimationTournamentManifestRequired(tournamentId);
+  if (manifest.state !== "accepted" || !manifest.winnerCandidateId) throw new Error("Direction Repair requires an accepted tournament winner.");
+  if (manifest.retryCount >= 2) throw new Error("Direction Repair retry limit reached; return to human review.");
+  const directions = normalizeDirectionNames(requestedDirections).filter((direction) => manifest.requestedDirections.includes(direction));
+  if (directions.length === 0) throw new Error("Select at least one accepted direction to repair.");
+  const existing = manifest.candidates.find((candidate) =>
+    candidate.repairDirections?.length === directions.length &&
+    candidate.repairDirections.every((direction) => directions.includes(direction)) &&
+    candidate.state !== "failed" && candidate.state !== "cancelled"
+  );
+  if (existing?.jobId) {
+    return { reused: true, job: await codexJobResponse(existing.jobId, true), tournament: await refreshAnimationTournamentManifest(tournamentId) };
+  }
+
+  const template = parseJsonText<CodexJobRequest>(await readFile(animationTournamentTemplatePath(tournamentId), "utf8"));
+  const repairIndex = manifest.candidates.length;
+  const idempotencyKey = `${manifest.idempotencyKey}:repair:${manifest.retryCount + 1}:${directions.map(directionSlug).sort().join("+")}`;
+  const now = new Date().toISOString();
+  manifest.retryCount += 1;
+  manifest.candidates.push({
+    index: repairIndex,
+    state: "repairing",
+    idempotencyKey,
+    updatedAt: now,
+    repairDirections: directions,
+    reason: "direction repair requested"
+  });
+  directions.forEach((direction) => {
+    manifest.directionStates[direction] = { state: "repairing", updatedAt: now, reason: "direction repair requested" };
+  });
+  await writeAnimationTournamentManifest(manifest);
+
+  const body: CodexJobRequest = {
+    ...template,
+    directions,
+    grid: { columns: 8, rows: directions.length, gutter: 0 },
+    frames: 8 * directions.length,
+    tournamentId,
+    tournamentCandidateIndex: repairIndex,
+    tournamentCandidateCount: repairIndex + 1,
+    generationProfile: manifest.generationProfile,
+    idempotencyKey,
+    sourceFingerprint: manifest.sourceFingerprint,
+    repairDirections: directions,
+    repairOfJobId: manifest.winnerCandidateId,
+    jobNotes: [
+      template.jobNotes ?? "",
+      `Direction Repair ${manifest.retryCount}/2 for tournament ${tournamentId}.`,
+      `Regenerate only: ${directions.join(", ")}.`,
+      `Accepted winner: ${manifest.winnerCandidateId}. Preserve all untargeted direction hashes exactly.`,
+      `Accepted direction hashes: ${JSON.stringify(manifest.acceptedDirectionHashes)}.`,
+      "Use the same source fingerprint, motion recipe or preset, 8-frame contract, cell size, chroma key, adjacent direction pose language, timing, palette, silhouette, and footline."
+    ].filter(Boolean).join("\n")
+  };
+  const job = await createCodexJob(body);
+  return { reused: false, job, tournament: await refreshAnimationTournamentManifest(tournamentId) };
+}
+
+async function acceptAnimationDirectionRepair(tournamentId: string, repairJobId: string) {
+  return withAnimationTournamentLock(tournamentId, () => acceptAnimationDirectionRepairUnlocked(tournamentId, repairJobId));
+}
+
+async function acceptAnimationDirectionRepairUnlocked(tournamentId: string, repairJobId: string) {
+  const manifest = await readAnimationTournamentManifestRequired(tournamentId);
+  const repair = manifest.candidates.find((candidate) => candidate.jobId === repairJobId && candidate.repairDirections?.length);
+  if (!repair?.repairDirections || !manifest.winnerCandidateId) throw new Error("Direction Repair job is not registered or the winner is missing.");
+  const repairStatus = await getRunnerStatus(repairJobId);
+  if (repairStatus.state === "running") throw new Error("Direction Repair is still running.");
+  const repairDir = tournamentJobOutboxDir(tournamentId, repairJobId);
+  const repairArtifact = await inspectDirectionSplitArtifact(repairJobId, repairDir);
+  if (!repairArtifact.ready || !repairArtifact.verified) throw new Error(`Direction Repair is not a verified artifact: ${repairArtifact.reason}`);
+  if (!repairArtifact.animationQuality) throw new Error("Direction Repair must pass client Quality Gate v2 evaluation before acceptance.");
+
+  const winnerJobId = manifest.winnerCandidateId;
+  const winnerDir = tournamentJobOutboxDir(tournamentId, winnerJobId);
+  const beforeHashes = { ...manifest.acceptedDirectionHashes };
+  for (const direction of repair.repairDirections) {
+    const slug = directionSlug(direction);
+    const [repairFile, winnerFile] = await Promise.all([
+      findDirectionSplitCandidateFile(repairJobId, slug, repairDir),
+      findDirectionSplitCandidateFile(winnerJobId, slug, winnerDir)
+    ]);
+    if (!repairFile || !winnerFile) throw new Error(`Direction Repair is missing ${direction}.`);
+    await copyFile(repairFile.path, winnerFile.path);
+  }
+
+  const afterHashes: Record<string, string> = {};
+  const changedUntargeted: string[] = [];
+  for (const direction of manifest.requestedDirections) {
+    const winnerFile = await findDirectionSplitCandidateFile(winnerJobId, directionSlug(direction), winnerDir);
+    if (!winnerFile) throw new Error(`Accepted winner is missing ${direction} after repair.`);
+    afterHashes[direction] = await hashFile(winnerFile.path);
+    if (!repair.repairDirections.includes(direction) && beforeHashes[direction] !== afterHashes[direction]) changedUntargeted.push(direction);
+  }
+  if (changedUntargeted.length > 0) throw new Error(`Direction Repair changed untargeted directions: ${changedUntargeted.join(", ")}`);
+
+  await new Promise((resolveDelay) => setTimeout(resolveDelay, Math.min(artifactStableMs + 50, 2000)));
+  const published = await publishTournamentWinnerUnlocked(tournamentId, winnerJobId);
+  const updated = await readAnimationTournamentManifestRequired(tournamentId);
+  updated.acceptedDirectionHashes = afterHashes;
+  repair.state = "accepted";
+  repair.updatedAt = new Date().toISOString();
+  repair.repairDirections.forEach((direction) => {
+    updated.directionStates[direction] = { state: "accepted", updatedAt: new Date().toISOString(), jobId: repairJobId };
+  });
+  updated.requestedDirections
+    .filter((direction) => !repair.repairDirections?.includes(direction))
+    .forEach((direction) => {
+      updated.directionStates[direction] = {
+        state: "accepted",
+        updatedAt: new Date().toISOString(),
+        jobId: winnerJobId,
+        reason: "untargeted direction preserved from accepted winner"
+      };
+    });
+  const updatedRepair = updated.candidates.find((candidate) => candidate.jobId === repairJobId);
+  if (updatedRepair) {
+    updatedRepair.state = "accepted";
+    updatedRepair.updatedAt = new Date().toISOString();
+  }
+  updated.state = "accepted";
+  await writeAnimationTournamentManifest(updated);
+  return {
+    ok: true,
+    tournament: updated,
+    published,
+    repairedDirections: repair.repairDirections,
+    beforeHashes,
+    afterHashes,
+    unchangedDirections: manifest.requestedDirections.filter((direction) => !repair.repairDirections?.includes(direction))
+  };
+}
+
+async function refreshAnimationTournamentManifest(tournamentId: string) {
+  const manifest = await readAnimationTournamentManifest(tournamentId);
+  if (!manifest) return null;
+  let changed = false;
+  for (const candidate of manifest.candidates) {
+    if (typeof candidate.warningCount === "number" && (!Number.isFinite(candidate.warningCount) || candidate.warningCount > 999)) {
+      candidate.warningCount = 0;
+      changed = true;
+    }
+    if (!candidate.jobId || candidate.state === "accepted" || candidate.state === "cancelled") continue;
+    const status = await getRunnerStatus(candidate.jobId);
+    let nextState = candidate.state;
+    if (status.state === "running") nextState = "running";
+    else if (status.state === "completed") {
+      const artifact = await inspectDirectionSplitArtifact(candidate.jobId, tournamentJobOutboxDir(tournamentId, candidate.jobId));
+      nextState = artifact.ready ? (artifact.animationQuality ? "quality-evaluated" : "artifact-ready") : "failed";
+      if (artifact.animationQuality) {
+        candidate.qualityReportRef = `${candidate.jobId}-manifest.json#animationQuality`;
+        if (!manifest.qualityReportRefs.includes(candidate.qualityReportRef)) manifest.qualityReportRefs.push(candidate.qualityReportRef);
+      }
+      candidate.reason = artifact.reason;
+    } else if (status.state === "failed" || status.state === "unavailable" || status.state === "disabled") nextState = "failed";
+    if (nextState !== candidate.state) {
+      candidate.state = nextState;
+      candidate.updatedAt = new Date().toISOString();
+      changed = true;
+    }
+  }
+  if (manifest.state !== "accepted" && manifest.state !== "cancelled") {
+    const started = manifest.candidates.filter((candidate) => candidate.jobId);
+    const hasActiveCandidate = started.some((candidate) => ["running", "artifact-ready", "quality-evaluated", "repairing"].includes(candidate.state));
+    const nextState = hasActiveCandidate
+      ? "running"
+      : manifest.winnerCandidateId
+        ? "accepted"
+      : started.length > 0 && started.every((candidate) => candidate.state === "failed")
+        ? "failed"
+        : manifest.state;
+    if (nextState !== manifest.state) {
+      manifest.state = nextState;
+      changed = true;
+    }
+    if (nextState === "failed") {
+      const updatedAt = new Date().toISOString();
+      manifest.requestedDirections.forEach((direction) => {
+        const directionState = manifest.directionStates[direction];
+        if (directionState?.state === "failed") return;
+        manifest.directionStates[direction] = {
+          state: "failed",
+          updatedAt,
+          reason: "all tournament candidates reached a failed terminal state"
+        };
+        changed = true;
+      });
+    }
+  }
+  const hasPendingDirectionRepair = manifest.candidates.some((candidate) =>
+    candidate.repairDirections?.length && ["running", "repairing", "artifact-ready", "quality-evaluated"].includes(candidate.state)
+  );
+  if (manifest.state === "accepted" && manifest.winnerCandidateId && !hasPendingDirectionRepair) {
+    const updatedAt = new Date().toISOString();
+    manifest.requestedDirections.forEach((direction) => {
+      const directionState = manifest.directionStates[direction];
+      if (directionState?.state === "accepted") return;
+      manifest.directionStates[direction] = {
+        state: "accepted",
+        updatedAt,
+        jobId: manifest.winnerCandidateId,
+        reason: "restored accepted winner after terminal Direction Repair"
+      };
+      changed = true;
+    });
+  }
+  if (changed) await writeAnimationTournamentManifest(manifest);
+  return manifest;
+}
+
+async function listAnimationTournamentManifests() {
+  const entries = await readdir(tournamentWorkRootDir, { withFileTypes: true });
+  const manifests = await Promise.all(entries
+    .filter((entry) => entry.isDirectory() && isSafeTournamentId(entry.name))
+    .map((entry) => refreshAnimationTournamentManifest(entry.name).catch(() => null)));
+  return manifests.filter((manifest): manifest is AnimationTournamentManifest => Boolean(manifest))
+    .sort((left, right) => Date.parse(right.updatedAt) - Date.parse(left.updatedAt));
+}
+
+async function readAnimationTournamentManifest(tournamentId: string) {
+  try {
+    const manifest = parseJsonText<AnimationTournamentManifest>(await readFile(animationTournamentManifestPath(tournamentId), "utf8"));
+    return manifest.schema === "image-cockpit.animation-tournament.v1" ? manifest : null;
+  } catch {
+    return null;
+  }
+}
+
+async function readAnimationTournamentManifestRequired(tournamentId: string) {
+  const manifest = await readAnimationTournamentManifest(tournamentId);
+  if (!manifest) throw new Error("Tournament manifest was not found.");
+  return manifest;
+}
+
+async function writeAnimationTournamentManifest(manifest: AnimationTournamentManifest) {
+  manifest.updatedAt = new Date().toISOString();
+  await mkdir(animationTournamentDir(manifest.tournamentId), { recursive: true });
+  await writeJsonAtomic(animationTournamentManifestPath(manifest.tournamentId), manifest);
+}
+
+async function writeJsonAtomic(path: string, value: unknown) {
+  const temporaryPath = `${path}.${process.pid}.${Date.now()}.tmp`;
+  await writeFile(temporaryPath, JSON.stringify(value, null, 2), "utf8");
+  await rename(temporaryPath, path);
+}
+
+async function withAnimationTournamentLock<T>(tournamentId: string, action: () => Promise<T>) {
+  const previous = animationTournamentLocks.get(tournamentId) ?? Promise.resolve();
+  let release = () => {};
+  const current = new Promise<void>((resolveLock) => {
+    release = resolveLock;
+  });
+  const queued = previous.then(() => current);
+  animationTournamentLocks.set(tournamentId, queued);
+  await previous;
+  try {
+    return await action();
+  } finally {
+    release();
+    if (animationTournamentLocks.get(tournamentId) === queued) animationTournamentLocks.delete(tournamentId);
+  }
+}
+
+function normalizeAnimationGenerationProfile(value: unknown): AnimationGenerationProfile {
+  return value === "fast" || value === "balanced" || value === "best" ? value : "best";
+}
+
+function animationGenerationProfilePlan(profile: AnimationGenerationProfile) {
+  if (profile === "fast") return { initialCandidates: 1, maximumCandidates: 1 };
+  if (profile === "balanced") return { initialCandidates: 2, maximumCandidates: 3 };
+  return { initialCandidates: 3, maximumCandidates: 3 };
+}
+
+function normalizeDirectionNames(value: unknown) {
+  if (!Array.isArray(value)) return [];
+  const allowed = new Set(directionSplitNames);
+  return Array.from(new Set(value.filter((item): item is string => typeof item === "string" && allowed.has(item))));
+}
+
+function normalizeBoundedInteger(value: unknown, fallback: number, minimum: number, maximum: number) {
+  return typeof value === "number" && Number.isFinite(value)
+    ? Math.min(maximum, Math.max(minimum, Math.floor(value)))
+    : fallback;
+}
+
+function normalizeShortText(value: unknown) {
+  return typeof value === "string" && value.trim() ? value.trim().slice(0, 160) : undefined;
+}
+
+function isSafeIdempotencyKey(value: string) {
+  return /^[A-Za-z0-9_.:-]{8,200}$/.test(value);
+}
+
+function directionSlug(direction: string) {
+  const index = directionSplitNames.indexOf(direction);
+  return directionSplitSlugs[index] ?? direction.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+}
+
+async function hashFile(path: string) {
+  return createHash("sha256").update(await readFile(path)).digest("hex");
+}
+
 async function writeSelectedImageAsset(jobId: string, body: CodexJobRequest) {
+  const existingAssetPath = resolveSafeAssetPath(body.selectedImageAssetPath);
+  if (existingAssetPath) {
+    const bytes = await readFile(existingAssetPath);
+    const mimeType = mimeTypeForImage(existingAssetPath) ?? "application/octet-stream";
+    return { path: existingAssetPath, mimeType, source: "content-addressed-asset", fingerprint: createHash("sha256").update(bytes).digest("hex") };
+  }
   const value = body.selectedImageDataUrl;
   if (!value) return null;
 
@@ -605,9 +1373,11 @@ async function writeSelectedImageAsset(jobId: string, body: CodexJobRequest) {
     const mimeType = dataUrlMatch[1];
     const extension = extensionForMimeType(mimeType);
     if (!extension) return null;
-    const path = join(assetsDir, `${jobId}-selected${extension}`);
-    await writeFile(path, Buffer.from(dataUrlMatch[2], "base64"));
-    return { path, mimeType, source: "data-url" };
+    const bytes = Buffer.from(dataUrlMatch[2], "base64");
+    const fingerprint = createHash("sha256").update(bytes).digest("hex");
+    const path = join(assetsDir, `source-${fingerprint}${extension}`);
+    if (!existsSync(path)) await writeFile(path, bytes);
+    return { path, mimeType, source: "data-url", fingerprint };
   }
 
   if (value.startsWith("/")) {
@@ -617,12 +1387,22 @@ async function writeSelectedImageAsset(jobId: string, body: CodexJobRequest) {
     const mimeType = mimeTypeForImage(sourcePath);
     const extension = extname(sourcePath).toLowerCase();
     if (!mimeType || !extension) return null;
-    const path = join(assetsDir, `${jobId}-selected${extension}`);
-    await copyFile(sourcePath, path);
-    return { path, mimeType, source: value };
+    const bytes = await readFile(sourcePath);
+    const fingerprint = createHash("sha256").update(bytes).digest("hex");
+    const path = join(assetsDir, `source-${fingerprint}${extension}`);
+    if (!existsSync(path)) await copyFile(sourcePath, path);
+    return { path, mimeType, source: value, fingerprint };
   }
 
   return null;
+}
+
+function resolveSafeAssetPath(value: unknown) {
+  if (typeof value !== "string" || !value) return null;
+  const rootDir = resolve(assetsDir);
+  const candidate = resolve(value);
+  const root = rootDir.endsWith(sep) ? rootDir : `${rootDir}${sep}`;
+  return candidate.startsWith(root) && existsSync(candidate) ? candidate : null;
 }
 
 function normalizeWorkflowMode(value?: string): CodexWorkflowMode {
@@ -729,7 +1509,10 @@ function workflowNotes(mode: CodexWorkflowMode) {
   ];
 }
 
-async function startCodexRunner(job: { id: string; createdAt: string; path: string; outboxDir: string }) {
+async function startCodexRunner(
+  job: { id: string; createdAt: string; path: string; outboxDir: string },
+  resume?: { initialStartedAt?: string; resumeCount?: number }
+) {
   const statusPath = join(statusDir, `${job.id}.json`);
   const logPath = join(logsDir, `${job.id}.log`);
 
@@ -794,10 +1577,13 @@ async function startCodexRunner(job: { id: string; createdAt: string; path: stri
   const status: CodexRunnerStatus = {
     jobId: job.id,
     state: "running",
-    message: `Started ${codexCommand} exec for ${job.id}`,
+    message: resume ? `Resumed ${codexCommand} exec for ${job.id} after the API process restarted` : `Started ${codexCommand} exec for ${job.id}`,
     command: codexLaunchCommand,
     requestedCommand: codexCommand,
     startedAt,
+    initialStartedAt: resume?.initialStartedAt ?? startedAt,
+    resumedAt: resume ? startedAt : undefined,
+    resumeCount: resume?.resumeCount ?? 0,
     statusPath,
     logPath,
     outboxDir: job.outboxDir
@@ -806,7 +1592,7 @@ async function startCodexRunner(job: { id: string; createdAt: string; path: stri
   await writeRunnerStatus(status);
 
   const logStream = createWriteStream(logPath, { flags: "a" });
-  const prompt = buildCodexRunnerPrompt(job);
+  const prompt = buildCodexRunnerPrompt(job, Boolean(resume));
   logStream.write(`[${startedAt}] Starting ${codexLaunchCommand} exec for ${job.id}\n`);
   logStream.write(`Job path: ${job.path}\n`);
   logStream.write(`Outbox: ${job.outboxDir}\n\n`);
@@ -1170,11 +1956,16 @@ function isWindowsAppsLaunchLikely() {
   return explicitLaunchCommandIsWindowsApps || bareCommandWouldResolveThroughWindowsApps;
 }
 
-function buildCodexRunnerPrompt(job: { id: string; path: string; outboxDir: string }) {
+function buildCodexRunnerPrompt(job: { id: string; path: string; outboxDir: string }, resumed = false) {
   return [
     "You are processing an Image Cockpit for Codex Workflows handoff job.",
     "",
     `Read this local JSON job file: ${job.path}`,
+    ...(resumed ? [
+      "This is a resumable retry after the API process restarted. Inspect the exact job outbox and its .staging subtree before generating anything new.",
+      "Reuse direction sheets and intermediate files that already belong to this job and pass the job contract. Continue only missing or invalid directions, then verify the full set and write the final manifest last.",
+      "Do not restart completed direction generation merely because this is a fresh Codex process, and never borrow files from another candidate or job."
+    ] : []),
     "If selectedImage.assetPath is populated, inspect that source image before editing it.",
     "If selectedImage.assetPath is empty, treat the job as prompt-only unless the job notes say otherwise.",
     "Trust the job JSON as the generation contract. Do not perform broad repository audits or read unrelated project docs/source files when the job prompt and jobNotes already provide the needed contract.",
@@ -1346,6 +2137,26 @@ async function getRunnerStatus(jobId: string): Promise<CodexRunnerStatus> {
 async function normalizeRunningStatus(status: CodexRunnerStatus): Promise<CodexRunnerStatus> {
   if (status.state !== "running") return status;
 
+  if (!runnerProcesses.has(status.jobId)) {
+    const resultDir = await resolveJobOutboxDir(status.jobId);
+    if (resultDir) {
+      const artifact = await inspectDirectionSplitArtifact(status.jobId, resultDir).catch(() => null);
+      if (artifact?.ready && artifact.verified) {
+        const recoveredStatus: CodexRunnerStatus = {
+          ...status,
+          state: "completed",
+          message: "Recovered a verified artifact after the API process restarted.",
+          finishedAt: new Date().toISOString(),
+          exitCode: null
+        };
+        await writeRunnerStatus(recoveredStatus);
+        return recoveredStatus;
+      }
+    }
+
+    return resumeUntrackedCodexRunner(status);
+  }
+
   const stale = await isRunnerStatusStale(status);
   if (!stale) return status;
 
@@ -1424,7 +2235,8 @@ async function getJobDiagnostic(status: CodexRunnerStatus): Promise<CodexJobDiag
   if (status.state === "completed" && (hasReturnedImage || directionSplitArtifact.detected)) return null;
 
   const sidecarKind = normalizeFailureKind(sidecar?.reasonKind);
-  const combinedText = [status.message, sidecar?.text, logText].filter(Boolean).join("\n").toLowerCase();
+  const diagnosticLogTail = logText.split(/\r?\n/).slice(-12).join("\n");
+  const combinedText = [status.message, sidecar?.text, diagnosticLogTail].filter(Boolean).join("\n").toLowerCase();
   const kind = sidecarKind ?? classifyFailureKind(status, combinedText, hasReturnedImage);
   if (!kind) return null;
 
@@ -1445,6 +2257,9 @@ function classifyFailureKind(status: CodexRunnerStatus, text: string, hasReturne
   }
   if (matchesAny(text, ["usage limit", "you've hit your usage limit", "try again at"])) {
     return "usage_limit";
+  }
+  if (matchesAny(text, ["selected model is at capacity", "model is at capacity", "model capacity is currently unavailable"])) {
+    return "runner_failed";
   }
   if (
     matchesAny(text, [
@@ -1761,7 +2576,10 @@ async function inspectDirectionSplitArtifact(jobId: string, resultDir = outboxDi
   }
 
   const candidates = expectedSlugs.map((slug) => bySlug.get(slug)).filter((candidate): candidate is DirectionSplitCandidateFile => Boolean(candidate));
-  const newestMtimeMs = Math.max(...candidates.map((candidate) => candidate.mtimeMs), sourceManifest?.mtimeMs ?? 0);
+  // Stability protects partially written raster payloads. The manifest is mutable
+  // metadata (Quality v2 and tournament evaluation are appended after inspection),
+  // so its mtime must not restart the artifact-stability window and livelock publish.
+  const newestMtimeMs = Math.max(...candidates.map((candidate) => candidate.mtimeMs));
   const stable = artifactStableMs <= 0 || Date.now() - newestMtimeMs >= artifactStableMs;
   if (!stable) {
     const reason = "waiting for stable verified artifacts";
@@ -2307,6 +3125,51 @@ function qualityGateFromManifest(manifest: Record<string, unknown>) {
   return makeQualityGate(quality, qualityGateDefaultReason(quality), `manifest-${quality}`, false, false, quality !== "debug-artifact");
 }
 
+async function resumeUntrackedCodexRunner(status: CodexRunnerStatus) {
+  const existing = resumingRunnerJobs.get(status.jobId);
+  if (existing) return existing;
+
+  const resumePromise = (async () => {
+    const path = join(inboxDir, `${status.jobId}.json`);
+    try {
+      const job = parseJsonText<{
+        createdAt?: string;
+        returnTo?: { outboxDir?: string };
+      }>(await readFile(path, "utf8"));
+      const resolvedOutboxDir = resolveSafeOutboxSubdir(job.returnTo?.outboxDir) ?? status.outboxDir ?? outboxDir;
+      const nextResumeCount = Math.max(0, status.resumeCount ?? 0) + 1;
+      return startCodexRunner(
+        {
+          id: status.jobId,
+          createdAt: job.createdAt ?? status.initialStartedAt ?? status.startedAt ?? new Date().toISOString(),
+          path,
+          outboxDir: resolvedOutboxDir
+        },
+        {
+          initialStartedAt: status.initialStartedAt ?? status.startedAt,
+          resumeCount: nextResumeCount
+        }
+      );
+    } catch (error) {
+      const failedStatus: CodexRunnerStatus = {
+        ...status,
+        state: "failed",
+        message: `Could not resume the untracked Codex runner: ${error instanceof Error ? error.message : "unknown error"}`,
+        finishedAt: new Date().toISOString(),
+        exitCode: null
+      };
+      await writeRunnerStatus(failedStatus);
+      return failedStatus;
+    }
+  })();
+  resumingRunnerJobs.set(status.jobId, resumePromise);
+  try {
+    return await resumePromise;
+  } finally {
+    resumingRunnerJobs.delete(status.jobId);
+  }
+}
+
 function animationQualityFromRequest(body: AnimationQualityReportRequest) {
   return normalizeAnimationQualityReport(body.report);
 }
@@ -2552,7 +3415,17 @@ function resolveSafeOutboxSubdir(value: unknown) {
   return resolved === rootDir || resolved.startsWith(root) ? resolved : null;
 }
 
-async function publishTournamentWinner(tournamentId: string, jobId: string) {
+async function publishAndAcceptTournamentWinner(tournamentId: string, jobId: string) {
+  return withAnimationTournamentLock(tournamentId, async () => {
+    const result = await publishTournamentWinnerUnlocked(tournamentId, jobId);
+    const tournament = await readAnimationTournamentManifest(tournamentId)
+      ? await acceptAnimationTournamentWinner(tournamentId, jobId)
+      : undefined;
+    return { result, tournament };
+  });
+}
+
+async function publishTournamentWinnerUnlocked(tournamentId: string, jobId: string) {
   const jobOutboxDir = await resolveJobOutboxDir(jobId);
   const expectedOutboxDir = tournamentJobOutboxDir(tournamentId, jobId);
   if (!jobOutboxDir || resolve(jobOutboxDir) !== resolve(expectedOutboxDir)) {
