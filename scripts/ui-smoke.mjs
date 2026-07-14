@@ -1840,6 +1840,12 @@ async function assertSourceStatusRoundTrip(label, selector, { restoreSelectedRes
     () => `document.querySelector("canvas")?.dataset.previewName === ${JSON.stringify(sourceName)}`,
     `${label} source chip selects the source preview`
   );
+  if (label === "Animation Generation") {
+    await waitForEval(
+      () => `document.querySelector(".animation-step.complete .source-preview")?.innerText.includes(${JSON.stringify(sourceName)})`,
+      `${label} source card updates after source chip click`
+    );
+  }
   const after = await pageSnapshot();
   assert(
     after.canvasPreviewName === sourceName,

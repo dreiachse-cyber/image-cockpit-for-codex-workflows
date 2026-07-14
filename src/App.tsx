@@ -55,6 +55,9 @@ import {
   exportSpriteSheet
 } from "./lib/exporters";
 import { importAnimationPackBlob } from "./lib/animationPack";
+import { animationExportAnchor, animationNormalizationFootline } from "./lib/animationAlignment";
+import { buildAnimationQualityReport } from "./lib/animationQuality";
+import type { AnimationQualityFrameInput } from "./lib/animationQuality";
 import { createId, dataUrlToBlob, downloadBlob, loadImage, readFileAsDataUrl } from "./lib/image";
 import { OFFICIAL_ANIMATION_LIBRARY } from "./lib/officialAnimations";
 import { calculateGridCells, summarizeFrames } from "./lib/sprite";
@@ -83,6 +86,8 @@ import type {
   AnimationLibraryItem,
   AnimationLibraryKind,
   AnimationPackManifest,
+  AnimationNormalizationCorrection,
+  AnimationQualityReportV2,
   CodexArtifactStatus,
   CodexFailureKind,
   CodexJobDiagnostic,
@@ -205,7 +210,7 @@ const DIRECTION_SPLIT_IDLE_MOTION_ABSENT_MAX = 0.02;
 // Idle breathing is intentionally quiet, so require only a couple readable rows while preserving the static-copy guard above.
 const DIRECTION_SPLIT_IDLE_MIN_READABLE_MOTION_ROWS = 2;
 const STANDARD_ANIMATION_CELL: SpriteAction["cell"] = { width: ANIMATION_CELL_SIZE, height: ANIMATION_CELL_SIZE };
-const STANDARD_ANIMATION_ANCHOR = { x: Math.round(ANIMATION_CELL_SIZE / 2), y: Math.round(ANIMATION_CELL_SIZE * 0.92) };
+const STANDARD_ANIMATION_ANCHOR = animationExportAnchor(ANIMATION_CELL_SIZE, ANIMATION_CELL_SIZE);
 const HATCH_PET_CELL: SpriteAction["cell"] = { width: 192, height: 208 };
 const HATCH_PET_GRID: GridSettings = { columns: 8, rows: 9, gutter: 0 };
 const HATCH_PET_STATE_ROWS = [
@@ -518,6 +523,7 @@ interface DirectionSplitAnimationManifest {
   cell?: SpriteAction["cell"];
   files?: Record<string, string> | Array<{ direction?: string; file?: string; name?: string; path?: string }>;
   chromaKey?: string | { name?: string };
+  animationQuality?: AnimationQualityReportV2;
 }
 
 interface DirectionSplitSelection {
@@ -567,6 +573,7 @@ interface DirectionSplitNormalizedCell {
   bounds: OpaqueBounds | null;
   warnings: string[];
   failures: string[];
+  correction: AnimationNormalizationCorrection;
 }
 
 interface EffectAnimationJobContext extends EffectAnimationMetadata {
@@ -691,7 +698,18 @@ interface DirectionSplitTournamentCandidateEvaluation {
   manifestResult?: CodexOutboxResult;
   directionResults: CodexOutboxResult[];
   importedResults: CodexOutboxImportResponse[];
+  animationQuality?: AnimationQualityReportV2;
   error?: string;
+}
+
+class DirectionSplitQualityError extends Error {
+  animationQuality: AnimationQualityReportV2;
+
+  constructor(message: string, animationQuality: AnimationQualityReportV2) {
+    super(message);
+    this.name = "DirectionSplitQualityError";
+    this.animationQuality = animationQuality;
+  }
 }
 
 interface AnimationTournamentStatusEntry {
@@ -3546,7 +3564,7 @@ function hatchPetSpriteAction(): SpriteAction {
     loop: true,
     frameIds: [],
     cell: HATCH_PET_CELL,
-    anchor: { x: Math.round(HATCH_PET_CELL.width / 2), y: Math.round(HATCH_PET_CELL.height * 0.92) }
+    anchor: animationExportAnchor(HATCH_PET_CELL.width, HATCH_PET_CELL.height)
   };
 }
 
@@ -3792,7 +3810,10 @@ export function selectDirectionSplitAnimationResults(
   const manifestResult = results.find((result) => isDirectionSplitAnimationManifestName(result.name, jobId));
   const staticImageResults = results.filter(isStaticImageResult);
   const manifestFiles = manifest ? directionSplitManifestFiles(manifest) : new Map<string, string>();
-  const directions = normalizeAnimationDirections(expectedDirections ?? manifest?.directions);
+  const artifactDirections = directionSplitDirectionsFromArtifactStatus(artifactStatus);
+  const directions = normalizeAnimationDirections(
+    expectedDirections ?? manifest?.directions ?? (artifactDirections.length > 0 ? artifactDirections : undefined)
+  );
   const byDirection = directions.map((direction) => {
     const canonicalIndex = ANIMATION_DIRECTIONS.indexOf(direction);
     const slug = DIRECTION_SPLIT_ANIMATION_FILE_SLUGS[canonicalIndex] ?? animationDirectionSlug(direction);
@@ -3833,6 +3854,15 @@ export function selectDirectionSplitAnimationResults(
     directionResults: byDirection.filter((result): result is CodexOutboxResult => Boolean(result)),
     missingDirections
   };
+}
+
+function directionSplitDirectionsFromArtifactStatus(artifactStatus?: CodexArtifactStatus) {
+  const directionIndexes = new Set(
+    (artifactStatus?.files ?? [])
+      .map((name) => directionSplitResultDirectionIndex(name, artifactStatus?.jobId ?? ""))
+      .filter((index) => index >= 0)
+  );
+  return ANIMATION_DIRECTIONS.filter((_, index) => directionIndexes.has(index));
 }
 
 export function findReadyDirectionSplitArtifacts(results: CodexOutboxResult[]): ReadyDirectionSplitArtifact[] {
@@ -4575,7 +4605,7 @@ function App() {
       name: `${baseName}_animation`,
       frameIds: selectedAnimationFrames.map((frame) => frame.id),
       cell,
-      anchor: firstFrame ? { x: Math.round(cell.width / 2), y: Math.round(cell.height * 0.92) } : activeAction.anchor
+      anchor: firstFrame ? animationExportAnchor(cell.width, cell.height) : activeAction.anchor
     };
   }, [activeAction, selected, selectedAnimationFrames]);
 
@@ -6040,7 +6070,23 @@ function App() {
     }
   }
 
+  async function persistCodexAnimationQuality(jobId: string, animationQuality: AnimationQualityReportV2) {
+    try {
+      const response = await fetch(`/api/codex/artifacts/${encodeURIComponent(jobId)}/animation-quality`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ report: animationQuality })
+      });
+      if (!response.ok) console.warn(`Could not persist Codex animation quality report for ${jobId}: ${await response.text()}`);
+    } catch (error) {
+      console.warn(`Could not persist Codex animation quality report for ${jobId}`, error);
+    }
+  }
+
   function recordCodexImportFailure(job: CodexJobQueueItem, error: unknown) {
+    if (error instanceof DirectionSplitQualityError) {
+      void persistCodexAnimationQuality(job.id, error.animationQuality);
+    }
     const reason = summarizeCodexImportFailureReason(error);
     const isReviewCandidate = isStandardDirectionSplitJob(job) && /bronze candidate|needs review|raw direction candidate/i.test(reason);
     const isQualityGateFailure = isStandardDirectionSplitJob(job) && /quality gate|chroma key|transparency damage|direction split qa failed|quarantined/i.test(reason);
@@ -6770,7 +6816,16 @@ function App() {
       const importedResults = await Promise.all(selection.directionResults.map((result) => fetchCodexJobOutboxResult(job.id, result.name)));
       const actionName = job.actionName ?? manifestActionName(manifest);
       const chromaKey = animationChromaKeys[job.chromaKey ?? manifestChromaKeyName(manifest, animationChromaKey)];
-      const composed = await composeDirectionSplitAnimationSheet(importedResults, chromaKey, job.cell ?? manifest?.cell ?? STANDARD_ANIMATION_CELL, actionName, selection.directions);
+      const sourceDataUrl = historyRef.current.find((item) => item.id === job.sourceImageId)?.dataUrl;
+      const composed = await composeDirectionSplitAnimationSheet(
+        importedResults,
+        chromaKey,
+        job.cell ?? manifest?.cell ?? STANDARD_ANIMATION_CELL,
+        actionName,
+        selection.directions,
+        sourceDataUrl
+      );
+      await persistCodexAnimationQuality(job.id, composed.animationQuality);
       const artifactWarnings = selection.artifactStatus?.warnings?.length ?? 0;
       const warningCount = composed.warnings.length + artifactWarnings;
       const artifactQuality = selection.artifactStatus?.quality;
@@ -6787,9 +6842,13 @@ function App() {
         manifest,
         manifestResult: selection.manifestResult,
         directionResults: selection.directionResults,
-        importedResults
+        importedResults,
+        animationQuality: composed.animationQuality
       };
     } catch (error) {
+      if (error instanceof DirectionSplitQualityError) {
+        await persistCodexAnimationQuality(job.id, error.animationQuality);
+      }
       return {
         ...emptyEvaluation,
         error: error instanceof Error ? error.message : "Candidate evaluation failed."
@@ -6808,7 +6867,16 @@ function App() {
     const chromaKey = animationChromaKeys[importContext.chromaKey ?? manifestChromaKeyName(manifest, animationChromaKey)];
     const sheetDirections = normalizeAnimationDirections(importContext.directions ?? manifest?.directions);
     const sheetGrid = animationSheetGridForDirections(sheetDirections);
-    const composed = await composeDirectionSplitAnimationSheet(importedResults, chromaKey, spriteCell, actionName, sheetDirections);
+    const sourceDataUrl = historyRef.current.find((historyItem) => historyItem.id === importContext.sourceImageId)?.dataUrl;
+    const composed = await composeDirectionSplitAnimationSheet(
+      importedResults,
+      chromaKey,
+      spriteCell,
+      actionName,
+      sheetDirections,
+      sourceDataUrl
+    );
+    await persistCodexAnimationQuality(importContext.id, composed.animationQuality);
     const image = await loadImage(composed.dataUrl);
     const itemName = `${importContext.id}-direction-split-animation-sheet.png`;
     const item: HistoryItem = {
@@ -6825,6 +6893,7 @@ function App() {
       derivedFromId: importContext.sourceImageId,
       derivedFromName: importContext.sourceImageName,
       animationDirections: sheetDirections,
+      animationQuality: composed.animationQuality,
       outboxImportKey: buildOutboxImportKey("direction-split", {
         jobId: importContext.id,
         filenames: importedResults.map((result) => result.name),
@@ -6861,7 +6930,10 @@ function App() {
 
     const manifestSuffix = manifest?.schema === DIRECTION_SPLIT_ANIMATION_SCHEMA ? " direction-split manifest ok." : "";
     const warningSuffix = composed.warnings.length > 0 ? ` QA warnings: ${composed.warnings.length}.` : "";
-    setStatus(`${copy.statusAnimationGenerated}: ${item.name}. ${formatFramesAddedStatus(newFrames.length, actionName, language)}${manifestSuffix}${warningSuffix}`);
+    const qualitySuffix = composed.animationQuality.shadowDecision.reasons.length > 0
+      ? ` Quality v2 shadow warnings: ${composed.animationQuality.shadowDecision.reasons.length}.`
+      : " Quality v2 shadow: clear.";
+    setStatus(`${copy.statusAnimationGenerated}: ${item.name}. ${formatFramesAddedStatus(newFrames.length, actionName, language)}${manifestSuffix}${warningSuffix}${qualitySuffix}`);
     return { added: true, item, frameCount: newFrames.length };
   }
 
@@ -7562,7 +7634,7 @@ function App() {
     const nextHeight = Math.max(MIN_ANIMATION_CELL_SIZE, height);
     updateActiveAction({
       cell: { width: nextWidth, height: nextHeight },
-      anchor: { x: Math.round(nextWidth / 2), y: Math.round(nextHeight * 0.92) }
+      anchor: animationExportAnchor(nextWidth, nextHeight)
     });
   }
 
@@ -9971,10 +10043,7 @@ function actionFromAnimationManifest(manifest: AnimationPackManifest, frameIds: 
     playbackMode: manifest.playback === "ping-pong-reverse" ? "ping-pong-reverse" : undefined,
     frameIds,
     cell: manifest.cell,
-    anchor: {
-      x: Math.round(manifest.cell.width / 2),
-      y: Math.round(manifest.cell.height * 0.92)
-    }
+    anchor: animationExportAnchor(manifest.cell.width, manifest.cell.height)
   };
 }
 
@@ -10957,7 +11026,8 @@ async function composeDirectionSplitAnimationSheet(
   chromaKey: AnimationChromaKey,
   cell: SpriteAction["cell"],
   actionName?: string,
-  directions: readonly string[] = ANIMATION_DIRECTIONS
+  directions: readonly string[] = ANIMATION_DIRECTIONS,
+  referenceDataUrl?: string
 ) {
   const preparedCells: DirectionSplitPreparedCell[] = [];
   const warnings: string[] = [];
@@ -11008,8 +11078,17 @@ async function composeDirectionSplitAnimationSheet(
   warnings.push(...normalizedCells.flatMap((frame) => frame.warnings), ...qa.warnings);
   failures.push(...normalizedCells.flatMap((frame) => frame.failures), ...qa.failures);
 
+  const referenceFrame = referenceDataUrl ? await createAnimationQualityReferenceFrame(referenceDataUrl).catch(() => undefined) : undefined;
+  const animationQuality = buildAnimationQualityReport({
+    action: actionName,
+    rawFrames: preparedCells.map((frame) => animationQualityFrameFromCanvas(frame.sourceCanvas, frame.direction, frame.frameIndex, frame.bounds)),
+    normalizedFrames: normalizedCells.map((frame) => animationQualityFrameFromCanvas(frame.canvas, frame.direction, frame.frameIndex, frame.bounds)),
+    corrections: normalizedCells.map((frame) => frame.correction),
+    referenceFrame
+  });
+
   if (failures.length > 0) {
-    throw new Error(`Direction split QA failed: ${failures.slice(0, 10).join("; ")}`);
+    throw new DirectionSplitQualityError(`Direction split QA failed: ${failures.slice(0, 10).join("; ")}`, animationQuality);
   }
 
   const canvas = document.createElement("canvas");
@@ -11026,7 +11105,36 @@ async function composeDirectionSplitAnimationSheet(
 
   return {
     dataUrl: canvas.toDataURL("image/png"),
-    warnings
+    warnings,
+    animationQuality
+  };
+}
+
+function animationQualityFrameFromCanvas(
+  canvas: HTMLCanvasElement,
+  direction: string,
+  frameIndex: number,
+  bounds: OpaqueBounds | null
+): AnimationQualityFrameInput {
+  const context = canvas.getContext("2d", { willReadFrequently: true });
+  const rgba = context
+    ? context.getImageData(0, 0, canvas.width, canvas.height).data
+    : new Uint8ClampedArray(canvas.width * canvas.height * 4);
+  return { direction, frameIndex, width: canvas.width, height: canvas.height, rgba, bounds };
+}
+
+async function createAnimationQualityReferenceFrame(dataUrl: string): Promise<AnimationQualityFrameInput> {
+  const canvas = await createTransparentAnimationSource(dataUrl);
+  const context = canvas.getContext("2d", { willReadFrequently: true });
+  if (!context) throw new Error("Could not inspect animation quality reference pixels.");
+  const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
+  return {
+    direction: "reference",
+    frameIndex: 0,
+    width: canvas.width,
+    height: canvas.height,
+    rgba: imageData.data,
+    bounds: findOpaqueBounds(imageData, canvas.width, canvas.height)
   };
 }
 
@@ -11123,7 +11231,7 @@ function normalizeDirectionSplitCells(preparedCells: DirectionSplitPreparedCell[
     Math.round(cell.height * 0.45),
     Math.round(cell.height * 0.86)
   );
-  const targetFootY = Math.round(cell.height * 0.9);
+  const targetFootY = animationNormalizationFootline(cell.height);
 
   return preparedCells.map((frame) => {
     const canvas = document.createElement("canvas");
@@ -11131,7 +11239,20 @@ function normalizeDirectionSplitCells(preparedCells: DirectionSplitPreparedCell[
     canvas.height = cell.height;
     const context = canvas.getContext("2d", { willReadFrequently: true });
     if (!context || !frame.bounds) {
-      return { ...frame, canvas, bounds: null };
+      return {
+        ...frame,
+        canvas,
+        bounds: null,
+        correction: {
+          direction: frame.direction,
+          frameIndex: frame.frameIndex,
+          scale: 1,
+          translateX: 0,
+          translateY: 0,
+          rawBounds: frame.bounds,
+          normalizedBounds: null
+        }
+      };
     }
 
     const cropWidth = frame.bounds.maxX - frame.bounds.minX + 1;
@@ -11162,7 +11283,20 @@ function normalizeDirectionSplitCells(preparedCells: DirectionSplitPreparedCell[
 
     const imageData = context.getImageData(0, 0, cell.width, cell.height);
     const bounds = findOpaqueBounds(imageData, cell.width, cell.height);
-    return { ...frame, canvas, bounds };
+    return {
+      ...frame,
+      canvas,
+      bounds,
+      correction: {
+        direction: frame.direction,
+        frameIndex: frame.frameIndex,
+        scale,
+        translateX: targetX - frame.bounds.minX * scale,
+        translateY: targetY - frame.bounds.minY * scale,
+        rawBounds: frame.bounds,
+        normalizedBounds: bounds
+      }
+    };
   });
 }
 
@@ -12462,7 +12596,7 @@ function normalizeFrameOpaqueBounds(
   const cropWidth = bounds.maxX - bounds.minX + 1;
   const cropHeight = bounds.maxY - bounds.minY + 1;
   const targetX = clampNumber(Math.round(width / 2 - cropWidth / 2), 0, Math.max(0, width - cropWidth));
-  const targetFootY = Math.round(height * 0.9);
+  const targetFootY = animationNormalizationFootline(height);
   const targetY = clampNumber(targetFootY - cropHeight, 0, Math.max(0, height - cropHeight));
 
   context.clearRect(0, 0, width, height);

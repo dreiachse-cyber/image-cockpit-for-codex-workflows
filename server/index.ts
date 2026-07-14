@@ -150,6 +150,15 @@ type CodexResultQualityGateRequest = {
   warnings?: unknown;
 };
 
+type AnimationQualityReportV2 = Record<string, unknown> & {
+  metricVersion: "image-cockpit.animation-quality.v2";
+  policyVersion: string;
+};
+
+type AnimationQualityReportRequest = {
+  report?: unknown;
+};
+
 type CodexArtifactStatus = {
   jobId: string;
   artifactKind: "direction-split";
@@ -165,6 +174,7 @@ type CodexArtifactStatus = {
   stable: boolean;
   candidateCount: number;
   qualityGate?: CodexResultQualityGate;
+  animationQuality?: AnimationQualityReportV2;
   chromaKey?: {
     expected?: string;
     manifest?: string;
@@ -363,6 +373,22 @@ const server = createServer(async (request, response) => {
       const gate = qualityGateFromRequest((await readJson(request)) as CodexResultQualityGateRequest);
       const writeResult = await writeDirectionSplitQualityGate(jobId, gate);
       sendJson(response, 200, writeResult);
+      return;
+    }
+
+    const animationQualityMatch = pathname.match(/^\/api\/codex\/artifacts\/([^/]+)\/animation-quality$/);
+    if (request.method === "POST" && animationQualityMatch) {
+      const jobId = decodeURIComponent(animationQualityMatch[1]);
+      if (!isSafeJobId(jobId)) {
+        sendJson(response, 400, { error: "Unsupported or unsafe job id" });
+        return;
+      }
+      const report = animationQualityFromRequest((await readJson(request)) as AnimationQualityReportRequest);
+      if (!report) {
+        sendJson(response, 400, { error: "Invalid or unsupported animation quality report" });
+        return;
+      }
+      sendJson(response, 200, await writeDirectionSplitAnimationQuality(jobId, report));
       return;
     }
 
@@ -1661,6 +1687,7 @@ async function inspectDirectionSplitArtifact(jobId: string, resultDir = outboxDi
   const expectedAction = expectedSpriteContext.action ?? normalizeActionValue(sourceManifest?.parsed?.action);
   const manifestChromaKey = normalizeChromaKeyValue(readManifestChromaKey(sourceManifest?.parsed));
   const manifestQualityGate = sourceManifest ? qualityGateFromManifest(sourceManifest.parsed) : null;
+  const animationQuality = sourceManifest ? animationQualityFromManifest(sourceManifest.parsed) : undefined;
   const newestCandidateMtimeMs = Math.max(0, ...Array.from(bySlug.values()).map((candidate) => candidate.mtimeMs));
   const manifestQualityGateIsStale =
     sourceManifest &&
@@ -1697,6 +1724,7 @@ async function inspectDirectionSplitArtifact(jobId: string, resultDir = outboxDi
       manifestName: sourceManifest?.name,
       stable: false,
       candidateCount,
+      animationQuality,
       qualityGate: manifestQualityGate,
       chromaKey: {
         expected: expectedChromaKey,
@@ -1722,6 +1750,7 @@ async function inspectDirectionSplitArtifact(jobId: string, resultDir = outboxDi
       manifestName: sourceManifest?.name,
       stable: false,
       candidateCount,
+      animationQuality,
       qualityGate: makeQualityGate("running", reason, "direction-split-missing-directions", false, false, true, warnings),
       chromaKey: {
         expected: expectedChromaKey,
@@ -1750,6 +1779,7 @@ async function inspectDirectionSplitArtifact(jobId: string, resultDir = outboxDi
       manifestName: sourceManifest?.name,
       stable,
       candidateCount,
+      animationQuality,
       qualityGate: makeQualityGate("running", reason, "direction-split-waiting-stable", false, false, true, warnings),
       chromaKey: {
         expected: expectedChromaKey,
@@ -1780,6 +1810,7 @@ async function inspectDirectionSplitArtifact(jobId: string, resultDir = outboxDi
       manifestName: sourceManifest?.name,
       stable,
       candidateCount,
+      animationQuality,
       qualityGate: makeQualityGate("quarantined-candidate", reason, "raw-direction-decode-failed", false, false, true, warnings),
       chromaKey: {
         expected: expectedChromaKey,
@@ -1819,6 +1850,7 @@ async function inspectDirectionSplitArtifact(jobId: string, resultDir = outboxDi
       manifestName: sourceManifest?.name,
       stable: true,
       candidateCount,
+      animationQuality,
       qualityGate: makeQualityGate("running", reason, "direction-split-runner-finalizing", false, false, true, warnings),
       chromaKey: {
         expected: expectedChromaKey,
@@ -1844,6 +1876,7 @@ async function inspectDirectionSplitArtifact(jobId: string, resultDir = outboxDi
     manifestName,
     stable: true,
     candidateCount,
+    animationQuality,
     qualityGate: makeQualityGate("usable-final", reason, "direction-split-server-verified", true, true, false, warnings),
     chromaKey: {
       expected: expectedChromaKey,
@@ -2010,6 +2043,11 @@ async function publishVerifiedDirectionSplitArtifact(
       framesPerDirection: 8,
       files: Object.fromEntries(expectedSlugs.map((slug, index) => [directionNameForSlug(slug), `${jobId}-${slug}${extname(candidates[index]?.finalName ?? ".png") || ".png"}`])),
       chromaKey: expectedChromaKey ? { name: expectedChromaKey } : undefined,
+      animationQuality: sourceManifest ? animationQualityFromManifest(sourceManifest.parsed) : undefined,
+      animationQualityRecordedAt:
+        sourceManifest && typeof sourceManifest.parsed.animationQualityRecordedAt === "string"
+          ? sourceManifest.parsed.animationQualityRecordedAt
+          : undefined,
       sourceManifest: sourceManifest
         ? {
             name: sourceManifest.name,
@@ -2269,6 +2307,28 @@ function qualityGateFromManifest(manifest: Record<string, unknown>) {
   return makeQualityGate(quality, qualityGateDefaultReason(quality), `manifest-${quality}`, false, false, quality !== "debug-artifact");
 }
 
+function animationQualityFromRequest(body: AnimationQualityReportRequest) {
+  return normalizeAnimationQualityReport(body.report);
+}
+
+function animationQualityFromManifest(manifest: Record<string, unknown>) {
+  return normalizeAnimationQualityReport(manifest.animationQuality) ?? undefined;
+}
+
+function normalizeAnimationQualityReport(value: unknown): AnimationQualityReportV2 | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const report = value as Record<string, unknown>;
+  if (report.metricVersion !== "image-cockpit.animation-quality.v2" || report.policyVersion !== "shadow-v1") return null;
+  if (report.hardGateUnchanged !== true) return null;
+  try {
+    const serialized = JSON.stringify(report);
+    if (serialized.length > 512_000) return null;
+    return JSON.parse(serialized) as AnimationQualityReportV2;
+  } catch {
+    return null;
+  }
+}
+
 function manifestQualityGateRecordedMtimeMs(sourceManifest: NonNullable<DirectionSplitSourceManifest>) {
   const recordedAt = sourceManifest.parsed.qualityGateRecordedAt;
   const recordedTime = typeof recordedAt === "string" ? Date.parse(recordedAt) : NaN;
@@ -2304,16 +2364,23 @@ function trimQualityGateText(value: string, maxLength: number) {
 }
 
 async function writeDirectionSplitQualityGate(jobId: string, qualityGate: CodexResultQualityGate) {
+  const resultDir = await resolveJobOutboxDir(jobId) ?? outboxDir;
   const manifestPaths = [
-    join(outboxDir, `${jobId}-manifest.json`),
-    join(outboxDir, ".staging", jobId, `${jobId}-manifest.json`),
-    join(outboxDir, ".staging", jobId, "manifest.json")
+    join(resultDir, `${jobId}-manifest.json`),
+    join(resultDir, ".staging", jobId, `${jobId}-manifest.json`),
+    join(resultDir, ".staging", jobId, "manifest.json")
   ];
   const written: string[] = [];
-  for (const manifestPath of manifestPaths) {
-    const existing = await readManifestObject(manifestPath);
-    if (!existing && written.length > 0) continue;
-    const manifest = existing ?? { schema: directionSplitManifestSchema, jobId };
+  const existingManifests = await Promise.all(manifestPaths.map(async (manifestPath) => ({
+    manifestPath,
+    manifest: await readManifestObject(manifestPath)
+  })));
+  const targets = existingManifests.some((item) => item.manifest)
+    ? existingManifests.filter((item) => item.manifest)
+    : [{ manifestPath: manifestPaths[0], manifest: { schema: directionSplitManifestSchema, jobId } }];
+  for (const target of targets) {
+    const manifestPath = target.manifestPath;
+    const manifest = target.manifest ?? { schema: directionSplitManifestSchema, jobId };
     manifest.schema = typeof manifest.schema === "string" ? manifest.schema : directionSplitManifestSchema;
     manifest.jobId = typeof manifest.jobId === "string" ? manifest.jobId : jobId;
     manifest.classification = qualityGate.classification;
@@ -2325,21 +2392,37 @@ async function writeDirectionSplitQualityGate(jobId: string, qualityGate: CodexR
     await writeFile(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`, "utf8");
     written.push(manifestPath);
   }
-  if (written.length === 0) {
-    const manifestPath = manifestPaths[0];
-    const manifest = {
-      schema: directionSplitManifestSchema,
-      jobId,
-      classification: qualityGate.classification,
-      quality: qualityGate.classification === "quality-failed" || qualityGate.classification === "failed" ? "blocked" : "bronze",
-      serverVerified: false,
-      qualityGate,
-      qualityGateRecordedAt: new Date().toISOString()
-    };
+  return { ok: true, jobId, qualityGate, written };
+}
+
+async function writeDirectionSplitAnimationQuality(jobId: string, animationQuality: AnimationQualityReportV2) {
+  const resultDir = await resolveJobOutboxDir(jobId) ?? outboxDir;
+  const manifestPaths = [
+    join(resultDir, `${jobId}-manifest.json`),
+    join(resultDir, ".staging", jobId, `${jobId}-manifest.json`),
+    join(resultDir, ".staging", jobId, "manifest.json")
+  ];
+  const written: string[] = [];
+  const recordedAt = new Date().toISOString();
+  const existingManifests = await Promise.all(manifestPaths.map(async (manifestPath) => ({
+    manifestPath,
+    manifest: await readManifestObject(manifestPath)
+  })));
+  const targets = existingManifests.some((item) => item.manifest)
+    ? existingManifests.filter((item) => item.manifest)
+    : [{ manifestPath: manifestPaths[0], manifest: { schema: directionSplitManifestSchema, jobId } }];
+  for (const target of targets) {
+    const manifestPath = target.manifestPath;
+    const manifest = target.manifest ?? { schema: directionSplitManifestSchema, jobId };
+    manifest.schema = typeof manifest.schema === "string" ? manifest.schema : directionSplitManifestSchema;
+    manifest.jobId = typeof manifest.jobId === "string" ? manifest.jobId : jobId;
+    manifest.animationQuality = animationQuality;
+    manifest.animationQualityRecordedAt = recordedAt;
+    await mkdir(resolve(manifestPath, ".."), { recursive: true });
     await writeFile(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`, "utf8");
     written.push(manifestPath);
   }
-  return { ok: true, jobId, qualityGate, written };
+  return { ok: true, jobId, animationQuality, written };
 }
 
 async function readManifestObject(path: string): Promise<Record<string, unknown> | null> {

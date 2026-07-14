@@ -18,6 +18,83 @@ export interface HistoryItem {
   outboxImportKey?: string;
   effectAnimation?: EffectAnimationMetadata;
   animationDirections?: string[];
+  animationQuality?: AnimationQualityReportV2;
+}
+
+export type AnimationActionQualityProfile =
+  | "grounded-strict"
+  | "grounded-soft"
+  | "airborne-or-exempt"
+  | "subtle-loop";
+
+export interface AnimationQualityDirectionMetrics {
+  direction: string;
+  frameCount: number;
+  centerDriftPx: number;
+  footlineDriftPx: number;
+  widthVariation: number;
+  heightVariation: number;
+  groundedFrameRatio: number;
+  averageMotion: number;
+  maxMotion: number;
+  loopSeam: number | null;
+}
+
+export interface AnimationQualityMetricSet {
+  frameCount: number;
+  directionCount: number;
+  directions: AnimationQualityDirectionMetrics[];
+  averageCenterDriftPx: number;
+  averageFootlineDriftPx: number;
+  averageWidthVariation: number;
+  averageHeightVariation: number;
+  averageGroundedFrameRatio: number;
+  averageMotion: number;
+  averageLoopSeam: number | null;
+}
+
+export interface AnimationNormalizationCorrection {
+  direction: string;
+  frameIndex: number;
+  scale: number;
+  translateX: number;
+  translateY: number;
+  rawBounds: { minX: number; minY: number; maxX: number; maxY: number } | null;
+  normalizedBounds: { minX: number; minY: number; maxX: number; maxY: number } | null;
+}
+
+export interface AnimationQualityReportV2 {
+  metricVersion: "image-cockpit.animation-quality.v2";
+  policyVersion: "shadow-v1";
+  recordedAt: string;
+  action: string;
+  actionProfile: AnimationActionQualityProfile;
+  expectedPhases: string[];
+  loopExpected: boolean;
+  rawMetrics: AnimationQualityMetricSet;
+  normalizedMetrics: AnimationQualityMetricSet;
+  normalizationCorrection: {
+    frames: AnimationNormalizationCorrection[];
+    adjustedFrameRatio: number;
+    averageScaleDelta: number;
+    maxScaleDelta: number;
+    averageTranslationPx: number;
+    maxTranslationPx: number;
+  };
+  identityScore: number;
+  paletteScore: number;
+  silhouetteScore: number;
+  footlineScore: number;
+  loopSeamScore: number | null;
+  phaseScore: number;
+  motionScore: number;
+  dimensionWarnings: string[];
+  shadowDecision: {
+    mode: "shadow";
+    wouldBlock: boolean;
+    reasons: string[];
+  };
+  hardGateUnchanged: true;
 }
 
 export type EffectQualityRank = "gold" | "silver" | "bronze" | "failed" | "blocked";
@@ -322,6 +399,7 @@ export interface CodexArtifactStatus {
   stable: boolean;
   candidateCount: number;
   qualityGate?: CodexResultQualityGate;
+  animationQuality?: AnimationQualityReportV2;
   chromaKey?: {
     expected?: string;
     manifest?: string;

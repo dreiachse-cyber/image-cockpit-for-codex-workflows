@@ -120,10 +120,44 @@ async function runManualHandoffSmoke() {
     assert(verifiedArtifact?.ready === true, "complete direction split should become server verified");
     assert(verifiedArtifact?.verified === true, "complete direction split should expose verified=true");
     assert(verifiedArtifact?.qualityGate?.classification === "usable-final", "complete direction split should pass the quality gate");
+    assert(verifiedArtifact?.animationQuality === undefined, "legacy manifests without Quality v2 should remain readable");
     const verifiedManifest = await getJson(port, `/api/codex/results/${artifactJobId}-manifest.json`);
     const verifiedManifestText = Buffer.from(verifiedManifest.dataUrl.split(",")[1], "base64").toString("utf8");
     assert(verifiedManifestText.includes('"serverVerified": true'), "server should rewrite the final direction split manifest");
     assert(verifiedManifestText.includes('"classification": "usable-final"'), "server manifest should include the quality gate classification");
+    const animationQualityReport = {
+      metricVersion: "image-cockpit.animation-quality.v2",
+      policyVersion: "shadow-v1",
+      recordedAt: "2026-07-15T00:00:00.000Z",
+      action: "idle",
+      actionProfile: "subtle-loop",
+      loopExpected: true,
+      rawMetrics: { frameCount: 40 },
+      normalizedMetrics: { frameCount: 40 },
+      normalizationCorrection: { frames: [], adjustedFrameRatio: 0 },
+      identityScore: 92,
+      paletteScore: 94,
+      silhouetteScore: 90,
+      footlineScore: 88,
+      loopSeamScore: 84,
+      phaseScore: 86,
+      motionScore: 91,
+      dimensionWarnings: [],
+      shadowDecision: { mode: "shadow", wouldBlock: false, reasons: [] },
+      hardGateUnchanged: true
+    };
+    await postJson(port, `/api/codex/artifacts/${encodeURIComponent(artifactJobId)}/animation-quality`, {
+      report: animationQualityReport
+    });
+    const qualityV2ArtifactList = await getJson(port, "/api/codex/results");
+    const qualityV2Artifact = qualityV2ArtifactList.results.find((result) => result.name === `${artifactJobId}-manifest.json`)?.artifact;
+    assert(qualityV2Artifact?.ready === true, "Quality v2 shadow report should not block a usable artifact");
+    assert(qualityV2Artifact?.qualityGate?.classification === "usable-final", "Quality v2 shadow report should preserve usable-final classification");
+    assert(qualityV2Artifact?.animationQuality?.metricVersion === animationQualityReport.metricVersion, "artifact status should expose the Quality v2 report");
+    const qualityV2Manifest = await getJson(port, `/api/codex/results/${artifactJobId}-manifest.json`);
+    const qualityV2ManifestText = Buffer.from(qualityV2Manifest.dataUrl.split(",")[1], "base64").toString("utf8");
+    assert(qualityV2ManifestText.includes('"animationQuality"'), "Quality v2 report should persist in the manifest");
+    assert(qualityV2ManifestText.includes('"classification": "usable-final"'), "Quality v2 persistence should not rewrite the hard gate");
     await postJson(port, `/api/codex/artifacts/${encodeURIComponent(artifactJobId)}/quality-gate`, {
       classification: "quality-failed",
       reason: "Direction split QA failed: front cell 1: Chroma key removal failed",
@@ -258,6 +292,46 @@ async function runManualHandoffSmoke() {
     assert(!generateJobJson.selectedImage.assetPath, "generation job should not attach the current selected image");
     assert(generateJobJson.annotationContext.annotationCount === 0, "generation job should not carry edit annotations");
     assert(generateJobJson.spriteContext.frames === 0, "generation job should not carry sprite context");
+
+    const tournamentJob = await postJson(port, "/api/codex/jobs", {
+      workflowMode: "sprite-generate",
+      prompt: "Smoke test hidden tournament Quality v2 persistence",
+      selectedImageName: "tiny.png",
+      selectedImageSize: "1x1",
+      selectedImageSource: "import",
+      selectedImageDataUrl: tinyPng,
+      grid: { columns: 8, rows: 3, gutter: 0 },
+      action: "walk",
+      frames: 24,
+      cell: { width: 256, height: 256 },
+      chromaKey: "green",
+      spriteVariant: "standard",
+      directions: ["front", "side", "back"],
+      tournamentId: "smoke-quality-v2-tournament",
+      tournamentCandidateIndex: 0,
+      tournamentCandidateCount: 1
+    });
+    const hiddenManifestPath = join(tournamentJob.outboxPath, `${tournamentJob.id}-manifest.json`);
+    await writeFile(hiddenManifestPath, JSON.stringify({
+      schema: "image-cockpit.direction-split-animation.v1",
+      jobId: tournamentJob.id,
+      quality: "gold",
+      qualityGate: {
+        classification: "usable-final",
+        reason: "server verified",
+        historyAllowed: true,
+        downloadAllowed: true,
+        retryable: false
+      }
+    }, null, 2), "utf8");
+    await postJson(port, `/api/codex/artifacts/${encodeURIComponent(tournamentJob.id)}/animation-quality`, {
+      report: animationQualityReport
+    });
+    const hiddenManifest = JSON.parse(await readFile(hiddenManifestPath, "utf8"));
+    assert(hiddenManifest.animationQuality?.metricVersion === animationQualityReport.metricVersion, "Quality v2 should persist beside a hidden tournament candidate");
+    assert(hiddenManifest.qualityGate?.classification === "usable-final", "hidden tournament Quality v2 persistence should preserve the hard gate");
+    const unexpectedRootTournamentManifest = await stat(join(handoffDir, "outbox", `${tournamentJob.id}-manifest.json`)).then(() => true, () => false);
+    assert(unexpectedRootTournamentManifest === false, "report-only persistence should not leak a hidden tournament manifest into root outbox");
     assert(
       generateJobJson.notes.some((note) => note.includes("built-in image generation path")),
       "generation job should instruct Codex to use the imagegen built-in image generation path"

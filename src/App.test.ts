@@ -895,6 +895,28 @@ describe("Codex outbox job result matching", () => {
       `${newerJobId}-back.png`
     ]);
   });
+
+  it("recovers a server-verified three-direction artifact before parsing its manifest", () => {
+    const jobId = "codex-job-2026-07-15T00-00-00-000Z-three";
+    const files = [`${jobId}-front.png`, `${jobId}-side.png`, `${jobId}-back.png`];
+    const artifact = makeDirectionSplitArtifact(jobId, {
+      ready: true,
+      verified: true,
+      quality: "gold",
+      reason: "server verified",
+      files,
+      candidateCount: 4
+    });
+    const results = [
+      makeOutboxResult(`${jobId}-manifest.json`, "application/json", artifact),
+      ...files.map((name) => makeOutboxResult(name, "image/png", artifact))
+    ];
+
+    const ready = findReadyDirectionSplitArtifacts(results);
+    expect(ready).toHaveLength(1);
+    expect(ready[0].selection.directions).toEqual(["front", "side", "back"]);
+    expect(ready[0].directionResults.map((result) => result.name)).toEqual(files);
+  });
 });
 
 describe("animation frame cleanup", () => {

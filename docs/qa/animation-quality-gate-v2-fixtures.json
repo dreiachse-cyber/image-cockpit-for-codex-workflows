@@ -1,0 +1,103 @@
+{
+  "schema": "image-cockpit.animation-quality-fixtures.v1",
+  "metricVersion": "image-cockpit.animation-quality.v2",
+  "policyVersion": "shadow-v1",
+  "alignment": {
+    "normalizationFootlineRatio": 0.9,
+    "exportAnchorRatio": 0.92,
+    "cell256": {
+      "normalizationFootlineY": 230,
+      "exportAnchorY": 236
+    }
+  },
+  "fixtures": [
+    {
+      "id": "raw-defect-masked-by-normalization",
+      "bodyType": "normal",
+      "action": "guard",
+      "profile": "grounded-strict",
+      "expectedLoop": false,
+      "systemHardGate": "pass",
+      "humanReview": "reject",
+      "defect": "raw footline jumps by 18 px but normalized footline is stable",
+      "expectedShadowSignals": ["normalization masked raw footline drift", "normalization is masking large source-frame corrections"]
+    },
+    {
+      "id": "small-character-safe-normalization",
+      "bodyType": "small",
+      "action": "idle-breathing",
+      "profile": "subtle-loop",
+      "expectedLoop": true,
+      "systemHardGate": "pass",
+      "humanReview": "accept",
+      "defect": "none; smaller silhouette is intentional",
+      "expectedShadowSignals": []
+    },
+    {
+      "id": "robe-silhouette-human-accept",
+      "bodyType": "robe",
+      "action": "walk",
+      "profile": "grounded-soft",
+      "expectedLoop": true,
+      "systemHardGate": "reject",
+      "humanReview": "accept",
+      "defect": "wide robe hem creates bbox width variation while identity remains readable",
+      "expectedShadowSignals": ["raw width variation"]
+    },
+    {
+      "id": "floating-footline-exempt",
+      "bodyType": "floating",
+      "action": "floating-idle",
+      "profile": "airborne-or-exempt",
+      "expectedLoop": true,
+      "systemHardGate": "pass",
+      "humanReview": "accept",
+      "defect": "no ground contact by design",
+      "expectedShadowSignals": []
+    },
+    {
+      "id": "jump-one-shot-exempt",
+      "bodyType": "normal",
+      "action": "jump",
+      "profile": "airborne-or-exempt",
+      "expectedLoop": false,
+      "systemHardGate": "pass",
+      "humanReview": "accept",
+      "defect": "large bottom drift during airborne frames is intentional",
+      "expectedShadowSignals": []
+    },
+    {
+      "id": "death-one-shot-exempt",
+      "bodyType": "normal",
+      "action": "death",
+      "profile": "airborne-or-exempt",
+      "expectedLoop": false,
+      "systemHardGate": "pass",
+      "humanReview": "accept",
+      "defect": "final pose is lower and wider than the first pose by design",
+      "expectedShadowSignals": []
+    },
+    {
+      "id": "subtle-loop-visible-seam",
+      "bodyType": "normal",
+      "action": "talk-react",
+      "profile": "subtle-loop",
+      "expectedLoop": true,
+      "systemHardGate": "pass",
+      "humanReview": "reject",
+      "defect": "last frame changes palette and pose abruptly before the first frame",
+      "expectedShadowSignals": ["loop seam is abrupt"]
+    },
+    {
+      "id": "identity-palette-shift",
+      "bodyType": "normal-with-prop",
+      "action": "attack",
+      "profile": "grounded-soft",
+      "expectedLoop": false,
+      "systemHardGate": "pass",
+      "humanReview": "reject",
+      "defect": "costume palette and prop silhouette diverge from the fixed source",
+      "expectedShadowSignals": ["identity consistency is low"]
+    }
+  ]
+}
