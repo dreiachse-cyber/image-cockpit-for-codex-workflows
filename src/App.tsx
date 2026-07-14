@@ -59,6 +59,14 @@ import { animationExportAnchor, animationNormalizationFootline } from "./lib/ani
 import { buildAnimationQualityReport } from "./lib/animationQuality";
 import type { AnimationQualityFrameInput } from "./lib/animationQuality";
 import {
+  compileMotionRecipe,
+  MOTION_RECIPES,
+  MOTION_RECIPE_COMPILER_VERSION,
+  motionRecipeReference,
+  resolveMotionRecipe
+} from "./lib/motionRecipes";
+import type { MotionRecipe, MotionRecipeReference } from "./lib/motionRecipes";
+import {
   ANIMATION_GENERATION_PROFILES,
   animationGenerationProfileDefinition,
   shouldStartBalancedAdditionalCandidate,
@@ -523,6 +531,8 @@ interface DirectionSplitAnimationManifest {
   files?: Record<string, string> | Array<{ direction?: string; file?: string; name?: string; path?: string }>;
   chromaKey?: string | { name?: string };
   animationQuality?: AnimationQualityReportV2;
+  motionRecipe?: MotionRecipeReference;
+  motionRecipeWarnings?: string[];
 }
 
 interface DirectionSplitSelection {
@@ -551,7 +561,7 @@ interface ReadyDirectionSplitArtifact {
 
 type DirectionSplitImportContext = Pick<
   CodexJobQueueItem,
-  "id" | "actionName" | "cell" | "chromaKey" | "sourceImageId" | "sourceImageName" | "directions"
+  "id" | "actionName" | "cell" | "chromaKey" | "sourceImageId" | "sourceImageName" | "directions" | "motionRecipe"
 >;
 
 interface DirectionSplitPreparedCell {
@@ -611,6 +621,7 @@ interface PendingCodexJob {
   generationProfile?: AnimationGenerationProfile;
   sourceFingerprint?: string;
   repairDirections?: string[];
+  motionRecipe?: MotionRecipeReference;
   effectContext?: EffectAnimationJobContext;
 }
 
@@ -654,6 +665,7 @@ interface CodexJobDraft {
   repairDirections?: string[];
   repairOfJobId?: string;
   presetId?: string;
+  motionRecipe?: MotionRecipeReference;
   effectContext?: EffectAnimationJobContext;
 }
 
@@ -681,6 +693,7 @@ interface CodexJobQueueItem {
   generationProfile?: AnimationGenerationProfile;
   sourceFingerprint?: string;
   repairDirections?: string[];
+  motionRecipe?: MotionRecipeReference;
   effectContext?: EffectAnimationJobContext;
 }
 
@@ -741,6 +754,8 @@ interface AnimationTournamentManifestClient {
   idempotencyKey: string;
   sourceFingerprint: string;
   motionRecipeId?: string;
+  motionRecipeVersion?: number;
+  motionRecipeCompilerVersion?: string;
   presetId?: string;
   generationProfile: AnimationGenerationProfile;
   requestedDirections: string[];
@@ -2415,235 +2430,15 @@ function withWorkflowFormCopy(overrides: Partial<Record<WorkflowMode, Partial<Wo
 
 const DEFAULT_ANIMATION_PRESET_ID = "idle-breathing";
 
-const defaultActions: SpriteAction[] = [
-  { name: "idle", fps: 12, loop: true, frameIds: [], cell: STANDARD_ANIMATION_CELL, anchor: STANDARD_ANIMATION_ANCHOR },
-  { name: "walk", fps: 12, loop: true, frameIds: [], cell: STANDARD_ANIMATION_CELL, anchor: STANDARD_ANIMATION_ANCHOR },
-  { name: "attack", fps: 12, loop: false, frameIds: [], cell: STANDARD_ANIMATION_CELL, anchor: STANDARD_ANIMATION_ANCHOR },
-  { name: "hurt", fps: 12, loop: false, frameIds: [], cell: STANDARD_ANIMATION_CELL, anchor: STANDARD_ANIMATION_ANCHOR },
-  { name: "death", fps: 8, loop: false, frameIds: [], cell: STANDARD_ANIMATION_CELL, anchor: STANDARD_ANIMATION_ANCHOR },
-  { name: "cast", fps: 10, loop: false, frameIds: [], cell: STANDARD_ANIMATION_CELL, anchor: STANDARD_ANIMATION_ANCHOR },
-  { name: "jump", fps: 12, loop: false, frameIds: [], cell: STANDARD_ANIMATION_CELL, anchor: STANDARD_ANIMATION_ANCHOR },
-  { name: "guard", fps: 10, loop: false, frameIds: [], cell: STANDARD_ANIMATION_CELL, anchor: STANDARD_ANIMATION_ANCHOR },
-  { name: "cheer", fps: 10, loop: true, frameIds: [], cell: STANDARD_ANIMATION_CELL, anchor: STANDARD_ANIMATION_ANCHOR },
-  { name: "interact", fps: 10, loop: false, frameIds: [], cell: STANDARD_ANIMATION_CELL, anchor: STANDARD_ANIMATION_ANCHOR },
-  { name: "ranged", fps: 12, loop: false, frameIds: [], cell: STANDARD_ANIMATION_CELL, anchor: STANDARD_ANIMATION_ANCHOR },
-  { name: "skill", fps: 12, loop: false, frameIds: [], cell: STANDARD_ANIMATION_CELL, anchor: STANDARD_ANIMATION_ANCHOR },
-  { name: "knockback", fps: 12, loop: false, frameIds: [], cell: STANDARD_ANIMATION_CELL, anchor: STANDARD_ANIMATION_ANCHOR },
-  { name: "item", fps: 10, loop: false, frameIds: [], cell: STANDARD_ANIMATION_CELL, anchor: STANDARD_ANIMATION_ANCHOR },
-  { name: "talk", fps: 10, loop: true, frameIds: [], cell: STANDARD_ANIMATION_CELL, anchor: STANDARD_ANIMATION_ANCHOR },
-  { name: "run", fps: 20, loop: true, playbackMode: "ping-pong-reverse", frameIds: [], cell: STANDARD_ANIMATION_CELL, anchor: STANDARD_ANIMATION_ANCHOR }
-];
-
-const animationPresetCatalog: AnimationPresetExample[] = [
-  {
-    id: "idle-breathing",
-    actionName: "idle",
-    previewClassName: "sample-idle-sheet sample-idle",
-    category: { en: "Core", ja: "基礎" },
-    title: { en: "Idle Breathing", ja: "待機呼吸ループ" },
-    summary: {
-      en: "Stable 8-frame ready stance with planted feet, subtle breathing, and readable five-direction views.",
-      ja: "足を固定したまま、控えめな呼吸と5方向の見え方が読める8フレーム待機です。"
-    },
-    prompt: "idle breathing ready stance with planted feet, clear but contained inhale and exhale, visible 2-4px shoulder and chest rise, delayed hair, hood, clothing, and backpack follow-through, stable center, stable foot baseline, no walking, no stepping, no hopping, no nearly identical frames",
-    notes: "Official preset: generate eight source frames as one complete idle breathing loop. Feet must remain planted on the same baseline; motion should come only from clearly readable breathing, shoulder/chest rise, and delayed hair, cloth, hood, and backpack settling. Avoid nearly identical frames, stepping, walking, running, hopping, large bounce, cropped hair, cropped feet, or pose drift."
-  },
-  {
-    id: "walk-cycle",
-    actionName: "walk",
-    previewClassName: "sample-walk-sheet sample-walk",
-    category: { en: "Move", ja: "移動" },
-    title: { en: "Walk Cycle", ja: "歩行ループ" },
-    summary: {
-      en: "Readable 8-frame walking loop with contact, passing poses, and stable foot placement.",
-      ja: "接地、通過ポーズ、安定した足運びが読める8フレーム歩行です。"
-    },
-    prompt: "8-frame walk cycle with alternating left and right foot contact, clear passing poses under the body, modest stride length, stable ground contact, opposite arm swing, subtle torso bob, full-body side-readable motion",
-    notes: "Preset example: generate eight source frames as one complete walk loop. The loop must show left contact, down/weight shift, passing, right reach, right contact, down/weight shift, passing, and left reach back into frame 1. Avoid sliding feet, static shuffling, hidden leg swaps, cropped feet, or pose drift."
-  },
-  {
-    id: "run-cycle",
-    actionName: "run",
-    previewClassName: "sample-run-sheet sample-run",
-    category: { en: "Move", ja: "移動" },
-    title: { en: "Run Cycle", ja: "走行ループ" },
-    summary: {
-      en: "Fast alternating strides with clear airborne beats and arm drive.",
-      ja: "大きな歩幅、空中フレーム、強い腕振りが読める走りです。"
-    },
-    prompt: "run cycle half-cycle with the left foot traveling from back to front and the right foot traveling from front to back, legs far apart then approaching, feet-together passing moment, legs separating into the opposite stride, forward torso lean, strong opposite arm drive, full-body side-readable motion",
-    notes: "Preset example: generate eight source frames for one half-cycle; the app appends the reverse order for 16-frame GIF/WebP playback. The half-cycle must show legs far apart, approaching, feet together under the body, separating again, and far apart in the opposite stride. Avoid skating, tiny shuffling steps, cropped feet, or pose drift."
-  },
-  {
-    id: "basic-attack",
-    actionName: "attack",
-    previewClassName: "sample-attack-sheet sample-attack",
-    category: { en: "Combat", ja: "戦闘" },
-    title: { en: "Basic Attack", ja: "基本攻撃" },
-    summary: {
-      en: "Eight-frame forward attack with anticipation, impact, follow-through, and recovery.",
-      ja: "構え、溜め、打撃、フォロースルー、戻りが読める8フレーム攻撃です。"
-    },
-    prompt: "basic forward attack with ready pose, anticipation, wind-up, strike, clear impact pose, follow-through, recovery, planted pivot foot, stable foot baseline, no skating or jitter, small contained weapon or hand motion, readable attack direction, no large effects",
-    notes: "Official preset: generate eight source frames as one non-looping basic attack. The action must work for armed or unarmed characters; any slash or hit effect must remain small and must not hide the body, feet, or cell edges. Keep the attack grounded: motion should read through weapon, arm, torso, and cloth follow-through while the feet stay anchored on a stable baseline."
-  },
-  {
-    id: "hurt-reaction",
-    actionName: "hurt",
-    previewClassName: "sample-hurt-sheet sample-hurt",
-    category: { en: "Combat", ja: "戦闘" },
-    title: { en: "Hurt Reaction", ja: "被弾リアクション" },
-    summary: {
-      en: "Short hit reaction with recoil, stagger, and a clean return to stance.",
-      ja: "被弾、のけぞり、踏ん張り、復帰が読める短いリアクションです。"
-    },
-    prompt: "hurt reaction with small hit spark, upper body recoil, head jolt, body bending back, staggered foot brace, regain balance, settle back to ready, no gore",
-    notes: "Official preset: generate eight source frames as one non-looping hurt reaction. Use clear recoil and stagger without blood, wounds, dismemberment, or horror imagery."
-  },
-  {
-    id: "death-downed",
-    actionName: "death",
-    previewClassName: "sample-death-sheet sample-slow",
-    category: { en: "Combat", ja: "戦闘" },
-    title: { en: "Death / Downed", ja: "ダウン" },
-    summary: {
-      en: "Non-gory downed animation that collapses into a readable defeated pose.",
-      ja: "流血なしで、倒れ込みから戦闘不能ポーズまで読めるダウンです。"
-    },
-    prompt: "non-gory defeated downed animation with hit, collapse, falling or kneeling, contact, downed pose, settle, final still, final still, compact body inside cell",
-    notes: "Official preset: generate eight source frames as one non-looping downed animation. Prefer kneeling, collapsing, or slumped defeated poses over a full sideways corpse so all directions stay readable inside the cell. No gore, blood, wounds, dismemberment, or horror detail."
-  },
-  {
-    id: "spell-cast",
-    actionName: "cast",
-    previewClassName: "sample-cast-sheet sample-cast",
-    category: { en: "Magic / Skill", ja: "魔法 / スキル" },
-    title: { en: "Spell Cast", ja: "詠唱 / 発動" },
-    summary: {
-      en: "Raise, charge, release, and recover with small contained magic effects.",
-      ja: "手元や杖先の小さなエフェクトで、詠唱から発動まで読める動きです。"
-    },
-    prompt: "spell cast animation with ready stance, planted feet or anchored robe hem, stable foot baseline, raise hand or staff, magic charge, brighter charge, compact release, follow-through, settle, return ready, small contained effect, no skating or body bob",
-    notes: "Official preset: generate eight source frames as one non-looping spell cast. Keep the exact same caster identity, outfit, staff, body proportions, and compact magic effect language across all directions. Keep the caster grounded: feet or robe hem must stay anchored on one baseline while the action reads through arms, shoulders, robe sway, and compact attached effects."
-  },
-  {
-    id: "jump-hop",
-    actionName: "jump",
-    previewClassName: "sample-jump-sheet sample-jump",
-    category: { en: "Move", ja: "移動" },
-    title: { en: "Jump / Hop", ja: "ジャンプ" },
-    summary: {
-      en: "Small in-place jump with crouch, rise, apex, landing, and settle.",
-      ja: "しゃがみ、踏み切り、頂点、着地、戻りが読める小さなその場ジャンプです。"
-    },
-    prompt: "small in-place jump hop with crouch, push-off, rising, apex, falling, landing, squash settle, ready pose, stable landing baseline, generous top padding",
-    notes: "Official preset: generate eight source frames as one non-looping jump. Keep it compact and in-place; add generous top padding so hair, hat, staff, or ears never touch the cell top."
-  },
-  {
-    id: "guard-block",
-    actionName: "guard",
-    previewClassName: "sample-guard-sheet sample-guard",
-    category: { en: "Combat", ja: "戦闘" },
-    title: { en: "Guard / Block", ja: "ガード" },
-    summary: {
-      en: "Raise guard, brace, absorb a hit, and recover without hiding the character.",
-      ja: "防御を構え、受け止め、戻るまでが読めるガード動作です。"
-    },
-    prompt: "guard block animation with ready pose, raise guard, brace, hold, absorb impact, slight recoil, recover, guard or ready end, arms weapon shield or body stance reads as defense",
-    notes: "Official preset: generate eight source frames as one guard/block action. It should read as defense even without a shield; do not hide the face and torso completely behind props."
-  },
-  {
-    id: "victory-cheer",
-    actionName: "cheer",
-    previewClassName: "sample-cheer-sheet sample-cheer",
-    category: { en: "Emotion / Social", ja: "感情 / ソーシャル" },
-    title: { en: "Victory Cheer", ja: "勝利ポーズ" },
-    summary: {
-      en: "Loopable cheer or wave with a small celebratory bounce.",
-      ja: "小さな跳ね、手振り、勝利ポーズが読めるループ向け動作です。"
-    },
-    prompt: "victory cheer loop with ready pose, arm raises, cheerful peak, small bounce, wave or held pose, settle, smile pose, loop bridge, no big jump",
-    notes: "Official preset: generate eight source frames as one loopable victory cheer or wave. Keep it distinct from jump-hop by using arm/pose expression and only a small bounce."
-  },
-  {
-    id: "interact-pickup",
-    actionName: "interact",
-    previewClassName: "sample-interact-sheet sample-interact",
-    category: { en: "Utility", ja: "ユーティリティ" },
-    title: { en: "Interact / Pickup", ja: "調べる / 拾う" },
-    summary: {
-      en: "Look, reach, bend, pick up or inspect, then return to ready.",
-      ja: "見る、手を伸ばす、拾う/調べる、戻るまでが読める汎用インタラクトです。"
-    },
-    prompt: "interact pickup animation with ready pose, look down or forward, reach, bend or pickup, hold or inspect small item, return, settle, ready pose, compact readable hands",
-    notes: "Official preset: generate eight source frames as one non-looping interact/pickup action. Keep any item small and avoid deep crouches that crush the character silhouette."
-  },
-  {
-    id: "ranged-attack",
-    actionName: "ranged",
-    previewClassName: "sample-ranged-sheet sample-ranged",
-    category: { en: "Combat", ja: "戦闘" },
-    title: { en: "Ranged Attack", ja: "遠距離攻撃" },
-    summary: {
-      en: "Aim, release, tiny projectile or spark, and recover for bows, throws, staffs, or light shots.",
-      ja: "構え、狙い、発射、小さな弾や火花、戻りが読める遠距離攻撃です。"
-    },
-    prompt: "ranged attack animation with ready pose, aim, draw or charge, release, tiny projectile or spark close to the hand or weapon tip, follow-through, recover, ready pose, compact forward shot",
-    notes: "Official preset: generate eight source frames as one non-looping ranged attack. Keep body proportions identical across all directions and keep one tiny, consistent shot effect close to the hand or weapon tip."
-  },
-  {
-    id: "skill-release",
-    actionName: "skill",
-    previewClassName: "sample-skill-sheet sample-skill",
-    category: { en: "Magic / Skill", ja: "魔法 / スキル" },
-    title: { en: "Skill Release", ja: "スキル発動" },
-    summary: {
-      en: "A compact release burst after focus, distinct from the slower spell-cast wind-up.",
-      ja: "溜めより発動の瞬間を重視した、コンパクトなスキル放出動作です。"
-    },
-    prompt: "skill release animation with ready pose, focus, energy gathers near the hand or staff, compact release burst, peak effect, recoil or follow-through, settle, ready pose, no arrows, bullets, guns, bows, or thrown weapons",
-    notes: "Official preset: generate eight source frames as one non-looping skill release. This is the release/activation moment, not a long casting wind-up or ranged weapon attack; keep effects compact and attached to the character."
-  },
-  {
-    id: "knockback",
-    actionName: "knockback",
-    previewClassName: "sample-knockback-sheet sample-knockback",
-    category: { en: "Combat", ja: "戦闘" },
-    title: { en: "Knockback", ja: "ノックバック" },
-    summary: {
-      en: "A bigger non-gory hit reaction with recoil, backward slide, stumble, and recovery.",
-      ja: "大きくのけぞり、後退し、踏みとどまって戻るノックバックです。"
-    },
-    prompt: "non-gory knockback animation with neutral pose, impact recoil, lifted lean back, backward slide peak, stumble, regain footing, settle, ready pose",
-    notes: "Official preset: generate eight source frames as one non-looping knockback. It should be larger than Hurt Reaction, non-gory, and centered enough that no body part leaves its 256px cell."
-  },
-  {
-    id: "item-use",
-    actionName: "item",
-    previewClassName: "sample-item-sheet sample-item",
-    category: { en: "Utility", ja: "ユーティリティ" },
-    title: { en: "Item Use", ja: "アイテム使用" },
-    summary: {
-      en: "Draw a small item, use it near the body, show a tiny read/effect beat, and put it away.",
-      ja: "小物を取り出し、手元で使い、短い効果を見せて戻る道具使用です。"
-    },
-    prompt: "item use animation with ready pose, draw small item, lift or use item near hand, tiny effect or read beat, finish, put item away, settle, ready pose",
-    notes: "Official preset: generate eight source frames as one non-looping item-use action. Prefer a potion, scroll, small bottle, charm, or generic tool near the hands; do not reach down to the ground."
-  },
-  {
-    id: "talk",
-    actionName: "talk",
-    previewClassName: "sample-talk-sheet sample-talk",
-    category: { en: "Emotion / Social", ja: "感情 / ソーシャル" },
-    title: { en: "Talk / NPC Reaction", ja: "会話 / NPCリアクション" },
-    summary: {
-      en: "Subtle loopable NPC talk with hand gestures, nods, shoulder motion, and a clean bridge.",
-      ja: "手振り、うなずき、肩の動きで会話感を出す控えめなNPC向けループです。"
-    },
-    prompt: "talking npc reaction loop with neutral pose, small mouth or hand gesture, small nod, gesture peak, blink or settle, second gesture, return, loop bridge",
-    notes: "Official preset: generate eight source frames as one loopable talk/NPC reaction. Mouth motion may be subtle in pixel art, so use restrained hand, head, shoulder, and clothing motion to read as conversation."
-  }
-];
+const defaultActions: SpriteAction[] = MOTION_RECIPES.map((recipe) => ({
+  name: recipe.actionName,
+  fps: recipe.defaultFps,
+  loop: recipe.loopMode !== "one-shot",
+  playbackMode: recipe.exportDefaults.playback,
+  frameIds: [],
+  cell: STANDARD_ANIMATION_CELL,
+  anchor: STANDARD_ANIMATION_ANCHOR
+}));
 
 const verifiedAnimationPresetIds = new Set([
   "idle-breathing",
@@ -2663,26 +2458,18 @@ const verifiedAnimationPresetIds = new Set([
   "item-use",
   "talk"
 ]);
-const animationPresetExamples = animationPresetCatalog.filter((example) => verifiedAnimationPresetIds.has(example.id));
-
-const animationPresetMotionSheetLines: Record<string, string> = {
-  "idle-breathing": "Create an idle breathing / ready stance animation sprite sheet.",
-  "walk-cycle": "Create a walking animation sprite sheet.",
-  "run-cycle": "Create a running animation sprite sheet.",
-  "basic-attack": "Create a basic forward attack animation sprite sheet.",
-  "hurt-reaction": "Create a hurt / hit reaction animation sprite sheet.",
-  "death-downed": "Create a non-gory downed / defeated animation sprite sheet.",
-  "spell-cast": "Create a spell casting / skill activation animation sprite sheet.",
-  "jump-hop": "Create a compact in-place jump / hop animation sprite sheet.",
-  "guard-block": "Create a guard / block animation sprite sheet.",
-  "victory-cheer": "Create a victory cheer / wave animation sprite sheet.",
-  "interact-pickup": "Create an interact / pickup animation sprite sheet.",
-  "ranged-attack": "Create a ranged attack animation sprite sheet.",
-  "skill-release": "Create a skill release / activation animation sprite sheet.",
-  "knockback": "Create a non-gory knockback animation sprite sheet.",
-  "item-use": "Create an item use animation sprite sheet.",
-  "talk": "Create a talk / NPC reaction animation sprite sheet."
-};
+const animationPresetExamples: AnimationPresetExample[] = MOTION_RECIPES
+  .filter((recipe) => verifiedAnimationPresetIds.has(recipe.id))
+  .map((recipe) => ({
+    id: recipe.id,
+    actionName: recipe.actionName,
+    previewClassName: recipe.previewClassName,
+    category: motionRecipeCategory(recipe),
+    title: recipe.displayName,
+    summary: recipe.localizedDescription,
+    prompt: recipe.promptSegments.motion[0] ?? "",
+    notes: recipe.notes
+  }));
 
 const ANIMATION_SCALE_CONSISTENCY_CONTRACT_LINES = [
   "Scale consistency contract: use the front ready stance as the reference character scale for every direction and frame.",
@@ -2691,248 +2478,26 @@ const ANIMATION_SCALE_CONSISTENCY_CONTRACT_LINES = [
   "Keep head size and clothing-detail size consistent with the ready stance even when the pose is lower, turned away, or partly hidden by a robe, cape, weapon, or effect."
 ];
 
-const animationPresetMotionPromptLines: Record<string, string[]> = {
-  "idle-breathing": [
-    "Idle breathing must read as a ready stance in every row, not as movement through space.",
-    "Use the 8 generated source frames as one complete normal loop, not a ping-pong half-cycle.",
-    "Frame plan: frame 1 neutral ready stance; frame 2 slight inhale with chest and shoulders rising; frame 3 hair, hood, clothing, and backpack follow upward subtly; frame 4 top of breath while the body stays centered; frame 5 exhale begins; frame 6 shoulders settle and cloth/hair lag slightly; frame 7 return toward neutral; frame 8 clean bridge back to frame 1.",
-    "Both feet must stay planted on the same exact foot baseline in all eight frames. Do not step, walk, run, hop, slide, lift a foot, or change the stance width.",
-    "The motion should be clearly visible but restrained: about 2-4px shoulder/chest rise, small head or hair settle, and readable clothing/backpack follow-through. Do not return nearly identical frames, and do not use large bounce as a substitute for breathing.",
-    "For diagonal and side rows, preserve the same stance silhouette and foot positions across the row; only the breathing and secondary motion should change.",
-    "The back row must remain a true straight rear idle stance with a centered backpack/back silhouette and no face details."
-  ],
-  "walk-cycle": [
-    "Walking gait must be visible in every row, especially front three-quarter, side, and back three-quarter.",
-    "Use the 8 generated source frames as one complete walk loop, not a ping-pong half-cycle.",
-    "Frame plan: frame 1 left foot forward / right foot back contact; frame 2 body settles downward over the planted foot; frame 3 passing pose with both feet close under the hips and the rear foot lifting; frame 4 right foot reaches forward with toe-first contact about to happen; frame 5 right foot forward / left foot back contact; frame 6 body settles downward over the planted foot; frame 7 passing pose with both feet close under the hips and the rear foot lifting; frame 8 left foot reaches forward and reconnects cleanly into frame 1.",
-    "For side and diagonal rows, the visible front foot must alternate left-right-left-right across the row; frame 1 and frame 5 must be clearly different contact silhouettes, not only mirrored clothing sway.",
-    "Keep the walk slower and more grounded than running: no airborne frame, no long leap, no strong forward lean, and at least one foot must stay visually near the ground in every frame.",
-    "Show knee bend and toe contact on contact frames, show the rear foot lifting on passing frames, and keep the feet on a stable ground line without skating.",
-    "Arms swing opposite the legs, the torso has a subtle walk bob, and hair or clothing secondary motion must support the gait rather than replace visible leg movement."
-  ],
-  "run-cycle": [
-    "Running gait must be visible in every row, especially front three-quarter, side, and back three-quarter.",
-    "Use the 8 generated source frames as one half-cycle, not a complete two-step loop: the left foot must travel from back to front while the right foot travels from front to back.",
-    "The app will append the same 8 source frames in reverse order during GIF/WebP playback to create a 16-frame ping-pong run cycle, so do not squeeze both left-front and right-front halves into the 8 source frames.",
-    "The 8 source frames must express five clear gait phases: legs far apart, legs approaching, feet together under the body, legs starting to separate with the opposite foot taking the lead, and legs far apart again in the opposite stride.",
-    "Source frame plan: frame 1 left foot far back / right foot far front extended stride; frame 2 the stride narrows and both feet move toward the body center; frame 3 both feet are close together directly under the hips, knees bent, one foot just passing the other; frame 4 the feet overlap or cross at the body center with the left foot beginning to pass in front; frame 5 the legs start separating again and the left foot is clearly taking the lead; frame 6 left foot reaches forward while the right foot pushes back; frame 7 left foot extended forward / right foot back airborne stride; frame 8 clean endpoint with left foot fully forward and right foot fully back.",
-    "For side and diagonal rows, frames 3 and 4 are mandatory feet-together / crossover passing frames. The reversed playback will create the matching opposite-foot passing frames. Do not skip the feet-together moment, do not hide it behind clothing, and do not replace it with only open-leg airborne stride poses.",
-    "The leading foot must visibly change from right-front at frame 1 to left-front at frame 8; do not keep the same leg in front, do not make a walking shuffle, and do not make a sliding pose cycle.",
-    "Add a clear forward torso lean, stronger opposite arm drive than walking, longer stride length, and a small vertical bounce while keeping the character centered inside each cell."
-  ],
-  "basic-attack": [
-    "The action must read as a generic forward attack in every row, using the character's existing weapon when visible or a compact punch/slash when no weapon is visible.",
-    "Use the 8 generated source frames as one non-looping action, not a ping-pong cycle.",
-    "Frame plan: frame 1 ready stance with both feet planted; frame 2 anticipation with a controlled weight shift over the planted feet; frame 3 wind-up with arm, weapon, or body pulled back while the feet stay on the same baseline; frame 4 fast strike with one planted pivot foot or a very small grounded lunge; frame 5 clear impact pose; frame 6 follow-through; frame 7 recover; frame 8 ready-ish end pose.",
-    "Keep the attack direction readable in side and diagonal rows; the strike should travel forward from the character, not randomly upward or backward.",
-    "Grounding contract: keep at least one pivot foot visually anchored across frames 1-6, keep both feet on the same visual ground line, and avoid skating, toe popping, random stance-width changes, or vertical body bob that makes the character look jittery.",
-    "For side and diagonal rows, the visible foot contact point must not teleport between adjacent frames; weapon, arm, torso, hair, scarf, cape, and cloth follow-through should carry the motion while the lower body remains stable.",
-    "Any slash, punch arc, hit spark, or weapon trail must be small, transparent-friendly, and contained well inside the 256px cell.",
-    "Do not let effects hide the feet, face, weapon, or torso; do not let a sword, staff, arm, or effect cross into neighboring cells.",
-    "Back row must show the same attack from a true rear view without face details."
-  ],
-  "hurt-reaction": [
-    "The action must read as a brief hit reaction in every row, not as an attack, dance, death, or jump.",
-    "Use the 8 generated source frames as one non-looping action, not a loop.",
-    "Frame plan: frame 1 neutral ready stance; frame 2 tiny hit spark or recoil start; frame 3 upper body bends back and head jolts; frame 4 peak recoil; frame 5 stagger with one foot bracing; frame 6 regain balance; frame 7 settle; frame 8 ready pose.",
-    "Make the recoil readable through torso angle, head movement, shoulder lift, and a bracing foot while keeping the character centered.",
-    "Use no blood, wounds, gore, broken limbs, dismemberment, or horror injury detail.",
-    "The body must never collapse fully to the ground; reserve downed poses for the Death / Downed preset.",
-    "Back row must stay true rear-facing while showing the same backward/side recoil through silhouette and shoulders."
-  ],
-  "death-downed": [
-    "The action must read as a game-style defeated or downed animation, non-gory and compact.",
-    "Use the 8 generated source frames as one non-looping action that ends in a mostly still downed pose.",
-    "Frame plan: frame 1 hit or loss of balance; frame 2 collapse begins; frame 3 falling or kneeling; frame 4 body contacts ground or low crouch; frame 5 downed pose; frame 6 settle; frame 7 final still; frame 8 final still.",
-    "Prefer kneeling, slumped, seated, or compact fallen poses over a full sideways corpse because all directions must remain readable and inside the cell.",
-    "The final downed pose may be lower than ready stance, but the full head, hands, outfit, and feet must remain inside the same 256px cell with padding.",
-    "Use no blood, gore, wounds, dismemberment, horror detail, bones, or dead-body realism.",
-    "Back row must be a true rear view of the same downed motion, not a copied diagonal row."
-  ],
-  "spell-cast": [
-    "The action must read as spell casting or skill activation in every row.",
-    "The same caster identity is mandatory across all five directions: same age, same head-to-body ratio, same body height, same outfit colors, same robe layers, same staff or focus, and same facial/hair/beard silhouette where visible.",
-    "The front direction must not become a different costume, different age, different beard or hair shape, different staff, taller body, or more realistic body than the diagonal, side, and back directions.",
-    "Use the 8 generated source frames as one non-looping cast action, not a continuous idle loop.",
-    "Frame plan: frame 1 ready stance; frame 2 raise hand, staff, or focus; frame 3 compact charge begins; frame 4 brighter charge; frame 5 release; frame 6 follow-through; frame 7 settle; frame 8 ready pose.",
-    "Effects must stay near the hand, staff tip, book, or small focus point and must remain compact enough to preserve the character silhouette.",
-    "Use the same compact magic effect language in all five directions: same color family, same approximate size, and same attachment point relative to the hand, staff, book, or focus.",
-    "Do not add large circles, giant beams, huge explosions, screen-filling particles, readable magic letters, UI symbols, or text.",
-    "Grounding contract: keep both feet planted on the same visual ground line in all eight frames. If the robe hides the feet, keep the robe hem bottom anchored to the same baseline and do not let the body float, sink, slide, or bob.",
-    "Casting motion should read through hand, arm, shoulder, hood, robe sleeve, and compact attached effect changes; do not use stepping, hopping, sliding, or body translation to create motion.",
-    "Keep feet and body baseline stable; casting is not a jump or walking animation.",
-    "Back row must show rear-facing casting with no face details."
-  ],
-  "jump-hop": [
-    "The action must read as a small in-place jump or hop in every row.",
-    "Use the 8 generated source frames as one non-looping jump action, not a running leap.",
-    "Frame plan: frame 1 ready stance; frame 2 crouch and squash; frame 3 push-off; frame 4 rising; frame 5 apex; frame 6 falling; frame 7 landing with squash; frame 8 settle back to ready.",
-    "Keep horizontal movement very small; the character should return to the same foot baseline and same cell center by frame 8.",
-    "Add extra empty padding above the highest frame so hair, hat, ears, staff, weapons, and props never touch or cross the top cell edge.",
-    "Do not make a dash, long leap, flying pose, attack, or victory cheer.",
-    "Back row must be true rear-facing while showing the same crouch, rise, landing, and settle."
-  ],
-  "guard-block": [
-    "The action must read as guarding, bracing, or blocking in every row, even for characters without shields.",
-    "Use the 8 generated source frames as one non-looping guard action with a readable hold moment.",
-    "Frame plan: frame 1 ready stance; frame 2 raise guard with arms, weapon, staff, shield, or body stance; frame 3 brace; frame 4 hold; frame 5 absorb a small impact; frame 6 slight recoil; frame 7 recover; frame 8 guard or ready end pose.",
-    "The guard should not completely hide the face, torso, or character identity; keep the silhouette readable.",
-    "Any impact spark or shield effect must be tiny and contained inside the cell.",
-    "Do not turn the guard into an attack swing, spell cast, death pose, or cheer.",
-    "Back row must stay true rear-facing and show the same defensive brace through shoulders, arms, weapon, shield, or stance."
-  ],
-  "victory-cheer": [
-    "The action must read as a victory cheer, wave, or celebratory pose in every row.",
-    "Use the 8 generated source frames as one loopable normal animation, not a ping-pong half-cycle.",
-    "Frame plan: frame 1 ready pose; frame 2 arm begins rising; frame 3 cheer peak; frame 4 small celebratory bounce; frame 5 wave or held pose; frame 6 settle; frame 7 smile or proud pose; frame 8 clean loop bridge back to frame 1.",
-    "Use expressive arms, head, clothing, and a small bounce; do not make a large jump because Jump / Hop is a separate preset.",
-    "Keep both feet or landing baseline stable enough that the loop does not look like walking or running.",
-    "Avoid confetti clouds, text, trophy labels, UI symbols, or large effects that hide the character.",
-    "Back row must stay true rear-facing and read through arms, shoulders, and silhouette."
-  ],
-  "interact-pickup": [
-    "The action must read as a generic interact, inspect, pickup, or use-object motion in every row.",
-    "Use the 8 generated source frames as one non-looping utility action.",
-    "Frame plan: frame 1 ready stance; frame 2 look down or forward; frame 3 reach; frame 4 bend or pickup; frame 5 hold, check, or press a small item; frame 6 return upward; frame 7 settle; frame 8 ready pose.",
-    "Keep hands and upper body readable; any item should be small and should not become a second character or cluttered prop.",
-    "Do not crouch so deeply that the head, hands, feet, or prop become cropped or crushed.",
-    "Do not turn the interaction into an attack, spell cast, cheer, or death pose.",
-    "Back row must stay true rear-facing and express the same inspect/reach/pickup motion through silhouette."
-  ],
-  "ranged-attack": [
-    "The action must read as a generic ranged attack in every row, suitable for bows, thrown items, staff bolts, or light projectile weapons.",
-    "The same character identity and chibi proportions are mandatory across all five directions: same head-to-body ratio, same body height, same limb thickness, same outfit colors, same prop design, and same pixel density.",
-    "If the source character has no obvious ranged weapon, add only one compact ranged prop such as a small hand crossbow, sling, wand, or hand-thrown spark, and keep that prop design identical in every direction.",
-    "Use the 8 generated source frames as one non-looping ranged action, not a loop or ping-pong half-cycle.",
-    "Frame plan: frame 1 ready stance; frame 2 aim with torso and arm/weapon aligned forward; frame 3 draw, pull back, or charge a compact shot; frame 4 release; frame 5 tiny projectile, arrow, bolt, spark, or thrown item visible close to the character; frame 6 follow-through; frame 7 recover; frame 8 ready pose.",
-    "The projectile or shot effect must be small, close to the hand, bow, staff, or weapon tip, and fully inside the same 256px cell; do not draw a long arrow trail, beam, muzzle flash, or projectile crossing cell edges.",
-    "Projectile/effect consistency is mandatory: use the same type, same color family, and same approximate size in all five directions. Use only one tiny spark/projectile no larger than about 20x20 px and positioned near the hand or weapon tip.",
-    "Do not invent a large gun, cannon, rifle, oversized bow, giant staff, large explosion, smoke cloud, blast cone, or screen-space attack effect.",
-    "Side and front three-quarter rows must clearly show the shot direction; the body should not become a melee slash or spell-cast wind-up.",
-    "Keep the full body, weapon, hands, projectile, and feet visible with padding; if a bow or staff is large, shorten or angle it inside the cell rather than shrinking the character.",
-    "Back row must show a true rear-facing ranged stance with no face details, as if aiming away from the camera."
-  ],
-  "skill-release": [
-    "The action must read as a compact skill release or activation burst in every row, distinct from the slower Spell Cast preset.",
-    "Use the 8 generated source frames as one non-looping skill action.",
-    "Frame plan: frame 1 ready stance; frame 2 focus and gather energy; frame 3 energy visibly compresses near hand, weapon, chest, or feet; frame 4 compact release burst; frame 5 peak effect while the body silhouette remains visible; frame 6 recoil or follow-through; frame 7 settle; frame 8 ready pose.",
-    "Effects must stay attached to the body, hand, staff, weapon tip, or a small area around the feet; avoid detached screen-filling bursts, wide circles, large beams, giant explosions, or particles that hide the character.",
-    "This preset emphasizes the release moment, not a long casting wind-up; make frames 4 and 5 the strongest visual beat.",
-    "Do not turn the skill release into a ranged weapon attack: no arrows, bullets, guns, bows, or thrown weapons unless they already exist as the character's core prop.",
-    "Keep feet and body baseline stable and keep every effect fully within the 256px cell with padding.",
-    "Back row must stay true rear-facing and show the same release through shoulders, arms, weapon, or compact rear-view effect without face details."
-  ],
-  "knockback": [
-    "The action must read as a larger non-gory knockback reaction in every row, stronger than Hurt Reaction but not a defeated/downed animation.",
-    "Use the 8 generated source frames as one non-looping knockback action.",
-    "Frame plan: frame 1 neutral ready stance; frame 2 impact recoil starts with a tiny hit spark; frame 3 body leans back and may lift slightly; frame 4 backward slide or recoil peak; frame 5 stumble with one foot trying to catch balance; frame 6 regain footing; frame 7 settle; frame 8 ready pose.",
-    "Show backward force through torso angle, shoulders, hair/cloth follow-through, and a sliding or bracing foot, but keep the character centered enough that no hair, foot, weapon, or body part crosses the 256px cell boundary.",
-    "Use no blood, wounds, gore, broken limbs, dismemberment, horror injury detail, or defeated final pose.",
-    "The character must recover by frame 8; do not collapse to the floor or turn into Death / Downed.",
-    "Back row must stay true rear-facing and show the same recoil and recovery through the back silhouette with no face details."
-  ],
-  "item-use": [
-    "The action must read as using a small item held near the body in every row, not picking something up from the ground.",
-    "Use the 8 generated source frames as one non-looping item-use action.",
-    "Frame plan: frame 1 ready stance; frame 2 draw a small item from pouch, hand, belt, or bag; frame 3 lift or present the item near the hand, mouth, chest, or tool position; frame 4 use/read/drink/activate the item; frame 5 tiny contained effect or confirmation beat; frame 6 put the item away; frame 7 settle; frame 8 ready pose.",
-    "The item should be a compact potion, scroll, bottle, charm, ration, card, device, or generic tool; it must remain small and must not become a second character, large prop, readable text, or UI icon.",
-    "Keep the action upright and hand-focused; do not bend deeply toward the floor because Interact / Pickup covers ground interaction.",
-    "Do not add text labels, letters, numbers, logos, speech bubbles, or large magical effects around the item.",
-    "Back row must stay true rear-facing and show the item-use motion through shoulders, elbows, hands, and silhouette without face details."
-  ],
-  "talk": [
-    "The action must read as a restrained talk, idle conversation, or NPC reaction loop in every row.",
-    "Use the 8 generated source frames as one loopable normal animation, not a ping-pong half-cycle.",
-    "Frame plan: frame 1 neutral pose; frame 2 small mouth, hand, shoulder, or head gesture begins; frame 3 small nod; frame 4 gesture peak; frame 5 blink or settle; frame 6 second small gesture; frame 7 return; frame 8 clean loop bridge back to frame 1.",
-    "Because pixel-art mouth movement may be tiny, make conversation readable through subtle hand gestures, nods, shoulder motion, and clothing follow-through while keeping the stance calm.",
-    "Do not add speech bubbles, readable text, punctuation, UI icons, hearts, emojis, labels, or floating symbols.",
-    "Do not make it look like an attack, spell cast, cheer, jump, dance, or item use; keep the feet planted and the motion modest.",
-    "Back row must stay true rear-facing; since the mouth is not visible from behind, use shoulders, head nod, and small hand gestures to show the talk loop without face details."
-  ]
-};
-
 function getAnimationPresetById(id: string): AnimationPresetExample {
   return animationPresetExamples.find((example) => example.id === id)
     ?? animationPresetExamples.find((example) => example.id === DEFAULT_ANIMATION_PRESET_ID)
     ?? animationPresetExamples[0]!;
 }
 
-function adaptAnimationPresetLinesForDirections(lines: string[], directions: readonly string[]) {
-  const hasBack = directions.includes("back");
-  return lines
-    .map((line) => {
-      if (!hasBack && line.startsWith("Back row")) return "";
-      return line
-        .replace(/all five directions/g, "all requested directions")
-        .replace(/All five directions/g, "All requested directions")
-        .replace(/across all five directions/g, "across all requested directions")
-        .replace(/in all five directions/g, "in all requested directions");
-    })
-    .filter(Boolean);
+function motionRecipeCategory(recipe: MotionRecipe): LocalizedText {
+  const labels: Record<MotionRecipe["family"], LocalizedText> = {
+    core: { en: "Core", ja: "基礎" },
+    locomotion: { en: "Move", ja: "移動" },
+    combat: { en: "Combat", ja: "戦闘" },
+    magic: { en: "Magic / Skill", ja: "魔法 / スキル" },
+    social: { en: "Emotion / Social", ja: "感情 / ソーシャル" },
+    utility: { en: "Utility", ja: "ユーティリティ" }
+  };
+  return labels[recipe.family];
 }
 
-function requestedDirectionIdentityRules(directions: readonly string[]) {
-  const rules = [
-    directions.includes("front") ? "front is straight toward camera" : "",
-    directions.includes("front three-quarter") ? "front three-quarter is diagonal-front" : "",
-    directions.includes("side") ? "side is strict profile" : "",
-    directions.includes("back three-quarter") ? "back three-quarter is diagonal-back" : "",
-    directions.includes("back") ? "back is true straight rear view" : ""
-  ].filter(Boolean);
-  return rules.length > 0 ? rules.join(", ") : "use the requested direction labels exactly";
-}
-
-function buildAnimationPresetMotionPrompt(preset: AnimationPresetExample, directions: readonly string[] = ANIMATION_DIRECTIONS) {
-  const resolvedDirections = normalizeAnimationDirections(directions);
-  const presetTitle = preset.title.en;
-  const motionSheetLine = animationPresetMotionSheetLines[preset.id] ?? `Create a ${presetTitle.toLowerCase()} animation sprite sheet.`;
-  const presetSpecificLines = adaptAnimationPresetLinesForDirections(animationPresetMotionPromptLines[preset.id] ?? [], resolvedDirections);
-
-  return [
-    `Locked animation preset: ${presetTitle}.`,
-    `Preset motion details: ${preset.prompt}.`,
-    "Deform/chibify the uploaded character into a compact full-body pixel-art sprite while preserving the original identity, outfit, palette, silhouette, and props.",
-    motionSheetLine,
-    ...presetSpecificLines,
-    `Use exactly ${ANIMATION_FRAME_COUNT} animation frames per requested direction.`,
-    `Requested direction views: ${resolvedDirections.join(", ")}. Do not generate directions that are not listed here.`,
-    `Each requested direction is returned as its own ${DIRECTION_SPLIT_ANIMATION_GRID.columns} x ${DIRECTION_SPLIT_ANIMATION_GRID.rows} direction image; Image Cockpit composes the final ${ANIMATION_FRAME_COUNT} x ${resolvedDirections.length} sheet after import.`,
-    `Each cell is fixed at exactly ${ANIMATION_CELL_SIZE}px x ${ANIMATION_CELL_SIZE}px.`,
-    `Direction identity rules for requested views: ${requestedDirectionIdentityRules(resolvedDirections)}.`,
-    resolvedDirections.includes("back")
-      ? "The back row must show the character facing directly away from the camera: centered spine, centered backpack or back silhouette, symmetric shoulders, back of head visible, and no visible eyes, nose, mouth, cheek, side profile, face turn, or looking-over-shoulder pose. Do not duplicate the back three-quarter row in the back row."
-      : "",
-    "In every direction row, keep the full hair silhouette, entire head, hands, held item, compact effect, outfit, and both feet fully visible inside each 256px cell with at least 24px empty padding whenever possible; never let the head touch or disappear beyond the top cell edge.",
-    "Projectiles, items, weapons, and effects must stay small enough to remain inside their own 256px cell and must not be used as a reason to crop or resize the character inconsistently.",
-    "When the sheet is sliced into equal 256px cells, neighboring frames above, below, left, or right must not intrude into the current cell.",
-    "Keep each character centered in its own cell with the feet landing on the same visual ground line; do not make the character drift up, down, left, or right between frames.",
-    ...ANIMATION_SCALE_CONSISTENCY_CONTRACT_LINES,
-    "Prefer a transparent background. If true transparency is not available during generation, use only the flat chroma-key color requested elsewhere in this job.",
-    "Reject and regenerate before returning if any cell has cropped hair, a cut-off head, missing feet, duplicated heads, body fragments, a changed character, nonuniform scale, or a non-flat background."
-  ].filter(Boolean).join(" ");
-}
-
-function buildAnimationPresetNotes(preset: AnimationPresetExample, directions: readonly string[] = ANIMATION_DIRECTIONS) {
-  const resolvedDirections = normalizeAnimationDirections(directions);
-  const presetSpecificLines = adaptAnimationPresetLinesForDirections(animationPresetMotionPromptLines[preset.id] ?? [], resolvedDirections);
-  return [
-    `Locked animation preset: ${preset.title.en} (${preset.id}).`,
-    preset.notes,
-    ...(
-      presetSpecificLines.length > 0
-        ? ["Final prompt contract:", ...presetSpecificLines.map((line) => `- ${line}`)]
-        : []
-    ),
-    `Standard direction-split contract: ${resolvedDirections.length} requested direction image${resolvedDirections.length === 1 ? "" : "s"}, ${ANIMATION_FRAME_COUNT} frames per direction, ${ANIMATION_CELL_SIZE}px x ${ANIMATION_CELL_SIZE}px per cell, directions are ${resolvedDirections.join(", ")}.`,
-    `Image Cockpit composes the imported result as ${ANIMATION_FRAME_COUNT} columns x ${resolvedDirections.length} rows.`,
-    resolvedDirections.includes("back")
-      ? "Direction identity note: the back row is a true straight rear view, not back three-quarter; no face, side profile, or looking-over-shoulder pose should appear in that row."
-      : "",
-    "Framing note: every direction row must keep the full hair silhouette and both feet visible with clear padding inside each cell.",
-    "Scale consistency note:",
-    ...ANIMATION_SCALE_CONSISTENCY_CONTRACT_LINES.map((line) => `- ${line}`),
-    "No free-form user motion prompt was supplied; use the locked preset and the strict sheet contract only."
-  ].filter(Boolean).join("\n");
+function motionRecipeForPreset(preset: AnimationPresetExample) {
+  return resolveMotionRecipe({ recipeId: preset.id, recipeVersion: 1, presetId: preset.id, actionName: preset.actionName }).recipe;
 }
 
 function getEffectCategoryById(id: string): EffectCategoryDefinition {
@@ -4081,6 +3646,15 @@ function parseDirectionSplitAnimationManifest(imported: CodexOutboxImportRespons
   if (parsed.schema !== DIRECTION_SPLIT_ANIMATION_SCHEMA) {
     throw new Error(`Direction split manifest has unsupported schema: ${String(parsed.schema ?? "missing")}`);
   }
+  if (parsed.motionRecipe) {
+    const resolution = resolveMotionRecipe({
+      recipeId: parsed.motionRecipe.id,
+      recipeVersion: parsed.motionRecipe.version,
+      actionName: parsed.action
+    });
+    parsed.motionRecipe = motionRecipeReference(resolution.recipe);
+    parsed.motionRecipeWarnings = resolution.warnings;
+  }
   return parsed;
 }
 
@@ -4545,6 +4119,17 @@ function App() {
   const selectedAnimationPreset = useMemo(
     () => getAnimationPresetById(selectedAnimationPresetId),
     [selectedAnimationPresetId]
+  );
+  const selectedMotionRecipe = useMemo(
+    () => motionRecipeForPreset(selectedAnimationPreset),
+    [selectedAnimationPreset]
+  );
+  const selectedMotionRecipeCompilation = useMemo(
+    () => compileMotionRecipe({
+      recipe: selectedMotionRecipe,
+      directions: ANIMATION_DIRECTION_PRESETS[animationDirectionPreset] ?? ANIMATION_DIRECTIONS
+    }),
+    [selectedMotionRecipe, animationDirectionPreset]
   );
   const activeEffectCategory = useMemo(
     () => getEffectCategoryById(effectCategoryId),
@@ -5561,7 +5146,17 @@ function App() {
       tournamentCandidateCount: manifest.maximumCandidateCount,
       generationProfile: manifest.generationProfile,
       sourceFingerprint: manifest.sourceFingerprint,
-      repairDirections: candidate?.repairDirections
+      repairDirections: candidate?.repairDirections,
+      motionRecipe: typeof context.motionRecipe === "object" && context.motionRecipe
+        ? context.motionRecipe as unknown as MotionRecipeReference
+        : manifest.motionRecipeId
+          ? {
+              id: manifest.motionRecipeId,
+              version: manifest.motionRecipeVersion ?? 1,
+              compilerVersion: manifest.motionRecipeCompilerVersion ?? MOTION_RECIPE_COMPILER_VERSION,
+              qualityProfile: motionRecipeForPreset(getAnimationPresetById(manifest.presetId ?? manifest.motionRecipeId)).qualityProfile.actionProfile
+            }
+          : undefined
     };
   }
 
@@ -6095,8 +5690,19 @@ function App() {
       : grid;
     const spriteCell = isAnimationJob ? (isHatchPetLikeMode(animationJobGenerationMode) ? HATCH_PET_CELL : animationAction.cell) : activeAction.cell;
     const spriteFrameCount = spriteGrid.columns * spriteGrid.rows;
-    const animationMotionPrompt = isAnimationJob ? buildAnimationPresetMotionPrompt(animationPresetForJob, standardAnimationDirections) : "";
-    const animationPresetNotes = isAnimationJob ? buildAnimationPresetNotes(animationPresetForJob, standardAnimationDirections) : "";
+    const compiledAnimationRecipe = isAnimationJob
+      ? compileMotionRecipe({ recipe: motionRecipeForPreset(animationPresetForJob), directions: standardAnimationDirections })
+      : null;
+    const animationMotionPrompt = compiledAnimationRecipe?.prompt ?? "";
+    const animationPresetNotes = compiledAnimationRecipe
+      ? [
+          compiledAnimationRecipe.notes,
+          `Compiler section order: ${compiledAnimationRecipe.diagnostics.sectionOrder.join(" > ")}.`,
+          `Applied modifiers: ${compiledAnimationRecipe.diagnostics.appliedModifiers.join(", ") || "none"}.`,
+          `Removed modifiers: ${compiledAnimationRecipe.diagnostics.removedModifiers.join(", ") || "none"}.`,
+          "No free-form user motion prompt was supplied; use the versioned Motion Recipe contract only."
+        ].join("\n")
+      : "";
 
     if (isImageEditJob && selectedIsAnimationResult) {
       setStatus(copy.statusAnimationFinalNotEditable);
@@ -6202,7 +5808,9 @@ function App() {
     return {
       workflowMode,
       prompt: codexPrompt,
-      negativePrompt: isEffectJob && currentEffectContext ? currentEffectContext.negativePrompt : negativePrompt,
+      negativePrompt: isEffectJob && currentEffectContext
+        ? currentEffectContext.negativePrompt
+        : compiledAnimationRecipe?.negativePrompt ?? negativePrompt,
       jobNotes: codexJobNotes,
       seed,
       size: isDirectionalHatchPetAnimationJob
@@ -6249,6 +5857,7 @@ function App() {
       generationProfile: isAnimationJob ? options?.generationProfile ?? animationGenerationProfile : undefined,
       sourceFingerprint: isAnimationJob ? sourceFingerprint : undefined,
       presetId: isAnimationJob ? animationPresetForJob.id : undefined,
+      motionRecipe: compiledAnimationRecipe?.metadata,
       effectContext: currentEffectContext
     };
   }
@@ -6305,7 +5914,9 @@ function App() {
         tournamentId,
         idempotencyKey: `${tournamentId}:${draft.sourceFingerprint ?? "source"}:${draft.resultActionName ?? draft.action}`,
         sourceFingerprint: draft.sourceFingerprint,
-        motionRecipeId: draft.resultActionName ?? draft.action,
+        motionRecipeId: draft.motionRecipe?.id ?? draft.presetId ?? draft.resultActionName ?? draft.action,
+        motionRecipeVersion: draft.motionRecipe?.version,
+        motionRecipeCompilerVersion: draft.motionRecipe?.compilerVersion,
         presetId: draft.presetId ?? selectedAnimationPresetId,
         generationProfile: draft.generationProfile ?? "best",
         requestedDirections: draft.resultDirections ?? draft.directions,
@@ -6323,6 +5934,7 @@ function App() {
           directions: draft.resultDirections,
           sourceImageId: draft.resultSourceImageId,
           sourceImageName: draft.resultSourceImageName,
+          motionRecipe: draft.motionRecipe,
           ...clientContextExtensions
         }
       })
@@ -6355,6 +5967,11 @@ function App() {
       directions: draft.directions,
       generationProfile: draft.generationProfile,
       sourceFingerprint: draft.sourceFingerprint,
+      motionRecipeId: draft.motionRecipe?.id,
+      motionRecipeVersion: draft.motionRecipe?.version,
+      motionRecipeCompilerVersion: draft.motionRecipe?.compilerVersion,
+      motionRecipeQualityProfile: draft.motionRecipe?.qualityProfile,
+      presetId: draft.presetId,
       effectContext: draft.effectContext
     };
   }
@@ -6386,6 +6003,7 @@ function App() {
         generationProfile: draft.generationProfile,
         sourceFingerprint: draft.sourceFingerprint,
         repairDirections: draft.repairDirections,
+        motionRecipe: draft.motionRecipe,
         effectContext: draft.effectContext
       }
     ]);
@@ -6427,6 +6045,11 @@ function App() {
           tournamentId: draft.tournamentId,
           tournamentCandidateIndex: draft.tournamentCandidateIndex,
           tournamentCandidateCount: draft.tournamentCandidateCount,
+          motionRecipeId: draft.motionRecipe?.id,
+          motionRecipeVersion: draft.motionRecipe?.version,
+          motionRecipeCompilerVersion: draft.motionRecipe?.compilerVersion,
+          motionRecipeQualityProfile: draft.motionRecipe?.qualityProfile,
+          presetId: draft.presetId,
           effectContext: draft.effectContext
         })
       });
@@ -6461,6 +6084,7 @@ function App() {
         generationProfile: draft.generationProfile,
         sourceFingerprint: draft.sourceFingerprint,
         repairDirections: draft.repairDirections,
+        motionRecipe: draft.motionRecipe,
         effectContext: draft.effectContext
       };
       if (shouldWaitForCodexRunner(data.runner)) {
@@ -7405,7 +7029,8 @@ function App() {
         job.cell ?? manifest?.cell ?? STANDARD_ANIMATION_CELL,
         actionName,
         selection.directions,
-        sourceDataUrl
+        sourceDataUrl,
+        job.motionRecipe
       );
       await persistCodexAnimationQuality(job.id, composed.animationQuality);
       const artifactWarnings = selection.artifactStatus?.warnings?.length ?? 0;
@@ -7456,7 +7081,8 @@ function App() {
       spriteCell,
       actionName,
       sheetDirections,
-      sourceDataUrl
+      sourceDataUrl,
+      importContext.motionRecipe ?? manifest?.motionRecipe
     );
     await persistCodexAnimationQuality(importContext.id, composed.animationQuality);
     const image = await loadImage(composed.dataUrl);
@@ -7476,6 +7102,7 @@ function App() {
       derivedFromName: importContext.sourceImageName,
       animationDirections: sheetDirections,
       animationQuality: composed.animationQuality,
+      motionRecipe: importContext.motionRecipe ?? manifest?.motionRecipe,
       outboxImportKey: buildOutboxImportKey("direction-split", {
         jobId: importContext.id,
         filenames: importedResults.map((result) => result.name),
@@ -7512,10 +7139,13 @@ function App() {
 
     const manifestSuffix = manifest?.schema === DIRECTION_SPLIT_ANIMATION_SCHEMA ? " direction-split manifest ok." : "";
     const warningSuffix = composed.warnings.length > 0 ? ` QA warnings: ${composed.warnings.length}.` : "";
+    const recipeWarningSuffix = manifest?.motionRecipeWarnings?.length
+      ? ` Motion Recipe warning: ${manifest.motionRecipeWarnings.join(" ")}`
+      : "";
     const qualitySuffix = composed.animationQuality.shadowDecision.reasons.length > 0
       ? ` Quality v2 shadow warnings: ${composed.animationQuality.shadowDecision.reasons.length}.`
       : " Quality v2 shadow: clear.";
-    setStatus(`${copy.statusAnimationGenerated}: ${item.name}. ${formatFramesAddedStatus(newFrames.length, actionName, language)}${manifestSuffix}${warningSuffix}${qualitySuffix}`);
+    setStatus(`${copy.statusAnimationGenerated}: ${item.name}. ${formatFramesAddedStatus(newFrames.length, actionName, language)}${manifestSuffix}${warningSuffix}${qualitySuffix}${recipeWarningSuffix}`);
     return { added: true, item, frameCount: newFrames.length };
   }
 
@@ -8934,6 +8564,23 @@ function App() {
                   <strong>{localizedText(selectedAnimationPreset.title, language)}</strong>
                   <span>{localizedText(selectedAnimationPreset.summary, language)}</span>
                   <em>{localizedText(selectedAnimationPreset.category, language)}</em>
+                  <dl className="motion-recipe-facts">
+                    <div><dt>{language === "ja" ? "ループ" : "Loop"}</dt><dd>{selectedMotionRecipe.loopMode}</dd></div>
+                    <div><dt>FPS / Frames</dt><dd>{selectedMotionRecipe.defaultFps} / {selectedMotionRecipe.frameCount}</dd></div>
+                    <div><dt>{language === "ja" ? "接地" : "Grounding"}</dt><dd>{selectedMotionRecipe.groundingProfile}</dd></div>
+                    <div><dt>{language === "ja" ? "強度" : "Intensity"}</dt><dd>{selectedMotionRecipe.motionIntensity}</dd></div>
+                  </dl>
+                  <div className="motion-recipe-phases">
+                    <small>{language === "ja" ? "フレームフェーズ" : "Frame phases"}</small>
+                    <span>{selectedMotionRecipe.framePhases.map((phase) => `${phase.frameStart}:${phase.description}`).join(" → ")}</span>
+                  </div>
+                  <details className="motion-recipe-diagnostics">
+                    <summary>{language === "ja" ? "Advanced diagnostics" : "Advanced diagnostics"}</summary>
+                    <code>{selectedMotionRecipe.id} v{selectedMotionRecipe.version} / compiler {selectedMotionRecipeCompilation.metadata.compilerVersion}</code>
+                    <span>sections: {selectedMotionRecipeCompilation.diagnostics.sectionOrder.join(" → ")}</span>
+                    <span>QA: {selectedMotionRecipeCompilation.qaContract.actionProfile} / motion {selectedMotionRecipeCompilation.qaContract.motionRange.join("–")}</span>
+                    <span>modifiers +{selectedMotionRecipeCompilation.diagnostics.appliedModifiers.length} / −{selectedMotionRecipeCompilation.diagnostics.removedModifiers.length} / dedupe {selectedMotionRecipeCompilation.diagnostics.deduplicatedSegmentCount}</span>
+                  </details>
                 </div>
                 <button className="prompt-example-trigger animation-preset-example-trigger" onClick={() => setShowAnimationPresetExamples(true)}>
                   <Film size={15} aria-hidden="true" />
@@ -10721,6 +10368,7 @@ function buildSelectedAnimationPackManifest({
     sourceNote: draft.sourceNote.trim(),
     promptSummary: draft.includePromptSummary ? draft.promptSummary.trim() : "",
     tags: parseTagList(draft.tags),
+    motionRecipe: selected.motionRecipe ?? motionRecipeReference(resolveMotionRecipe({ actionName: action.name }).recipe),
     files: animationPackFileSet(resolvedDirections)
   };
 }
@@ -10760,7 +10408,8 @@ function animationPackMetadata(
     tags: manifest.tags ?? [],
     license: manifest.license ?? "",
     sourceNote: details.sourceNote,
-    promptSummaryIncluded: Boolean(manifest.promptSummary)
+    promptSummaryIncluded: Boolean(manifest.promptSummary),
+    motionRecipe: manifest.motionRecipe
   };
 }
 
@@ -11797,7 +11446,8 @@ async function composeDirectionSplitAnimationSheet(
   cell: SpriteAction["cell"],
   actionName?: string,
   directions: readonly string[] = ANIMATION_DIRECTIONS,
-  referenceDataUrl?: string
+  referenceDataUrl?: string,
+  motionRecipe?: MotionRecipeReference
 ) {
   const preparedCells: DirectionSplitPreparedCell[] = [];
   const warnings: string[] = [];
@@ -11851,6 +11501,9 @@ async function composeDirectionSplitAnimationSheet(
   const referenceFrame = referenceDataUrl ? await createAnimationQualityReferenceFrame(referenceDataUrl).catch(() => undefined) : undefined;
   const animationQuality = buildAnimationQualityReport({
     action: actionName,
+    contract: motionRecipe
+      ? resolveMotionRecipe({ recipeId: motionRecipe.id, recipeVersion: motionRecipe.version, actionName }).recipe.qualityProfile
+      : undefined,
     rawFrames: preparedCells.map((frame) => animationQualityFrameFromCanvas(frame.sourceCanvas, frame.direction, frame.frameIndex, frame.bounds)),
     normalizedFrames: normalizedCells.map((frame) => animationQualityFrameFromCanvas(frame.canvas, frame.direction, frame.frameIndex, frame.bounds)),
     corrections: normalizedCells.map((frame) => frame.correction),
@@ -14021,6 +13674,7 @@ function savePendingCodexJobs(jobs: CodexJobQueueItem[]) {
         generationProfile: job.generationProfile,
         sourceFingerprint: job.sourceFingerprint,
         repairDirections: job.repairDirections,
+        motionRecipe: job.motionRecipe,
         effectContext: job.effectContext
       }));
     if (runningJobs.length > 0) {

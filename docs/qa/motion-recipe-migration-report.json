@@ -1,0 +1,56 @@
+{
+  "schema": "image-cockpit.motion-recipe-migration-report.v1",
+  "generatedAt": "2026-07-15T07:30:00+09:00",
+  "source": "legacy in-app animation preset catalog",
+  "targetSchema": "image-cockpit.motion-recipe.v1",
+  "recipeVersion": 1,
+  "compilerVersion": "1.0.0",
+  "status": "complete",
+  "presetCount": 16,
+  "preserved": [
+    "preset id",
+    "localized name",
+    "localized summary",
+    "action binding",
+    "preview class",
+    "fps",
+    "loop/playback behavior",
+    "history import",
+    "animation pack export"
+  ],
+  "migrations": [
+    { "presetId": "idle-breathing", "recipeId": "idle-breathing", "family": "core", "status": "migrated" },
+    { "presetId": "walk-cycle", "recipeId": "walk-cycle", "family": "locomotion", "status": "migrated" },
+    { "presetId": "run-cycle", "recipeId": "run-cycle", "family": "locomotion", "status": "migrated" },
+    { "presetId": "basic-attack", "recipeId": "basic-attack", "family": "combat", "status": "migrated" },
+    { "presetId": "hurt-reaction", "recipeId": "hurt-reaction", "family": "combat", "status": "migrated" },
+    { "presetId": "death-downed", "recipeId": "death-downed", "family": "combat", "status": "migrated" },
+    { "presetId": "spell-cast", "recipeId": "spell-cast", "family": "magic", "status": "migrated" },
+    { "presetId": "jump-hop", "recipeId": "jump-hop", "family": "locomotion", "status": "migrated" },
+    { "presetId": "guard-block", "recipeId": "guard-block", "family": "combat", "status": "migrated" },
+    { "presetId": "victory-cheer", "recipeId": "victory-cheer", "family": "social", "status": "migrated" },
+    { "presetId": "interact-pickup", "recipeId": "interact-pickup", "family": "utility", "status": "migrated" },
+    { "presetId": "ranged-attack", "recipeId": "ranged-attack", "family": "combat", "status": "migrated" },
+    { "presetId": "skill-release", "recipeId": "skill-release", "family": "magic", "status": "migrated" },
+    { "presetId": "knockback", "recipeId": "knockback", "family": "combat", "status": "migrated" },
+    { "presetId": "item-use", "recipeId": "item-use", "family": "utility", "status": "migrated" },
+    { "presetId": "talk", "recipeId": "talk", "family": "social", "status": "migrated" }
+  ],
+  "compatibility": {
+    "missingRecipeVersion": "resolve preset/action to current recipe and emit migration warning",
+    "version0": "migrate to v1 and emit migration warning",
+    "unknownVersion": "use current recipe and emit explicit unknown-version warning",
+    "missingRecipeMetadata": "resolve by existing action or use explicit idle-breathing safe default",
+    "oldAnimationPackManifest": "remains importable without motionRecipe field"
+  },
+  "automatedEvidence": {
+    "schemaValidationTests": 16,
+    "recipeSnapshots": 16,
+    "representativeQaContracts": [
+      "subtle loop",
+      "locomotion",
+      "grounded one-shot",
+      "airborne/downed"
+    ]
+  }
+}

@@ -57,6 +57,27 @@ describe("animation quality v2", () => {
     expect(animationActionExpectedPhases("attack")).toEqual(["anticipation", "active/contact", "recovery", "return"]);
   });
 
+  it("uses the Motion Recipe QA contract instead of guessing from the action label", () => {
+    const frames = [0, 1, 2].map((frameIndex) => makeRectFrame("front", frameIndex, 20 + frameIndex, 32, 20, 24));
+    const report = buildAnimationQualityReport({
+      action: "attack",
+      contract: {
+        actionProfile: "subtle-loop",
+        expectedPhases: ["rest", "inhale", "exhale", "bridge"],
+        loopExpected: true
+      },
+      rawFrames: frames,
+      normalizedFrames: frames,
+      corrections: []
+    });
+
+    expect(report.action).toBe("attack");
+    expect(report.actionProfile).toBe("subtle-loop");
+    expect(report.expectedPhases).toEqual(["rest", "inhale", "exhale", "bridge"]);
+    expect(report.loopExpected).toBe(true);
+    expect(report.normalizedMetrics.averageLoopSeam).not.toBeNull();
+  });
+
   it("uses source appearance as the identity reference when available", () => {
     const reference = makeRectFrame("reference", 0, 18, 28, 24, 28, [230, 40, 70]);
     const matching = [0, 1, 2].map((index) => makeRectFrame("front", index, 18 + index, 28, 24, 28, [230, 40, 70]));

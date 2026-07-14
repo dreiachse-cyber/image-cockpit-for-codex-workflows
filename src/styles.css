@@ -1662,6 +1662,41 @@ button {
   font-weight: 800;
 }
 
+.motion-recipe-facts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 5px;
+  margin: 5px 0 0;
+}
+
+.motion-recipe-facts div {
+  display: flex;
+  justify-content: space-between;
+  gap: 7px;
+  border: 1px solid #dce6df;
+  border-radius: 4px;
+  background: #fff;
+  padding: 4px 6px;
+  font-size: 10px;
+}
+
+.motion-recipe-facts dt { color: #708078; }
+.motion-recipe-facts dd { margin: 0; color: #23382c; font-weight: 800; }
+
+.motion-recipe-phases,
+.motion-recipe-diagnostics {
+  display: grid;
+  gap: 4px;
+  color: #516258;
+  font-size: 10px;
+  line-height: 1.35;
+}
+
+.motion-recipe-phases small { color: #23382c; font-weight: 800; }
+.motion-recipe-diagnostics { border-top: 1px dashed #ccd8d0; padding-top: 6px; }
+.motion-recipe-diagnostics summary { cursor: pointer; color: #245a39; font-weight: 800; }
+.motion-recipe-diagnostics code { overflow-wrap: anywhere; color: #17211b; }
+
 .direction-preset-control {
   display: grid;
   gap: 5px;

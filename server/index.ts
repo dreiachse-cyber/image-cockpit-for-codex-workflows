@@ -80,6 +80,9 @@ type CodexJobRequest = {
   idempotencyKey?: string;
   sourceFingerprint?: string;
   motionRecipeId?: string;
+  motionRecipeVersion?: number;
+  motionRecipeCompilerVersion?: string;
+  motionRecipeQualityProfile?: string;
   presetId?: string;
   selectedImageAssetPath?: string;
   repairDirections?: unknown;
@@ -113,6 +116,8 @@ type AnimationTournamentManifest = {
   sourceFingerprint: string;
   sourceAssetRef?: string;
   motionRecipeId?: string;
+  motionRecipeVersion?: number;
+  motionRecipeCompilerVersion?: string;
   presetId?: string;
   generationProfile: AnimationGenerationProfile;
   requestedDirections: string[];
@@ -137,6 +142,8 @@ type AnimationTournamentRegistrationRequest = {
   idempotencyKey?: unknown;
   sourceFingerprint?: unknown;
   motionRecipeId?: unknown;
+  motionRecipeVersion?: unknown;
+  motionRecipeCompilerVersion?: unknown;
   presetId?: unknown;
   generationProfile?: unknown;
   requestedDirections?: unknown;
@@ -760,7 +767,8 @@ async function createCodexJob(body: CodexJobRequest) {
       cell: includeSpriteContext ? body.cell ?? null : null,
       chromaKey: includeSpriteContext ? body.chromaKey ?? "" : "",
       variant: includeSpriteContext ? body.spriteVariant ?? "standard" : "",
-      directions: includeSpriteContext && Array.isArray(body.directions) ? body.directions : []
+      directions: includeSpriteContext && Array.isArray(body.directions) ? body.directions : [],
+      motionRecipe: includeSpriteContext ? normalizeMotionRecipeContext(body) : undefined
     },
     effectContext: workflowMode === "effect-animation" ? body.effectContext ?? null : null,
     tournament: tournamentId
@@ -861,6 +869,8 @@ async function registerAnimationTournament(registration: AnimationTournamentRegi
     sourceFingerprint,
     sourceAssetRef: selectedImageAsset?.path ? basename(selectedImageAsset.path) : undefined,
     motionRecipeId: normalizeShortText(registration.motionRecipeId),
+    motionRecipeVersion: normalizePositiveInteger(registration.motionRecipeVersion),
+    motionRecipeCompilerVersion: normalizeShortText(registration.motionRecipeCompilerVersion),
     presetId: normalizeShortText(registration.presetId),
     generationProfile: profile,
     requestedDirections,
@@ -1343,6 +1353,21 @@ function normalizeBoundedInteger(value: unknown, fallback: number, minimum: numb
 
 function normalizeShortText(value: unknown) {
   return typeof value === "string" && value.trim() ? value.trim().slice(0, 160) : undefined;
+}
+
+function normalizePositiveInteger(value: unknown) {
+  return typeof value === "number" && Number.isFinite(value) && value > 0 ? Math.floor(value) : undefined;
+}
+
+function normalizeMotionRecipeContext(body: CodexJobRequest) {
+  const id = normalizeShortText(body.motionRecipeId ?? body.presetId);
+  if (!id) return undefined;
+  return {
+    id,
+    version: normalizePositiveInteger(body.motionRecipeVersion) ?? 1,
+    compilerVersion: normalizeShortText(body.motionRecipeCompilerVersion) ?? "unknown",
+    qualityProfile: normalizeShortText(body.motionRecipeQualityProfile)
+  };
 }
 
 function isSafeIdempotencyKey(value: string) {
@@ -2678,7 +2703,7 @@ async function inspectDirectionSplitArtifact(jobId: string, resultDir = outboxDi
     };
   }
 
-  const manifestName = await publishVerifiedDirectionSplitArtifact(jobId, candidates, sourceManifest, expectedChromaKey, expectedAction, warnings, resultDir, expectedSlugs);
+  const manifestName = await publishVerifiedDirectionSplitArtifact(jobId, candidates, sourceManifest, expectedChromaKey, expectedAction, expectedSpriteContext.motionRecipe, warnings, resultDir, expectedSlugs);
   const reason = warnings.length > 0 ? "server verified with warnings" : "server verified";
   return {
     jobId,
@@ -2819,6 +2844,7 @@ async function publishVerifiedDirectionSplitArtifact(
   sourceManifest: DirectionSplitSourceManifest,
   expectedChromaKey: string | undefined,
   expectedAction: string | undefined,
+  expectedMotionRecipe: { id: string; version: number; compilerVersion: string; qualityProfile?: string } | undefined,
   warnings: string[],
   targetDir = outboxDir,
   expectedSlugs: string[] = directionSplitSlugs
@@ -2858,6 +2884,7 @@ async function publishVerifiedDirectionSplitArtifact(
       warnings,
       directions: expectedSlugs.map(directionNameForSlug),
       action: expectedAction,
+      motionRecipe: expectedMotionRecipe ?? readManifestMotionRecipe(sourceManifest?.parsed),
       framesPerDirection: 8,
       files: Object.fromEntries(expectedSlugs.map((slug, index) => [directionNameForSlug(slug), `${jobId}-${slug}${extname(candidates[index]?.finalName ?? ".png") || ".png"}`])),
       chromaKey: expectedChromaKey ? { name: expectedChromaKey } : undefined,
@@ -2883,14 +2910,16 @@ async function readJobExpectedSpriteContext(jobId: string): Promise<{
   action?: string;
   chromaKey?: string;
   directionSlugs?: string[];
+  motionRecipe?: { id: string; version: number; compilerVersion: string; qualityProfile?: string };
 }> {
   try {
     const text = await readFile(join(inboxDir, `${jobId}.json`), "utf8");
-    const parsed = JSON.parse(text) as { spriteContext?: { action?: unknown; chromaKey?: unknown; directions?: unknown } };
+    const parsed = JSON.parse(text) as { spriteContext?: { action?: unknown; chromaKey?: unknown; directions?: unknown; motionRecipe?: unknown } };
     return {
       action: normalizeActionValue(parsed.spriteContext?.action),
       chromaKey: normalizeChromaKeyValue(parsed.spriteContext?.chromaKey),
-      directionSlugs: normalizeDirectionSlugsValue(parsed.spriteContext?.directions)
+      directionSlugs: normalizeDirectionSlugsValue(parsed.spriteContext?.directions),
+      motionRecipe: readManifestMotionRecipeValue(parsed.spriteContext?.motionRecipe)
     };
   } catch {
     return {};
@@ -3123,6 +3152,23 @@ function qualityGateFromManifest(manifest: Record<string, unknown>) {
   const quality = normalizeQualityClassification(manifest.classification ?? manifest.quality ?? manifest.status);
   if (!quality || quality === "usable-final" || quality === "running") return null;
   return makeQualityGate(quality, qualityGateDefaultReason(quality), `manifest-${quality}`, false, false, quality !== "debug-artifact");
+}
+
+function readManifestMotionRecipe(manifest?: Record<string, unknown>) {
+  return readManifestMotionRecipeValue(manifest?.motionRecipe);
+}
+
+function readManifestMotionRecipeValue(value: unknown) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return undefined;
+  const record = value as Record<string, unknown>;
+  const id = normalizeShortText(record.id);
+  if (!id) return undefined;
+  return {
+    id,
+    version: normalizePositiveInteger(record.version) ?? 1,
+    compilerVersion: normalizeShortText(record.compilerVersion) ?? "unknown",
+    qualityProfile: normalizeShortText(record.qualityProfile)
+  };
 }
 
 async function resumeUntrackedCodexRunner(status: CodexRunnerStatus) {
@@ -3452,6 +3498,7 @@ async function publishTournamentWinnerUnlocked(tournamentId: string, jobId: stri
     sourceManifest,
     expectedChromaKey,
     expectedAction,
+    expectedSpriteContext.motionRecipe,
     artifact.warnings,
     outboxDir,
     expectedSlugs

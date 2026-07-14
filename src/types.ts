@@ -19,6 +19,14 @@ export interface HistoryItem {
   effectAnimation?: EffectAnimationMetadata;
   animationDirections?: string[];
   animationQuality?: AnimationQualityReportV2;
+  motionRecipe?: MotionRecipeMetadata;
+}
+
+export interface MotionRecipeMetadata {
+  id: string;
+  version: number;
+  compilerVersion: string;
+  qualityProfile: AnimationActionQualityProfile;
 }
 
 export type AnimationActionQualityProfile =
@@ -220,6 +228,7 @@ export interface AnimationPackManifest {
   sourceNote?: string;
   promptSummary?: string;
   tags?: string[];
+  motionRecipe?: MotionRecipeMetadata;
   files: {
     sheet: string;
     previewGif?: string;

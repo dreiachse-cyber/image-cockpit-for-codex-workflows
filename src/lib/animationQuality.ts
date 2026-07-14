@@ -23,6 +23,12 @@ export interface AnimationQualityFrameInput {
 
 export interface BuildAnimationQualityReportInput {
   action?: string;
+  contract?: {
+    actionProfile: AnimationActionQualityProfile;
+    expectedPhases: string[];
+    loopExpected?: boolean;
+    loopSeamRequired?: boolean;
+  };
   rawFrames: AnimationQualityFrameInput[];
   normalizedFrames: AnimationQualityFrameInput[];
   corrections: AnimationNormalizationCorrection[];
@@ -63,8 +69,8 @@ export function animationActionExpectedPhases(action?: string) {
 
 export function buildAnimationQualityReport(input: BuildAnimationQualityReportInput): AnimationQualityReportV2 {
   const action = normalizeAction(input.action) || "unknown";
-  const actionProfile = animationActionQualityProfile(action);
-  const loopExpected = animationActionExpectsLoop(action);
+  const actionProfile = input.contract?.actionProfile ?? animationActionQualityProfile(action);
+  const loopExpected = input.contract?.loopExpected ?? input.contract?.loopSeamRequired ?? animationActionExpectsLoop(action);
   const rawMetrics = buildMetricSet(input.rawFrames, loopExpected);
   const normalizedMetrics = buildMetricSet(input.normalizedFrames, loopExpected);
   const normalizationCorrection = summarizeCorrections(input.corrections);
@@ -93,7 +99,7 @@ export function buildAnimationQualityReport(input: BuildAnimationQualityReportIn
     recordedAt: input.recordedAt ?? new Date().toISOString(),
     action,
     actionProfile,
-    expectedPhases: animationActionExpectedPhases(action),
+    expectedPhases: input.contract?.expectedPhases ?? animationActionExpectedPhases(action),
     loopExpected,
     rawMetrics,
     normalizedMetrics,

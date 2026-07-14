@@ -78,6 +78,7 @@ export function validateAnimationPackManifest(value: unknown): AnimationPackMani
     sourceNote: readOptionalString(value.sourceNote),
     promptSummary: readOptionalString(value.promptSummary),
     tags: Array.isArray(value.tags) ? value.tags.filter((tag): tag is string => typeof tag === "string").slice(0, 20) : [],
+    motionRecipe: readMotionRecipeMetadata(value.motionRecipe),
     files
   };
 }
@@ -149,6 +150,20 @@ function readCell(value: unknown) {
   return {
     width: readPositiveInteger(value.width, "cell.width"),
     height: readPositiveInteger(value.height, "cell.height")
+  };
+}
+
+function readMotionRecipeMetadata(value: unknown): AnimationPackManifest["motionRecipe"] {
+  if (value === undefined || value === null) return undefined;
+  if (!isRecord(value)) throw new Error("Animation pack motionRecipe must be a JSON object.");
+  const qualityProfiles = new Set(["grounded-strict", "grounded-soft", "airborne-or-exempt", "subtle-loop"]);
+  const qualityProfile = readRequiredString(value, "qualityProfile");
+  if (!qualityProfiles.has(qualityProfile)) throw new Error("Animation pack motionRecipe qualityProfile is invalid.");
+  return {
+    id: readRequiredString(value, "id"),
+    version: readPositiveInteger(value.version, "motionRecipe.version"),
+    compilerVersion: readRequiredString(value, "compilerVersion"),
+    qualityProfile: qualityProfile as NonNullable<AnimationPackManifest["motionRecipe"]>["qualityProfile"]
   };
 }
 

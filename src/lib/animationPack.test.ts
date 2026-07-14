@@ -9,6 +9,16 @@ describe("animation pack validation", () => {
     expect(validateAnimationPackManifest(makeManifest()).schema).toBe("image-cockpit.animation.v1");
   });
 
+  it("keeps legacy manifests without Motion Recipe metadata importable", () => {
+    expect(validateAnimationPackManifest(makeManifest()).motionRecipe).toBeUndefined();
+  });
+
+  it("preserves versioned Motion Recipe metadata", () => {
+    const manifest = makeManifest();
+    manifest.motionRecipe = { id: "run-cycle", version: 1, compilerVersion: "1.0.0", qualityProfile: "grounded-soft" };
+    expect(validateAnimationPackManifest(manifest).motionRecipe).toEqual(manifest.motionRecipe);
+  });
+
   it("rejects unsupported schemas", () => {
     expect(() => validateAnimationPackManifest({ ...makeManifest(), schema: "image-cockpit.animation.v0" })).toThrow(
       /schema/i
