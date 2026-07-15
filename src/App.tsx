@@ -37,7 +37,7 @@ import {
   Zap
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { CSSProperties, UIEvent } from "react";
+import type { CSSProperties, ReactNode, UIEvent } from "react";
 import { AnimationReviewCockpit } from "./AnimationReviewCockpit";
 import type { AnimationReviewCandidateView } from "./AnimationReviewCockpit";
 import { VfxCompositeStage } from "./VfxCompositeStage";
@@ -4157,6 +4157,8 @@ function App() {
   const [workflowMode, setWorkflowMode] = useState<WorkflowMode>("image-generate");
   const [showPromptExamples, setShowPromptExamples] = useState(false);
   const [showAnimationPresetExamples, setShowAnimationPresetExamples] = useState(false);
+  const [showAnimationAdvancedSettings, setShowAnimationAdvancedSettings] = useState(false);
+  const [showAnimationActivity, setShowAnimationActivity] = useState(false);
   const [providerId, setProviderId] = useState<ProviderId>("codex-handoff");
   const [animationGenerationMode, setAnimationGenerationMode] = useState<AnimationGenerationMode>("standard");
   const [animationSourceId, setAnimationSourceId] = useState("");
@@ -4237,6 +4239,8 @@ function App() {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const animationReviewReturnFocusRef = useRef<HTMLElement | null>(null);
   const animationPresetReturnFocusRef = useRef<HTMLElement | null>(null);
+  const animationAdvancedReturnFocusRef = useRef<HTMLElement | null>(null);
+  const animationActivityReturnFocusRef = useRef<HTMLElement | null>(null);
   const vfxCompositeReturnFocusRef = useRef<HTMLElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const animationPackInputRef = useRef<HTMLInputElement | null>(null);
@@ -8551,6 +8555,8 @@ function App() {
     setWorkflowMode(mode);
     setShowPromptExamples(false);
     setShowAnimationPresetExamples(false);
+    setShowAnimationAdvancedSettings(false);
+    setShowAnimationActivity(false);
     if (option) setProviderId(option.provider);
     if (mode === "image-edit") {
       setTool("rect");
@@ -8689,6 +8695,16 @@ function App() {
   function closeAnimationPresetExamples() {
     setShowAnimationPresetExamples(false);
     window.requestAnimationFrame(() => animationPresetReturnFocusRef.current?.focus());
+  }
+
+  function closeAnimationAdvancedSettings() {
+    setShowAnimationAdvancedSettings(false);
+    window.requestAnimationFrame(() => animationAdvancedReturnFocusRef.current?.focus());
+  }
+
+  function closeAnimationActivity() {
+    setShowAnimationActivity(false);
+    window.requestAnimationFrame(() => animationActivityReturnFocusRef.current?.focus());
   }
 
   async function handleAnimationPackFiles(files: FileList | File[]) {
@@ -9217,7 +9233,7 @@ function App() {
 
           {isAnimationWorkflow ? (
             <div className={`animation-steps${motionPilotEnabled ? " motion-pilot-active" : ""}`}>
-              <details className={`animation-step collapsible-animation-step ${animationSourceReady ? "complete" : ""}`} open>
+              <details className={`animation-step collapsible-animation-step ${animationSourceReady ? "complete" : ""}`} open={!animationSourceReady}>
                 <summary className="step-heading">
                   <strong>{copy.animationStepSourceTitle}</strong>
                   <span>{copy.animationStepSourceBody}</span>
@@ -9245,78 +9261,19 @@ function App() {
               <details className="animation-step collapsible-animation-step" open>
                 <summary className="step-heading">
                   <strong>{copy.animationStepMotionTitle}</strong>
-                  <span>{copy.animationStepMotionBody}</span>
+                  <span>{language === "ja" ? "プリセットと方向だけ選べば生成できます。" : "Choose a preset and direction count, then generate."}</span>
                 </summary>
-                <div className="selected-animation-card">
+                <div className="selected-animation-card animation-selected-summary">
                   <small className="step-kicker">
                     {copy.motionPreset} · {selectedMotionRecipe.experimental ? "Experimental" : "Verified"}
                   </small>
                   <strong>{localizedText(selectedAnimationPreset.title, language)}</strong>
                   <span>{localizedText(selectedAnimationPreset.summary, language)}</span>
-                  <em>{localizedText(selectedAnimationPreset.category, language)}</em>
-                  <dl className="motion-recipe-facts">
-                    <div><dt>{language === "ja" ? "ループ" : "Loop"}</dt><dd>{selectedMotionRecipe.loopMode}</dd></div>
-                    <div><dt>FPS / Frames</dt><dd>{selectedMotionRecipeCompilation.qaContract.fps} / {animationFrameCount}</dd></div>
-                    <div><dt>{language === "ja" ? "体型 / QA" : "Topology / QA"}</dt><dd>{animationBodyTopology} / {selectedBodyTopologyProfile.contactQaDimension}</dd></div>
-                    <div><dt>{language === "ja" ? "状態" : "Status"}</dt><dd>{selectedMotionRecipe.experimental ? "Experimental" : "Verified"}</dd></div>
-                  </dl>
-                  <div className="motion-variant-controls">
-                    <label>
-                      <span>{language === "ja" ? "Body topology" : "Body topology"}</span>
-                      <select value={animationBodyTopology} onChange={(event) => selectAnimationBodyTopology(event.target.value as BodyTopologyId)}>
-                        {selectedMotionRecipe.supportedTopologies.map((topology) => {
-                          const profile = getBodyTopologyProfile(topology);
-                          return <option key={topology} value={topology}>{localizedText(profile.displayName, language)}</option>;
-                        })}
-                      </select>
-                    </label>
-                    <div className="motion-frame-budget">
-                      <span>{language === "ja" ? "Frame budget" : "Frame budget"}</span>
-                      <div className="segmented-control motion-frame-buttons">
-                        {MOTION_FRAME_COUNTS.map((frameCount) => (
-                          <button
-                            type="button"
-                            key={frameCount}
-                            className={animationFrameCount === frameCount ? "active" : ""}
-                            aria-pressed={animationFrameCount === frameCount}
-                            disabled={!selectedMotionRecipe.allowedFrameCounts.includes(frameCount)}
-                            onClick={() => selectAnimationFrameCount(frameCount)}
-                          >
-                            {frameCount}f
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                    <div className="motion-modifier-grid">
-                      {selectedMotionRecipe.allowedModifiers
-                        .filter((key) => key !== "handedness" || !["none", "unarmed"].includes(animationMotionVariant.weaponClass))
-                        .filter((key) => key !== "weaponClass" && key !== "handedness" || animationBodyTopology === "biped")
-                        .map((key) => (
-                          <label key={key}>
-                            <span>{language === "ja" ? MOTION_VARIANT_LABELS[key].ja : MOTION_VARIANT_LABELS[key].en}</span>
-                            <select value={animationMotionVariant[key]} onChange={(event) => updateAnimationMotionVariant(key, event.target.value)}>
-                              {MOTION_VARIANT_OPTIONS[key].map((value) => <option key={value} value={value}>{value}</option>)}
-                            </select>
-                          </label>
-                        ))}
-                    </div>
+                  <div className="animation-selected-meta" aria-label={language === "ja" ? "現在の詳細設定" : "Current advanced settings"}>
+                    <em>{localizedText(selectedAnimationPreset.category, language)}</em>
+                    <em>{animationFrameCount}f</em>
+                    <em>{animationGenerationProfileDefinition(animationGenerationProfile).label}</em>
                   </div>
-                  <div className="motion-variant-preview">
-                    <small>{language === "ja" ? "変更プレビュー" : "Variant preview"}</small>
-                    <strong>{selectedMotionRecipeCompilation.diagnostics.variantSummary}</strong>
-                    <span>{selectedMotionRecipeCompilation.diagnostics.promptDiff.join(" · ")}</span>
-                  </div>
-                  <div className="motion-recipe-phases">
-                    <small>{language === "ja" ? "フレームフェーズ" : "Frame phases"}</small>
-                    <span>{selectedMotionRecipeCompilation.qaContract.expectedPhases.join(" → ")}</span>
-                  </div>
-                  <details className="motion-recipe-diagnostics">
-                    <summary>{language === "ja" ? "Advanced diagnostics" : "Advanced diagnostics"}</summary>
-                    <code>{selectedMotionRecipe.id} v{selectedMotionRecipe.version} / compiler {selectedMotionRecipeCompilation.metadata.compilerVersion}</code>
-                    <span>sections: {selectedMotionRecipeCompilation.diagnostics.sectionOrder.join(" → ")}</span>
-                    <span>QA: {selectedMotionRecipeCompilation.qaContract.actionProfile} / {selectedMotionRecipeCompilation.qaContract.contactQaDimension} / motion {selectedMotionRecipeCompilation.qaContract.motionRange.join("–")}</span>
-                    <span>modifiers +{selectedMotionRecipeCompilation.diagnostics.appliedModifiers.length} / −{selectedMotionRecipeCompilation.diagnostics.removedModifiers.length} / dedupe {selectedMotionRecipeCompilation.diagnostics.deduplicatedSegmentCount}</span>
-                  </details>
                 </div>
                 <button className="prompt-example-trigger animation-preset-example-trigger" onClick={(event) => { animationPresetReturnFocusRef.current = event.currentTarget; setShowAnimationPresetExamples(true); }}>
                   <Film size={15} aria-hidden="true" />
@@ -9339,52 +9296,193 @@ function App() {
                     ))}
                   </div>
                 </div>
-                <div className="direction-preset-control generation-profile-control">
-                  <small className="step-kicker">Generation profile</small>
-                  <div className="segmented-control generation-profile-buttons" aria-label="Animation generation profile">
-                    {(Object.keys(ANIMATION_GENERATION_PROFILES) as AnimationGenerationProfile[]).map((profile) => {
-                      const definition = animationGenerationProfileDefinition(profile);
-                      return (
-                        <button
-                          key={profile}
-                          type="button"
-                          className={animationGenerationProfile === profile ? "active" : ""}
-                          aria-pressed={animationGenerationProfile === profile}
-                          title={definition.description}
-                          onClick={() => {
-                            setAnimationGenerationProfile(profile);
-                            if (profile !== "best") setMotionPilotEnabled(false);
-                          }}
-                        >
-                          {definition.label}
-                          <small>{definition.initialCandidates}{definition.maximumCandidates > definition.initialCandidates ? "+1" : ""} candidate{definition.maximumCandidates === 1 ? "" : "s"}</small>
-                        </button>
-                      );
-                    })}
-                  </div>
-                  <span className="generation-profile-summary">
-                    {animationGenerationProfileDefinition(animationGenerationProfile).description}
-                  </span>
-                  <label className="motion-pilot-toggle">
-                    <input
-                      type="checkbox"
-                      checked={motionPilotEnabled}
-                      disabled={animationGenerationProfile !== "best"}
-                      onChange={(event) => setMotionPilotEnabled(event.target.checked)}
-                    />
-                    <span>
-                      <strong>Motion Pilot Tournament</strong>
-                      <small>Experimental · Best only · default OFF · {selectedAnimationDirections.length === 5 ? "15→7" : "9→5"} theoretical direction outputs</small>
-                    </span>
-                  </label>
-                  {motionPilotEnabled && (
-                    <div className="motion-pilot-experiment-note" role="note">
-                      <strong>Human review gate</strong>
-                      <span>Generate A/B/C in side only, choose a pilot winner, then expand the remaining {Math.max(0, selectedAnimationDirections.length - 1)} directions. Fallback stays available.</span>
-                    </div>
-                  )}
-                </div>
+                <button
+                  type="button"
+                  className="secondary-button full animation-advanced-settings-trigger"
+                  onClick={(event) => {
+                    animationAdvancedReturnFocusRef.current = event.currentTarget;
+                    setShowAnimationAdvancedSettings(true);
+                  }}
+                >
+                  <Settings size={16} aria-hidden="true" />
+                  {language === "ja" ? "詳細設定を開く" : "Open advanced settings"}
+                </button>
               </details>
+
+              {showAnimationAdvancedSettings && (
+                <AnimationUtilityModal
+                  id="animation-advanced-settings"
+                  title={language === "ja" ? "アニメーション詳細設定" : "Animation advanced settings"}
+                  description={language === "ja" ? "必要なときだけ体型・フレーム・動きの強さ・生成方式を調整します。" : "Adjust topology, frames, motion modifiers, and generation strategy only when needed."}
+                  onClose={closeAnimationAdvancedSettings}
+                >
+                  <section className="animation-utility-section animation-advanced-summary">
+                    <div className="step-heading">
+                      <strong>{localizedText(selectedAnimationPreset.title, language)}</strong>
+                      <span>{localizedText(selectedAnimationPreset.summary, language)}</span>
+                    </div>
+                    <dl className="motion-recipe-facts">
+                      <div><dt>{language === "ja" ? "ループ" : "Loop"}</dt><dd>{selectedMotionRecipe.loopMode}</dd></div>
+                      <div><dt>FPS / Frames</dt><dd>{selectedMotionRecipeCompilation.qaContract.fps} / {animationFrameCount}</dd></div>
+                      <div><dt>{language === "ja" ? "体型 / QA" : "Topology / QA"}</dt><dd>{animationBodyTopology} / {selectedBodyTopologyProfile.contactQaDimension}</dd></div>
+                      <div><dt>{language === "ja" ? "状態" : "Status"}</dt><dd>{selectedMotionRecipe.experimental ? "Experimental" : "Verified"}</dd></div>
+                    </dl>
+                    <div className="motion-variant-controls">
+                      <label>
+                        <span>Body topology</span>
+                        <select value={animationBodyTopology} onChange={(event) => selectAnimationBodyTopology(event.target.value as BodyTopologyId)}>
+                          {selectedMotionRecipe.supportedTopologies.map((topology) => {
+                            const profile = getBodyTopologyProfile(topology);
+                            return <option key={topology} value={topology}>{localizedText(profile.displayName, language)}</option>;
+                          })}
+                        </select>
+                      </label>
+                      <div className="motion-frame-budget">
+                        <span>Frame budget</span>
+                        <div className="segmented-control motion-frame-buttons">
+                          {MOTION_FRAME_COUNTS.map((frameCount) => (
+                            <button
+                              type="button"
+                              key={frameCount}
+                              className={animationFrameCount === frameCount ? "active" : ""}
+                              aria-pressed={animationFrameCount === frameCount}
+                              disabled={!selectedMotionRecipe.allowedFrameCounts.includes(frameCount)}
+                              onClick={() => selectAnimationFrameCount(frameCount)}
+                            >
+                              {frameCount}f
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                      <div className="motion-modifier-grid">
+                        {selectedMotionRecipe.allowedModifiers
+                          .filter((key) => key !== "handedness" || !["none", "unarmed"].includes(animationMotionVariant.weaponClass))
+                          .filter((key) => key !== "weaponClass" && key !== "handedness" || animationBodyTopology === "biped")
+                          .map((key) => (
+                            <label key={key}>
+                              <span>{language === "ja" ? MOTION_VARIANT_LABELS[key].ja : MOTION_VARIANT_LABELS[key].en}</span>
+                              <select value={animationMotionVariant[key]} onChange={(event) => updateAnimationMotionVariant(key, event.target.value)}>
+                                {MOTION_VARIANT_OPTIONS[key].map((value) => <option key={value} value={value}>{value}</option>)}
+                              </select>
+                            </label>
+                          ))}
+                      </div>
+                    </div>
+                    <div className="motion-variant-preview">
+                      <small>{language === "ja" ? "変更プレビュー" : "Variant preview"}</small>
+                      <strong>{selectedMotionRecipeCompilation.diagnostics.variantSummary}</strong>
+                      <span>{selectedMotionRecipeCompilation.diagnostics.promptDiff.join(" · ")}</span>
+                    </div>
+                    <div className="motion-recipe-phases">
+                      <small>{language === "ja" ? "フレームフェーズ" : "Frame phases"}</small>
+                      <span>{selectedMotionRecipeCompilation.qaContract.expectedPhases.join(" → ")}</span>
+                    </div>
+                    <details className="motion-recipe-diagnostics">
+                      <summary>Advanced diagnostics</summary>
+                      <code>{selectedMotionRecipe.id} v{selectedMotionRecipe.version} / compiler {selectedMotionRecipeCompilation.metadata.compilerVersion}</code>
+                      <span>sections: {selectedMotionRecipeCompilation.diagnostics.sectionOrder.join(" → ")}</span>
+                      <span>QA: {selectedMotionRecipeCompilation.qaContract.actionProfile} / {selectedMotionRecipeCompilation.qaContract.contactQaDimension} / motion {selectedMotionRecipeCompilation.qaContract.motionRange.join("–")}</span>
+                      <span>modifiers +{selectedMotionRecipeCompilation.diagnostics.appliedModifiers.length} / −{selectedMotionRecipeCompilation.diagnostics.removedModifiers.length} / dedupe {selectedMotionRecipeCompilation.diagnostics.deduplicatedSegmentCount}</span>
+                    </details>
+                  </section>
+
+                  <section className="animation-utility-section generation-profile-control">
+                    <div className="step-heading">
+                      <strong>{language === "ja" ? "生成方式" : "Generation profile"}</strong>
+                      <span>{animationGenerationProfileDefinition(animationGenerationProfile).description}</span>
+                    </div>
+                    <div className="segmented-control generation-profile-buttons" aria-label="Animation generation profile">
+                      {(Object.keys(ANIMATION_GENERATION_PROFILES) as AnimationGenerationProfile[]).map((profile) => {
+                        const definition = animationGenerationProfileDefinition(profile);
+                        return (
+                          <button
+                            key={profile}
+                            type="button"
+                            className={animationGenerationProfile === profile ? "active" : ""}
+                            aria-pressed={animationGenerationProfile === profile}
+                            title={definition.description}
+                            onClick={() => {
+                              setAnimationGenerationProfile(profile);
+                              if (profile !== "best") setMotionPilotEnabled(false);
+                            }}
+                          >
+                            {definition.label}
+                            <small>{definition.initialCandidates}{definition.maximumCandidates > definition.initialCandidates ? "+1" : ""} candidate{definition.maximumCandidates === 1 ? "" : "s"}</small>
+                          </button>
+                        );
+                      })}
+                    </div>
+                    <label className="motion-pilot-toggle">
+                      <input
+                        type="checkbox"
+                        checked={motionPilotEnabled}
+                        disabled={animationGenerationProfile !== "best"}
+                        onChange={(event) => setMotionPilotEnabled(event.target.checked)}
+                      />
+                      <span>
+                        <strong>Motion Pilot Tournament</strong>
+                        <small>Experimental · Best only · default OFF · {selectedAnimationDirections.length === 5 ? "15→7" : "9→5"} theoretical direction outputs</small>
+                      </span>
+                    </label>
+                    {motionPilotEnabled && (
+                      <div className="motion-pilot-experiment-note" role="note">
+                        <strong>Human review gate</strong>
+                        <span>Generate A/B/C in side only, choose a pilot winner, then expand the remaining {Math.max(0, selectedAnimationDirections.length - 1)} directions. Fallback stays available.</span>
+                      </div>
+                    )}
+                    <div className="animation-generation-technical">
+                      <small>{copy.animationStepGenerateBody}</small>
+                      <small>{animationLockedSizeNote}</small>
+                      <label className="check-row inline notification-toggle">
+                        <input
+                          type="checkbox"
+                          checked={jobNotificationsEnabled}
+                          onChange={(event) => setJobNotificationsEnabled(event.target.checked)}
+                        />
+                        <Bell size={16} aria-hidden="true" />
+                        <span>{copy.jobNotifications}</span>
+                      </label>
+                    </div>
+                  </section>
+                  {batchMatrixSources.length >= 2 && (
+                    <section className="animation-utility-section batch-matrix-panel">
+                      <div className="step-heading">
+                        <strong>Batch Matrix</strong>
+                        <span>Characters are rows, motions are columns. Jobs obey the global {MAX_ACTIVE_CODEX_JOBS}-runner limit.</span>
+                      </div>
+                      <div className="batch-matrix-picker">
+                        <div>
+                          <small className="step-kicker">Characters</small>
+                          {batchMatrixSources.slice(0, 6).map((source) => (
+                            <label key={source.id}>
+                              <input type="checkbox" checked={batchMatrixSourceIds.includes(source.id)} onChange={() => toggleBatchMatrixSource(source.id)} />
+                              <span title={source.name}>{source.name}</span>
+                            </label>
+                          ))}
+                        </div>
+                        <div>
+                          <small className="step-kicker">Motions</small>
+                          {animationPresetExamples.slice(0, 8).map((preset) => (
+                            <label key={preset.id}>
+                              <input type="checkbox" checked={batchMatrixPresetIds.includes(preset.id)} onChange={() => toggleBatchMatrixPreset(preset.id)} />
+                              <span>{localizedText(preset.title, language)}</span>
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        className="secondary-button full"
+                        disabled={isBatchMatrixStarting || batchMatrixSourceIds.length < 2 || batchMatrixPresetIds.length < 2}
+                        onClick={() => void runAnimationBatchMatrix()}
+                      >
+                        {isBatchMatrixStarting ? <Loader2 size={16} className="spin" aria-hidden="true" /> : <Grid3X3 size={16} aria-hidden="true" />}
+                        Queue {batchMatrixSourceIds.length} × {batchMatrixPresetIds.length} Matrix
+                      </button>
+                    </section>
+                  )}
+                </AnimationUtilityModal>
+              )}
 
               {SHOW_ANIMATION_LIBRARY && (
                 <section className="animation-step animation-library-panel">
@@ -9462,9 +9560,8 @@ function App() {
               <details className="animation-step collapsible-animation-step animation-generate-step" open>
                 <summary className="step-heading">
                   <strong>{copy.animationStepGenerateTitle}</strong>
-                  <span>{animationGenerateBody}</span>
+                  <span>{language === "ja" ? "選択内容でアニメーションを生成します。" : "Generate with the selected preset and directions."}</span>
                 </summary>
-                <small className="step-kicker">{animationLockedSizeNote}</small>
                 <div className="animation-source-fingerprint">
                   <span>Actual source</span>
                   <strong>{animationSource?.name ?? "-"}</strong>
@@ -9480,24 +9577,35 @@ function App() {
                   <PrimaryActionIcon providerId={providerId} isBusy={isBusy} />
                   {shouldQueueCodexJob ? codexQueueCopy.queueAction : copy.generateLocalSprite}
                 </button>
-                <label className="check-row inline notification-toggle">
-                  <input
-                    type="checkbox"
-                    checked={jobNotificationsEnabled}
-                    onChange={(event) => setJobNotificationsEnabled(event.target.checked)}
-                  />
-                  <Bell size={14} aria-hidden="true" />
-                  <span>{copy.jobNotifications}</span>
-                </label>
-                <small className="animation-active-job-count" aria-live="polite">{codexJobs.filter((job) => job.workflowMode === "sprite-generate").length} animation job(s) active</small>
+                <button
+                  type="button"
+                  className="secondary-button full animation-activity-trigger"
+                  onClick={(event) => {
+                    animationActivityReturnFocusRef.current = event.currentTarget;
+                    setShowAnimationActivity(true);
+                  }}
+                >
+                  <Film size={16} aria-hidden="true" />
+                  {language === "ja" ? "生成状況・履歴" : "Generation status & history"}
+                  <small aria-live="polite">{animationTournamentMonitors.length}</small>
+                </button>
               </details>
-              {animationTournamentMonitors.length > 0 && (
-                <section className="animation-step tournament-monitor">
+              {showAnimationActivity && (
+                <AnimationUtilityModal
+                  id="animation-generation-activity"
+                  title={language === "ja" ? "生成状況・履歴" : "Generation status & history"}
+                  description={language === "ja" ? "候補比較、方向別状態、修復、過去のトーナメントを必要なときだけ確認します。" : "Review candidates, direction state, repairs, and prior tournaments only when needed."}
+                  onClose={closeAnimationActivity}
+                >
+                <section className="animation-utility-section tournament-monitor">
                   <div className="step-heading">
                     <strong>Tournament Monitor</strong>
                     <span>Persistent candidates, directions, phase, elapsed time, and warnings.</span>
                   </div>
-                  {animationTournamentMonitors.slice(0, 3).map(({ manifest }) => (
+                  {animationTournamentMonitors.length === 0 && (
+                    <p className="animation-utility-empty">{language === "ja" ? "まだ生成履歴はありません。" : "No animation generation history yet."}</p>
+                  )}
+                  {animationTournamentMonitors.slice(0, 6).map(({ manifest }) => (
                     <article className={`tournament-monitor-card state-${manifest.state}`} key={manifest.tournamentId}>
                       <header>
                         <span>
@@ -9597,80 +9705,7 @@ function App() {
                     </article>
                   ))}
                 </section>
-              )}
-              {batchMatrixSources.length >= 2 && (
-                <section className="animation-step batch-matrix-panel">
-                  <div className="step-heading">
-                    <strong>Batch Matrix</strong>
-                    <span>Characters are rows, motions are columns. Jobs obey the global {MAX_ACTIVE_CODEX_JOBS}-runner limit.</span>
-                  </div>
-                  <div className="batch-matrix-picker">
-                    <div>
-                      <small className="step-kicker">Characters</small>
-                      {batchMatrixSources.slice(0, 6).map((source) => (
-                        <label key={source.id}>
-                          <input type="checkbox" checked={batchMatrixSourceIds.includes(source.id)} onChange={() => toggleBatchMatrixSource(source.id)} />
-                          <span title={source.name}>{source.name}</span>
-                        </label>
-                      ))}
-                    </div>
-                    <div>
-                      <small className="step-kicker">Motions</small>
-                      {animationPresetExamples.slice(0, 8).map((preset) => (
-                        <label key={preset.id}>
-                          <input type="checkbox" checked={batchMatrixPresetIds.includes(preset.id)} onChange={() => toggleBatchMatrixPreset(preset.id)} />
-                          <span>{localizedText(preset.title, language)}</span>
-                        </label>
-                      ))}
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    className="secondary-button full"
-                    disabled={isBatchMatrixStarting || batchMatrixSourceIds.length < 2 || batchMatrixPresetIds.length < 2}
-                    onClick={() => void runAnimationBatchMatrix()}
-                  >
-                    {isBatchMatrixStarting ? <Loader2 size={14} className="spin" aria-hidden="true" /> : <Grid3X3 size={14} aria-hidden="true" />}
-                    Queue {batchMatrixSourceIds.length} × {batchMatrixPresetIds.length} Matrix
-                  </button>
-                  <div className="batch-matrix-table" style={{ "--batch-columns": Math.max(1, batchMatrixPresetIds.length) } as CSSProperties}>
-                    <span className="batch-corner">source / motion</span>
-                    {batchMatrixPresetIds.map((presetId) => <strong key={presetId}>{localizedText(getAnimationPresetById(presetId).title, language)}</strong>)}
-                    {batchMatrixSourceIds.flatMap((sourceId) => {
-                      const source = batchMatrixSources.find((item) => item.id === sourceId);
-                      if (!source) return [];
-                      return [
-                        <strong key={`${sourceId}:label`} title={source.name}>{source.name}</strong>,
-                        ...batchMatrixPresetIds.map((presetId) => {
-                          const batchMatrixCellKey = `${sourceId}:${presetId}`;
-                          const monitor = animationTournamentMonitors.find(({ manifest }) =>
-                            manifest.clientContext?.batchMatrixCellKey === batchMatrixCellKey
-                          ) ?? animationTournamentMonitors.find(({ manifest }) =>
-                            !manifest.clientContext?.batchMatrixCellKey &&
-                            manifest.presetId === presetId &&
-                            manifest.clientContext?.sourceImageId === sourceId
-                          );
-                          const manifest = monitor?.manifest;
-                          const started = manifest?.candidates.filter((candidate) => candidate.jobId).length ?? 0;
-                          const finished = manifest?.candidates.filter((candidate) => ["quality-evaluated", "accepted", "failed", "cancelled"].includes(candidate.state)).length ?? 0;
-                          const warnings = manifest?.candidates.reduce((sum, candidate) => sum + (candidate.warningCount ?? 0), 0) ?? 0;
-                          return (
-                            <button
-                              type="button"
-                              key={`${sourceId}:${presetId}`}
-                              className={`batch-cell state-${manifest?.state ?? "idle"}`}
-                              title={manifest?.thirdCandidateReason ?? manifest?.tournamentId ?? "Not queued"}
-                              onClick={() => manifest && setStatus(`Batch cell ${source.name} / ${localizedText(getAnimationPresetById(presetId).title, language)}: ${manifest.state}, ${finished}/${started} terminal, ${warnings} warnings.`)}
-                            >
-                              <span>{manifest?.state ?? "idle"}</span>
-                              <small>{started} jobs · {finished} done{warnings ? ` · ${warnings} warn` : ""}</small>
-                            </button>
-                          );
-                        })
-                      ];
-                    })}
-                  </div>
-                </section>
+                </AnimationUtilityModal>
               )}
             </div>
           ) : isEffectWorkflow ? (
@@ -13478,6 +13513,7 @@ function WorkflowTabs({
           <button
             key={option.id}
             className={activeMode === option.id ? "active" : ""}
+            aria-current={activeMode === option.id ? "page" : undefined}
             onClick={() => onSelect(option.id)}
           >
             <WorkflowIcon mode={option.id} />
@@ -13580,6 +13616,77 @@ function PromptExamplesModal({
               </div>
             </article>
           ))}
+        </div>
+      </section>
+    </div>
+  );
+}
+
+function AnimationUtilityModal({
+  id,
+  title,
+  description,
+  onClose,
+  children
+}: {
+  id: string;
+  title: string;
+  description: string;
+  onClose: () => void;
+  children: ReactNode;
+}) {
+  const modalRef = useRef<HTMLElement>(null);
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    closeButtonRef.current?.focus();
+    const onKeyDown = (event: KeyboardEvent) => {
+      const openDialogs = Array.from(document.querySelectorAll<HTMLElement>('[role="dialog"][aria-modal="true"]'));
+      if (openDialogs.length > 0 && openDialogs[openDialogs.length - 1] !== modalRef.current) return;
+      if (event.key === "Escape") {
+        event.preventDefault();
+        onClose();
+        return;
+      }
+      if (event.key !== "Tab") return;
+      const focusable = Array.from(modalRef.current?.querySelectorAll<HTMLElement>('button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])') ?? []);
+      if (focusable.length === 0) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, []);
+
+  return (
+    <div className="prompt-modal-backdrop animation-utility-backdrop" role="presentation" onMouseDown={onClose}>
+      <section
+        ref={modalRef}
+        className="prompt-modal animation-utility-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={`${id}-title`}
+        aria-describedby={`${id}-description`}
+        onMouseDown={(event) => event.stopPropagation()}
+      >
+        <div className="prompt-library-heading animation-utility-heading">
+          <div>
+            <strong id={`${id}-title`}>{title}</strong>
+            <span id={`${id}-description`}>{description}</span>
+          </div>
+          <button ref={closeButtonRef} className="icon-button" title="Close" aria-label="Close" onClick={onClose}>
+            <X size={22} aria-hidden="true" />
+          </button>
+        </div>
+        <div className="animation-utility-body">
+          {children}
         </div>
       </section>
     </div>

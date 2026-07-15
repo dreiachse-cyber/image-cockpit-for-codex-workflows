@@ -1,5 +1,6 @@
 :root {
   color-scheme: light;
+  font-size: 16px;
   font-family:
     Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   background: #f4f6f4;
@@ -18,6 +19,7 @@
   --amber: #b77811;
   --amber-soft: #fff5de;
   --danger: #b94c45;
+  --ui-readable-font-floor: 16px;
 }
 
 * {
@@ -35,6 +37,8 @@ body {
   min-width: 320px;
   min-height: 100vh;
   overflow: hidden;
+  font-size: var(--ui-readable-font-floor);
+  line-height: 1.45;
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.62), rgba(244, 246, 244, 0)),
     #f4f6f4;
@@ -55,7 +59,7 @@ button {
   height: 100%;
   min-height: 0;
   display: grid;
-  grid-template-rows: 38px minmax(0, 1fr) auto 30px;
+  grid-template-rows: 50px minmax(0, 1fr) auto 40px;
   overflow: hidden;
 }
 
@@ -154,19 +158,41 @@ button {
 
 .source-panel > .workflow-tabs {
   display: grid;
+  flex: 0 0 auto;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 4px;
-  min-height: 66px;
+  grid-auto-rows: minmax(54px, auto);
+  gap: 6px;
+  min-height: 0;
   height: auto;
   overflow: visible;
   margin: 0 10px 10px;
+  padding: 6px;
   align-self: stretch;
 }
 
 .source-panel > .workflow-tabs button {
   min-width: 0;
-  padding: 0 6px;
-  font-size: 11px;
+  min-height: 54px;
+  padding: 7px 10px;
+  line-height: 1.25;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.source-panel > .workflow-tabs button.active {
+  background: #eaf5ed;
+  box-shadow: inset 0 0 0 2px #318253;
+}
+
+.source-panel > .workflow-tabs button:focus-visible {
+  outline: 3px solid rgba(27, 111, 61, 0.34);
+  outline-offset: 2px;
+}
+
+.source-panel > .workflow-tabs svg {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 18px;
 }
 
 .codex-job-shelf {
@@ -529,7 +555,7 @@ button {
 }
 
 .simple-cockpit {
-  grid-template-columns: minmax(260px, 320px) minmax(420px, 1fr) minmax(220px, 300px);
+  grid-template-columns: minmax(360px, 430px) minmax(420px, 1fr) minmax(260px, 320px);
   grid-template-rows: minmax(0, 1fr) 258px;
 }
 
@@ -1660,6 +1686,41 @@ button {
   font-size: 10px;
   font-style: normal;
   font-weight: 800;
+}
+
+.animation-selected-summary {
+  gap: 8px;
+  padding: 14px;
+}
+
+.animation-selected-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.animation-selected-meta em {
+  justify-self: auto;
+}
+
+.animation-advanced-settings-trigger,
+.animation-activity-trigger {
+  min-height: 48px;
+  justify-content: center;
+}
+
+.animation-activity-trigger {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+}
+
+.animation-activity-trigger small {
+  min-width: 32px;
+  border-radius: 999px;
+  background: var(--green-soft);
+  color: #0f5d31;
+  padding: 2px 8px;
+  font-weight: 900;
 }
 
 .motion-recipe-facts {
@@ -2870,7 +2931,8 @@ button:disabled {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 14px;
+  column-gap: 10px;
+  row-gap: 6px;
   min-height: 34px;
   border-top: 1px solid var(--line);
   background: #fff;
@@ -2879,6 +2941,23 @@ button:disabled {
   font-size: 12px;
   min-width: 0;
   overflow-x: auto;
+}
+
+.canvas-status > :first-child {
+  flex: 1 1 220px;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.canvas-status .source-status-chip {
+  flex: 0 1 220px;
+  max-width: 220px;
+}
+
+.canvas-status .source-status-chip strong {
+  font-size: 17px !important;
 }
 
 .swatch {
@@ -3369,6 +3448,75 @@ button:disabled {
   background: #f8faf8;
   box-shadow: 0 22px 70px rgb(23 33 27 / 28%);
   padding: 14px;
+}
+
+.animation-utility-backdrop {
+  z-index: 72;
+}
+
+.animation-utility-modal {
+  width: min(1040px, 100%);
+  max-height: calc(100vh - 36px);
+  overflow: hidden;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 16px;
+  padding: 18px;
+}
+
+.animation-utility-heading {
+  margin: 0;
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 14px;
+}
+
+.animation-utility-heading > div {
+  display: grid;
+  gap: 5px;
+}
+
+.animation-utility-heading strong {
+  color: #17211b;
+}
+
+.animation-utility-heading span {
+  color: var(--text-muted);
+  line-height: 1.45;
+}
+
+.animation-utility-body {
+  min-height: 0;
+  display: grid;
+  align-content: start;
+  gap: 16px;
+  overflow: auto;
+  padding: 2px 6px 6px 2px;
+}
+
+.animation-utility-section {
+  display: grid;
+  gap: 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #ffffff;
+  padding: 16px;
+}
+
+.animation-generation-technical {
+  display: grid;
+  gap: 10px;
+  border-top: 1px dashed var(--line-strong);
+  padding-top: 12px;
+  color: var(--text-muted);
+}
+
+.animation-utility-empty {
+  margin: 0;
+  border: 1px dashed var(--line-strong);
+  border-radius: 6px;
+  background: #f8faf8;
+  padding: 18px;
+  color: var(--text-muted);
+  text-align: center;
 }
 
 .settings-modal-backdrop {
@@ -4549,6 +4697,13 @@ button:disabled {
     grid-row: auto;
   }
 
+  .cockpit.without-sprite-actions .source-panel,
+  .cockpit.without-sprite-actions .workspace,
+  .cockpit.without-sprite-actions .history-panel {
+    grid-column: 1;
+    grid-row: auto;
+  }
+
   .source-panel {
     max-height: none;
   }
@@ -4611,6 +4766,68 @@ button:disabled {
 
   .timeline-preview-stage {
     min-height: 220px;
+  }
+}
+
+/* Accessibility-first readable type scale. The previous UI commonly fell to 7-12px. */
+.app-shell :is(button, input, select, textarea, label, small, span, p, em, code, dt, dd) {
+  font-size: var(--ui-readable-font-floor) !important;
+  line-height: 1.45;
+}
+
+.app-shell strong {
+  font-size: 18px !important;
+  line-height: 1.35;
+}
+
+.app-shell h1 {
+  font-size: 28px !important;
+}
+
+.app-shell h2,
+.app-shell h3 {
+  font-size: 22px !important;
+}
+
+.app-shell strong > span {
+  font-size: inherit !important;
+}
+
+.app-shell button,
+.app-shell select,
+.app-shell input:not([type="checkbox"]):not([type="radio"]) {
+  min-height: 40px;
+}
+
+.app-shell input[type="checkbox"],
+.app-shell input[type="radio"] {
+  width: 20px;
+  height: 20px;
+  flex: 0 0 20px;
+}
+
+.app-shell .icon-button {
+  min-width: 40px;
+  min-height: 40px;
+}
+
+@media (max-width: 620px) {
+  .animation-utility-backdrop {
+    padding: 0;
+  }
+
+  .animation-utility-modal {
+    width: 100%;
+    max-height: 100vh;
+    min-height: 100vh;
+    border-radius: 0;
+    padding: 14px;
+  }
+
+  .motion-modifier-grid,
+  .batch-matrix-picker,
+  .generation-profile-buttons {
+    grid-template-columns: 1fr;
   }
 }
 
@@ -5275,11 +5492,11 @@ button:disabled {
 }
 
 .animation-generate-step {
-  position: sticky;
-  z-index: 7;
-  bottom: 8px;
+  position: relative;
+  z-index: 1;
+  bottom: auto;
   border-color: #8fc8a5;
-  box-shadow: 0 10px 26px rgba(22, 72, 42, 0.16);
+  box-shadow: 0 4px 14px rgba(22, 72, 42, 0.12);
 }
 
 .animation-steps.motion-pilot-active .animation-generate-step {

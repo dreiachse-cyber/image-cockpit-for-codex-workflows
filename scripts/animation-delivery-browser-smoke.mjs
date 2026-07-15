@@ -338,7 +338,7 @@ async function uploadAnimationSource(filePath, fileName) {
     files: [filePath]
   });
   await waitForEval(
-    () => `document.body?.innerText.includes(${JSON.stringify(fileName)}) && document.body?.innerText.includes("Selected source")`,
+    () => `document.querySelector(".animation-source-fingerprint")?.innerText.includes(${JSON.stringify(fileName)}) && document.querySelector(".animation-step.complete .source-preview")?.textContent.includes("Selected source")`,
     "uploaded animation source"
   );
   return fileName;
@@ -416,7 +416,7 @@ async function pageSnapshot() {
       .map((button) => button.innerText.replace(/\\s+/g, " ").trim())
       .filter(Boolean),
     animationSourceStatus: document.querySelector(".animation-source-status")?.innerText || "",
-    animationSourceCard: document.querySelector(".animation-step.complete .source-preview")?.innerText.replace(/\\s+/g, " ").trim() || "",
+    animationSourceCard: document.querySelector(".animation-step.complete .source-preview")?.textContent.replace(/\\s+/g, " ").trim() || "",
     browserErrors: window.__animationDeliveryErrors || []
   }))()`);
 }

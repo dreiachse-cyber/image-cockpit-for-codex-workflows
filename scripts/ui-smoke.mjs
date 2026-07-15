@@ -217,13 +217,13 @@ try {
   await assertWorkflow({
     label: "Animation Generation",
     route: "Route: Codex Handoff",
-    buttons: ["Upload Pixel Art", "Choose Animation", "Generate Animation", "Download"],
+    buttons: ["Choose Animation", "Open advanced settings", "Generate Animation", "Download"],
     hiddenButtons: ["Import Latest", "Import File", "PNG", "Animated GIF", "Animated WebP", "Animated APNG", "Official Animations", "User Animations", "Import Animation", "Export Sample", "Use", "5-Direction Sheet", "hatch-pet", "5-Direction hatch-pet"],
     hiddenText: ["Animation Library", "Official Animations", "User Animations", "No user animations yet", "Sprite Actions", "Export Sprite", "Generation Method", "Hop Bounce"],
-    requiredText: ["1. Upload Pixel Art", "2. Choose Motion", "3. Generate", "4. Download", "Selected animation", "Choose Animation", "Directions", "5 directions", "3 directions", "Fixed cells: 256 x 256 px", "chroma-key direction frames", "Notify when done"],
+    requiredText: ["1. Upload Pixel Art", "2. Choose Motion", "3. Generate", "4. Download", "Selected animation", "Choose Animation", "Directions", "5 directions", "3 directions"],
     exerciseButton: "Generate Animation",
     expectedAfterExercise: "Animation generated",
-    expectedAfterExerciseText: ["Animation frames ready", "Generated from", "Directional Previews", "GIF Preview", "Sprite Sheet Preview", "256 x 256 px"],
+    expectedAfterExerciseText: ["Animation frames ready", "Generated from", "Directional Previews", "GIF Preview", "Sprite Sheet Preview"],
     expectedDownloadModalButtons: ["Animated GIF", "Animated WebP", "Animated APNG", "Sprite Sheet", "Review / Edit Timeline", "Export Animation Pack"],
     downloadModalClickButtons: ["Animated WebP", "Animated APNG", "Sprite Sheet"],
     expectedCanvasPreviewModeAfterExercise: "result",
@@ -596,8 +596,38 @@ async function assertAnimationPresetExamples() {
     return Boolean(trigger && selectedCard && selectedCard.nextElementSibling === trigger);
   })()`);
   assert(triggerPlacement, "Choose Animation trigger should sit directly below the selected animation card");
+  const workflowNavigation = await evaluate(`(() => {
+    const nav = document.querySelector(".source-panel > .workflow-tabs");
+    const buttons = [...(nav?.querySelectorAll("button") || [])];
+    const navRect = nav?.getBoundingClientRect();
+    const nextRect = nav?.nextElementSibling?.getBoundingClientRect();
+    return {
+      count: buttons.length,
+      heights: buttons.map((button) => Math.round(button.getBoundingClientRect().height)),
+      fontSizes: buttons.map((button) => Number.parseFloat(getComputedStyle(button).fontSize)),
+      navContainsButtons: Boolean(navRect && buttons.every((button) => button.getBoundingClientRect().bottom <= navRect.bottom + 1)),
+      nextStartsAfterNav: Boolean(navRect && nextRect && nextRect.top >= navRect.bottom)
+    };
+  })()`);
+  assert(workflowNavigation.count === 4, `Workflow navigation should expose four primary actions, got ${workflowNavigation.count}`);
+  assert(workflowNavigation.heights.every((height) => height >= 48), `Workflow buttons should keep generous click targets: ${JSON.stringify(workflowNavigation.heights)}`);
+  assert(workflowNavigation.fontSizes.every((size) => size >= 16), `Workflow buttons should preserve the readable type floor: ${JSON.stringify(workflowNavigation.fontSizes)}`);
+  assert(workflowNavigation.navContainsButtons && workflowNavigation.nextStartsAfterNav, "Workflow buttons should not overlap the following animation controls");
+  const sourceUploadAccess = await evaluate(`(() => {
+    const sourceStep = document.querySelector("details.collapsible-animation-step");
+    const uploadButton = [...(sourceStep?.querySelectorAll("button") || [])]
+      .find((button) => button.textContent.trim() === "Upload Pixel Art");
+    return { available: Boolean(uploadButton), open: Boolean(sourceStep?.open) };
+  })()`);
+  assert(sourceUploadAccess.available, "Collapsed animation source step should keep Upload Pixel Art available on demand");
+  assert(!(await evaluate(`document.querySelector(".source-panel")?.innerText.includes("Generation profile")`)), "Animation advanced controls should stay hidden by default");
+  await clickButtonByText("Open advanced settings");
+  await waitForEval(() => `Boolean(document.querySelector(".animation-utility-modal"))`, "Animation advanced settings modal");
   const profileSnapshot = await pageSnapshot();
   assert(profileSnapshot.text.includes("Generation profile"), "Animation Generation should expose the generation profile selector");
+  assert(profileSnapshot.text.includes("chroma-key direction frames"), "Animation advanced settings should retain the chroma-key generation guidance");
+  assert(profileSnapshot.text.includes("Fixed cells: 256 x 256 px"), "Animation advanced settings should retain the fixed cell contract");
+  assert(profileSnapshot.text.includes("Notify when done"), "Animation advanced settings should retain notification controls");
   assert(["Fast", "Balanced", "Best"].every((label) => profileSnapshot.buttons.includes(label) || profileSnapshot.text.includes(label)), "Generation profile should expose Fast, Balanced, and Best");
   const defaultBest = await evaluate(`document.querySelector(".generation-profile-buttons button.active")?.innerText.includes("Best")`);
   assert(defaultBest, "Best should remain the default animation generation profile");
@@ -615,6 +645,12 @@ async function assertAnimationPresetExamples() {
   const motionPilotBalancedDisabled = await evaluate(`document.querySelector(".motion-pilot-toggle input")?.disabled === true && document.querySelector(".motion-pilot-toggle input")?.checked === false`);
   assert(motionPilotBalancedDisabled, "Motion Pilot should stay Best-only and reset OFF when another profile is selected");
   await clickSelector(".generation-profile-buttons button:nth-child(3)");
+  await clickSelector(".animation-utility-heading .icon-button");
+  await waitForEval(() => `!document.querySelector(".animation-utility-modal")`, "Animation advanced settings closed");
+  await waitForEval(
+    () => `document.activeElement?.classList.contains("animation-advanced-settings-trigger") || false`,
+    "Animation advanced settings should return focus to its trigger"
+  );
 
   await clickButtonByText("Choose Animation");
   await waitForEval(() => `document.querySelector(".animation-preset-modal")?.innerText.includes("Idle Breathing")`, "Choose Animation modal");
@@ -707,9 +743,32 @@ async function assertAnimationPresetExamples() {
   assert(stillNoFreePrompt, "Select Animation should keep free-form motion prompt textareas hidden");
   const modalClosed = await evaluate(`!document.querySelector(".animation-preset-modal")`);
   assert(modalClosed, "Select Animation should close the Choose Animation modal");
-  await delay(50);
-  const presetFocusReturned = await evaluate(`document.activeElement?.classList.contains("animation-preset-example-trigger") || false`);
-  assert(presetFocusReturned, "Select Animation should return focus to the Choose Animation trigger");
+  await waitForEval(
+    () => `document.activeElement?.classList.contains("animation-preset-example-trigger") || false`,
+    "Select Animation should return focus to the Choose Animation trigger"
+  );
+
+  await cdp.send("Emulation.setDeviceMetricsOverride", { width: 390, height: 844, deviceScaleFactor: 1, mobile: true });
+  await delay(200);
+  const mobileWorkflowLayout = await evaluate(`(() => {
+    const rect = (selector) => document.querySelector(selector)?.getBoundingClientRect();
+    const source = rect(".source-panel");
+    const workspace = rect(".workspace");
+    const history = rect(".history-panel");
+    const workflowButtons = [...document.querySelectorAll(".source-panel > .workflow-tabs button")];
+    return {
+      stacked: Boolean(source && workspace && history && workspace.top >= source.bottom - 1 && history.top >= workspace.bottom - 1),
+      documentFits: document.documentElement.scrollWidth <= window.innerWidth + 1,
+      buttonHeights: workflowButtons.map((button) => Math.round(button.getBoundingClientRect().height)),
+      buttonFonts: workflowButtons.map((button) => Number.parseFloat(getComputedStyle(button).fontSize))
+    };
+  })()`);
+  assert(mobileWorkflowLayout.stacked, "Responsive workflow panels should stack instead of covering the primary workflow buttons");
+  assert(mobileWorkflowLayout.documentFits, "Responsive workflow layout should avoid horizontal document overflow");
+  assert(mobileWorkflowLayout.buttonHeights.every((height) => height >= 48), `Responsive workflow buttons should remain easy to press: ${JSON.stringify(mobileWorkflowLayout.buttonHeights)}`);
+  assert(mobileWorkflowLayout.buttonFonts.every((size) => size >= 16), `Responsive workflow buttons should retain readable text: ${JSON.stringify(mobileWorkflowLayout.buttonFonts)}`);
+  await cdp.send("Emulation.setDeviceMetricsOverride", { width: 1280, height: 720, deviceScaleFactor: 1, mobile: false });
+  await delay(200);
 
   await selectWorkflowTab("Pixel Art Generation");
 }
@@ -774,20 +833,29 @@ async function assertAnimationLibraryHidden() {
 
 async function assertAnimationReviewCockpit() {
   await selectWorkflowTab("Animation Generation");
-  await waitForEval(() => `Boolean(document.querySelector(".tournament-review-button"))`, "Tournament Review A/B/C button", 20000);
 
-  const stepper = await evaluate(`(() => ({
-    count: document.querySelectorAll("details.collapsible-animation-step").length,
-    open: [...document.querySelectorAll("details.collapsible-animation-step")].every((details) => details.open),
-    stickyCta: getComputedStyle(document.querySelector(".animation-generate-step")).position === "sticky",
-    sourceSummary: document.querySelector(".animation-source-fingerprint")?.innerText || ""
-  }))()`);
+  const stepper = await evaluate(`(() => {
+    const steps = [...document.querySelectorAll("details.collapsible-animation-step")];
+    const motionRect = steps[1]?.getBoundingClientRect();
+    const generateRect = steps[2]?.getBoundingClientRect();
+    return {
+      count: steps.length,
+      openStates: steps.map((details) => details.open),
+      sourceReady: (document.querySelector(".animation-source-fingerprint strong")?.innerText || "-") !== "-",
+      generateInFlow: Boolean(motionRect && generateRect && generateRect.top >= motionRect.bottom - 1),
+      generatePosition: getComputedStyle(document.querySelector(".animation-generate-step")).position,
+      sourceSummary: document.querySelector(".animation-source-fingerprint")?.innerText || ""
+    };
+  })()`);
   assert(stepper.count === 3, `Animation flow should expose three collapsible steps, got ${stepper.count}`);
-  assert(stepper.open, "Animation flow should open all three steps initially");
-  assert(stepper.stickyCta, "Animation generation CTA should remain sticky");
-  assert(stepper.sourceSummary.includes("Actual source"), "Sticky generation CTA should identify its Actual source");
+  assert(stepper.openStates[1] && stepper.openStates[2], `Animation flow should keep motion and generation steps open: ${JSON.stringify(stepper.openStates)}`);
+  assert(stepper.openStates[0] === !stepper.sourceReady, "Animation source step should collapse automatically once a source is ready");
+  assert(stepper.generateInFlow && stepper.generatePosition === "relative", "Animation generation CTA should remain in flow instead of covering readable controls");
+  assert(stepper.sourceSummary.includes("Actual source"), "Animation generation CTA should identify its Actual source");
 
-  await clickSelector(".tournament-review-button");
+  await clickSelector(".animation-activity-trigger");
+  await waitForEval(() => `Boolean(document.querySelector(".animation-utility-modal .tournament-review-button"))`, "Tournament Review A/B/C button", 20000);
+  await clickSelector(".animation-utility-modal .tournament-review-button");
   await waitForEval(() => `Boolean(document.querySelector(".animation-review-cockpit .review-candidate-card img"))`, "Animation Review candidate artifacts", 20000);
   const initial = await evaluate(`(() => {
     const modal = document.querySelector(".animation-review-cockpit");
@@ -870,8 +938,16 @@ async function assertAnimationReviewCockpit() {
 
   await evaluate(`document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }))`);
   await waitForEval(() => `!document.querySelector(".animation-review-cockpit")`, "Animation Review closes with Escape");
-  const focusReturned = await evaluate(`document.activeElement?.classList.contains("tournament-review-button") || false`);
-  assert(focusReturned, "Animation Review should return focus to its Review A/B/C trigger");
+  await waitForEval(
+    () => `document.activeElement?.classList.contains("tournament-review-button") || false`,
+    "Animation Review should return focus to its Review A/B/C trigger"
+  );
+  await clickSelector(".animation-utility-heading .icon-button");
+  await waitForEval(() => `!document.querySelector(".animation-utility-modal")`, "Animation generation history closed");
+  await waitForEval(
+    () => `document.activeElement?.classList.contains("animation-activity-trigger") || false`,
+    "Animation generation history should return focus to its trigger"
+  );
   await assertNoBrowserErrors("Animation Review Cockpit");
 }
 
@@ -1844,8 +1920,10 @@ async function assertVfxCompositeStage() {
 
   await evaluate(`(() => { window.__vfxReturnFocus = document.activeElement; document.querySelector('.vfx-composite-dialog').dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); })()`);
   await waitForEval(() => `!document.querySelector('.vfx-composite-dialog')`, "VFX Composite Stage closes with Escape");
-  const focusReturned = await evaluate(`document.activeElement?.textContent?.includes('Open Composite Stage') || false`);
-  assert(focusReturned, "VFX Composite Stage should return focus to its launcher");
+  await waitForEval(
+    () => `document.activeElement?.textContent?.includes('Open Composite Stage') || false`,
+    "VFX Composite Stage should return focus to its launcher"
+  );
   await assertNoBrowserErrors("VFX Composite Stage");
 }
 
@@ -2140,7 +2218,10 @@ async function assertWorkflow({
       await selectWorkflowTab(label);
       await waitForEval(() => `document.body.innerText.includes("Animation frames ready")`, `${label} persisted animation frames after reload`);
       await waitForEval(() => `document.body.innerText.includes("Generated from")`, `${label} persisted generated-from source after reload`);
-      await waitForEval(() => `document.body.innerText.includes("256 x 256 px")`, `${label} persisted 256 x 256 px frame size after reload`);
+      await clickButtonByText("Open advanced settings");
+      await waitForEval(() => `document.querySelector(".animation-utility-modal")?.innerText.includes("256 x 256 px")`, `${label} persisted 256 x 256 px frame size after reload`);
+      await clickSelector(".animation-utility-heading .icon-button");
+      await waitForEval(() => `!document.querySelector(".animation-utility-modal")`, `${label} persisted settings modal closed`);
       if (expectedPreviewImages > 0) {
         await waitForEval(
           () => `document.querySelectorAll(".animation-preview img").length >= ${expectedPreviewImages}`,
@@ -2259,7 +2340,7 @@ async function assertSourceStatusRoundTrip(label, selector, { restoreSelectedRes
   );
   if (label === "Animation Generation") {
     await waitForEval(
-      () => `document.querySelector(".animation-step.complete .source-preview")?.innerText.includes(${JSON.stringify(sourceName)})`,
+      () => `document.querySelector(".animation-step.complete .source-preview")?.textContent.includes(${JSON.stringify(sourceName)})`,
       `${label} source card updates after source chip click`
     );
   }
@@ -2640,7 +2721,7 @@ async function pageSnapshot() {
       .filter(Boolean),
     animationSourceStatus: document.querySelector(".animation-source-status")?.innerText || "",
     animationSourceButton: Boolean(document.querySelector(".animation-source-status.source-status-button")),
-    animationSourceCard: document.querySelector(".animation-step.complete .source-preview")?.innerText.replace(/\\s+/g, " ").trim() || "",
+    animationSourceCard: document.querySelector(".animation-step.complete .source-preview")?.textContent.replace(/\\s+/g, " ").trim() || "",
     imageEditSourceStatus: document.querySelector(".image-edit-source-status")?.innerText || "",
     imageEditSourceButton: Boolean(document.querySelector(".image-edit-source-status.source-status-button")),
     imageEditSourceImages: document.querySelectorAll(".image-edit-source-status img").length,

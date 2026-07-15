@@ -1023,6 +1023,42 @@ function checkWorkflowIds() {
   });
 
   [
+    "AnimationUtilityModal",
+    "animation-advanced-settings-trigger",
+    "animation-activity-trigger",
+    "Generation status & history",
+    "openDialogs[openDialogs.length - 1] !== modalRef.current"
+  ].forEach((marker) => {
+    if (!appText.includes(marker)) {
+      failures.push(`Animation Generation should keep optional controls in utility modals: ${marker}`);
+    }
+  });
+
+  [
+    "--ui-readable-font-floor: 16px",
+    ".source-panel > .workflow-tabs button.active",
+    "grid-auto-rows: minmax(54px, auto)",
+    "flex: 0 0 auto",
+    ".cockpit.without-sprite-actions .history-panel"
+  ].forEach((marker) => {
+    if (!stylesText.includes(marker)) {
+      failures.push(`Readable workflow navigation treatment is missing: ${marker}`);
+    }
+  });
+
+  [
+    "Workflow buttons should not overlap the following animation controls",
+    "Responsive workflow panels should stack instead of covering the primary workflow buttons",
+    "Collapsed animation source step should keep Upload Pixel Art available on demand",
+    "Animation advanced settings should return focus to its trigger",
+    "Animation generation history should return focus to its trigger"
+  ].forEach((marker) => {
+    if (!uiSmokeText.includes(marker)) {
+      failures.push(`UI smoke should cover the simplified animation controls: ${marker}`);
+    }
+  });
+
+  [
     "BASIC_CHARACTER_CATEGORY",
     "Basic Character",
     "docs/prompt-examples/basic-character-prompts.md",
