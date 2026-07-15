@@ -66,6 +66,7 @@ const debugPort = await getOpenPort();
 const appUrl = `http://127.0.0.1:${vitePort}/`;
 const screenshotDir = process.env.IMAGE_COCKPIT_UI_SMOKE_SCREENSHOT_DIR;
 const onlyEffectSmoke = process.env.IMAGE_COCKPIT_UI_SMOKE_ONLY_EFFECT === "1";
+const onlyVfxCompositeSmoke = process.env.IMAGE_COCKPIT_UI_SMOKE_ONLY_VFX_COMPOSITE === "1";
 
 let apiServer;
 let viteServer;
@@ -169,7 +170,11 @@ try {
     "initial Pixel Art Generation workspace"
   );
 
-  if (onlyEffectSmoke) {
+  if (onlyVfxCompositeSmoke) {
+    await prepareVfxCompositeSmokeResults();
+    await assertVfxCompositeStage();
+    console.log("UI smoke VFX Composite-only passed.");
+  } else if (onlyEffectSmoke) {
     await assertEffectAnimationWorkflow();
     await assertEffectCategoryMatrix();
     await assertEffectResultNotEditable();
@@ -235,6 +240,7 @@ try {
   await assertAnimationResultNotEditable();
   await assertEffectAnimationWorkflow();
   await assertEffectCategoryMatrix();
+  await assertVfxCompositeStage();
   await assertEffectResultNotEditable();
   if (!screenshotDir) await assertHistoryIncrementalRendering();
 
@@ -1627,7 +1633,7 @@ async function assertEffectAnimationWorkflow() {
     buttons: ["Generate Effect", "Download"],
     hiddenButtons: ["Import Latest", "Import File", "Animated WebP", "Animated APNG", "Export Animation Pack"],
     hiddenText: ["Sprite Actions", "Export Sprite", "Generation Method"],
-    requiredText: ["Slash Arc", "Hit Spark", "Magic Cast", "Projectile", "Impact", "Frames", "Canvas", "Layout", "Loop", "Anchor", "Palette"],
+    requiredText: ["Slash Arc", "Hit Spark", "Magic Cast", "Projectile", "Impact", "Telegraph / AOE", "Aura / Status", "Heal / Buff", "Barrier / Shield", "Spawn / Portal", "Movement Trail / Landing", "Frames", "Canvas", "Layout", "Loop", "Anchor", "Palette", "VFX Composite Stage"],
     exerciseButton: "Generate Effect",
     expectedAfterExercise: "Effect imported",
     expectedAfterExerciseText: ["Effect exports ready", "GIF preview", "Sheet preview", "Frame timeline", "GOLD"],
@@ -1704,6 +1710,147 @@ async function assertEffectCategoryMatrix() {
     await maybeCapture(`effect-animation-${category.id}`);
     await assertNoBrowserErrors(`Effect Animation ${category.label}`);
   }
+}
+
+async function assertVfxCompositeStage() {
+  await selectWorkflowTab("Effect Animation");
+  await waitForEval(() => `Boolean(Array.from(document.querySelectorAll("button")).find((button) => button.textContent?.includes("Open Composite Stage") && !button.disabled))`, "VFX Composite Stage launch ready");
+  await cdp.send("Emulation.setEmulatedMedia", { features: [{ name: "prefers-reduced-motion", value: "reduce" }] });
+  await clickButtonByText("Open Composite Stage");
+  await waitForEval(() => `Boolean(document.querySelector('.vfx-composite-dialog'))`, "VFX Composite Stage opens");
+  await waitForEval(() => `Boolean(document.querySelector('button[aria-label="Play composite"]'))`, "VFX Composite respects reduced motion");
+  await cdp.send("Emulation.setEmulatedMedia", { features: [] });
+  const initial = await evaluate(`(() => {
+    const dialog = document.querySelector('.vfx-composite-dialog');
+    return {
+      title: dialog?.querySelector('h2')?.textContent || '',
+      sourceSelects: dialog?.querySelectorAll('.vfx-composite-source-grid select').length || 0,
+      socketOptions: dialog?.querySelectorAll('.vfx-control-section select')[0]?.options.length || 0,
+      eventOptions: dialog?.querySelectorAll('.vfx-control-section select')[1]?.options.length || 0,
+      overlays: dialog?.querySelectorAll('.vfx-overlay-grid input').length || 0,
+      previewImages: dialog?.querySelectorAll('.vfx-preview-stage img').length || 0,
+      initialFocusInside: Boolean(dialog?.contains(document.activeElement)),
+      text: dialog?.innerText || ''
+    };
+  })()`);
+  assert(initial.title === "VFX Composite Stage", `VFX Composite Stage title missing: ${JSON.stringify(initial)}`);
+  assert(initial.sourceSelects === 2, `VFX Composite Stage needs character/effect selectors: ${JSON.stringify(initial)}`);
+  assert(initial.socketOptions === 6, `VFX Composite Stage needs six sockets: ${JSON.stringify(initial)}`);
+  assert(initial.eventOptions === 5, `VFX Composite Stage needs five events: ${JSON.stringify(initial)}`);
+  assert(initial.overlays === 5, `VFX Composite Stage needs five overlay controls: ${JSON.stringify(initial)}`);
+  assert(initial.previewImages >= 1, `VFX Composite Stage should render actual frame layers: ${JSON.stringify(initial)}`);
+  assert(initial.initialFocusInside, `VFX Composite Stage should place focus inside the modal: ${JSON.stringify(initial)}`);
+  for (const text of ["Socket / Event", "Basic offset", "Advanced adjustments", "Normal", "Additive", "Screen", "Layer Sheets", "Combined GIF", "Combined APNG", "Composite Pack ZIP"]) {
+    assert(initial.text.includes(text), `VFX Composite Stage missing ${text}: ${initial.text}`);
+  }
+
+  await evaluate(`(() => {
+    const dialog = document.querySelector('.vfx-composite-dialog');
+    const selectByLabel = (label, value) => {
+      const input = Array.from(dialog.querySelectorAll('label.field')).find((item) => item.querySelector('span')?.textContent === label)?.querySelector('select');
+      if (!input) throw new Error('Missing select ' + label);
+      input.value = value;
+      input.dispatchEvent(new Event('change', { bubbles: true }));
+    };
+    const numberByLabel = (label, value) => {
+      const input = Array.from(dialog.querySelectorAll('label.field')).find((item) => item.querySelector('span')?.textContent === label)?.querySelector('input[type=number]');
+      if (!input) throw new Error('Missing number input ' + label);
+      const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set;
+      setter.call(input, String(value));
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+    };
+    selectByLabel('Socket', 'weapon-tip');
+    selectByLabel('Event', 'impact');
+    selectByLabel('Layer', 'back');
+    selectByLabel('Blend', 'screen');
+    numberByLabel('Offset X', 12);
+    numberByLabel('Offset Y', -6);
+  })()`);
+  await clickButtonByText("peak sync");
+  await clickButtonByText("dark");
+  await clickButtonByText("Save setup");
+  await waitForEval(() => `document.querySelector('.vfx-save-state')?.textContent?.includes('Saved')`, "VFX Composite setup saved");
+  const configured = await evaluate(`(() => ({
+    attachment: document.querySelector('.vfx-attachment-strip')?.innerText || '',
+    background: document.querySelector('.vfx-preview-stage')?.className || '',
+    offsetX: Array.from(document.querySelectorAll('.vfx-controls-panel label.field')).find((item) => item.querySelector('span')?.textContent === 'Offset X')?.querySelector('input')?.value,
+    offsetY: Array.from(document.querySelectorAll('.vfx-controls-panel label.field')).find((item) => item.querySelector('span')?.textContent === 'Offset Y')?.querySelector('input')?.value
+  }))()`);
+  assert(configured.attachment.includes("weapon-tip") && configured.attachment.includes("impact") && configured.attachment.includes("peak sync") && configured.attachment.includes("back / screen"), `VFX attachment configuration did not apply: ${JSON.stringify(configured)}`);
+  assert(configured.background.includes("bg-dark"), `VFX dark background did not apply: ${JSON.stringify(configured)}`);
+  assert(configured.offsetX === "12" && configured.offsetY === "-6", `VFX numeric offsets did not apply: ${JSON.stringify(configured)}`);
+
+  await maybeCapture("vfx-composite-stage");
+  await cdp.send("Emulation.setDeviceMetricsOverride", { width: 390, height: 844, deviceScaleFactor: 1, mobile: true });
+  await delay(250);
+  const mobile = await evaluate(`(() => {
+    const dialog = document.querySelector('.vfx-composite-dialog');
+    const rect = dialog?.getBoundingClientRect();
+    return {
+      dialogFits: Boolean(rect && rect.left >= -1 && rect.right <= window.innerWidth + 1),
+      dialogScrollFits: Boolean(dialog && dialog.scrollWidth <= dialog.clientWidth + 1),
+      documentFits: document.documentElement.scrollWidth <= window.innerWidth + 1,
+      advancedCollapsed: !document.querySelector('.vfx-advanced')?.open,
+      basicOffsetsVisible: Boolean(Array.from(document.querySelectorAll('.vfx-controls-panel label.field')).find((item) => item.querySelector('span')?.textContent === 'Offset X'))
+    };
+  })()`);
+  assert(mobile.dialogFits && mobile.dialogScrollFits, `Mobile VFX Composite dialog should fit: ${JSON.stringify(mobile)}`);
+  assert(mobile.documentFits, `Mobile VFX Composite should not overflow the document: ${JSON.stringify(mobile)}`);
+  assert(mobile.advancedCollapsed && mobile.basicOffsetsVisible, `Mobile VFX Composite should prioritize preview/basic offsets and collapse advanced controls: ${JSON.stringify(mobile)}`);
+  await cdp.send("Emulation.setDeviceMetricsOverride", { width: 1280, height: 720, deviceScaleFactor: 1, mobile: false });
+  await delay(200);
+  await clickButtonByText("Layer Sheets");
+  await clickButtonByText("Manifest JSON");
+  await clickButtonByText("Combined GIF");
+  await waitForEval(() => `(window.__uiSmokeDownloads || []).some((item) => item.type === 'image/gif')`, "VFX combined GIF download");
+  await waitForEval(() => `Boolean(Array.from(document.querySelectorAll('.vfx-export-actions button')).find((button) => button.textContent?.includes('Combined APNG') && !button.disabled))`, "VFX GIF export settles");
+  await clickButtonByText("Combined APNG");
+  await waitForEval(() => `(window.__uiSmokeDownloads || []).some((item) => item.type === 'image/apng')`, "VFX combined APNG download");
+  await waitForEval(() => `Boolean(Array.from(document.querySelectorAll('.vfx-export-actions button')).find((button) => button.textContent?.includes('Composite Pack ZIP') && !button.disabled))`, "VFX APNG export settles");
+  await clickButtonByText("Composite Pack ZIP");
+  await waitForEval(() => `(window.__uiSmokeDownloads || []).at(-1)?.type === 'application/zip'`, "VFX Composite Pack download");
+  await evaluate(`(async () => {
+    const download = (window.__uiSmokeDownloads || []).at(-1);
+    const blob = await (await fetch(download.dataUrl)).blob();
+    const file = new File([blob], 'ui-smoke-vfx-composite.zip', { type: 'application/zip' });
+    const input = document.querySelector('.vfx-composite-footer input[type=file]');
+    Object.defineProperty(input, 'files', { configurable: true, value: [file] });
+    input.dispatchEvent(new Event('change', { bubbles: true }));
+  })()`);
+  await waitForEval(() => `document.querySelector('.vfx-export-status')?.textContent?.includes('reimported')`, "VFX Composite Pack reimport");
+
+  await evaluate(`(() => {
+    const dialog = document.querySelector('.vfx-composite-dialog');
+    const scrubber = dialog.querySelector('input[aria-label="Composite frame scrubber"]');
+    const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set;
+    setter.call(scrubber, '0');
+    scrubber.dispatchEvent(new Event('change', { bubbles: true }));
+    const event = new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true });
+    dialog.dispatchEvent(event);
+  })()`);
+  await waitForEval(() => `document.querySelector('.vfx-scrubber strong')?.textContent?.includes('2/')`, "VFX keyboard frame stepping");
+  const frameAfterArrow = await evaluate(`document.querySelector('.vfx-scrubber strong')?.textContent || ''`);
+  assert(frameAfterArrow.includes("2/"), `VFX keyboard frame stepping should advance to frame 2: ${frameAfterArrow}`);
+
+  await evaluate(`(() => { window.__vfxReturnFocus = document.activeElement; document.querySelector('.vfx-composite-dialog').dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); })()`);
+  await waitForEval(() => `!document.querySelector('.vfx-composite-dialog')`, "VFX Composite Stage closes with Escape");
+  const focusReturned = await evaluate(`document.activeElement?.textContent?.includes('Open Composite Stage') || false`);
+  assert(focusReturned, "VFX Composite Stage should return focus to its launcher");
+  await assertNoBrowserErrors("VFX Composite Stage");
+}
+
+async function prepareVfxCompositeSmokeResults() {
+  await installDownloadSpy();
+  await selectWorkflowTab("Pixel Art Generation");
+  const sourceCount = await evaluate(`document.querySelectorAll('.history-item').length`);
+  await clickButtonByText("Generate Pixel Art");
+  await waitForEval(() => `document.querySelectorAll('.history-item').length > ${sourceCount}`, "VFX smoke pixel source", 30000);
+  await selectWorkflowTab("Animation Generation");
+  await clickButtonByText("Generate Animation");
+  await waitForEval(() => `document.body.innerText.includes("Animation generated")`, "VFX smoke character animation", 45000);
+  await selectWorkflowTab("Effect Animation");
+  await clickButtonByText("Generate Effect");
+  await waitForEval(() => `document.body.innerText.includes("Effect imported")`, "VFX smoke effect animation", 30000);
 }
 
 async function assertHistoryIncrementalRendering() {

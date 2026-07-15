@@ -478,7 +478,7 @@ function eventArray(value: unknown, label: string, frameCount: number, direction
     const event = record(item, `${label}[${index}]`);
     requiredString(event.id, `${label}[${index}].id`);
     requiredString(event.name, `${label}[${index}].name`);
-    if (!["startup", "active", "impact", "recovery", "loop-point", "custom"].includes(String(event.type))) throw new Error(`${label}[${index}].type is invalid.`);
+    if (!["startup", "charge", "active", "impact", "recovery", "loop-point", "custom"].includes(String(event.type))) throw new Error(`${label}[${index}].type is invalid.`);
     timelineIndex(event.frameIndex, `${label}[${index}].frameIndex`, frameCount);
     origin(event.origin, `${label}[${index}].origin`);
     optionalDirection(event.direction, directions, `${label}[${index}].direction`);

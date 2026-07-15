@@ -17,6 +17,7 @@ import {
   Grid3X3,
   ImagePlus,
   Languages,
+  Layers3,
   Loader2,
   Maximize2,
   Minimize2,
@@ -39,6 +40,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties, UIEvent } from "react";
 import { AnimationReviewCockpit } from "./AnimationReviewCockpit";
 import type { AnimationReviewCandidateView } from "./AnimationReviewCockpit";
+import { VfxCompositeStage } from "./VfxCompositeStage";
 import monsterGirlPromptsMarkdown from "../docs/prompt-examples/monster-girl-prompts.md?raw";
 import monsterPromptsMarkdown from "../docs/prompt-examples/monster-prompts.md?raw";
 import professionCharacterPromptsMarkdown from "../docs/prompt-examples/profession-character-prompts.md?raw";
@@ -106,6 +108,7 @@ import {
 } from "./lib/animationTournament";
 import type { AnimationGenerationProfile } from "./lib/animationTournament";
 import type { AnimationHumanReview } from "./lib/animationReview";
+import { buildEffectQualityReportV2 } from "./lib/effectQuality";
 import { createId, dataUrlToBlob, downloadBlob, loadImage, readFileAsDataUrl } from "./lib/image";
 import { OFFICIAL_ANIMATION_LIBRARY } from "./lib/officialAnimations";
 import { calculateGridCells, summarizeFrames } from "./lib/sprite";
@@ -355,7 +358,18 @@ const languageOptions: Array<{ id: Language; label: string }> = [
 const supportedLanguageSet = new Set<string>(SUPPORTED_LANGUAGE_IDS);
 
 type WorkflowMode = "image-generate" | "image-edit" | "sprite-generate" | "sprite-edit" | "effect-animation";
-type EffectCategoryId = "slash-arc" | "hit-spark" | "magic-cast" | "projectile" | "impact";
+type EffectCategoryId =
+  | "slash-arc"
+  | "hit-spark"
+  | "magic-cast"
+  | "projectile"
+  | "impact"
+  | "telegraph-aoe"
+  | "aura-status"
+  | "heal-buff"
+  | "barrier-shield"
+  | "spawn-portal"
+  | "movement-trail";
 type EffectStyleId = "pixel-clean" | "painterly-soft" | "arcade-bold" | "anime-flare";
 type EffectPaletteId = "cyan-white" | "violet-gold" | "ember-orange" | "toxic-green" | "mono-white";
 type EffectLayoutId = "grid-4x2" | "horizontal-strip" | "grid-4x4";
@@ -369,7 +383,11 @@ interface EffectCategoryDefinition {
   types: Array<{ id: string; label: LocalizedText }>;
   defaultLoop: EffectLoopMode;
   defaultAnchor: EffectAnchorMode;
-  defaultBlendMode: "normal" | "additive";
+  defaultBlendMode: "normal" | "additive" | "screen";
+  defaultFrameCount?: number;
+  defaultCanvasSize?: number;
+  energyEnvelope?: "burst" | "sustain" | "pulse" | "travel" | "expand-fade";
+  experimental?: boolean;
 }
 
 interface EffectLayoutOption {
@@ -458,7 +476,104 @@ const effectCategoryDefinitions: EffectCategoryDefinition[] = [
     ],
     defaultLoop: "one-shot",
     defaultAnchor: "impact-ground",
-    defaultBlendMode: "normal"
+    defaultBlendMode: "normal",
+    energyEnvelope: "burst"
+  },
+  {
+    id: "telegraph-aoe",
+    label: { ja: "予兆 / AOE", en: "Telegraph / AOE" },
+    detail: { ja: "攻撃範囲と発動タイミングを読みやすく示す", en: "Readable attack areas and activation timing." },
+    types: [
+      { id: "danger-ring", label: { ja: "危険リング", en: "Danger ring" } },
+      { id: "cone", label: { ja: "扇形予兆", en: "Cone telegraph" } },
+      { id: "target-zone", label: { ja: "着弾範囲", en: "Target zone" } }
+    ],
+    defaultLoop: "loop",
+    defaultAnchor: "impact-ground",
+    defaultBlendMode: "screen",
+    defaultFrameCount: 8,
+    defaultCanvasSize: 192,
+    energyEnvelope: "pulse"
+  },
+  {
+    id: "aura-status",
+    label: { ja: "オーラ / 状態", en: "Aura / Status" },
+    detail: { ja: "継続バフ、デバフ、属性状態を表すloop", en: "Looping buffs, debuffs, and elemental status cues." },
+    types: [
+      { id: "power-aura", label: { ja: "強化オーラ", en: "Power aura" } },
+      { id: "poison-status", label: { ja: "毒状態", en: "Poison status" } },
+      { id: "freeze-status", label: { ja: "凍結状態", en: "Freeze status" } }
+    ],
+    defaultLoop: "loop",
+    defaultAnchor: "bottom-center",
+    defaultBlendMode: "additive",
+    defaultFrameCount: 8,
+    defaultCanvasSize: 128,
+    energyEnvelope: "sustain"
+  },
+  {
+    id: "heal-buff",
+    label: { ja: "回復 / バフ", en: "Heal / Buff" },
+    detail: { ja: "上昇粒子、回復光、能力強化の演出", en: "Rising particles, healing light, and ability boosts." },
+    types: [
+      { id: "heal-rise", label: { ja: "回復上昇", en: "Healing rise" } },
+      { id: "stat-up", label: { ja: "能力上昇", en: "Stat up" } },
+      { id: "cleanse", label: { ja: "浄化", en: "Cleanse" } }
+    ],
+    defaultLoop: "one-shot",
+    defaultAnchor: "bottom-center",
+    defaultBlendMode: "additive",
+    defaultFrameCount: 8,
+    defaultCanvasSize: 128,
+    energyEnvelope: "expand-fade"
+  },
+  {
+    id: "barrier-shield",
+    label: { ja: "障壁 / シールド", en: "Barrier / Shield" },
+    detail: { ja: "防御面、球状障壁、受け止めの発光", en: "Defensive planes, domes, and blocking glows." },
+    types: [
+      { id: "dome", label: { ja: "半球障壁", en: "Barrier dome" } },
+      { id: "guard-plane", label: { ja: "防御面", en: "Guard plane" } },
+      { id: "shield-pulse", label: { ja: "盾パルス", en: "Shield pulse" } }
+    ],
+    defaultLoop: "loop",
+    defaultAnchor: "center",
+    defaultBlendMode: "screen",
+    defaultFrameCount: 8,
+    defaultCanvasSize: 192,
+    energyEnvelope: "sustain"
+  },
+  {
+    id: "spawn-portal",
+    label: { ja: "出現 / ポータル", en: "Spawn / Portal" },
+    detail: { ja: "出現、消滅、召喚ゲートの開閉", en: "Spawn, despawn, and portal opening sequences." },
+    types: [
+      { id: "portal-open", label: { ja: "ポータル展開", en: "Portal open" } },
+      { id: "spawn-flash", label: { ja: "出現閃光", en: "Spawn flash" } },
+      { id: "despawn-wisp", label: { ja: "消滅粒子", en: "Despawn wisps" } }
+    ],
+    defaultLoop: "one-shot",
+    defaultAnchor: "bottom-center",
+    defaultBlendMode: "additive",
+    defaultFrameCount: 12,
+    defaultCanvasSize: 192,
+    energyEnvelope: "expand-fade"
+  },
+  {
+    id: "movement-trail",
+    label: { ja: "移動軌跡 / 着地", en: "Movement Trail / Landing" },
+    detail: { ja: "ダッシュ軌跡、足跡、着地煙を分離layer化", en: "Dash trails, footsteps, and landing effects as separate layers." },
+    types: [
+      { id: "dash-trail", label: { ja: "ダッシュ残像", en: "Dash trail" } },
+      { id: "footstep", label: { ja: "足跡", en: "Footstep" } },
+      { id: "landing-dust", label: { ja: "着地煙", en: "Landing dust" } }
+    ],
+    defaultLoop: "one-shot",
+    defaultAnchor: "bottom-center",
+    defaultBlendMode: "normal",
+    defaultFrameCount: 6,
+    defaultCanvasSize: 128,
+    energyEnvelope: "travel"
   }
 ];
 
@@ -2659,7 +2774,8 @@ function buildEffectAnimationJobContext({
     `Frames must show stable progression with no static copy frames, no random style jumps, and no crop at the cell bounds.`,
     `Loop mode: ${loopMode}. One-shot effects should start small, peak, and dissipate; loop effects should bridge cleanly from last frame back to first.`,
     `Effect category: ${categoryLabel}. Effect type: ${typeLabel}. Visual style: ${styleLabel}. Palette: ${paletteLabel}.`,
-    `Blend intent: ${category.defaultBlendMode}; preserve readable alpha edges for game-engine compositing.`
+    `Blend intent: ${category.defaultBlendMode}; preserve readable alpha edges for game-engine compositing.`,
+    `Energy envelope: ${category.energyEnvelope ?? (category.defaultLoop === "loop" ? "sustain" : "burst")}; keep the temporal brightness and opacity progression readable.`
   ];
 
   return {
@@ -2680,6 +2796,18 @@ function buildEffectAnimationJobContext({
     alphaPremultiplied: false,
     qualityRank: "blocked",
     warnings: [],
+    recipe: {
+      id: `effect-recipe:${category.id}`,
+      version: 1,
+      category: category.id,
+      frameCount: safeFrameCount,
+      canvasSize: safeCanvasSize,
+      loopMode,
+      anchorMode,
+      blendMode: category.defaultBlendMode,
+      energyEnvelope: category.energyEnvelope ?? (category.defaultLoop === "loop" ? "sustain" : "burst"),
+      experimental: category.experimental
+    },
     categoryLabel,
     typeLabel,
     styleLabel,
@@ -4080,6 +4208,7 @@ function App() {
   const [effectBackgroundPreview, setEffectBackgroundPreview] = useState<EffectBackgroundPreview>("checkerboard");
   const [effectGifPreviewUrl, setEffectGifPreviewUrl] = useState("");
   const [isEffectPreviewBuilding, setIsEffectPreviewBuilding] = useState(false);
+  const [showVfxCompositeStage, setShowVfxCompositeStage] = useState(false);
   const [imageEditComparison, setImageEditComparison] = useState<ImageEditComparison | null>(null);
   const [codexFailureNotices, setCodexFailureNotices] = useState<CodexFailureNotice[]>([]);
   const [codexJobLogs, setCodexJobLogs] = useState<CodexJobLogItem[]>([]);
@@ -4094,6 +4223,7 @@ function App() {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const animationReviewReturnFocusRef = useRef<HTMLElement | null>(null);
   const animationPresetReturnFocusRef = useRef<HTMLElement | null>(null);
+  const vfxCompositeReturnFocusRef = useRef<HTMLElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const animationPackInputRef = useRef<HTMLInputElement | null>(null);
   const historyListRef = useRef<HTMLDivElement | null>(null);
@@ -4323,6 +4453,8 @@ function App() {
     }
     setEffectLoopMode(category.defaultLoop);
     setEffectAnchorMode(category.defaultAnchor);
+    setEffectFrameCount(category.defaultFrameCount ?? EFFECT_DEFAULT_FRAME_COUNT);
+    setEffectCanvasSize(category.defaultCanvasSize ?? EFFECT_DEFAULT_CANVAS_SIZE);
   }, [effectCategoryId, effectTypeId]);
 
   const actionFrames = useMemo(
@@ -4426,6 +4558,16 @@ function App() {
         ? buildHatchPetStatePreviewActions(selectedAnimationAction, selectedAnimationFrames)
         : buildAnimationDirectionPreviewActions(selectedAnimationAction, selectedAnimationFrames, selected?.animationDirections, selectedAnimationFramesPerDirection),
     [selectedAnimationAction, selectedAnimationFrames, selectedAnimationVariant, selected, selectedAnimationFramesPerDirection]
+  );
+  const vfxCompositeCharacters = useMemo(
+    () => history.filter((item) => isAnimationResultHistoryItem(item) && frames.some((frame) => frame.sourceId === item.id)),
+    [frames, history]
+  );
+  const vfxCompositeEffects = useMemo(
+    () => history.filter((item): item is HistoryItem & { effectAnimation: EffectAnimationMetadata } =>
+      Boolean(item.effectAnimation && effectQualityRankAllowsDownload(item.effectAnimation.qualityRank) && frames.some((frame) => frame.sourceId === item.id))
+    ),
+    [frames, history]
   );
 
   const selectedAnimationSource = useMemo(
@@ -5220,6 +5362,25 @@ function App() {
       { manifest, restoredAt: new Date().toISOString() },
       ...current.filter((entry) => entry.manifest.tournamentId !== manifest.tournamentId)
     ].slice(0, 12));
+  }
+
+  function openVfxCompositeStage(trigger?: HTMLElement) {
+    if (vfxCompositeCharacters.length === 0 || vfxCompositeEffects.length === 0) {
+      setStatus(language === "ja" ? "Composite Stageにはcharacter animationとGold/Silver effectが各1件以上必要です。" : "Composite Stage needs at least one character animation and one Gold/Silver effect.");
+      return;
+    }
+    vfxCompositeReturnFocusRef.current = trigger ?? document.activeElement as HTMLElement | null;
+    setShowVfxCompositeStage(true);
+  }
+
+  function closeVfxCompositeStage() {
+    setShowVfxCompositeStage(false);
+    window.requestAnimationFrame(() => vfxCompositeReturnFocusRef.current?.focus());
+  }
+
+  function openVfxSourceResult(id: string) {
+    setSelectedId(id);
+    closeVfxCompositeStage();
   }
 
   function closeAnimationReviewCockpit() {
@@ -7512,6 +7673,8 @@ function App() {
       alphaPremultiplied: false,
       qualityRank: qcResult.rank,
       warnings: qcResult.warnings,
+      recipe: context.recipe,
+      qualityV2: qcResult.qualityV2,
       sourceJobId: pendingJob.id,
       artifacts: {
         sheet: imported.name,
@@ -7607,8 +7770,12 @@ function App() {
       warnings.push("multiple frames appear duplicated");
     }
 
+    const qualityV2 = buildEffectQualityReportV2(stats, {
+      loopExpected: context.loopMode !== "one-shot",
+      energyEnvelope: context.recipe?.energyEnvelope ?? (context.loopMode === "one-shot" ? "burst" : "sustain")
+    });
     const rank: EffectQualityRank = failures.length > 0 ? "bronze" : warnings.length > 0 ? "silver" : "gold";
-    return { rank, warnings, failures };
+    return { rank, warnings, failures, qualityV2 };
   }
 
   async function analyzeEffectFrame(dataUrl: string) {
@@ -7626,6 +7793,13 @@ function App() {
     let transparentPixels = 0;
     let edgeOpaquePixels = 0;
     let neutralOpaquePixels = 0;
+    let alphaTotal = 0;
+    let weightedX = 0;
+    let weightedY = 0;
+    let brightnessTotal = 0;
+    let redTotal = 0;
+    let greenTotal = 0;
+    let blueTotal = 0;
     for (let y = 0; y < canvas.height; y += 1) {
       for (let x = 0; x < canvas.width; x += 1) {
         const offset = (y * canvas.width + x) * 4;
@@ -7635,15 +7809,33 @@ function App() {
           continue;
         }
         opaquePixels += 1;
+        const alphaWeight = alpha / 255;
+        alphaTotal += alphaWeight;
+        weightedX += (x / Math.max(1, canvas.width - 1)) * alphaWeight;
+        weightedY += (y / Math.max(1, canvas.height - 1)) * alphaWeight;
         if (x === 0 || y === 0 || x === canvas.width - 1 || y === canvas.height - 1) edgeOpaquePixels += 1;
         const red = data[offset];
         const green = data[offset + 1];
         const blue = data[offset + 2];
         const neutral = Math.max(red, green, blue) - Math.min(red, green, blue) < 12;
         if (neutral && red >= 120 && red <= 245 && alpha > 220) neutralOpaquePixels += 1;
+        brightnessTotal += ((red * 0.2126 + green * 0.7152 + blue * 0.0722) / 255) * alphaWeight;
+        redTotal += (red / 255) * alphaWeight;
+        greenTotal += (green / 255) * alphaWeight;
+        blueTotal += (blue / 255) * alphaWeight;
       }
     }
+    const totalPixels = Math.max(1, canvas.width * canvas.height);
+    const safeAlphaTotal = Math.max(0.0001, alphaTotal);
     return {
+      alphaCoverage: opaquePixels / totalPixels,
+      edgeContactRatio: edgeOpaquePixels / Math.max(1, opaquePixels),
+      centroidX: weightedX / safeAlphaTotal,
+      centroidY: weightedY / safeAlphaTotal,
+      brightness: brightnessTotal / safeAlphaTotal,
+      averageRed: redTotal / safeAlphaTotal,
+      averageGreen: greenTotal / safeAlphaTotal,
+      averageBlue: blueTotal / safeAlphaTotal,
       opaquePixels,
       transparentPixels,
       edgeOpaquePixels,
@@ -9325,6 +9517,28 @@ function App() {
             </div>
           ) : isEffectWorkflow ? (
             <div className="effect-steps">
+              <section className="effect-step vfx-composite-launch-panel">
+                <div className="step-heading">
+                  <strong>VFX Composite Stage</strong>
+                  <span>{language === "ja" ? "既存のcharacter animationとGold/Silver effectを別layerで同期" : "Sync an existing character animation with a Gold/Silver effect as separate layers."}</span>
+                </div>
+                <div className="vfx-launch-summary">
+                  <span><Film size={14} aria-hidden="true" /> {vfxCompositeCharacters.length} character</span>
+                  <span><Sparkles size={14} aria-hidden="true" /> {vfxCompositeEffects.length} effect</span>
+                  <span>socket + event + Pack v2</span>
+                </div>
+                <button
+                  type="button"
+                  className="secondary-button full"
+                  disabled={vfxCompositeCharacters.length === 0 || vfxCompositeEffects.length === 0}
+                  onClick={(event) => openVfxCompositeStage(event.currentTarget)}
+                >
+                  <Layers3 size={15} aria-hidden="true" /> Open Composite Stage
+                </button>
+                {(vfxCompositeCharacters.length === 0 || vfxCompositeEffects.length === 0) && (
+                  <small>{language === "ja" ? "character animationとdownload可能なeffectを先に用意してください" : "Create a character animation and a downloadable effect first."}</small>
+                )}
+              </section>
               <section className="effect-step">
                 <div className="step-heading">
                   <strong>{language === "ja" ? "1. Effect Type" : "1. Effect Type"}</strong>
@@ -10234,7 +10448,7 @@ function App() {
       )}
       {animationReviewManifest && (
         <AnimationReviewCockpit
-          language={language}
+          language={language === "ja" ? "ja" : "en"}
           manifest={animationReviewManifest}
           candidates={animationReviewCandidates}
           frameCount={animationReviewFrameCount}
@@ -10245,6 +10459,19 @@ function App() {
           onSaveReview={saveAnimationHumanReview}
           onAdopt={adoptAnimationReviewWinner}
           onRepairDirection={repairAnimationReviewDirection}
+        />
+      )}
+      {showVfxCompositeStage && vfxCompositeCharacters.length > 0 && vfxCompositeEffects.length > 0 && (
+        <VfxCompositeStage
+          language={language}
+          characters={vfxCompositeCharacters}
+          effects={vfxCompositeEffects}
+          frames={frames}
+          initialCharacterId={selected && vfxCompositeCharacters.some((item) => item.id === selected.id) ? selected.id : undefined}
+          initialEffectId={selected && vfxCompositeEffects.some((item) => item.id === selected.id) ? selected.id : undefined}
+          onClose={closeVfxCompositeStage}
+          onOpenHistoryResult={openVfxSourceResult}
+          onStatus={setStatus}
         />
       )}
       {downloadModalOpen && (

@@ -71,6 +71,13 @@ const requiredFiles = [
   "src/lib/animationReview.test.ts",
   "docs/qa/animation-review-cockpit-uiux.md",
   "docs/qa/animation-review-calibration-sample.json",
+  "src/VfxCompositeStage.tsx",
+  "src/lib/vfxComposite.ts",
+  "src/lib/vfxComposite.test.ts",
+  "src/lib/effectQuality.ts",
+  "src/lib/effectQuality.test.ts",
+  "docs/qa/vfx-composite-stage.md",
+  "docs/qa/vfx-composite-stage-matrix.json",
   "src/lib/officialAnimations.ts",
   "docs/review/mvp-review-report.md",
   "docs/roadmap/release-roadmap.md",
@@ -462,9 +469,13 @@ function checkWorkflowIds() {
   const animationReviewUiText = readText("src/AnimationReviewCockpit.tsx");
   const serverText = readText("server/index.ts");
   const animationReviewQaText = readText("docs/qa/animation-review-cockpit-uiux.md");
+  const vfxCompositeText = readText("src/lib/vfxComposite.ts");
+  const vfxCompositeUiText = readText("src/VfxCompositeStage.tsx");
+  const effectQualityText = readText("src/lib/effectQuality.ts");
+  const vfxCompositeQaText = readText("docs/qa/vfx-composite-stage.md");
   const realCodexSmokeText = readText("scripts/real-codex-runner-smoke.mjs");
   const imageEditFullBodyQaText = readText("docs/qa/image-edit-full-body-fit.md");
-  if (!appText || !stylesText || !smokeText || !uiSmokeText || !realCodexSmokeText || !animationTournamentText || !animationReviewText || !animationReviewUiText || !serverText || !animationReviewQaText) return;
+  if (!appText || !stylesText || !smokeText || !uiSmokeText || !realCodexSmokeText || !animationTournamentText || !animationReviewText || !animationReviewUiText || !serverText || !animationReviewQaText || !vfxCompositeText || !vfxCompositeUiText || !effectQualityText || !vfxCompositeQaText) return;
 
   requiredWorkflowIds.forEach((workflowId) => {
     if (!appText.includes(workflowId)) {
@@ -848,6 +859,72 @@ function checkWorkflowIds() {
     "390×844"
   ].forEach((marker) => {
     if (!animationReviewQaText.includes(marker)) failures.push(`Animation Review QA evidence is missing: ${marker}`);
+  });
+
+  [
+    "image-cockpit.vfx-composite.v1",
+    "VFX_COMPOSITE_SOCKETS",
+    "resolveVfxAttachmentPoint",
+    "retimeVfxToEvent",
+    "createVfxCompositeArtifacts",
+    "importVfxCompositePack",
+    "buildVfxCompositeEngineExports"
+  ].forEach((marker) => {
+    if (!vfxCompositeText.includes(marker)) failures.push(`VFX Composite model/export is missing: ${marker}`);
+  });
+
+  [
+    "VFX Composite Stage",
+    "Socket / Event",
+    "Basic offset",
+    "Advanced adjustments",
+    "Combined GIF",
+    "Combined APNG",
+    "Composite Pack ZIP",
+    "Reimport Pack"
+  ].forEach((marker) => {
+    if (!vfxCompositeUiText.includes(marker)) failures.push(`VFX Composite UI is missing: ${marker}`);
+  });
+
+  [
+    "image-cockpit.effect-quality.v2",
+    "loop seam energy changes abruptly",
+    "energy centroid jumps between frames",
+    "peak frame is offset from the requested event"
+  ].forEach((marker) => {
+    if (!effectQualityText.includes(marker)) failures.push(`VFX Quality v2 shadow metrics are missing: ${marker}`);
+  });
+
+  [
+    "telegraph-aoe",
+    "aura-status",
+    "heal-buff",
+    "barrier-shield",
+    "spawn-portal",
+    "movement-trail",
+    "buildEffectQualityReportV2",
+    "Open Composite Stage"
+  ].forEach((marker) => {
+    if (!appText.includes(marker)) failures.push(`Effect Animation Phase 2 integration is missing: ${marker}`);
+  });
+
+  [
+    "assertVfxCompositeStage",
+    "VFX Composite Pack reimport",
+    "six sockets",
+    "five overlay controls"
+  ].forEach((marker) => {
+    if (!uiSmokeText.includes(marker)) failures.push(`UI smoke should cover VFX Composite Stage: ${marker}`);
+  });
+
+  [
+    "VFX Composite Stage QA",
+    "melee attack × slash / impact",
+    "cast × magic / aura / heal",
+    "projectile attack × projectile / impact",
+    "separate-layer export"
+  ].forEach((marker) => {
+    if (!vfxCompositeQaText.includes(marker)) failures.push(`VFX Composite QA evidence is missing: ${marker}`);
   });
 
   [

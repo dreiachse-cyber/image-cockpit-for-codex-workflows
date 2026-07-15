@@ -128,6 +128,34 @@ export interface AnimationQualityReportV2 {
 export type EffectQualityRank = "gold" | "silver" | "bronze" | "failed" | "blocked";
 export type EffectLoopMode = "one-shot" | "loop" | "ping-pong-loop";
 
+export interface EffectQualityReportV2 {
+  metricVersion: "image-cockpit.effect-quality.v2";
+  policyVersion: "shadow-v1";
+  recordedAt: string;
+  loopSeamScore: number | null;
+  alphaContinuityScore: number;
+  energyCentroidScore: number;
+  brightnessEnvelopeScore: number;
+  clippingOverdrawScore: number;
+  paletteConsistencyScore: number;
+  peakFrameIndex: number;
+  eventPeakDeltaFrames: number | null;
+  shadowWarnings: string[];
+}
+
+export interface EffectRecipeMetadata {
+  id: string;
+  version: 1;
+  category: string;
+  frameCount: number;
+  canvasSize: number;
+  loopMode: EffectLoopMode;
+  anchorMode: string;
+  blendMode: "normal" | "additive" | "screen";
+  energyEnvelope: "burst" | "sustain" | "pulse" | "travel" | "expand-fade";
+  experimental?: boolean;
+}
+
 export interface EffectAnimationMetadata {
   kind: "effect-animation";
   name: string;
@@ -159,6 +187,8 @@ export interface EffectAnimationMetadata {
   warnings: string[];
   failureReason?: string;
   sourceJobId?: string;
+  recipe?: EffectRecipeMetadata;
+  qualityV2?: EffectQualityReportV2;
   artifacts?: {
     sheet?: string;
     previewGif?: string;
@@ -266,7 +296,7 @@ export interface AnimationPackManifest {
 
 export type AnimationPackV2LoopMode = "loop" | "one-shot" | "ping-pong";
 export type AnimationPackV2Origin = "recipe" | "user";
-export type AnimationPackV2EventType = "startup" | "active" | "impact" | "recovery" | "loop-point" | "custom";
+export type AnimationPackV2EventType = "startup" | "charge" | "active" | "impact" | "recovery" | "loop-point" | "custom";
 
 export interface AnimationPackV2Frame {
   id: string;

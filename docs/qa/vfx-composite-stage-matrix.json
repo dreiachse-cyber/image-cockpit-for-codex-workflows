@@ -1,0 +1,74 @@
+{
+  "schema": "image-cockpit.vfx-composite-qa.v1",
+  "recordedAt": "2026-07-15T11:33:00+09:00",
+  "branch": "codex/animation-uplift-sequence",
+  "trials": [
+    {
+      "id": "melee-slash-impact",
+      "pair": "melee attack × slash / impact",
+      "characterJobId": "codex-job-2026-07-14T23-39-48-498Z-kpq8rt",
+      "effectJobId": "codex-job-2026-07-15T02-12-58-835Z-s2kptm",
+      "socket": "weapon-tip",
+      "event": "impact",
+      "syncMode": "peak",
+      "blend": "additive",
+      "layer": "front",
+      "exports": ["layers/character.png", "layers/effect.png", "composite.json", "combined.gif", "combined.apng", "composite-sheet.png", "composite-pack.zip", "generic.json", "godot.json", "phaser.json"],
+      "reimported": true,
+      "screenshot": "docs/qa/screenshots/vfx-composite-stage-audit/02-after-melee-slash.png",
+      "visualAssessment": "Gold slash remains readable over the heavy-attack silhouette; pivot fallback is explicit and manual offset keeps the fading arc on the sword side."
+    },
+    {
+      "id": "cast-aura-heal",
+      "pair": "cast × magic / aura / heal",
+      "characterJobId": "codex-job-2026-07-15T01-24-45-782Z-az43nk",
+      "effectJobId": "codex-job-2026-07-15T02-13-15-836Z-jawtdx",
+      "socket": "hand",
+      "event": "charge",
+      "syncMode": "start",
+      "blend": "screen",
+      "layer": "front",
+      "exports": ["composite.json", "combined.gif", "combined.apng", "composite-pack.zip"],
+      "reimported": true,
+      "screenshot": "docs/qa/screenshots/vfx-composite-stage-audit/03-cast-magic.png",
+      "visualAssessment": "Gold looping magic circle stays centered at the hands on the dark background; screen blend preserves the character silhouette and bright core."
+    },
+    {
+      "id": "projectile-impact",
+      "pair": "projectile attack × projectile / impact",
+      "characterJobId": "codex-job-2026-07-14T23-18-06-166Z-9ibt7n",
+      "effectJobId": "codex-job-2026-07-15T02-19-45-202Z-jslhox",
+      "impactEffectJobId": "codex-job-2026-07-15T02-20-05-697Z-pgbfcf",
+      "socket": "projectile-origin",
+      "event": "active",
+      "syncMode": "start",
+      "blend": "additive",
+      "layer": "front",
+      "exports": ["composite.json", "combined.gif", "combined.apng", "composite-pack.zip"],
+      "reimported": true,
+      "screenshots": ["docs/qa/screenshots/vfx-composite-stage-audit/04-dash-projectile.png", "docs/qa/screenshots/vfx-composite-stage-audit/05-projectile-impact.png"],
+      "visualAssessment": "Gold projectile reads from the forward hand during dash; the companion Gold impact was retimed to frame 5 and offset to the ground contact point."
+    }
+  ],
+  "legacyFallbacks": {
+    "animationPackV1": "pivot / anchor / estimated-center",
+    "effectPackV1": "Quality v2 uncalibrated, still selectable when Gold or Silver"
+  },
+  "existingEffectCategoryRegression": {
+    "categories": ["slash-arc", "hit-spark", "magic-cast", "projectile", "impact"],
+    "realJobIds": {
+      "slash-arc": "codex-job-2026-07-15T02-12-58-835Z-s2kptm",
+      "hit-spark": "codex-job-2026-07-15T02-13-13-755Z-d7em2w",
+      "magic-cast": "codex-job-2026-07-15T02-13-15-836Z-jawtdx",
+      "projectile": "codex-job-2026-07-15T02-19-45-202Z-jslhox",
+      "impact": "codex-job-2026-07-15T02-20-05-697Z-pgbfcf"
+    },
+    "qualityRank": "gold 5/5",
+    "transparentSheet": "pass: real RGBA alpha and transparent corners 5/5",
+    "gif": "pass: real runner preview 5/5",
+    "apng": "pass: deterministic UI export matrix 5/5 and live composite export",
+    "metadata": "pass: real sidecar 5/5",
+    "effectPack": "pass: deterministic UI export matrix 5/5",
+    "compositePack": "pass: live download plus full UI smoke reimport"
+  }
+}

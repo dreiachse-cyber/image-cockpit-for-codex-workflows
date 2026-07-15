@@ -640,6 +640,17 @@ async function runManualHandoffSmoke() {
         alphaPremultiplied: false,
         qualityRank: "blocked",
         warnings: [],
+        recipe: {
+          id: "effect-recipe:slash-arc",
+          version: 1,
+          category: "slash-arc",
+          frameCount: 8,
+          canvasSize: 128,
+          loopMode: "one-shot",
+          anchorMode: "center",
+          blendMode: "additive",
+          energyEnvelope: "burst"
+        },
         sheetSize: { width: 512, height: 256 },
         promptContract: ["transparent PNG sheet", "no checkerboard"],
         negativePrompt: "text, watermark, checkerboard background"
@@ -654,6 +665,7 @@ async function runManualHandoffSmoke() {
     assert(effectAnimationJobJson.spriteContext.cell.width === 128, "effect animation job should include effect cell size");
     assert(effectAnimationJobJson.effectContext.category === "slash-arc", "effect animation job should preserve effect category");
     assert(effectAnimationJobJson.effectContext.layout.rows === 2, "effect animation job should preserve effect layout");
+    assert(effectAnimationJobJson.effectContext.recipe.energyEnvelope === "burst", "effect animation job should preserve the VFX recipe envelope");
     assert(
       effectAnimationJobJson.notes.some((note) => note.includes("real alpha transparency")),
       "effect animation job should require real alpha transparency"
