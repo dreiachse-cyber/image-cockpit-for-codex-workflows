@@ -15,8 +15,54 @@ describe("animation pack validation", () => {
 
   it("preserves versioned Motion Recipe metadata", () => {
     const manifest = makeManifest();
-    manifest.motionRecipe = { id: "run-cycle", version: 1, compilerVersion: "1.0.0", qualityProfile: "grounded-soft" };
+    manifest.motionRecipe = {
+      id: "dash",
+      version: 1,
+      compilerVersion: "1.1.0",
+      qualityProfile: "grounded-soft",
+      bodyTopology: "quadruped",
+      frameCount: 12,
+      modifiers: {
+        intensity: "strong",
+        tempo: "fast",
+        weight: "heavy",
+        exaggeration: "high",
+        handedness: "inherit",
+        weaponClass: "none",
+        travelAmount: "long",
+        secondaryMotionLevel: "high",
+        vfxAmount: "low"
+      },
+      experimental: true
+    };
     expect(validateAnimationPackManifest(manifest).motionRecipe).toEqual(manifest.motionRecipe);
+  });
+
+  it.each([4, 6, 8, 12] as const)("imports a %i-frame animation pack without changing its frame budget", async (frameCount) => {
+    const manifest = makeManifest(frameCount);
+    const zip = new JSZip();
+    zip.file("manifest.json", JSON.stringify(manifest));
+    zip.file("sheet.png", new Uint8Array([137, 80, 78, 71]));
+    const blob = await zip.generateAsync({ type: "blob" });
+
+    const imported = await importAnimationPackBlob(blob, `dash-${frameCount}.zip`);
+
+    expect(imported.manifest.framesPerDirection).toBe(frameCount);
+    expect(imported.manifest.grid).toEqual({ columns: frameCount, rows: 5, gutter: 0 });
+    expect(imported.sheetDataUrl).toMatch(/^data:image\/png;base64,/);
+  });
+
+  it.each([4, 6, 8, 12] as const)("exports a %i-frame animation pack without changing its frame budget", async (frameCount) => {
+    const manifest = makeManifest(frameCount);
+    const blob = await createAnimationPackZip({
+      manifest,
+      sheet: new Blob([`sheet-${frameCount}`], { type: "image/png" })
+    });
+    const zip = await JSZip.loadAsync(await blob.arrayBuffer());
+    const exported = JSON.parse(await zip.file("manifest.json")!.async("string")) as AnimationPackManifest;
+
+    expect(exported.framesPerDirection).toBe(frameCount);
+    expect(exported.grid).toEqual({ columns: frameCount, rows: 5, gutter: 0 });
   });
 
   it("rejects unsupported schemas", () => {
@@ -92,16 +138,16 @@ describe("animation pack validation", () => {
   });
 });
 
-function makeManifest(): AnimationPackManifest {
+function makeManifest(frameCount: 4 | 6 | 8 | 12 = 8): AnimationPackManifest {
   return {
     schema: "image-cockpit.animation.v1",
     title: "Run Cycle",
     kind: "user",
     action: "run",
     directions: ["front", "front three-quarter", "side", "back three-quarter", "back"],
-    grid: { columns: 8, rows: 5, gutter: 0 },
+    grid: { columns: frameCount, rows: 5, gutter: 0 },
     cell: { width: 256, height: 256 },
-    framesPerDirection: 8,
+    framesPerDirection: frameCount,
     playback: "ping-pong-reverse",
     createdAt: "2026-06-25T00:00:00.000Z",
     createdWith: "Image Cockpit for Codex Workflows",

@@ -689,7 +689,8 @@ function checkWorkflowIds() {
     "animation-preset-example-trigger",
     "animation-preset-modal",
     "animation-sample-sprite",
-    "Choose Animation should show 16 verified animated sprite samples",
+    "Choose Animation should show 16 verified and 6 experimental animated samples",
+    "Choose Animation should expose 6 experimental Recipes",
     "Choose Animation should include the Idle Breathing animation card",
     "Choose Animation should include the Walk Cycle animation card",
     "Choose Animation should include the Run Cycle animation card",
@@ -1038,8 +1039,8 @@ function checkWorkflowIds() {
     "Maximize2",
     "Minimize2",
     ".codex-log-panel.fullscreen",
-    "exactly one full-body character",
-    "Do not let body parts, items, projectiles, or effects cross cell borders",
+    "Every cell must contain exactly one complete",
+    "Do not let any part cross cell borders",
     "Quality gate before returning",
     "codexFailurePolicyMessage"
   ].forEach((marker) => {
@@ -1105,7 +1106,8 @@ function checkWorkflowIds() {
   });
 
   [
-    "sprite generation job should include sprite frame count",
+    "sprite generation job should include total sprite frame count",
+    "sprite generation job should preserve the selected frame budget",
     "sprite generation job should attach the source image",
     "sprite generation job should include chroma key",
     "sprite generation job should include the standard variant",

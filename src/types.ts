@@ -27,6 +27,20 @@ export interface MotionRecipeMetadata {
   version: number;
   compilerVersion: string;
   qualityProfile: AnimationActionQualityProfile;
+  bodyTopology?: "biped" | "quadruped" | "serpentine-or-body-contact" | "floating" | "winged-flying" | "multi-leg";
+  frameCount?: 4 | 6 | 8 | 12;
+  modifiers?: {
+    intensity: "subtle" | "normal" | "strong";
+    tempo: "slow" | "normal" | "fast";
+    weight: "light" | "normal" | "heavy";
+    exaggeration: "low" | "normal" | "high";
+    handedness: "inherit" | "left" | "right" | "ambidextrous";
+    weaponClass: "none" | "unarmed" | "sword" | "heavy-weapon" | "polearm" | "bow" | "firearm" | "staff" | "shield";
+    travelAmount: "in-place" | "short" | "medium" | "long";
+    secondaryMotionLevel: "low" | "normal" | "high";
+    vfxAmount: "none" | "low" | "normal" | "high";
+  };
+  experimental?: boolean;
 }
 
 export type AnimationActionQualityProfile =
@@ -77,6 +91,9 @@ export interface AnimationQualityReportV2 {
   recordedAt: string;
   action: string;
   actionProfile: AnimationActionQualityProfile;
+  bodyTopology?: MotionRecipeMetadata["bodyTopology"];
+  contactQaDimension?: "footline" | "paw-contact" | "body-contact" | "hover-height" | "wing-beat" | "multi-contact";
+  footlineApplicable?: boolean;
   expectedPhases: string[];
   loopExpected: boolean;
   rawMetrics: AnimationQualityMetricSet;

@@ -59,13 +59,26 @@ import { animationExportAnchor, animationNormalizationFootline } from "./lib/ani
 import { buildAnimationQualityReport } from "./lib/animationQuality";
 import type { AnimationQualityFrameInput } from "./lib/animationQuality";
 import {
+  BODY_TOPOLOGY_PROFILES,
   compileMotionRecipe,
+  DEFAULT_MOTION_VARIANT,
+  getBodyTopologyProfile,
   MOTION_RECIPES,
+  MOTION_FRAME_COUNTS,
   MOTION_RECIPE_COMPILER_VERSION,
+  motionFrameGrid,
   motionRecipeReference,
+  normalizeMotionVariant,
   resolveMotionRecipe
 } from "./lib/motionRecipes";
-import type { MotionRecipe, MotionRecipeReference } from "./lib/motionRecipes";
+import type {
+  BodyTopologyId,
+  MotionFrameCount,
+  MotionRecipe,
+  MotionRecipeReference,
+  MotionVariantModifierKey,
+  MotionVariantSelection
+} from "./lib/motionRecipes";
 import {
   ANIMATION_GENERATION_PROFILES,
   animationGenerationProfileDefinition,
@@ -159,7 +172,7 @@ const HISTORY_SCROLL_LOAD_THRESHOLD_PX = 160;
 const ANIMATION_SHEET_GRID: GridSettings = { columns: ANIMATION_FRAME_COUNT, rows: ANIMATION_DIRECTION_COUNT, gutter: 0 };
 const ANIMATION_DIRECTIONS = ["front", "front three-quarter", "side", "back three-quarter", "back"];
 const DIRECTION_SPLIT_ANIMATION_SCHEMA = "image-cockpit.direction-split-animation.v1";
-const DIRECTION_SPLIT_ANIMATION_GRID: GridSettings = { columns: 4, rows: 2, gutter: 0 };
+const DIRECTION_SPLIT_ANIMATION_GRID: GridSettings = motionFrameGrid(ANIMATION_FRAME_COUNT);
 const DIRECTION_SPLIT_ANIMATION_FILE_SLUGS = ["front", "front-three-quarter", "side", "back-three-quarter", "back"];
 const DIRECTION_SPLIT_ANIMATION_RESULT_COUNT = ANIMATION_DIRECTION_COUNT;
 
@@ -183,8 +196,17 @@ export function normalizeAnimationDirections(directions?: readonly string[] | nu
   return ordered.length > 0 ? ordered : ANIMATION_DIRECTIONS;
 }
 
-function animationSheetGridForDirections(directions: readonly string[]): GridSettings {
-  return { columns: ANIMATION_FRAME_COUNT, rows: Math.max(1, directions.length), gutter: 0 };
+export function animationSheetGridForDirections(directions: readonly string[], frameCount: MotionFrameCount = ANIMATION_FRAME_COUNT): GridSettings {
+  return { columns: frameCount, rows: Math.max(1, directions.length), gutter: 0 };
+}
+
+export function directionSplitAnimationGrid(frameCount: MotionFrameCount = ANIMATION_FRAME_COUNT): GridSettings {
+  return motionFrameGrid(frameCount);
+}
+
+function resolveMotionFrameCount(value: unknown): MotionFrameCount {
+  const parsed = Number(value);
+  return MOTION_FRAME_COUNTS.includes(parsed as MotionFrameCount) ? parsed as MotionFrameCount : ANIMATION_FRAME_COUNT;
 }
 const DIRECTION_SPLIT_DETACHED_WARN_DISTANCE = 80;
 const DIRECTION_SPLIT_DETACHED_FAIL_DISTANCE = 250;
@@ -496,6 +518,13 @@ interface AnimationPresetExample {
   summary: LocalizedText;
   prompt: string;
   notes: string;
+  experimental: boolean;
+  family: MotionRecipe["family"];
+  loopMode: MotionRecipe["loopMode"];
+  supportedTopologies: BodyTopologyId[];
+  allowedFrameCounts: MotionFrameCount[];
+  allowedModifiers: MotionVariantModifierKey[];
+  tags: string[];
 }
 
 interface AnimationDirectionPreview {
@@ -561,7 +590,7 @@ interface ReadyDirectionSplitArtifact {
 
 type DirectionSplitImportContext = Pick<
   CodexJobQueueItem,
-  "id" | "actionName" | "cell" | "chromaKey" | "sourceImageId" | "sourceImageName" | "directions" | "motionRecipe"
+  "id" | "actionName" | "cell" | "chromaKey" | "sourceImageId" | "sourceImageName" | "directions" | "motionRecipe" | "framesPerDirection"
 >;
 
 interface DirectionSplitPreparedCell {
@@ -622,6 +651,7 @@ interface PendingCodexJob {
   sourceFingerprint?: string;
   repairDirections?: string[];
   motionRecipe?: MotionRecipeReference;
+  framesPerDirection?: MotionFrameCount;
   effectContext?: EffectAnimationJobContext;
 }
 
@@ -642,6 +672,7 @@ interface CodexJobDraft {
   grid: GridSettings | null;
   action: string;
   frames: number;
+  framesPerDirection?: MotionFrameCount;
   cell: SpriteAction["cell"] | null;
   chromaKey: AnimationChromaKeyName | "";
   spriteVariant?: AnimationGenerationMode;
@@ -694,6 +725,7 @@ interface CodexJobQueueItem {
   sourceFingerprint?: string;
   repairDirections?: string[];
   motionRecipe?: MotionRecipeReference;
+  framesPerDirection?: MotionFrameCount;
   effectContext?: EffectAnimationJobContext;
 }
 
@@ -2440,26 +2472,7 @@ const defaultActions: SpriteAction[] = MOTION_RECIPES.map((recipe) => ({
   anchor: STANDARD_ANIMATION_ANCHOR
 }));
 
-const verifiedAnimationPresetIds = new Set([
-  "idle-breathing",
-  "walk-cycle",
-  "run-cycle",
-  "basic-attack",
-  "hurt-reaction",
-  "death-downed",
-  "spell-cast",
-  "jump-hop",
-  "guard-block",
-  "victory-cheer",
-  "interact-pickup",
-  "ranged-attack",
-  "skill-release",
-  "knockback",
-  "item-use",
-  "talk"
-]);
 const animationPresetExamples: AnimationPresetExample[] = MOTION_RECIPES
-  .filter((recipe) => verifiedAnimationPresetIds.has(recipe.id))
   .map((recipe) => ({
     id: recipe.id,
     actionName: recipe.actionName,
@@ -2468,7 +2481,14 @@ const animationPresetExamples: AnimationPresetExample[] = MOTION_RECIPES
     title: recipe.displayName,
     summary: recipe.localizedDescription,
     prompt: recipe.promptSegments.motion[0] ?? "",
-    notes: recipe.notes
+    notes: recipe.notes,
+    experimental: recipe.experimental,
+    family: recipe.family,
+    loopMode: recipe.loopMode,
+    supportedTopologies: recipe.supportedTopologies,
+    allowedFrameCounts: recipe.allowedFrameCounts,
+    allowedModifiers: recipe.allowedModifiers,
+    tags: recipe.tags
   }));
 
 const ANIMATION_SCALE_CONSISTENCY_CONTRACT_LINES = [
@@ -2499,6 +2519,30 @@ function motionRecipeCategory(recipe: MotionRecipe): LocalizedText {
 function motionRecipeForPreset(preset: AnimationPresetExample) {
   return resolveMotionRecipe({ recipeId: preset.id, recipeVersion: 1, presetId: preset.id, actionName: preset.actionName }).recipe;
 }
+
+const MOTION_VARIANT_OPTIONS: Record<MotionVariantModifierKey, readonly string[]> = {
+  intensity: ["subtle", "normal", "strong"],
+  tempo: ["slow", "normal", "fast"],
+  weight: ["light", "normal", "heavy"],
+  exaggeration: ["low", "normal", "high"],
+  handedness: ["inherit", "left", "right", "ambidextrous"],
+  weaponClass: ["none", "unarmed", "sword", "heavy-weapon", "polearm", "bow", "firearm", "staff", "shield"],
+  travelAmount: ["in-place", "short", "medium", "long"],
+  secondaryMotionLevel: ["low", "normal", "high"],
+  vfxAmount: ["none", "low", "normal", "high"]
+};
+
+const MOTION_VARIANT_LABELS: Record<MotionVariantModifierKey, { en: string; ja: string }> = {
+  intensity: { en: "Intensity", ja: "強度" },
+  tempo: { en: "Tempo", ja: "速度" },
+  weight: { en: "Weight", ja: "重量感" },
+  exaggeration: { en: "Exaggeration", ja: "誇張" },
+  handedness: { en: "Handedness", ja: "利き手" },
+  weaponClass: { en: "Weapon", ja: "武器" },
+  travelAmount: { en: "Travel", ja: "移動量" },
+  secondaryMotionLevel: { en: "Secondary motion", ja: "二次動作" },
+  vfxAmount: { en: "VFX", ja: "VFX量" }
+};
 
 function getEffectCategoryById(id: string): EffectCategoryDefinition {
   return effectCategoryDefinitions.find((category) => category.id === id) ?? effectCategoryDefinitions[0]!;
@@ -3216,12 +3260,13 @@ function inferAnimationGenerationMode(actionFrames: SpriteFrame[]): AnimationGen
   return "standard";
 }
 
-function inferAnimationSheetGrid(actionFrames: SpriteFrame[], variant: AnimationGenerationMode): GridSettings {
+function inferAnimationSheetGrid(actionFrames: SpriteFrame[], variant: AnimationGenerationMode, framesPerDirection: number = ANIMATION_FRAME_COUNT): GridSettings {
   if (variant === "directional-hatch-pet") return DIRECTIONAL_HATCH_PET_GRID;
   if (variant === "hatch-pet") return HATCH_PET_GRID;
-  const rows = Math.max(1, Math.ceil(actionFrames.length / ANIMATION_FRAME_COUNT));
+  const safeFramesPerDirection = MOTION_FRAME_COUNTS.includes(framesPerDirection as MotionFrameCount) ? framesPerDirection : ANIMATION_FRAME_COUNT;
+  const rows = Math.max(1, Math.ceil(actionFrames.length / safeFramesPerDirection));
   return {
-    columns: ANIMATION_FRAME_COUNT,
+    columns: safeFramesPerDirection,
     rows: Math.min(ANIMATION_DIRECTION_COUNT, rows),
     gutter: 0
   };
@@ -3618,7 +3663,10 @@ function canStartCodexJobDraft(
 }
 
 function isSingleDirectionIntermediateSheet(width: number, height: number, cell: SpriteAction["cell"]) {
-  return width === cell.width * DIRECTION_SPLIT_ANIMATION_GRID.columns && height === cell.height * DIRECTION_SPLIT_ANIMATION_GRID.rows;
+  return MOTION_FRAME_COUNTS.some((frameCount) => {
+    const grid = directionSplitAnimationGrid(frameCount);
+    return width === cell.width * grid.columns && height === cell.height * grid.rows;
+  });
 }
 
 function isDirectionSplitSourceAspectCompatible(width: number, height: number, expectedWidth: number, expectedHeight: number) {
@@ -3652,7 +3700,19 @@ function parseDirectionSplitAnimationManifest(imported: CodexOutboxImportRespons
       recipeVersion: parsed.motionRecipe.version,
       actionName: parsed.action
     });
-    parsed.motionRecipe = motionRecipeReference(resolution.recipe);
+    const topology = BODY_TOPOLOGY_PROFILES.some((profile) => profile.id === parsed.motionRecipe?.bodyTopology)
+      ? parsed.motionRecipe.bodyTopology
+      : undefined;
+    const frameCount = MOTION_FRAME_COUNTS.includes(parsed.motionRecipe.frameCount as MotionFrameCount)
+      ? parsed.motionRecipe.frameCount
+      : MOTION_FRAME_COUNTS.includes(parsed.framesPerDirection as MotionFrameCount)
+        ? parsed.framesPerDirection as MotionFrameCount
+        : undefined;
+    parsed.motionRecipe = motionRecipeReference(resolution.recipe, {
+      topology,
+      frameCount,
+      variant: parsed.motionRecipe.modifiers
+    });
     parsed.motionRecipeWarnings = resolution.warnings;
   }
   return parsed;
@@ -3901,6 +3961,11 @@ function App() {
   const [selectedId, setSelectedId] = useState<string>("");
   const [activeActionName, setActiveActionName] = useState("run");
   const [selectedAnimationPresetId, setSelectedAnimationPresetId] = useState(DEFAULT_ANIMATION_PRESET_ID);
+  const [animationFrameCount, setAnimationFrameCount] = useState<MotionFrameCount>(ANIMATION_FRAME_COUNT);
+  const [animationBodyTopology, setAnimationBodyTopology] = useState<BodyTopologyId>("biped");
+  const [animationMotionVariant, setAnimationMotionVariant] = useState<MotionVariantSelection>(() => ({ ...DEFAULT_MOTION_VARIANT }));
+  const [recentAnimationPresetIds, setRecentAnimationPresetIds] = useState<string[]>([]);
+  const [favoriteAnimationPresetIds, setFavoriteAnimationPresetIds] = useState<string[]>([]);
   const [animationLibraryTab, setAnimationLibraryTab] = useState<AnimationLibraryKind>("official");
   const [userAnimationLibrary, setUserAnimationLibrary] = useState<AnimationLibraryItem[]>([]);
   const [showAnimationPackExportModal, setShowAnimationPackExportModal] = useState(false);
@@ -4124,12 +4189,19 @@ function App() {
     () => motionRecipeForPreset(selectedAnimationPreset),
     [selectedAnimationPreset]
   );
+  const selectedBodyTopologyProfile = useMemo(
+    () => getBodyTopologyProfile(animationBodyTopology),
+    [animationBodyTopology]
+  );
   const selectedMotionRecipeCompilation = useMemo(
     () => compileMotionRecipe({
       recipe: selectedMotionRecipe,
-      directions: ANIMATION_DIRECTION_PRESETS[animationDirectionPreset] ?? ANIMATION_DIRECTIONS
+      directions: ANIMATION_DIRECTION_PRESETS[animationDirectionPreset] ?? ANIMATION_DIRECTIONS,
+      topology: animationBodyTopology,
+      frameCount: animationFrameCount,
+      variant: animationMotionVariant
     }),
-    [selectedMotionRecipe, animationDirectionPreset]
+    [selectedMotionRecipe, animationDirectionPreset, animationBodyTopology, animationFrameCount, animationMotionVariant]
   );
   const activeEffectCategory = useMemo(
     () => getEffectCategoryById(effectCategoryId),
@@ -4291,9 +4363,10 @@ function App() {
   }, [activeAction, selected, selectedAnimationFrames]);
 
   const selectedAnimationVariant = inferAnimationGenerationMode(selectedAnimationFrames);
+  const selectedAnimationFramesPerDirection = selected?.motionRecipe?.frameCount ?? ANIMATION_FRAME_COUNT;
   const selectedAnimationSheetGrid = useMemo(
-    () => inferAnimationSheetGrid(selectedAnimationFrames, selectedAnimationVariant),
-    [selectedAnimationFrames, selectedAnimationVariant]
+    () => inferAnimationSheetGrid(selectedAnimationFrames, selectedAnimationVariant, selectedAnimationFramesPerDirection),
+    [selectedAnimationFrames, selectedAnimationVariant, selectedAnimationFramesPerDirection]
   );
   const selectedAnimationSheetGridStyle = useMemo(
     () =>
@@ -4313,8 +4386,8 @@ function App() {
         ? buildDirectionalHatchPetPreviewActions(selectedAnimationAction, selectedAnimationFrames)
         : selectedAnimationVariant === "hatch-pet"
         ? buildHatchPetStatePreviewActions(selectedAnimationAction, selectedAnimationFrames)
-        : buildAnimationDirectionPreviewActions(selectedAnimationAction, selectedAnimationFrames, selected?.animationDirections),
-    [selectedAnimationAction, selectedAnimationFrames, selectedAnimationVariant, selected]
+        : buildAnimationDirectionPreviewActions(selectedAnimationAction, selectedAnimationFrames, selected?.animationDirections, selectedAnimationFramesPerDirection),
+    [selectedAnimationAction, selectedAnimationFrames, selectedAnimationVariant, selected, selectedAnimationFramesPerDirection]
   );
 
   const selectedAnimationSource = useMemo(
@@ -5121,6 +5194,12 @@ function App() {
     const baseLabel = typeof context.label === "string" ? context.label : "Animation tournament";
     const candidateDirections = resolveAnimationTournamentCandidateDirections(manifest.requestedDirections, candidate?.repairDirections);
     const isRepairCandidate = Boolean(candidate?.repairDirections?.length);
+    const contextMotionRecipe = typeof context.motionRecipe === "object" && context.motionRecipe
+      ? context.motionRecipe as unknown as MotionRecipeReference
+      : undefined;
+    const framesPerDirection = MOTION_FRAME_COUNTS.includes(Number(context.framesPerDirection ?? contextMotionRecipe?.frameCount) as MotionFrameCount)
+      ? Number(context.framesPerDirection ?? contextMotionRecipe?.frameCount) as MotionFrameCount
+      : ANIMATION_FRAME_COUNT;
     return {
       id: job.id,
       path: job.path,
@@ -5133,8 +5212,8 @@ function App() {
       workflowMode: context.workflowMode === "sprite-generate" ? "sprite-generate" : "sprite-generate",
       actionName: typeof context.actionName === "string" ? context.actionName : manifest.motionRecipeId,
       grid: isRepairCandidate
-        ? animationSheetGridForDirections(candidateDirections)
-        : context.grid && typeof context.grid === "object" ? context.grid as GridSettings : animationSheetGridForDirections(candidateDirections),
+        ? animationSheetGridForDirections(candidateDirections, framesPerDirection)
+        : context.grid && typeof context.grid === "object" ? context.grid as GridSettings : animationSheetGridForDirections(candidateDirections, framesPerDirection),
       cell: context.cell && typeof context.cell === "object" ? context.cell as SpriteAction["cell"] : STANDARD_ANIMATION_CELL,
       chromaKey: context.chromaKey === "magenta" ? "magenta" : "green",
       spriteVariant: "standard",
@@ -5147,8 +5226,9 @@ function App() {
       generationProfile: manifest.generationProfile,
       sourceFingerprint: manifest.sourceFingerprint,
       repairDirections: candidate?.repairDirections,
-      motionRecipe: typeof context.motionRecipe === "object" && context.motionRecipe
-        ? context.motionRecipe as unknown as MotionRecipeReference
+      framesPerDirection,
+      motionRecipe: contextMotionRecipe
+        ? contextMotionRecipe
         : manifest.motionRecipeId
           ? {
               id: manifest.motionRecipeId,
@@ -5675,24 +5755,39 @@ function App() {
     const isDirectionalHatchPetAnimationJob = false;
     const sourceImageForJob = isAnimationJob ? options?.animationSource ?? animationSource : isEffectJob ? undefined : selected;
     const animationPresetForJob = options?.animationPreset ?? selectedAnimationPreset;
-    const animationAction = isDirectionalHatchPetAnimationJob
+    const motionRecipeForJob = motionRecipeForPreset(animationPresetForJob);
+    const usesSelectedVariantControls = !options?.animationPreset;
+    const topologyForJob = usesSelectedVariantControls ? animationBodyTopology : motionRecipeForJob.defaultTopology;
+    const frameCountForJob = usesSelectedVariantControls ? animationFrameCount : motionRecipeForJob.frameCount as MotionFrameCount;
+    const motionVariantForJob = usesSelectedVariantControls ? animationMotionVariant : normalizeMotionVariant();
+    const baseAnimationAction = isDirectionalHatchPetAnimationJob
       ? directionalHatchPetSpriteAction()
       : isHatchPetAnimationJob
       ? hatchPetSpriteAction()
-      : normalizeAnimationAction(activeAction);
+      : normalizeAnimationAction(defaultActions.find((action) => action.name === animationPresetForJob.actionName) ?? activeAction);
     const standardAnimationDirections = ANIMATION_DIRECTION_PRESETS[animationDirectionPreset] ?? ANIMATION_DIRECTIONS;
+    const directionImageGrid = directionSplitAnimationGrid(frameCountForJob);
     const spriteGrid = isAnimationJob
       ? isDirectionalHatchPetAnimationJob
         ? DIRECTIONAL_HATCH_PET_GRID
         : isHatchPetAnimationJob
           ? HATCH_PET_GRID
-          : animationSheetGridForDirections(standardAnimationDirections)
+          : animationSheetGridForDirections(standardAnimationDirections, frameCountForJob)
       : grid;
-    const spriteCell = isAnimationJob ? (isHatchPetLikeMode(animationJobGenerationMode) ? HATCH_PET_CELL : animationAction.cell) : activeAction.cell;
+    const spriteCell = isAnimationJob ? (isHatchPetLikeMode(animationJobGenerationMode) ? HATCH_PET_CELL : baseAnimationAction.cell) : activeAction.cell;
     const spriteFrameCount = spriteGrid.columns * spriteGrid.rows;
     const compiledAnimationRecipe = isAnimationJob
-      ? compileMotionRecipe({ recipe: motionRecipeForPreset(animationPresetForJob), directions: standardAnimationDirections })
+      ? compileMotionRecipe({
+          recipe: motionRecipeForJob,
+          directions: standardAnimationDirections,
+          topology: topologyForJob,
+          frameCount: frameCountForJob,
+          variant: motionVariantForJob
+        })
       : null;
+    const animationAction = compiledAnimationRecipe
+      ? { ...baseAnimationAction, fps: compiledAnimationRecipe.qaContract.fps }
+      : baseAnimationAction;
     const animationMotionPrompt = compiledAnimationRecipe?.prompt ?? "";
     const animationPresetNotes = compiledAnimationRecipe
       ? [
@@ -5766,7 +5861,10 @@ function App() {
             actionName: animationAction.name,
             chromaKey: chromaDecision.key,
             cell: spriteCell,
-            directions: standardAnimationDirections
+            directions: standardAnimationDirections,
+            frameCount: frameCountForJob,
+            directionImageGrid,
+            bodyTopology: topologyForJob
           })
       : isImageEditJob
         ? buildImageEditCodexPrompt({
@@ -5796,7 +5894,10 @@ function App() {
             chromaReason: chromaDecision.reason,
             grid: spriteGrid,
             cell: spriteCell,
-            directions: standardAnimationDirections
+            directions: standardAnimationDirections,
+            frameCount: frameCountForJob,
+            directionImageGrid,
+            bodyTopology: topologyForJob
           })
       : isImageEditJob
         ? buildImageEditCodexNotes({
@@ -5816,7 +5917,7 @@ function App() {
       size: isDirectionalHatchPetAnimationJob
         ? `${HATCH_PET_CELL.width * HATCH_PET_GRID.columns}x${HATCH_PET_CELL.height * HATCH_PET_GRID.rows} x ${DIRECTIONAL_HATCH_PET_RESULT_COUNT}`
         : isAnimationJob
-          ? `${spriteCell.width * DIRECTION_SPLIT_ANIMATION_GRID.columns}x${spriteCell.height * DIRECTION_SPLIT_ANIMATION_GRID.rows} x ${standardAnimationDirections.length}`
+          ? `${spriteCell.width * directionImageGrid.columns}x${spriteCell.height * directionImageGrid.rows} x ${standardAnimationDirections.length}`
           : isEffectJob && currentEffectContext
             ? `${currentEffectContext.sheetSize.width}x${currentEffectContext.sheetSize.height}`
           : size,
@@ -5830,6 +5931,7 @@ function App() {
       grid: isEffectJob && currentEffectContext ? { columns: currentEffectContext.layout.columns, rows: currentEffectContext.layout.rows, gutter: 0 } : includeSpriteContext ? spriteGrid : null,
       action: isEffectJob && currentEffectContext ? currentEffectContext.name : includeSpriteContext ? animationAction.name : "",
       frames: isEffectJob && currentEffectContext ? currentEffectContext.frameCount : includeSpriteContext ? spriteFrameCount : 0,
+      framesPerDirection: isAnimationJob && animationJobGenerationMode === "standard" ? frameCountForJob : undefined,
       cell: isEffectJob && currentEffectContext ? currentEffectContext.frameSize : includeSpriteContext ? spriteCell : null,
       chromaKey: isAnimationJob ? chromaDecision.key.name : "",
       spriteVariant: isAnimationJob ? animationJobGenerationMode : undefined,
@@ -5934,6 +6036,7 @@ function App() {
           directions: draft.resultDirections,
           sourceImageId: draft.resultSourceImageId,
           sourceImageName: draft.resultSourceImageName,
+          framesPerDirection: draft.framesPerDirection,
           motionRecipe: draft.motionRecipe,
           ...clientContextExtensions
         }
@@ -5961,6 +6064,7 @@ function App() {
       grid: draft.grid,
       action: draft.action,
       frames: draft.frames,
+      framesPerDirection: draft.framesPerDirection,
       cell: draft.cell,
       chromaKey: draft.chromaKey,
       spriteVariant: draft.spriteVariant,
@@ -5971,6 +6075,7 @@ function App() {
       motionRecipeVersion: draft.motionRecipe?.version,
       motionRecipeCompilerVersion: draft.motionRecipe?.compilerVersion,
       motionRecipeQualityProfile: draft.motionRecipe?.qualityProfile,
+      motionRecipe: draft.motionRecipe,
       presetId: draft.presetId,
       effectContext: draft.effectContext
     };
@@ -6003,6 +6108,7 @@ function App() {
         generationProfile: draft.generationProfile,
         sourceFingerprint: draft.sourceFingerprint,
         repairDirections: draft.repairDirections,
+        framesPerDirection: draft.framesPerDirection,
         motionRecipe: draft.motionRecipe,
         effectContext: draft.effectContext
       }
@@ -6038,6 +6144,7 @@ function App() {
           grid: draft.grid,
           action: draft.action,
           frames: draft.frames,
+          framesPerDirection: draft.framesPerDirection,
           cell: draft.cell,
           chromaKey: draft.chromaKey,
           spriteVariant: draft.spriteVariant,
@@ -6049,6 +6156,7 @@ function App() {
           motionRecipeVersion: draft.motionRecipe?.version,
           motionRecipeCompilerVersion: draft.motionRecipe?.compilerVersion,
           motionRecipeQualityProfile: draft.motionRecipe?.qualityProfile,
+          motionRecipe: draft.motionRecipe,
           presetId: draft.presetId,
           effectContext: draft.effectContext
         })
@@ -6084,6 +6192,7 @@ function App() {
         generationProfile: draft.generationProfile,
         sourceFingerprint: draft.sourceFingerprint,
         repairDirections: draft.repairDirections,
+        framesPerDirection: draft.framesPerDirection,
         motionRecipe: draft.motionRecipe,
         effectContext: draft.effectContext
       };
@@ -6707,8 +6816,8 @@ function App() {
     }
 
     const animationAction = normalizeAnimationAction(activeAction);
-    const animationGrid = { columns: ANIMATION_FRAME_COUNT, rows: 1, gutter: 0 };
-    const sheetDataUrl = await renderAnimationSheet(source.dataUrl, animationAction.cell, animationAction.name);
+    const animationGrid = { columns: animationFrameCount, rows: 1, gutter: 0 };
+    const sheetDataUrl = await renderAnimationSheet(source.dataUrl, animationAction.cell, animationAction.name, animationFrameCount);
     const sheetName = `${source.name.replace(/\.[^.]+$/, "")}_${animationAction.name}_animation_sheet.png`;
     const item: HistoryItem = {
       id: createId("hist"),
@@ -6717,7 +6826,7 @@ function App() {
       provider: "local-generator",
       prompt,
       seed,
-      size: `${animationAction.cell.width * ANIMATION_FRAME_COUNT}x${animationAction.cell.height}`,
+      size: `${animationAction.cell.width * animationFrameCount}x${animationAction.cell.height}`,
       createdAt: new Date().toISOString(),
       adopted: false,
       source: "generate",
@@ -7023,6 +7132,7 @@ function App() {
       const actionName = job.actionName ?? manifestActionName(manifest);
       const chromaKey = animationChromaKeys[job.chromaKey ?? manifestChromaKeyName(manifest, animationChromaKey)];
       const sourceDataUrl = historyRef.current.find((item) => item.id === job.sourceImageId)?.dataUrl;
+      const candidateFrameCount = resolveMotionFrameCount(job.framesPerDirection ?? manifest?.framesPerDirection ?? job.motionRecipe?.frameCount);
       const composed = await composeDirectionSplitAnimationSheet(
         importedResults,
         chromaKey,
@@ -7030,7 +7140,8 @@ function App() {
         actionName,
         selection.directions,
         sourceDataUrl,
-        job.motionRecipe
+        job.motionRecipe,
+        candidateFrameCount
       );
       await persistCodexAnimationQuality(job.id, composed.animationQuality);
       const artifactWarnings = selection.artifactStatus?.warnings?.length ?? 0;
@@ -7073,7 +7184,9 @@ function App() {
     const spriteCell = importContext.cell ?? manifest?.cell ?? STANDARD_ANIMATION_CELL;
     const chromaKey = animationChromaKeys[importContext.chromaKey ?? manifestChromaKeyName(manifest, animationChromaKey)];
     const sheetDirections = normalizeAnimationDirections(importContext.directions ?? manifest?.directions);
-    const sheetGrid = animationSheetGridForDirections(sheetDirections);
+    const importedMotionRecipe = importContext.motionRecipe ?? manifest?.motionRecipe;
+    const importedFrameCount = resolveMotionFrameCount(importContext.framesPerDirection ?? manifest?.framesPerDirection ?? importedMotionRecipe?.frameCount);
+    const sheetGrid = animationSheetGridForDirections(sheetDirections, importedFrameCount);
     const sourceDataUrl = historyRef.current.find((historyItem) => historyItem.id === importContext.sourceImageId)?.dataUrl;
     const composed = await composeDirectionSplitAnimationSheet(
       importedResults,
@@ -7082,7 +7195,8 @@ function App() {
       actionName,
       sheetDirections,
       sourceDataUrl,
-      importContext.motionRecipe ?? manifest?.motionRecipe
+      importedMotionRecipe,
+      importedFrameCount
     );
     await persistCodexAnimationQuality(importContext.id, composed.animationQuality);
     const image = await loadImage(composed.dataUrl);
@@ -7102,7 +7216,7 @@ function App() {
       derivedFromName: importContext.sourceImageName,
       animationDirections: sheetDirections,
       animationQuality: composed.animationQuality,
-      motionRecipe: importContext.motionRecipe ?? manifest?.motionRecipe,
+      motionRecipe: importedMotionRecipe,
       outboxImportKey: buildOutboxImportKey("direction-split", {
         jobId: importContext.id,
         filenames: importedResults.map((result) => result.name),
@@ -7128,7 +7242,20 @@ function App() {
     setActions((current) =>
       current.map((action) =>
         action.name === actionName
-          ? { ...normalizeAnimationAction(action), cell: spriteCell, frameIds: newFrames.map((frame) => frame.id) }
+          ? {
+              ...normalizeAnimationAction(action),
+              fps: importedMotionRecipe
+                ? compileMotionRecipe({
+                    recipe: resolveMotionRecipe({ recipeId: importedMotionRecipe.id, recipeVersion: importedMotionRecipe.version, actionName }).recipe,
+                    directions: sheetDirections,
+                    topology: importedMotionRecipe.bodyTopology,
+                    frameCount: importedFrameCount,
+                    variant: importedMotionRecipe.modifiers
+                  }).qaContract.fps
+                : action.fps,
+              cell: spriteCell,
+              frameIds: newFrames.map((frame) => frame.id)
+            }
           : action
       )
     );
@@ -7996,8 +8123,8 @@ function App() {
       setShowCenter(true);
       setGrid(
         mode === "sprite-generate"
-          ? ANIMATION_SHEET_GRID
-          : { columns: ANIMATION_FRAME_COUNT, rows: 1, gutter: 0 }
+          ? animationSheetGridForDirections(ANIMATION_DIRECTION_PRESETS[animationDirectionPreset] ?? ANIMATION_DIRECTIONS, animationFrameCount)
+          : { columns: animationFrameCount, rows: 1, gutter: 0 }
       );
       setActions((current) => normalizeAnimationActions(current));
     }
@@ -8064,15 +8191,45 @@ function App() {
 
   function selectAnimationPreset(example: AnimationPresetExample) {
     const defaultAction = defaultActions.find((action) => action.name === example.actionName);
+    const recipe = motionRecipeForPreset(example);
+    const recipeFrameCount = recipe.frameCount as MotionFrameCount;
     setActions((current) => (
       current.some((action) => action.name === example.actionName) || !defaultAction
         ? current
         : normalizeAnimationActions([...current, defaultAction])
     ));
     setSelectedAnimationPresetId(example.id);
+    setAnimationFrameCount(recipeFrameCount);
+    setAnimationBodyTopology(recipe.defaultTopology);
+    setAnimationMotionVariant({ ...DEFAULT_MOTION_VARIANT });
+    setRecentAnimationPresetIds((current) => [example.id, ...current.filter((id) => id !== example.id)].slice(0, 12));
     setAnimationGenerationMode("standard");
     setActiveActionName(example.actionName);
-    setGrid(ANIMATION_SHEET_GRID);
+    setGrid(animationSheetGridForDirections(ANIMATION_DIRECTION_PRESETS[animationDirectionPreset] ?? ANIMATION_DIRECTIONS, recipeFrameCount));
+  }
+
+  function toggleFavoriteAnimationPreset(id: string) {
+    setFavoriteAnimationPresetIds((current) => current.includes(id) ? current.filter((item) => item !== id) : [id, ...current]);
+  }
+
+  function selectAnimationBodyTopology(topology: BodyTopologyId) {
+    setAnimationBodyTopology(topology);
+    if (topology !== "biped") {
+      setAnimationMotionVariant((current) => ({ ...current, weaponClass: "none", handedness: "inherit" }));
+    }
+  }
+
+  function selectAnimationFrameCount(frameCount: MotionFrameCount) {
+    setAnimationFrameCount(frameCount);
+    setGrid(animationSheetGridForDirections(ANIMATION_DIRECTION_PRESETS[animationDirectionPreset] ?? ANIMATION_DIRECTIONS, frameCount));
+  }
+
+  function updateAnimationMotionVariant(key: MotionVariantModifierKey, value: string) {
+    setAnimationMotionVariant((current) => {
+      const next = { ...current, [key]: value } as MotionVariantSelection;
+      if (key === "weaponClass" && (value === "none" || value === "unarmed")) next.handedness = "inherit";
+      return next;
+    });
   }
 
   function useAnimationPresetExample(example: AnimationPresetExample) {
@@ -8370,11 +8527,11 @@ function App() {
   const showSpriteActionsPanel = SHOW_SPRITE_ACTIONS_PANEL;
   const selectedAnimationDirections = ANIMATION_DIRECTION_PRESETS[animationDirectionPreset] ?? ANIMATION_DIRECTIONS;
   const selectedAnimationSheetSize = {
-    width: STANDARD_ANIMATION_CELL.width * ANIMATION_FRAME_COUNT,
+    width: STANDARD_ANIMATION_CELL.width * animationFrameCount,
     height: STANDARD_ANIMATION_CELL.height * selectedAnimationDirections.length
   };
   const animationGenerateBody = copy.animationStepGenerateBody;
-  const animationLockedSizeNote = `${copy.animationStandardLockedSize} ${selectedAnimationDirections.length} x ${ANIMATION_FRAME_COUNT} / ${selectedAnimationSheetSize.width} x ${selectedAnimationSheetSize.height} px.`;
+  const animationLockedSizeNote = `${copy.animationStandardLockedSize} ${selectedAnimationDirections.length} x ${animationFrameCount} / ${selectedAnimationSheetSize.width} x ${selectedAnimationSheetSize.height} px.`;
   const selectedAnimationDownloadBody = selectedAnimationVariant === "directional-hatch-pet"
     ? copy.directionalHatchPetDownloadBody
     : selectedAnimationVariant === "hatch-pet"
@@ -8560,25 +8717,72 @@ function App() {
                   <span>{copy.animationStepMotionBody}</span>
                 </div>
                 <div className="selected-animation-card">
-                  <small className="step-kicker">{copy.motionPreset}</small>
+                  <small className="step-kicker">
+                    {copy.motionPreset} · {selectedMotionRecipe.experimental ? "Experimental" : "Verified"}
+                  </small>
                   <strong>{localizedText(selectedAnimationPreset.title, language)}</strong>
                   <span>{localizedText(selectedAnimationPreset.summary, language)}</span>
                   <em>{localizedText(selectedAnimationPreset.category, language)}</em>
                   <dl className="motion-recipe-facts">
                     <div><dt>{language === "ja" ? "ループ" : "Loop"}</dt><dd>{selectedMotionRecipe.loopMode}</dd></div>
-                    <div><dt>FPS / Frames</dt><dd>{selectedMotionRecipe.defaultFps} / {selectedMotionRecipe.frameCount}</dd></div>
-                    <div><dt>{language === "ja" ? "接地" : "Grounding"}</dt><dd>{selectedMotionRecipe.groundingProfile}</dd></div>
-                    <div><dt>{language === "ja" ? "強度" : "Intensity"}</dt><dd>{selectedMotionRecipe.motionIntensity}</dd></div>
+                    <div><dt>FPS / Frames</dt><dd>{selectedMotionRecipeCompilation.qaContract.fps} / {animationFrameCount}</dd></div>
+                    <div><dt>{language === "ja" ? "体型 / QA" : "Topology / QA"}</dt><dd>{animationBodyTopology} / {selectedBodyTopologyProfile.contactQaDimension}</dd></div>
+                    <div><dt>{language === "ja" ? "状態" : "Status"}</dt><dd>{selectedMotionRecipe.experimental ? "Experimental" : "Verified"}</dd></div>
                   </dl>
+                  <div className="motion-variant-controls">
+                    <label>
+                      <span>{language === "ja" ? "Body topology" : "Body topology"}</span>
+                      <select value={animationBodyTopology} onChange={(event) => selectAnimationBodyTopology(event.target.value as BodyTopologyId)}>
+                        {selectedMotionRecipe.supportedTopologies.map((topology) => {
+                          const profile = getBodyTopologyProfile(topology);
+                          return <option key={topology} value={topology}>{localizedText(profile.displayName, language)}</option>;
+                        })}
+                      </select>
+                    </label>
+                    <div className="motion-frame-budget">
+                      <span>{language === "ja" ? "Frame budget" : "Frame budget"}</span>
+                      <div className="segmented-control motion-frame-buttons">
+                        {MOTION_FRAME_COUNTS.map((frameCount) => (
+                          <button
+                            type="button"
+                            key={frameCount}
+                            className={animationFrameCount === frameCount ? "active" : ""}
+                            disabled={!selectedMotionRecipe.allowedFrameCounts.includes(frameCount)}
+                            onClick={() => selectAnimationFrameCount(frameCount)}
+                          >
+                            {frameCount}f
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="motion-modifier-grid">
+                      {selectedMotionRecipe.allowedModifiers
+                        .filter((key) => key !== "handedness" || !["none", "unarmed"].includes(animationMotionVariant.weaponClass))
+                        .filter((key) => key !== "weaponClass" && key !== "handedness" || animationBodyTopology === "biped")
+                        .map((key) => (
+                          <label key={key}>
+                            <span>{language === "ja" ? MOTION_VARIANT_LABELS[key].ja : MOTION_VARIANT_LABELS[key].en}</span>
+                            <select value={animationMotionVariant[key]} onChange={(event) => updateAnimationMotionVariant(key, event.target.value)}>
+                              {MOTION_VARIANT_OPTIONS[key].map((value) => <option key={value} value={value}>{value}</option>)}
+                            </select>
+                          </label>
+                        ))}
+                    </div>
+                  </div>
+                  <div className="motion-variant-preview">
+                    <small>{language === "ja" ? "変更プレビュー" : "Variant preview"}</small>
+                    <strong>{selectedMotionRecipeCompilation.diagnostics.variantSummary}</strong>
+                    <span>{selectedMotionRecipeCompilation.diagnostics.promptDiff.join(" · ")}</span>
+                  </div>
                   <div className="motion-recipe-phases">
                     <small>{language === "ja" ? "フレームフェーズ" : "Frame phases"}</small>
-                    <span>{selectedMotionRecipe.framePhases.map((phase) => `${phase.frameStart}:${phase.description}`).join(" → ")}</span>
+                    <span>{selectedMotionRecipeCompilation.qaContract.expectedPhases.join(" → ")}</span>
                   </div>
                   <details className="motion-recipe-diagnostics">
                     <summary>{language === "ja" ? "Advanced diagnostics" : "Advanced diagnostics"}</summary>
                     <code>{selectedMotionRecipe.id} v{selectedMotionRecipe.version} / compiler {selectedMotionRecipeCompilation.metadata.compilerVersion}</code>
                     <span>sections: {selectedMotionRecipeCompilation.diagnostics.sectionOrder.join(" → ")}</span>
-                    <span>QA: {selectedMotionRecipeCompilation.qaContract.actionProfile} / motion {selectedMotionRecipeCompilation.qaContract.motionRange.join("–")}</span>
+                    <span>QA: {selectedMotionRecipeCompilation.qaContract.actionProfile} / {selectedMotionRecipeCompilation.qaContract.contactQaDimension} / motion {selectedMotionRecipeCompilation.qaContract.motionRange.join("–")}</span>
                     <span>modifiers +{selectedMotionRecipeCompilation.diagnostics.appliedModifiers.length} / −{selectedMotionRecipeCompilation.diagnostics.removedModifiers.length} / dedupe {selectedMotionRecipeCompilation.diagnostics.deduplicatedSegmentCount}</span>
                   </details>
                 </div>
@@ -9778,8 +9982,11 @@ function App() {
       {showAnimationPresetExamples && (
         <AnimationPresetExamplesModal
           language={language}
+          favoriteIds={favoriteAnimationPresetIds}
+          recentIds={recentAnimationPresetIds}
           onClose={() => setShowAnimationPresetExamples(false)}
           onUse={useAnimationPresetExample}
+          onToggleFavorite={toggleFavoriteAnimationPreset}
         />
       )}
       {downloadModalOpen && (
@@ -9798,7 +10005,7 @@ function App() {
           onExportGif={() => void exportDirectionalAnimations("gif")}
           onExportWebp={() => void exportDirectionalAnimations("webp")}
           onExportApng={() => void exportDirectionalAnimations("apng")}
-          onExportSpriteSheet={() => void exportSpriteSheet(frames, selectedAnimationAction, ANIMATION_FRAME_COUNT)}
+          onExportSpriteSheet={() => void exportSpriteSheet(frames, selectedAnimationAction, selectedAnimationFramesPerDirection)}
           onExportAnimationPack={openSelectedAnimationPackExportModal}
           onExportEffectGif={() => void exportSelectedEffectGif()}
           onExportEffectApng={() => void exportSelectedEffectApng()}
@@ -10421,7 +10628,7 @@ function parseTagList(tags: string) {
     .slice(0, 20);
 }
 
-function buildAnimationManifestPreviewActions(manifest: AnimationPackManifest, frames: SpriteFrame[]) {
+export function buildAnimationManifestPreviewActions(manifest: AnimationPackManifest, frames: SpriteFrame[]) {
   const directions = manifest.directions.length > 0 ? manifest.directions : ANIMATION_DIRECTIONS;
   return directions.map((directionId, index) => {
     const rowStart = index * manifest.framesPerDirection;
@@ -11132,16 +11339,22 @@ function renumberAnnotations(annotations: Annotation[]) {
   return annotations.map((annotation, index) => ({ ...annotation, number: index + 1 }));
 }
 
-function buildAnimationDirectionPreviewActions(action: SpriteAction, actionFrames: SpriteFrame[], directions?: readonly string[]) {
+function buildAnimationDirectionPreviewActions(
+  action: SpriteAction,
+  actionFrames: SpriteFrame[],
+  directions?: readonly string[],
+  framesPerDirection: number = ANIMATION_FRAME_COUNT
+) {
+  const safeFramesPerDirection = MOTION_FRAME_COUNTS.includes(framesPerDirection as MotionFrameCount) ? framesPerDirection : ANIMATION_FRAME_COUNT;
   const directionCount =
-    actionFrames.length >= ANIMATION_FRAME_COUNT * ANIMATION_DIRECTION_COUNT
+    actionFrames.length >= safeFramesPerDirection * ANIMATION_DIRECTION_COUNT
       ? ANIMATION_DIRECTION_COUNT
-      : Math.max(1, Math.ceil(actionFrames.length / ANIMATION_FRAME_COUNT));
+      : Math.max(1, Math.ceil(actionFrames.length / safeFramesPerDirection));
   const directionIds = directions && directions.length === directionCount ? directions : ANIMATION_DIRECTIONS;
 
   return Array.from({ length: directionCount }, (_, index) => {
     const directionId = directionIds[index] ?? `direction-${index + 1}`;
-    const rowFrames = actionFrames.slice(index * ANIMATION_FRAME_COUNT, (index + 1) * ANIMATION_FRAME_COUNT);
+    const rowFrames = actionFrames.slice(index * safeFramesPerDirection, (index + 1) * safeFramesPerDirection);
     return {
       directionId,
       action: {
@@ -11265,7 +11478,10 @@ function buildAnimationCodexPrompt({
   actionName,
   chromaKey,
   cell,
-  directions = ANIMATION_DIRECTIONS
+  directions = ANIMATION_DIRECTIONS,
+  frameCount = ANIMATION_FRAME_COUNT,
+  directionImageGrid = DIRECTION_SPLIT_ANIMATION_GRID,
+  bodyTopology = "biped"
 }: {
   sourceName: string;
   motionPrompt: string;
@@ -11273,27 +11489,36 @@ function buildAnimationCodexPrompt({
   chromaKey: AnimationChromaKey;
   cell: SpriteAction["cell"];
   directions?: readonly string[];
+  frameCount?: MotionFrameCount;
+  directionImageGrid?: GridSettings;
+  bodyTopology?: BodyTopologyId;
 }) {
   const motion = motionPrompt.trim() || actionName;
   const directionCountWord = directions.length === 1 ? "one" : String(directions.length);
+  const topologyProfile = getBodyTopologyProfile(bodyTopology);
+  const contactLabel = topologyProfile.groundContactParts.length > 0
+    ? topologyProfile.groundContactParts.join(" or ")
+    : topologyProfile.contactQaDimension;
   return [
     "このキャラクターをデフォルメして、方向別アニメーション素材として画像生成してほしい。",
     `Use the uploaded source image "${sourceName}" as the character reference.`,
     `Extract only the single character and create a direction-split pixel-art animation set of that same character ${motion}.`,
-    `Do not return one combined ${directions.length}x${ANIMATION_FRAME_COUNT} sheet for the standard animation workflow. Return ${directionCountWord} separate direction image${directions.length === 1 ? "" : "s"}, and Image Cockpit will compose the final ${ANIMATION_FRAME_COUNT}x${directions.length} sheet after import.`,
-    `Each direction image must be exactly ${cell.width * DIRECTION_SPLIT_ANIMATION_GRID.columns}x${cell.height * DIRECTION_SPLIT_ANIMATION_GRID.rows}px: ${DIRECTION_SPLIT_ANIMATION_GRID.columns} columns x ${DIRECTION_SPLIT_ANIMATION_GRID.rows} rows, no gutters, no extra outer margin, exactly ${ANIMATION_FRAME_COUNT} cells.`,
+    `Do not return one combined ${directions.length}x${frameCount} sheet for the standard animation workflow. Return ${directionCountWord} separate direction image${directions.length === 1 ? "" : "s"}, and Image Cockpit will compose the final ${frameCount}x${directions.length} sheet after import.`,
+    `Each direction image must be exactly ${cell.width * directionImageGrid.columns}x${cell.height * directionImageGrid.rows}px: ${directionImageGrid.columns} columns x ${directionImageGrid.rows} rows, no gutters, no extra outer margin, exactly ${frameCount} populated cells.`,
     `Required directions and file suffixes: ${directions.map((direction) => `${direction}=${animationDirectionSlug(direction)}`).join(", ")}. Do not generate directions that are not listed.`,
-    `Each cell must be exactly ${cell.width}x${cell.height} pixels. Fill frames left-to-right on row 1, then left-to-right on row 2.`,
-    "Every cell must contain exactly one full-body character, centered inside that cell, with the entire head, hair, hands, held item, weapon, projectile, compact effect, clothing, and both feet visible.",
-    "Keep at least 24 pixels of empty chroma-key padding inside every cell above the head, below the feet, and on both sides. Never enlarge the character, held item, projectile, or effect to fill the cell.",
-    "The character center and foot baseline must stay aligned across all eight frames in the same direction image; do not drift left, right, up, or down between frames.",
-    "Do not crop the head, feet, hair, held item, weapon, projectile, or effects. Do not let body parts, items, projectiles, or effects cross cell borders. Do not place heads or body fragments under the feet.",
+    `Each cell must be exactly ${cell.width}x${cell.height} pixels. Fill frames in row-major order until all ${frameCount} frames are populated.`,
+    `Every cell must contain exactly one complete ${bodyTopology} character, centered inside that cell, with the full head, body, topology-specific support parts, tail, wings, held item, compact effect, and silhouette visible when present.`,
+    `Keep at least 24 pixels of empty chroma-key padding inside every cell around the complete silhouette. Never enlarge the character, prop, or effect to fill the cell.`,
+    `Keep the character root and ${contactLabel} measurement coherent across all ${frameCount} frames; use ${topologyProfile.contactQaDimension} QA instead of inventing humanoid feet.`,
+    "Do not crop the head, body-contact arc, paws, legs, tail, wings, held item, weapon, projectile, or effects. Do not let any part cross cell borders.",
     "Use consistent character scale, baseline, foot contact point, silhouette size, palette, outfit, and pixel density across all direction images.",
     "Hard consistency requirement across all requested direction images: keep the same chibi body proportions, same head-to-body ratio, same head size, same limb thickness, same outfit colors, same clothing layers, and same prop design. Do not redesign any direction or make one direction older, younger, more realistic, differently dressed, or scaled differently than the others.",
-    ...ANIMATION_SCALE_CONSISTENCY_CONTRACT_LINES,
+    ...(bodyTopology === "biped"
+      ? ANIMATION_SCALE_CONSISTENCY_CONTRACT_LINES
+      : ["Topology scale consistency contract: preserve the same head, torso, body length, limb or support-part thickness, tail or wing scale, palette, pixel density, and prop size across all directions and poses; never auto-fit a lower or wider pose to fill the cell."]),
     `Prefer a transparent background in every cell. If true transparency is not available during generation, use a flat ${chromaKey.label} background (${chromaKey.hex}) in every cell; do not use black, white, gradients, scenery, shadows, UI, text, logos, watermarks, letters, or numbers.`,
-    "If you add a temporary guide grid, use a temporary 1-pixel pure cyan #00FFFF guide grid only on the exact 4x2 cell boundaries for each direction image; no labels, numbers, text, UI, or decorative borders.",
-    `Quality gate before returning: inspect all ${directions.length * ANIMATION_FRAME_COUNT} cells and regenerate if any cell is cropped, has missing feet, has a cut-off head, contains multiple heads, has a head below the feet, has a different character, or uses a non-flat background.`,
+    `If you add a temporary guide grid, use a temporary 1-pixel pure cyan #00FFFF guide grid only on the exact ${directionImageGrid.columns}x${directionImageGrid.rows} cell boundaries for each direction image; no labels, numbers, text, UI, or decorative borders.`,
+    `Quality gate before returning: inspect all ${directions.length * frameCount} cells and regenerate if any cell is cropped, has missing topology-specific support/contact parts, has a cut-off head, contains duplicated anatomy, has a different character, or uses a non-flat background.`,
     `Return exactly these direction files using the real job id prefix: ${directionSplitAnimationFileSet("<job-id>", directions).join(", ")}.`,
     `Also return <job-id>-manifest.json with schema "${DIRECTION_SPLIT_ANIMATION_SCHEMA}".`
   ].join(" ");
@@ -11305,7 +11530,10 @@ function buildAnimationCodexNotes({
   chromaReason,
   grid,
   cell,
-  directions = ANIMATION_DIRECTIONS
+  directions = ANIMATION_DIRECTIONS,
+  frameCount = ANIMATION_FRAME_COUNT,
+  directionImageGrid = DIRECTION_SPLIT_ANIMATION_GRID,
+  bodyTopology = "biped"
 }: {
   userNotes: string;
   chromaKey: AnimationChromaKey;
@@ -11313,20 +11541,27 @@ function buildAnimationCodexNotes({
   grid: GridSettings;
   cell: SpriteAction["cell"];
   directions?: readonly string[];
+  frameCount?: MotionFrameCount;
+  directionImageGrid?: GridSettings;
+  bodyTopology?: BodyTopologyId;
 }) {
+  const topologyProfile = getBodyTopologyProfile(bodyTopology);
   return [
     userNotes.trim(),
     `Animation sprite workflow: generate ${directions.length} source-image-driven direction image${directions.length === 1 ? "" : "s"} through Codex imagegen / built-in image_gen, then Image Cockpit will remove the ${chromaKey.label} background and compose the final sheet.`,
     `Chroma key decision: ${chromaKey.name} ${chromaKey.hex}. ${chromaReason}`,
     `Final app sheet layout after import: ${grid.columns} columns x ${grid.rows} rows, ${cell.width}x${cell.height} per cell.`,
-    `Raw returned direction layout: ${DIRECTION_SPLIT_ANIMATION_GRID.columns} columns x ${DIRECTION_SPLIT_ANIMATION_GRID.rows} rows per direction image, ${cell.width}x${cell.height} per cell.`,
+    `Raw returned direction layout: ${directionImageGrid.columns} columns x ${directionImageGrid.rows} rows per direction image, ${cell.width}x${cell.height} per cell, ${frameCount} populated frames.`,
     `Required direction files: ${directionSplitAnimationFileSet("<job-id>", directions).join(", ")}.`,
-    `Manifest schema: ${DIRECTION_SPLIT_ANIMATION_SCHEMA}; include directions, files, grid, cell, and framesPerDirection=${ANIMATION_FRAME_COUNT}.`,
-    "Cell QA is mandatory: one full-body character per cell, consistent baseline and scale, at least 24px inner padding, no cropping, no duplicated heads, no body fragments under feet, no character parts, items, projectiles, or effects crossing cell borders.",
+    `Manifest schema: ${DIRECTION_SPLIT_ANIMATION_SCHEMA}; include directions, files, grid, cell, and framesPerDirection=${frameCount}.`,
+    `Body topology contract: ${bodyTopology}; contact QA=${topologyProfile.contactQaDimension}; footlineApplicable=${topologyProfile.footlineApplicable ? "yes" : "no"}.`,
+    "Cell QA is mandatory: one complete character per cell, consistent root, topology-appropriate contact or hover measure, stable scale, at least 24px inner padding, no cropping, no duplicated anatomy, and no parts or effects crossing cell borders.",
     "Scale consistency QA is mandatory: compare every direction and frame against the front ready stance, and reject any result where a direction or lower pose was auto-enlarged to fill the cell.",
-    ...ANIMATION_SCALE_CONSISTENCY_CONTRACT_LINES,
+    ...(bodyTopology === "biped"
+      ? ANIMATION_SCALE_CONSISTENCY_CONTRACT_LINES
+      : ["Topology scale QA is mandatory: compare head, torso, body length, support-part thickness, tail or wing scale, and prop size against the source; lower or wider poses must not be auto-enlarged."]),
     "The generated sheet should keep the chroma key background simple and flat so the app can remove it reliably.",
-    "Temporary guide grid: pure cyan #00FFFF on exact 4x2 direction-image cell boundaries only. Image Cockpit removes those guide pixels before slicing/export."
+    `Temporary guide grid: pure cyan #00FFFF on exact ${directionImageGrid.columns}x${directionImageGrid.rows} direction-image cell boundaries only. Image Cockpit removes those guide pixels before slicing/export.`
   ].filter(Boolean).join("\n");
 }
 
@@ -11425,7 +11660,7 @@ function buildDirectionalHatchPetCodexNotes({
   ].filter(Boolean).join("\n");
 }
 
-async function createTransparentSpriteSheetDataUrl(dataUrl: string, chromaKey: AnimationChromaKey) {
+async function createTransparentSpriteSheetDataUrl(dataUrl: string, chromaKey: AnimationChromaKey, grid: GridSettings = DIRECTION_SPLIT_ANIMATION_GRID) {
   const image = await loadImage(dataUrl);
   const canvas = document.createElement("canvas");
   canvas.width = Math.max(1, image.naturalWidth || image.width);
@@ -11436,7 +11671,7 @@ async function createTransparentSpriteSheetDataUrl(dataUrl: string, chromaKey: A
   context.drawImage(image, 0, 0, canvas.width, canvas.height);
   removeConnectedBackground(context, canvas.width, canvas.height);
   removeChromaKeyPixels(context, canvas.width, canvas.height, chromaKey);
-  removeAnimationGuideGridPixels(context, canvas.width, canvas.height);
+  removeAnimationGuideGridPixels(context, canvas.width, canvas.height, grid);
   return canvas.toDataURL("image/png");
 }
 
@@ -11447,13 +11682,16 @@ async function composeDirectionSplitAnimationSheet(
   actionName?: string,
   directions: readonly string[] = ANIMATION_DIRECTIONS,
   referenceDataUrl?: string,
-  motionRecipe?: MotionRecipeReference
+  motionRecipe?: MotionRecipeReference,
+  frameCount: MotionFrameCount = ANIMATION_FRAME_COUNT
 ) {
   const preparedCells: DirectionSplitPreparedCell[] = [];
   const warnings: string[] = [];
   const failures: string[] = [];
-  const expectedWidth = cell.width * DIRECTION_SPLIT_ANIMATION_GRID.columns;
-  const expectedHeight = cell.height * DIRECTION_SPLIT_ANIMATION_GRID.rows;
+  const topologyProfile = getBodyTopologyProfile(motionRecipe?.bodyTopology ?? "biped");
+  const directionImageGrid = directionSplitAnimationGrid(frameCount);
+  const expectedWidth = cell.width * directionImageGrid.columns;
+  const expectedHeight = cell.height * directionImageGrid.rows;
 
   for (let directionIndex = 0; directionIndex < directions.length; directionIndex += 1) {
     const result = importedResults[directionIndex];
@@ -11463,7 +11701,7 @@ async function composeDirectionSplitAnimationSheet(
       continue;
     }
 
-    const transparentDataUrl = await createTransparentSpriteSheetDataUrl(result.dataUrl, chromaKey);
+    const transparentDataUrl = await createTransparentSpriteSheetDataUrl(result.dataUrl, chromaKey, directionImageGrid);
     const image = await loadImage(transparentDataUrl);
     let sourceImage: HTMLImageElement | HTMLCanvasElement = image;
     if (image.width !== expectedWidth || image.height !== expectedHeight) {
@@ -11475,7 +11713,7 @@ async function composeDirectionSplitAnimationSheet(
       }
     }
 
-    const cells = calculateGridCells(sourceImage.width, sourceImage.height, DIRECTION_SPLIT_ANIMATION_GRID);
+    const cells = calculateGridCells(sourceImage.width, sourceImage.height, directionImageGrid);
     const canvas = document.createElement("canvas");
     canvas.width = cell.width;
     canvas.height = cell.height;
@@ -11486,15 +11724,15 @@ async function composeDirectionSplitAnimationSheet(
     }
     context.imageSmoothingEnabled = false;
 
-    cells.slice(0, ANIMATION_FRAME_COUNT).forEach((gridCell) => {
+    cells.slice(0, frameCount).forEach((gridCell) => {
       context.clearRect(0, 0, cell.width, cell.height);
       context.drawImage(sourceImage, gridCell.x, gridCell.y, gridCell.width, gridCell.height, 0, 0, cell.width, cell.height);
       preparedCells.push(prepareDirectionSplitCell(canvas, direction, directionIndex, gridCell.index, chromaKey.name));
     });
   }
 
-  const normalizedCells = normalizeDirectionSplitCells(preparedCells, cell);
-  const qa = validateDirectionSplitAnimationCells(normalizedCells, cell, directionSplitMotionProfileForAction(actionName), directions);
+  const normalizedCells = normalizeDirectionSplitCells(preparedCells, cell, topologyProfile);
+  const qa = validateDirectionSplitAnimationCells(normalizedCells, cell, directionSplitMotionProfileForAction(actionName), directions, frameCount, topologyProfile);
   warnings.push(...normalizedCells.flatMap((frame) => frame.warnings), ...qa.warnings);
   failures.push(...normalizedCells.flatMap((frame) => frame.failures), ...qa.failures);
 
@@ -11502,7 +11740,13 @@ async function composeDirectionSplitAnimationSheet(
   const animationQuality = buildAnimationQualityReport({
     action: actionName,
     contract: motionRecipe
-      ? resolveMotionRecipe({ recipeId: motionRecipe.id, recipeVersion: motionRecipe.version, actionName }).recipe.qualityProfile
+      ? compileMotionRecipe({
+          recipe: resolveMotionRecipe({ recipeId: motionRecipe.id, recipeVersion: motionRecipe.version, actionName }).recipe,
+          directions,
+          topology: motionRecipe.bodyTopology,
+          frameCount,
+          variant: motionRecipe.modifiers
+        }).qaContract
       : undefined,
     rawFrames: preparedCells.map((frame) => animationQualityFrameFromCanvas(frame.sourceCanvas, frame.direction, frame.frameIndex, frame.bounds)),
     normalizedFrames: normalizedCells.map((frame) => animationQualityFrameFromCanvas(frame.canvas, frame.direction, frame.frameIndex, frame.bounds)),
@@ -11515,7 +11759,7 @@ async function composeDirectionSplitAnimationSheet(
   }
 
   const canvas = document.createElement("canvas");
-  canvas.width = cell.width * ANIMATION_FRAME_COUNT;
+  canvas.width = cell.width * frameCount;
   canvas.height = cell.height * directions.length;
   const context = canvas.getContext("2d");
   if (!context) throw new Error("Could not compose direction split animation sheet.");
@@ -11645,7 +11889,11 @@ function prepareDirectionSplitCell(
   return { direction, directionIndex, frameIndex, sourceCanvas, bounds, warnings, failures };
 }
 
-function normalizeDirectionSplitCells(preparedCells: DirectionSplitPreparedCell[], cell: SpriteAction["cell"]): DirectionSplitNormalizedCell[] {
+function normalizeDirectionSplitCells(
+  preparedCells: DirectionSplitPreparedCell[],
+  cell: SpriteAction["cell"],
+  topologyProfile = getBodyTopologyProfile("biped")
+): DirectionSplitNormalizedCell[] {
   const validHeights = preparedCells
     .map((frame) => frame.bounds ? frame.bounds.maxY - frame.bounds.minY + 1 : 0)
     .filter((height) => height > 0);
@@ -11688,7 +11936,9 @@ function normalizeDirectionSplitCells(preparedCells: DirectionSplitPreparedCell[
     const targetWidth = Math.max(1, Math.round(cropWidth * scale));
     const normalizedHeight = Math.max(1, Math.round(cropHeight * scale));
     const targetX = clampNumber(Math.round(cell.width / 2 - targetWidth / 2), 0, Math.max(0, cell.width - targetWidth));
-    const targetY = clampNumber(targetFootY - normalizedHeight, 0, Math.max(0, cell.height - normalizedHeight));
+    const targetY = topologyProfile.contactQaDimension === "hover-height" || topologyProfile.contactQaDimension === "wing-beat"
+      ? clampNumber(Math.round(cell.height * 0.5 - normalizedHeight / 2), 0, Math.max(0, cell.height - normalizedHeight))
+      : clampNumber(targetFootY - normalizedHeight, 0, Math.max(0, cell.height - normalizedHeight));
 
     context.clearRect(0, 0, cell.width, cell.height);
     context.imageSmoothingEnabled = false;
@@ -11735,7 +11985,9 @@ function validateDirectionSplitAnimationCells(
   cells: DirectionSplitNormalizedCell[],
   cell: SpriteAction["cell"],
   motionProfile: DirectionSplitMotionProfile = "standard",
-  directions: readonly string[] = ANIMATION_DIRECTIONS
+  directions: readonly string[] = ANIMATION_DIRECTIONS,
+  frameCount: MotionFrameCount = ANIMATION_FRAME_COUNT,
+  topologyProfile = getBodyTopologyProfile("biped")
 ) {
   const warnings: string[] = [];
   const failures: string[] = [];
@@ -11746,8 +11998,8 @@ function validateDirectionSplitAnimationCells(
     const rowCells = cells
       .filter((frame) => frame.directionIndex === directionIndex)
       .sort((left, right) => left.frameIndex - right.frameIndex);
-    if (rowCells.length !== ANIMATION_FRAME_COUNT) {
-      failures.push(`${direction}: expected ${ANIMATION_FRAME_COUNT} cells, got ${rowCells.length}`);
+    if (rowCells.length !== frameCount) {
+      failures.push(`${direction}: expected ${frameCount} cells, got ${rowCells.length}`);
       return;
     }
 
@@ -11757,6 +12009,7 @@ function validateDirectionSplitAnimationCells(
         width: frame.bounds.maxX - frame.bounds.minX + 1,
         height: frame.bounds.maxY - frame.bounds.minY + 1,
         centerX: (frame.bounds.minX + frame.bounds.maxX) / 2,
+        centerY: (frame.bounds.minY + frame.bounds.maxY) / 2,
         bottomY: frame.bounds.maxY,
         topMargin: frame.bounds.minY
       } : null)
@@ -11775,11 +12028,15 @@ function validateDirectionSplitAnimationCells(
       warnings.push(`${direction}: center drift ${Math.round(centerDrift)}px`);
     }
 
-    const bottomDrift = rangeNumber(metrics.map((metric) => metric.bottomY));
-    if (bottomDrift > DIRECTION_SPLIT_BOTTOM_FAIL_DRIFT) {
-      failures.push(`${direction}: foot baseline drift ${Math.round(bottomDrift)}px`);
-    } else if (bottomDrift > DIRECTION_SPLIT_BOTTOM_WARN_DRIFT) {
-      warnings.push(`${direction}: foot baseline drift ${Math.round(bottomDrift)}px`);
+    const contactDrift = rangeNumber(metrics.map((metric) =>
+      topologyProfile.contactQaDimension === "hover-height" || topologyProfile.contactQaDimension === "wing-beat"
+        ? metric.centerY
+        : metric.bottomY
+    ));
+    if (contactDrift > DIRECTION_SPLIT_BOTTOM_FAIL_DRIFT) {
+      failures.push(`${direction}: ${topologyProfile.contactQaDimension} drift ${Math.round(contactDrift)}px`);
+    } else if (contactDrift > DIRECTION_SPLIT_BOTTOM_WARN_DRIFT) {
+      warnings.push(`${direction}: ${topologyProfile.contactQaDimension} drift ${Math.round(contactDrift)}px`);
     }
 
     const widthVariation = variationRatio(metrics.map((metric) => metric.width));
@@ -11933,18 +12190,23 @@ function formatMotionPercent(value: number) {
 
 type AnimationDrawable = (HTMLCanvasElement | HTMLImageElement) & { width: number; height: number };
 
-async function renderAnimationSheet(sourceDataUrl: string, cell: SpriteAction["cell"], actionName: string) {
+async function renderAnimationSheet(
+  sourceDataUrl: string,
+  cell: SpriteAction["cell"],
+  actionName: string,
+  frameCount: MotionFrameCount = ANIMATION_FRAME_COUNT
+) {
   const source = await createTransparentAnimationSource(sourceDataUrl);
   const canvas = document.createElement("canvas");
-  canvas.width = cell.width * ANIMATION_FRAME_COUNT;
+  canvas.width = cell.width * frameCount;
   canvas.height = cell.height;
   const context = canvas.getContext("2d");
   if (!context) throw new Error("Could not create animation canvas.");
   context.clearRect(0, 0, canvas.width, canvas.height);
   context.imageSmoothingEnabled = false;
 
-  for (let frame = 0; frame < ANIMATION_FRAME_COUNT; frame += 1) {
-    drawAnimationFrame(context, source, cell, actionName, frame);
+  for (let frame = 0; frame < frameCount; frame += 1) {
+    drawAnimationFrame(context, source, cell, actionName, frame, frameCount);
   }
 
   return canvas.toDataURL("image/png");
@@ -11955,14 +12217,15 @@ function drawAnimationFrame(
   source: AnimationDrawable,
   cell: SpriteAction["cell"],
   actionName: string,
-  frame: number
+  frame: number,
+  frameCount: MotionFrameCount = ANIMATION_FRAME_COUNT
 ) {
-  const phase = (frame / ANIMATION_FRAME_COUNT) * Math.PI * 2;
+  const phase = (frame / frameCount) * Math.PI * 2;
   const x = frame * cell.width;
   const scale = Math.min((cell.width * 0.74) / source.width, (cell.height * 0.76) / source.height);
   const width = Math.max(1, Math.round(source.width * scale));
   const height = Math.max(1, Math.round(source.height * scale));
-  const preset = animationPreset(actionName, phase, frame);
+  const preset = animationPreset(actionName, phase, frame, frameCount);
   const centerX = x + cell.width / 2 + preset.x;
   const centerY = cell.height / 2 + preset.y;
 
@@ -12127,17 +12390,17 @@ function removeChromaKeyPixels(
   context.putImageData(imageData, 0, 0);
 }
 
-function removeAnimationGuideGridPixels(context: CanvasRenderingContext2D, width: number, height: number) {
+function removeAnimationGuideGridPixels(context: CanvasRenderingContext2D, width: number, height: number, grid: GridSettings = ANIMATION_SHEET_GRID) {
   const imageData = context.getImageData(0, 0, width, height);
   const data = imageData.data;
-  const radius = Math.max(2, Math.ceil(Math.max(width / ANIMATION_FRAME_COUNT, height / ANIMATION_DIRECTION_COUNT) / 96));
+  const radius = Math.max(2, Math.ceil(Math.max(width / grid.columns, height / grid.rows) / 96));
 
   for (let offset = 0; offset < data.length; offset += 4) {
     if (data[offset + 3] < 12) continue;
     const pixelIndex = offset / 4;
     const x = pixelIndex % width;
     const y = Math.floor(pixelIndex / width);
-    const isGuideLine = isNearAnimationGuideLine(x, y, width, height, radius);
+    const isGuideLine = isNearAnimationGuideLine(x, y, width, height, radius, grid);
     if (isCyanGuidePixel(data, offset) || (isGuideLine && isGuideResiduePixel(data, offset))) {
       data[offset] = 0;
       data[offset + 1] = 0;
@@ -12149,12 +12412,12 @@ function removeAnimationGuideGridPixels(context: CanvasRenderingContext2D, width
   context.putImageData(imageData, 0, 0);
 }
 
-function isNearAnimationGuideLine(x: number, y: number, width: number, height: number, radius: number) {
-  for (let column = 0; column <= ANIMATION_FRAME_COUNT; column += 1) {
-    if (Math.abs(x - Math.round((width * column) / ANIMATION_FRAME_COUNT)) <= radius) return true;
+function isNearAnimationGuideLine(x: number, y: number, width: number, height: number, radius: number, grid: GridSettings = ANIMATION_SHEET_GRID) {
+  for (let column = 0; column <= grid.columns; column += 1) {
+    if (Math.abs(x - Math.round((width * column) / grid.columns)) <= radius) return true;
   }
-  for (let row = 0; row <= ANIMATION_DIRECTION_COUNT; row += 1) {
-    if (Math.abs(y - Math.round((height * row) / ANIMATION_DIRECTION_COUNT)) <= radius) return true;
+  for (let row = 0; row <= grid.rows; row += 1) {
+    if (Math.abs(y - Math.round((height * row) / grid.rows)) <= radius) return true;
   }
   return false;
 }
@@ -12180,7 +12443,7 @@ function colorDistanceSq(data: Uint8ClampedArray, offset: number, color: ReturnT
   return dr * dr + dg * dg + db * db;
 }
 
-function animationPreset(actionName: string, phase: number, frame: number) {
+function animationPreset(actionName: string, phase: number, frame: number, frameCount: MotionFrameCount = ANIMATION_FRAME_COUNT) {
   if (actionName === "walk") {
     return {
       x: Math.sin(phase) * 4,
@@ -12212,7 +12475,7 @@ function animationPreset(actionName: string, phase: number, frame: number) {
     };
   }
   if (actionName === "attack") {
-    const thrust = frame < ANIMATION_FRAME_COUNT / 2 ? frame : ANIMATION_FRAME_COUNT - frame;
+    const thrust = frame < frameCount / 2 ? frame : frameCount - frame;
     return {
       x: thrust * 2.5,
       y: Math.sin(phase) * -2,
@@ -12234,7 +12497,7 @@ function animationPreset(actionName: string, phase: number, frame: number) {
     };
   }
   if (actionName === "death") {
-    const progress = Math.min(1, frame / Math.max(1, ANIMATION_FRAME_COUNT - 3));
+    const progress = Math.min(1, frame / Math.max(1, frameCount - Math.max(1, Math.round(frameCount * 0.375))));
     return {
       x: progress * 5,
       y: progress * 18,
@@ -12245,7 +12508,7 @@ function animationPreset(actionName: string, phase: number, frame: number) {
     };
   }
   if (actionName === "jump") {
-    const jump = Math.sin(Math.PI * Math.min(1, frame / Math.max(1, ANIMATION_FRAME_COUNT - 1)));
+    const jump = Math.sin(Math.PI * Math.min(1, frame / Math.max(1, frameCount - 1)));
     return {
       x: 0,
       y: -jump * 24,
@@ -12256,7 +12519,7 @@ function animationPreset(actionName: string, phase: number, frame: number) {
     };
   }
   if (actionName === "guard") {
-    const brace = Math.min(1, frame / 3);
+    const brace = Math.min(1, frame / Math.max(1, Math.round(frameCount * 0.375)));
     return {
       x: -brace * 3 + Math.sin(phase) * 1.5,
       y: -brace * 2,
@@ -12277,7 +12540,7 @@ function animationPreset(actionName: string, phase: number, frame: number) {
     };
   }
   if (actionName === "interact") {
-    const reach = Math.sin(Math.PI * Math.min(1, frame / Math.max(1, ANIMATION_FRAME_COUNT - 1)));
+    const reach = Math.sin(Math.PI * Math.min(1, frame / Math.max(1, frameCount - 1)));
     return {
       x: reach * 4,
       y: reach * 6,
@@ -12288,7 +12551,7 @@ function animationPreset(actionName: string, phase: number, frame: number) {
     };
   }
   if (actionName === "ranged") {
-    const release = Math.min(1, Math.max(0, (frame - 1) / 4));
+    const release = Math.min(1, Math.max(0, (frame - Math.max(1, Math.round(frameCount * 0.125))) / Math.max(1, Math.round(frameCount * 0.5))));
     return {
       x: release * 5,
       y: Math.sin(phase) * -2,
@@ -12299,7 +12562,7 @@ function animationPreset(actionName: string, phase: number, frame: number) {
     };
   }
   if (actionName === "skill") {
-    const burst = Math.sin(Math.PI * Math.min(1, frame / Math.max(1, ANIMATION_FRAME_COUNT - 1)));
+    const burst = Math.sin(Math.PI * Math.min(1, frame / Math.max(1, frameCount - 1)));
     return {
       x: 0,
       y: -burst * 7,
@@ -12310,7 +12573,7 @@ function animationPreset(actionName: string, phase: number, frame: number) {
     };
   }
   if (actionName === "knockback") {
-    const recoil = Math.sin(Math.PI * Math.min(1, frame / Math.max(1, ANIMATION_FRAME_COUNT - 1)));
+    const recoil = Math.sin(Math.PI * Math.min(1, frame / Math.max(1, frameCount - 1)));
     return {
       x: -recoil * 10,
       y: -Math.max(0, Math.sin(phase)) * 5,
@@ -12321,7 +12584,7 @@ function animationPreset(actionName: string, phase: number, frame: number) {
     };
   }
   if (actionName === "item") {
-    const use = Math.sin(Math.PI * Math.min(1, frame / Math.max(1, ANIMATION_FRAME_COUNT - 1)));
+    const use = Math.sin(Math.PI * Math.min(1, frame / Math.max(1, frameCount - 1)));
     return {
       x: use * 2,
       y: -use * 4,
@@ -12665,14 +12928,52 @@ function PromptExamplesModal({
 
 function AnimationPresetExamplesModal({
   language,
+  favoriteIds,
+  recentIds,
   onClose,
-  onUse
+  onUse,
+  onToggleFavorite
 }: {
   language: Language;
+  favoriteIds: string[];
+  recentIds: string[];
   onClose: () => void;
   onUse: (example: AnimationPresetExample) => void;
+  onToggleFavorite: (id: string) => void;
 }) {
   const copy = uiCopy[language];
+  const [search, setSearch] = useState("");
+  const [topologyFilter, setTopologyFilter] = useState<BodyTopologyId | "all">("all");
+  const [loopFilter, setLoopFilter] = useState<"all" | "loop" | "one-shot">("all");
+  const [weaponFilter, setWeaponFilter] = useState<"all" | "weapon" | "no-weapon">("all");
+  const [movementFilter, setMovementFilter] = useState<"all" | "movement" | "stationary">("all");
+  const [frameFilter, setFrameFilter] = useState<"all" | `${MotionFrameCount}`>("all");
+  const [collectionFilter, setCollectionFilter] = useState<"all" | "recent" | "favorites">("all");
+  const filteredExamples = useMemo(() => {
+    const query = search.trim().toLowerCase();
+    return animationPresetExamples.filter((example) => {
+      const searchable = [example.id, example.title.en, example.title.ja, example.summary.en, example.summary.ja, ...example.tags].join(" ").toLowerCase();
+      if (query && !searchable.includes(query)) return false;
+      if (topologyFilter !== "all" && !example.supportedTopologies.includes(topologyFilter)) return false;
+      if (loopFilter === "loop" && example.loopMode === "one-shot") return false;
+      if (loopFilter === "one-shot" && example.loopMode !== "one-shot") return false;
+      const supportsWeapon = example.allowedModifiers.includes("weaponClass");
+      if (weaponFilter === "weapon" && !supportsWeapon) return false;
+      if (weaponFilter === "no-weapon" && supportsWeapon) return false;
+      const movement = example.family === "locomotion" || example.tags.includes("movement") || example.tags.includes("travel");
+      if (movementFilter === "movement" && !movement) return false;
+      if (movementFilter === "stationary" && movement) return false;
+      if (frameFilter !== "all" && !example.allowedFrameCounts.includes(Number(frameFilter) as MotionFrameCount)) return false;
+      if (collectionFilter === "recent" && !recentIds.includes(example.id)) return false;
+      if (collectionFilter === "favorites" && !favoriteIds.includes(example.id)) return false;
+      return true;
+    }).sort((left, right) => {
+      const leftRecent = recentIds.indexOf(left.id);
+      const rightRecent = recentIds.indexOf(right.id);
+      if (leftRecent >= 0 || rightRecent >= 0) return (leftRecent < 0 ? 999 : leftRecent) - (rightRecent < 0 ? 999 : rightRecent);
+      return Number(left.experimental) - Number(right.experimental);
+    });
+  }, [collectionFilter, favoriteIds, frameFilter, loopFilter, movementFilter, recentIds, search, topologyFilter, weaponFilter]);
   return (
     <div className="prompt-modal-backdrop" role="presentation" onMouseDown={onClose}>
       <section
@@ -12692,17 +12993,72 @@ function AnimationPresetExamplesModal({
           </button>
         </div>
 
+        <div className="motion-preset-filters">
+          <label className="motion-preset-search">
+            <span>{language === "ja" ? "検索" : "Search"}</span>
+            <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="dash, combat, movement..." />
+          </label>
+          <label>
+            <span>Topology</span>
+            <select value={topologyFilter} onChange={(event) => setTopologyFilter(event.target.value as BodyTopologyId | "all")}>
+              <option value="all">All</option>
+              {BODY_TOPOLOGY_PROFILES.map((profile) => <option key={profile.id} value={profile.id}>{localizedText(profile.displayName, language)}</option>)}
+            </select>
+          </label>
+          <label>
+            <span>Loop</span>
+            <select value={loopFilter} onChange={(event) => setLoopFilter(event.target.value as typeof loopFilter)}>
+              <option value="all">All</option><option value="loop">Loop</option><option value="one-shot">One-shot</option>
+            </select>
+          </label>
+          <label>
+            <span>Weapon</span>
+            <select value={weaponFilter} onChange={(event) => setWeaponFilter(event.target.value as typeof weaponFilter)}>
+              <option value="all">All</option><option value="weapon">Weapon</option><option value="no-weapon">No weapon</option>
+            </select>
+          </label>
+          <label>
+            <span>Movement</span>
+            <select value={movementFilter} onChange={(event) => setMovementFilter(event.target.value as typeof movementFilter)}>
+              <option value="all">All</option><option value="movement">Movement</option><option value="stationary">Stationary</option>
+            </select>
+          </label>
+          <label>
+            <span>Frames</span>
+            <select value={frameFilter} onChange={(event) => setFrameFilter(event.target.value as typeof frameFilter)}>
+              <option value="all">All</option>{MOTION_FRAME_COUNTS.map((count) => <option key={count} value={count}>{count}</option>)}
+            </select>
+          </label>
+          <label>
+            <span>Collection</span>
+            <select value={collectionFilter} onChange={(event) => setCollectionFilter(event.target.value as typeof collectionFilter)}>
+              <option value="all">All</option><option value="recent">Recent</option><option value="favorites">Favorites</option>
+            </select>
+          </label>
+          <strong>{filteredExamples.length} / {animationPresetExamples.length}</strong>
+        </div>
+
         <div className="prompt-grid animation-preset-grid">
-          {animationPresetExamples.map((example) => (
-            <article key={example.id} className="prompt-card animation-preset-card">
+          {filteredExamples.map((example) => (
+            <article key={example.id} className={`prompt-card animation-preset-card ${example.experimental ? "experimental" : "verified"}`}>
               <div className="prompt-card-preview animation-sample-preview">
                 <div className={`animation-sample-sprite ${example.previewClassName}`} aria-label={`${localizedText(example.title, language)} sample animation`} />
               </div>
               <div className="prompt-card-meta">
                 <small>{localizedText(example.category, language)}</small>
+                <small>{example.experimental ? "Experimental" : "Verified"}</small>
+                <button
+                  type="button"
+                  className="motion-favorite-button"
+                  aria-label={favoriteIds.includes(example.id) ? "Remove favorite" : "Add favorite"}
+                  onClick={() => onToggleFavorite(example.id)}
+                >
+                  {favoriteIds.includes(example.id) ? "★" : "☆"}
+                </button>
               </div>
               <h2>{localizedText(example.title, language)}</h2>
               <small className="prompt-card-note">{localizedText(example.summary, language)}</small>
+              <small className="prompt-card-note">{example.supportedTopologies.join(" / ")} · {example.allowedFrameCounts.join("/")}f</small>
               <div className="prompt-actions single-action">
                 <button className="primary-button" onClick={() => onUse(example)}>
                   <CheckCircle2 size={15} aria-hidden="true" />
@@ -12711,6 +13067,7 @@ function AnimationPresetExamplesModal({
               </div>
             </article>
           ))}
+          {filteredExamples.length === 0 && <p className="animation-library-empty">No Motion Recipes match these filters.</p>}
         </div>
       </section>
     </div>
@@ -13674,6 +14031,7 @@ function savePendingCodexJobs(jobs: CodexJobQueueItem[]) {
         generationProfile: job.generationProfile,
         sourceFingerprint: job.sourceFingerprint,
         repairDirections: job.repairDirections,
+        framesPerDirection: job.framesPerDirection,
         motionRecipe: job.motionRecipe,
         effectContext: job.effectContext
       }));

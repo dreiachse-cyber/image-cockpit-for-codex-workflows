@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   annotationImageCoordinates,
   buildOutboxImportKey,
+  buildAnimationManifestPreviewActions,
   buildImageCockpitEnvironmentReport,
   codexJobProgressPhase,
   directionSplitJobIdFromOutboxResultName,
@@ -13,6 +14,8 @@ import {
   getVisibleHistoryCount,
   HISTORY_RENDER_BATCH_SIZE,
   imageDisplayRectForCanvas,
+  animationSheetGridForDirections,
+  directionSplitAnimationGrid,
   INITIAL_HISTORY_RENDER_COUNT,
   isCharacterGreenPixel,
   isDirectionSplitAnimationManifestName,
@@ -56,7 +59,7 @@ import {
   STORAGE_HARD_BLOCK_BYTES,
   STORAGE_WARNING_BYTES
 } from "./lib/storage";
-import type { Annotation, CodexArtifactStatus, CodexRunnerStatus, HistoryItem, SpriteFrame } from "./types";
+import type { AnimationPackManifest, Annotation, CodexArtifactStatus, CodexRunnerStatus, HistoryItem, SpriteFrame } from "./types";
 
 describe("Codex runner wait state", () => {
   it("keeps waiting only when the runner is actively running or status is not loaded yet", () => {
@@ -1075,3 +1078,51 @@ function makeComponent(
     softAlphaCount: details.softAlphaCount ?? 0
   };
 }
+
+describe("motion frame-budget presentation", () => {
+  it.each([
+    [4, { columns: 4, rows: 1, gutter: 0 }],
+    [6, { columns: 3, rows: 2, gutter: 0 }],
+    [8, { columns: 4, rows: 2, gutter: 0 }],
+    [12, { columns: 4, rows: 3, gutter: 0 }]
+  ] as const)("uses the expected direction-image grid for %i frames", (frameCount, expected) => {
+    expect(directionSplitAnimationGrid(frameCount)).toEqual(expected);
+    expect(animationSheetGridForDirections(["front", "side", "back"], frameCount)).toEqual({
+      columns: frameCount,
+      rows: 3,
+      gutter: 0
+    });
+  });
+
+  it.each([4, 6, 8, 12] as const)("slices %i-frame manifests into complete direction previews", (frameCount) => {
+    const directions = ["front", "front three-quarter", "side", "back three-quarter", "back"];
+    const manifest: AnimationPackManifest = {
+      schema: "image-cockpit.animation.v1",
+      title: `Dash ${frameCount}`,
+      kind: "user",
+      action: "dash",
+      directions,
+      grid: { columns: frameCount, rows: directions.length, gutter: 0 },
+      cell: { width: 64, height: 64 },
+      framesPerDirection: frameCount,
+      playback: "normal",
+      createdAt: "2026-07-15T00:00:00.000Z",
+      createdWith: "test",
+      files: { sheet: "sheet.png" }
+    };
+    const frames: SpriteFrame[] = Array.from({ length: frameCount * directions.length }, (_, index) => ({
+      id: `frame-${index}`,
+      name: `frame-${index}.png`,
+      dataUrl: "data:image/png;base64,AA==",
+      width: 64,
+      height: 64,
+      index
+    }));
+
+    const previews = buildAnimationManifestPreviewActions(manifest, frames);
+
+    expect(previews.map((preview) => preview.directionId)).toEqual(directions);
+    expect(previews.every((preview) => preview.action.frameIds.length === frameCount)).toBe(true);
+    expect(previews.at(-1)?.action.frameIds[0]).toBe(`frame-${frameCount * 4}`);
+  });
+});

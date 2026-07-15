@@ -1,18 +1,43 @@
 import { describe, expect, it } from "vitest";
 import {
+  BODY_TOPOLOGY_PROFILES,
   compileMotionRecipe,
   compileMotionRecipeQaContract,
+  DEFAULT_MOTION_VARIANT,
+  LEGACY_MOTION_RECIPE_IDS,
+  motionFrameGrid,
   MOTION_RECIPES,
+  MOTION_FRAME_COUNTS,
   MOTION_RECIPE_COMPILER_VERSION,
+  normalizeMotionVariant,
   resolveMotionRecipe,
-  validateMotionRecipe
+  validateMotionRecipe,
+  validateMotionVariant
 } from "./motionRecipes";
 
 describe("versioned Motion Recipes", () => {
   it("migrates all 16 legacy preset ids into complete schemas", () => {
-    expect(MOTION_RECIPES).toHaveLength(16);
-    expect(new Set(MOTION_RECIPES.map((recipe) => recipe.id)).size).toBe(16);
+    expect(LEGACY_MOTION_RECIPE_IDS).toEqual([
+      "idle-breathing", "walk-cycle", "run-cycle", "basic-attack", "hurt-reaction", "death-downed", "spell-cast", "jump-hop",
+      "guard-block", "victory-cheer", "interact-pickup", "ranged-attack", "skill-release", "knockback", "item-use", "talk"
+    ]);
+    expect(MOTION_RECIPES).toHaveLength(22);
+    expect(new Set(MOTION_RECIPES.map((recipe) => recipe.id)).size).toBe(22);
     expect(MOTION_RECIPES.every((recipe) => validateMotionRecipe(recipe).length === 0)).toBe(true);
+  });
+
+  it("defines six topology profiles without applying biped foot QA to exempt bodies", () => {
+    expect(BODY_TOPOLOGY_PROFILES.map((profile) => profile.id)).toEqual([
+      "biped", "quadruped", "serpentine-or-body-contact", "floating", "winged-flying", "multi-leg"
+    ]);
+    expect(BODY_TOPOLOGY_PROFILES.find((profile) => profile.id === "biped")).toMatchObject({ footlineApplicable: true, contactQaDimension: "footline" });
+    expect(BODY_TOPOLOGY_PROFILES.filter((profile) => profile.id !== "biped").every((profile) => !profile.footlineApplicable)).toBe(true);
+  });
+
+  it("adds the first six repertoire Recipes as Experimental without promoting legacy presets", () => {
+    const experimental = MOTION_RECIPES.filter((recipe) => recipe.experimental);
+    expect(experimental.map((recipe) => recipe.id)).toEqual(["dash", "dodge-roll", "charge-heavy-attack", "combo-attack", "stun", "get-up"]);
+    expect(MOTION_RECIPES.filter((recipe) => LEGACY_MOTION_RECIPE_IDS.includes(recipe.id)).every((recipe) => !recipe.experimental)).toBe(true);
   });
 
   it.each(MOTION_RECIPES.map((recipe) => [recipe.id, recipe] as const))("validates and snapshots %s", (_id, recipe) => {
@@ -69,5 +94,79 @@ describe("versioned Motion Recipes", () => {
   ] as const)("derives QA for %s", (_kind, id, profile, loopExpected) => {
     const recipe = MOTION_RECIPES.find((item) => item.id === id)!;
     expect(compileMotionRecipeQaContract(recipe)).toMatchObject({ actionProfile: profile, loopExpected });
+  });
+
+  it.each(["dash", "dodge-roll", "charge-heavy-attack", "combo-attack", "stun", "get-up"])("snapshots Experimental compiler contract for %s", (id) => {
+    const recipe = MOTION_RECIPES.find((item) => item.id === id)!;
+    const variant = id === "charge-heavy-attack"
+      ? normalizeMotionVariant({ intensity: "strong", tempo: "slow", weight: "heavy", weaponClass: "heavy-weapon", handedness: "right", vfxAmount: "low" })
+      : normalizeMotionVariant({ intensity: "strong", tempo: "fast", exaggeration: "high", secondaryMotionLevel: "high" });
+    const compiled = compileMotionRecipe({ recipe, directions: ["front", "side", "back"], topology: "biped", frameCount: 12, variant });
+    expect({
+      id,
+      experimental: recipe.experimental,
+      metadata: compiled.metadata,
+      qa: compiled.qaContract,
+      summary: compiled.diagnostics.variantSummary,
+      promptDiff: compiled.diagnostics.promptDiff,
+      prompt: compiled.prompt
+    }).toMatchSnapshot();
+  });
+
+  it.each(MOTION_FRAME_COUNTS)("keeps %s-frame layout, phases, prompt, QA, and metadata consistent", (frameCount) => {
+    const recipe = MOTION_RECIPES.find((item) => item.id === "dash")!;
+    const compiled = compileMotionRecipe({ recipe, directions: ["front", "side", "back"], topology: "biped", frameCount, variant: DEFAULT_MOTION_VARIANT });
+    expect(compiled.metadata.frameCount).toBe(frameCount);
+    expect(compiled.qaContract.frameCount).toBe(frameCount);
+    expect(compiled.qaContract.frameGrid).toEqual(motionFrameGrid(frameCount));
+    expect(compiled.prompt).toContain(`Create exactly ${frameCount} source frames`);
+    expect(compiled.sections.find((section) => section.id === "phases")?.lines.every((line) => {
+      const numbers = line.match(/Frames (\d+)-(\d+)/)?.slice(1).map(Number) ?? [];
+      return numbers.length === 2 && numbers[0]! >= 1 && numbers[1]! <= frameCount;
+    })).toBe(true);
+  });
+
+  it("rejects incompatible modifier combinations before compile", () => {
+    const dash = MOTION_RECIPES.find((item) => item.id === "dash")!;
+    const errors = validateMotionVariant(dash, {
+      topology: "quadruped",
+      frameCount: 8,
+      modifiers: normalizeMotionVariant({ weaponClass: "sword", handedness: "right" })
+    });
+    expect(errors).toEqual(expect.arrayContaining([expect.stringContaining("weaponClass"), expect.stringContaining("not allowed")]));
+    expect(() => compileMotionRecipe({
+      recipe: dash,
+      directions: ["side"],
+      topology: "quadruped",
+      frameCount: 8,
+      variant: { weaponClass: "sword", handedness: "right" }
+    })).toThrow("Invalid Motion Recipe variant");
+  });
+
+  it("adjusts QA thresholds with heavy, strong, long-travel variants", () => {
+    const recipe = MOTION_RECIPES.find((item) => item.id === "dash")!;
+    const baseline = compileMotionRecipeQaContract(recipe, { topology: "biped", frameCount: 8, variant: DEFAULT_MOTION_VARIANT });
+    const heavy = compileMotionRecipeQaContract(recipe, {
+      topology: "biped",
+      frameCount: 8,
+      variant: { ...DEFAULT_MOTION_VARIANT, intensity: "strong", weight: "heavy", travelAmount: "long" }
+    });
+    expect(heavy.motionRange[1]).toBeGreaterThan(baseline.motionRange[1]);
+    expect(heavy.rootDriftTolerancePx).toBeGreaterThan(baseline.rootDriftTolerancePx);
+  });
+
+  it.each([
+    ["biped", "footline", true],
+    ["quadruped", "paw-contact", false],
+    ["floating", "hover-height", false],
+    ["winged-flying", "wing-beat", false]
+  ] as const)("uses %s topology QA instead of a universal footline", (topology, contactQaDimension, footlineApplicable) => {
+    const recipe = MOTION_RECIPES.find((item) => item.id === "stun")!;
+    expect(compileMotionRecipeQaContract(recipe, { topology, frameCount: 8, variant: DEFAULT_MOTION_VARIANT })).toMatchObject({
+      bodyTopology: topology,
+      contactQaDimension,
+      footlineApplicable,
+      footlineTolerancePx: footlineApplicable ? expect.any(Number) : 0
+    });
   });
 });

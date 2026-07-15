@@ -69,6 +69,7 @@ type CodexJobRequest = {
   grid?: unknown;
   action?: string;
   frames?: number;
+  framesPerDirection?: number;
   cell?: unknown;
   chromaKey?: string;
   spriteVariant?: string;
@@ -83,11 +84,23 @@ type CodexJobRequest = {
   motionRecipeVersion?: number;
   motionRecipeCompilerVersion?: string;
   motionRecipeQualityProfile?: string;
+  motionRecipe?: unknown;
   presetId?: string;
   selectedImageAssetPath?: string;
   repairDirections?: unknown;
   repairOfJobId?: string;
   effectContext?: unknown;
+};
+
+type MotionRecipeContext = {
+  id: string;
+  version: number;
+  compilerVersion: string;
+  qualityProfile?: string;
+  bodyTopology?: string;
+  frameCount?: number;
+  modifiers?: Record<string, string>;
+  experimental?: boolean;
 };
 
 type AnimationGenerationProfile = "fast" | "balanced" | "best";
@@ -763,6 +776,7 @@ async function createCodexJob(body: CodexJobRequest) {
     spriteContext: {
       action: includeSpriteContext ? body.action ?? "" : "",
       frames: includeSpriteContext ? body.frames ?? 0 : 0,
+      framesPerDirection: includeSpriteContext ? normalizeMotionFrameCount(body.framesPerDirection) : undefined,
       grid: includeSpriteContext ? body.grid ?? null : null,
       cell: includeSpriteContext ? body.cell ?? null : null,
       chromaKey: includeSpriteContext ? body.chromaKey ?? "" : "",
@@ -974,6 +988,15 @@ async function recordAnimationTournamentEvaluationUnlocked(
   const jobId = typeof body.jobId === "string" ? body.jobId : "";
   const candidate = manifest.candidates.find((item) => item.jobId === jobId);
   if (!candidate) throw new Error("Tournament evaluation job was not registered.");
+  if (manifest.state === "accepted" && manifest.winnerCandidateId && !candidate.repairDirections?.length) {
+    const terminalState: AnimationTournamentCandidateState = candidate.jobId === manifest.winnerCandidateId ? "accepted" : "cancelled";
+    if (candidate.state !== terminalState) {
+      candidate.state = terminalState;
+      candidate.updatedAt = new Date().toISOString();
+      await writeAnimationTournamentManifest(manifest);
+    }
+    return manifest;
+  }
   // Candidate artifacts are immutable after terminal publication. Once a candidate has
   // passed evaluation, a later transient read/stability failure must not downgrade the
   // persisted score or replace its warning count with the client failure sentinel.
@@ -987,6 +1010,9 @@ async function recordAnimationTournamentEvaluationUnlocked(
   candidate.qualityReportRef = typeof body.qualityReportRef === "string" ? body.qualityReportRef.slice(0, 200) : candidate.qualityReportRef;
   if (candidate.qualityReportRef && !manifest.qualityReportRefs.includes(candidate.qualityReportRef)) manifest.qualityReportRefs.push(candidate.qualityReportRef);
   candidate.updatedAt = new Date().toISOString();
+  if (body.ready === true && manifest.state === "failed" && !manifest.winnerCandidateId) {
+    manifest.state = "running";
+  }
   const evaluationDirections = candidate.repairDirections?.length ? candidate.repairDirections : manifest.requestedDirections;
   if (body.ready === true) {
     evaluationDirections.forEach((direction) => {
@@ -1081,6 +1107,7 @@ async function startAnimationDirectionRepairUnlocked(tournamentId: string, reque
   }
 
   const template = parseJsonText<CodexJobRequest>(await readFile(animationTournamentTemplatePath(tournamentId), "utf8"));
+  const repairFrameCount = normalizeMotionFrameCount(template.framesPerDirection) ?? 8;
   const repairIndex = manifest.candidates.length;
   const idempotencyKey = `${manifest.idempotencyKey}:repair:${manifest.retryCount + 1}:${directions.map(directionSlug).sort().join("+")}`;
   const now = new Date().toISOString();
@@ -1101,8 +1128,9 @@ async function startAnimationDirectionRepairUnlocked(tournamentId: string, reque
   const body: CodexJobRequest = {
     ...template,
     directions,
-    grid: { columns: 8, rows: directions.length, gutter: 0 },
-    frames: 8 * directions.length,
+    grid: { columns: repairFrameCount, rows: directions.length, gutter: 0 },
+    frames: repairFrameCount * directions.length,
+    framesPerDirection: repairFrameCount,
     tournamentId,
     tournamentCandidateIndex: repairIndex,
     tournamentCandidateCount: repairIndex + 1,
@@ -1117,7 +1145,7 @@ async function startAnimationDirectionRepairUnlocked(tournamentId: string, reque
       `Regenerate only: ${directions.join(", ")}.`,
       `Accepted winner: ${manifest.winnerCandidateId}. Preserve all untargeted direction hashes exactly.`,
       `Accepted direction hashes: ${JSON.stringify(manifest.acceptedDirectionHashes)}.`,
-      "Use the same source fingerprint, motion recipe or preset, 8-frame contract, cell size, chroma key, adjacent direction pose language, timing, palette, silhouette, and footline."
+      `Use the same source fingerprint, motion recipe or preset, ${repairFrameCount}-frame contract, cell size, chroma key, adjacent direction pose language, timing, palette, silhouette, and topology-specific contact line.`
     ].filter(Boolean).join("\n")
   };
   const job = await createCodexJob(body);
@@ -1351,6 +1379,16 @@ function normalizeBoundedInteger(value: unknown, fallback: number, minimum: numb
     : fallback;
 }
 
+function normalizeMotionFrameCount(value: unknown) {
+  const parsed = typeof value === "number" && Number.isFinite(value) ? Math.floor(value) : Number(value);
+  return parsed === 4 || parsed === 6 || parsed === 8 || parsed === 12 ? parsed : undefined;
+}
+
+function directionSplitGridForFrameCount(value: number) {
+  if (value === 6) return { columns: 3, rows: 2, gutter: 0 };
+  return { columns: 4, rows: Math.max(1, Math.ceil(value / 4)), gutter: 0 };
+}
+
 function normalizeShortText(value: unknown) {
   return typeof value === "string" && value.trim() ? value.trim().slice(0, 160) : undefined;
 }
@@ -1360,13 +1398,25 @@ function normalizePositiveInteger(value: unknown) {
 }
 
 function normalizeMotionRecipeContext(body: CodexJobRequest) {
-  const id = normalizeShortText(body.motionRecipeId ?? body.presetId);
+  const raw = body.motionRecipe && typeof body.motionRecipe === "object"
+    ? body.motionRecipe as Record<string, unknown>
+    : undefined;
+  const id = normalizeShortText(raw?.id ?? body.motionRecipeId ?? body.presetId);
   if (!id) return undefined;
+  const modifiers = raw?.modifiers && typeof raw.modifiers === "object"
+    ? Object.fromEntries(Object.entries(raw.modifiers as Record<string, unknown>)
+        .filter((entry): entry is [string, string] => typeof entry[1] === "string")
+        .slice(0, 12))
+    : undefined;
   return {
     id,
-    version: normalizePositiveInteger(body.motionRecipeVersion) ?? 1,
-    compilerVersion: normalizeShortText(body.motionRecipeCompilerVersion) ?? "unknown",
-    qualityProfile: normalizeShortText(body.motionRecipeQualityProfile)
+    version: normalizePositiveInteger(raw?.version ?? body.motionRecipeVersion) ?? 1,
+    compilerVersion: normalizeShortText(raw?.compilerVersion ?? body.motionRecipeCompilerVersion) ?? "unknown",
+    qualityProfile: normalizeShortText(raw?.qualityProfile ?? body.motionRecipeQualityProfile),
+    bodyTopology: normalizeShortText(raw?.bodyTopology),
+    frameCount: normalizeMotionFrameCount(raw?.frameCount ?? body.framesPerDirection),
+    modifiers,
+    experimental: raw?.experimental === true || undefined
   };
 }
 
@@ -2000,8 +2050,9 @@ function buildCodexRunnerPrompt(job: { id: string; path: string; outboxDir: stri
     "For workflowMode=image-edit, inspect selectedImage.assetPath, use imagegen / built-in image_gen editing when available, follow numbered annotationContext region comments plus prompt/jobNotes, use imageRectNormalized/imageRectPixels when present, preserve the original canvas size/aspect ratio, keep the full character including head, hair, hands, equipment, and both feet visible, do not zoom, crop, or reframe into a portrait/detail shot, preserve transparency or use a flat chroma fallback, change only requested regions when possible, and return a real edited PNG or WebP with the job id filename prefix. Never create a procedural, SVG, canvas, diagram, geometric, or placeholder image.",
     "For workflowMode=sprite-generate, inspect selectedImage.assetPath, then use imagegen / built-in image_gen when available to create the requested sprite sheet assets from the source character image. Never create a procedural, SVG, canvas, diagram, geometric, or placeholder image.",
     "For workflowMode=sprite-generate, follow spriteContext.grid, spriteContext.cell, spriteContext.directions, spriteContext.variant, and spriteContext.chromaKey exactly. Keep one full-body character centered inside each strict cell with padding, no cropping, no duplicated heads, and no body parts crossing cells.",
-    "For workflowMode=sprite-generate with spriteContext.variant=standard, return exactly one separate direction PNG/WebP image per entry in spriteContext.directions, using the direction name with spaces replaced by dashes as the filename suffix (full set: front, front-three-quarter, side, back-three-quarter, back). If spriteContext.directions is empty, return all five. Each direction image must be 4 columns x 2 rows, 256x256 cells unless spriteContext.cell says otherwise. Do not return only one combined multi-direction sheet, and do not return directions that were not requested.",
-    "For workflowMode=sprite-generate with spriteContext.variant=standard, each of the eight cells in every direction image must be a distinct animation frame for spriteContext.action, not a repeated still pose. Static or nearly static rows are failed material even when the directions, padding, and chroma key are otherwise correct.",
+    "For workflowMode=sprite-generate with spriteContext.variant=standard, return exactly one separate direction PNG/WebP image per entry in spriteContext.directions, using the direction name with spaces replaced by dashes as the filename suffix (full set: front, front-three-quarter, side, back-three-quarter, back). If spriteContext.directions is empty, return all five. Follow spriteContext.framesPerDirection exactly: 4 frames use 4x1, 6 frames use 3x2, 8 frames use 4x2, and 12 frames use 4x3, with spriteContext.cell dimensions and no gutters. Do not return only one combined multi-direction sheet, and do not return directions that were not requested.",
+    "For workflowMode=sprite-generate with spriteContext.variant=standard, every populated cell in each direction image must be a distinct animation frame for spriteContext.action, not a repeated still pose. Static or nearly static rows are failed material even when the directions, padding, and chroma key are otherwise correct.",
+    "For workflowMode=sprite-generate with spriteContext.motionRecipe.bodyTopology, use its topology-specific contact and anchor contract. Never invent humanoid feet for quadruped, serpentine/body-contact, floating, winged-flying, or multi-leg characters; evaluate paw contact, body contact, hover height, wing beat, or multi-contact support instead.",
     "For idle breathing, the feet must stay planted but most of the requested direction sheets must show readable frame-to-frame breathing or secondary motion: 2-4px shoulder/chest/head change plus hair, scarf, cape, cloth, or equipment follow-through. Regenerate any direction whose frames look nearly identical before writing the final manifest.",
     "For standard direction-split output, keep generated direction images, source manifests, contact sheets, comparison sheets, QA files, and all candidates under outbox/.staging/<job-id>/ or another non-root work folder while work is still in progress. Do not write, copy, or manifest root outbox <job-id>-*.png or <job-id>-manifest.json until the complete requested direction set is normalized, self-checked, and no further regeneration is planned. The final runner step must publish only the requested final direction PNG/WebP files into the root outbox and write the final <job-id>-manifest.json last. Image Cockpit will verify artifacts after the runner has finished and may rewrite the manifest after completion.",
     "For workflowMode=sprite-generate, inspect all cells before writing the final file and retry if any head is cut off, feet are missing, a head appears below feet, scale changes wildly, or the background is not flat chroma key.",
@@ -2525,6 +2576,10 @@ async function inspectDirectionSplitArtifact(jobId: string, resultDir = outboxDi
   const candidateCount = bySlug.size + (sourceManifest ? 1 : 0);
   const expectedChromaKey = expectedSpriteContext.chromaKey;
   const expectedAction = expectedSpriteContext.action ?? normalizeActionValue(sourceManifest?.parsed?.action);
+  const expectedFramesPerDirection = expectedSpriteContext.framesPerDirection
+    ?? normalizeMotionFrameCount(sourceManifest?.parsed?.framesPerDirection)
+    ?? expectedSpriteContext.motionRecipe?.frameCount
+    ?? 8;
   const manifestChromaKey = normalizeChromaKeyValue(readManifestChromaKey(sourceManifest?.parsed));
   const manifestQualityGate = sourceManifest ? qualityGateFromManifest(sourceManifest.parsed) : null;
   const animationQuality = sourceManifest ? animationQualityFromManifest(sourceManifest.parsed) : undefined;
@@ -2703,7 +2758,7 @@ async function inspectDirectionSplitArtifact(jobId: string, resultDir = outboxDi
     };
   }
 
-  const manifestName = await publishVerifiedDirectionSplitArtifact(jobId, candidates, sourceManifest, expectedChromaKey, expectedAction, expectedSpriteContext.motionRecipe, warnings, resultDir, expectedSlugs);
+  const manifestName = await publishVerifiedDirectionSplitArtifact(jobId, candidates, sourceManifest, expectedChromaKey, expectedAction, expectedSpriteContext.motionRecipe, expectedFramesPerDirection, warnings, resultDir, expectedSlugs);
   const reason = warnings.length > 0 ? "server verified with warnings" : "server verified";
   return {
     jobId,
@@ -2844,7 +2899,8 @@ async function publishVerifiedDirectionSplitArtifact(
   sourceManifest: DirectionSplitSourceManifest,
   expectedChromaKey: string | undefined,
   expectedAction: string | undefined,
-  expectedMotionRecipe: { id: string; version: number; compilerVersion: string; qualityProfile?: string } | undefined,
+  expectedMotionRecipe: MotionRecipeContext | undefined,
+  expectedFramesPerDirection: number,
   warnings: string[],
   targetDir = outboxDir,
   expectedSlugs: string[] = directionSplitSlugs
@@ -2885,7 +2941,8 @@ async function publishVerifiedDirectionSplitArtifact(
       directions: expectedSlugs.map(directionNameForSlug),
       action: expectedAction,
       motionRecipe: expectedMotionRecipe ?? readManifestMotionRecipe(sourceManifest?.parsed),
-      framesPerDirection: 8,
+      framesPerDirection: expectedFramesPerDirection,
+      grid: directionSplitGridForFrameCount(expectedFramesPerDirection),
       files: Object.fromEntries(expectedSlugs.map((slug, index) => [directionNameForSlug(slug), `${jobId}-${slug}${extname(candidates[index]?.finalName ?? ".png") || ".png"}`])),
       chromaKey: expectedChromaKey ? { name: expectedChromaKey } : undefined,
       animationQuality: sourceManifest ? animationQualityFromManifest(sourceManifest.parsed) : undefined,
@@ -2910,16 +2967,18 @@ async function readJobExpectedSpriteContext(jobId: string): Promise<{
   action?: string;
   chromaKey?: string;
   directionSlugs?: string[];
-  motionRecipe?: { id: string; version: number; compilerVersion: string; qualityProfile?: string };
+  motionRecipe?: MotionRecipeContext;
+  framesPerDirection?: number;
 }> {
   try {
     const text = await readFile(join(inboxDir, `${jobId}.json`), "utf8");
-    const parsed = JSON.parse(text) as { spriteContext?: { action?: unknown; chromaKey?: unknown; directions?: unknown; motionRecipe?: unknown } };
+    const parsed = JSON.parse(text) as { spriteContext?: { action?: unknown; chromaKey?: unknown; directions?: unknown; motionRecipe?: unknown; framesPerDirection?: unknown } };
     return {
       action: normalizeActionValue(parsed.spriteContext?.action),
       chromaKey: normalizeChromaKeyValue(parsed.spriteContext?.chromaKey),
       directionSlugs: normalizeDirectionSlugsValue(parsed.spriteContext?.directions),
-      motionRecipe: readManifestMotionRecipeValue(parsed.spriteContext?.motionRecipe)
+      motionRecipe: readManifestMotionRecipeValue(parsed.spriteContext?.motionRecipe),
+      framesPerDirection: normalizeMotionFrameCount(parsed.spriteContext?.framesPerDirection)
     };
   } catch {
     return {};
@@ -3163,11 +3222,20 @@ function readManifestMotionRecipeValue(value: unknown) {
   const record = value as Record<string, unknown>;
   const id = normalizeShortText(record.id);
   if (!id) return undefined;
+  const modifiers = record.modifiers && typeof record.modifiers === "object" && !Array.isArray(record.modifiers)
+    ? Object.fromEntries(Object.entries(record.modifiers as Record<string, unknown>)
+        .filter((entry): entry is [string, string] => typeof entry[1] === "string")
+        .slice(0, 12))
+    : undefined;
   return {
     id,
     version: normalizePositiveInteger(record.version) ?? 1,
     compilerVersion: normalizeShortText(record.compilerVersion) ?? "unknown",
-    qualityProfile: normalizeShortText(record.qualityProfile)
+    qualityProfile: normalizeShortText(record.qualityProfile),
+    bodyTopology: normalizeShortText(record.bodyTopology),
+    frameCount: normalizeMotionFrameCount(record.frameCount),
+    modifiers,
+    experimental: record.experimental === true || undefined
   };
 }
 
@@ -3499,6 +3567,7 @@ async function publishTournamentWinnerUnlocked(tournamentId: string, jobId: stri
     expectedChromaKey,
     expectedAction,
     expectedSpriteContext.motionRecipe,
+    expectedSpriteContext.framesPerDirection ?? 8,
     artifact.warnings,
     outboxDir,
     expectedSlugs

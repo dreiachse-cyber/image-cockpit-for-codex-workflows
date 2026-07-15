@@ -409,6 +409,16 @@ async function runManualHandoffSmoke() {
     assert(transientRegression.tournament.candidates[0].warningCount === 2, "transient reread should preserve the evaluated warning count");
     const acceptedWinner = await postJson(port, `/api/codex/tournaments/${persistentTournamentId}/winner`, { jobId: candidateA.job.id });
     assert(acceptedWinner.tournament.state === "accepted", "verified candidate should become the persistent tournament winner");
+    const lateWinnerEvaluation = await postJson(port, `/api/codex/tournaments/${persistentTournamentId}/evaluation`, {
+      jobId: candidateA.job.id,
+      ready: true,
+      score: 3200,
+      warningCount: 9,
+      reason: "late client evaluation after winner publish"
+    });
+    assert(lateWinnerEvaluation.tournament.state === "accepted", "late winner evaluation should preserve the accepted tournament state");
+    assert(lateWinnerEvaluation.tournament.candidates[0].state === "accepted", "late winner evaluation should not regress the accepted candidate state");
+    assert(Object.values(lateWinnerEvaluation.tournament.directionStates).every((direction) => direction.state === "accepted"), "late winner evaluation should preserve accepted direction states");
     const failedRepair = await postJson(port, `/api/codex/tournaments/${persistentTournamentId}/repairs`, { directions: ["side"] });
     await postJson(port, `/api/codex/tournaments/${persistentTournamentId}/evaluation`, {
       jobId: failedRepair.job.id,
@@ -450,6 +460,35 @@ async function runManualHandoffSmoke() {
     assert(acceptedRepair.tournament.directionStates.front.jobId === candidateA.job.id, "accepted Direction Repair should attribute untargeted directions to the preserved winner");
     const cancelledTournament = await postJson(port, `/api/codex/tournaments/${persistentTournamentId}/cancel`, {});
     assert(cancelledTournament.tournament.state === "cancelled", "tournament cancel should persist a terminal cancelled state");
+
+    const delayedRecoveryTournamentId = "smoke-delayed-artifact-recovery";
+    await postJson(port, "/api/codex/tournaments", {
+      ...tournamentRegistration,
+      tournamentId: delayedRecoveryTournamentId,
+      idempotencyKey: "smoke:delayed-artifact-recovery:v1",
+      generationProfile: "fast",
+      maximumCandidateCount: 1,
+      initialCandidateCount: 1,
+      clientContext: { ...tournamentRegistration.clientContext, label: "Smoke delayed artifact recovery" }
+    });
+    const delayedRecoveryCandidate = await postJson(port, `/api/codex/tournaments/${delayedRecoveryTournamentId}/candidates`, { candidateIndex: 0 });
+    await postJson(port, `/api/codex/tournaments/${delayedRecoveryTournamentId}/evaluation`, {
+      jobId: delayedRecoveryCandidate.job.id,
+      ready: false,
+      warningCount: 0,
+      reason: "transient client fetch failure"
+    });
+    const failedDelayedRecovery = await getJson(port, `/api/codex/tournaments/${delayedRecoveryTournamentId}`);
+    assert(failedDelayedRecovery.tournament.state === "failed", "a sole failed candidate should move the tournament to failed");
+    const recoveredDelayedEvaluation = await postJson(port, `/api/codex/tournaments/${delayedRecoveryTournamentId}/evaluation`, {
+      jobId: delayedRecoveryCandidate.job.id,
+      ready: true,
+      score: 3300,
+      warningCount: 4,
+      reason: "verified artifacts arrived after the transient failure"
+    });
+    assert(recoveredDelayedEvaluation.tournament.state === "running", "a delayed verified artifact evaluation should recover a failed tournament");
+    assert(recoveredDelayedEvaluation.tournament.candidates[0].state === "quality-evaluated", "delayed verified artifacts should restore the candidate evaluation");
 
     const tournamentJob = await postJson(port, "/api/codex/jobs", {
       workflowMode: "sprite-generate",
@@ -503,30 +542,54 @@ async function runManualHandoffSmoke() {
       workflowMode: "sprite-generate",
       prompt: "Smoke test sprite sheet generation",
       negativePrompt: "text",
-      jobNotes: "Create a 4x2 idle sheet with transparent background.",
+      jobNotes: "Create a 4x3 12-frame dash sheet per requested direction with transparent background.",
       selectedImageName: "tiny.png",
       selectedImageSize: "1x1",
       selectedImageSource: "sample",
       selectedImageDataUrl: tinyPng,
       annotations: [{ id: "ann-sprite-ignored", tool: "rect", color: "#00ff00", points: [{ x: 0, y: 0 }] }],
-      grid: { columns: 4, rows: 2, gutter: 1 },
-      action: "idle",
-      frames: 8,
+      grid: { columns: 12, rows: 5, gutter: 0 },
+      action: "dash",
+      frames: 60,
+      framesPerDirection: 12,
       cell: { width: 512, height: 512 },
       chromaKey: "green",
       spriteVariant: "standard",
-      directions: ["front", "front three-quarter", "side", "back three-quarter", "back"]
+      directions: ["front", "front three-quarter", "side", "back three-quarter", "back"],
+      motionRecipe: {
+        id: "dash",
+        version: 1,
+        compilerVersion: "1.1.0",
+        qualityProfile: "airborne-or-exempt",
+        bodyTopology: "quadruped",
+        frameCount: 12,
+        modifiers: {
+          intensity: "strong",
+          tempo: "fast",
+          weight: "heavy",
+          exaggeration: "high",
+          handedness: "inherit",
+          weaponClass: "none",
+          travelAmount: "short",
+          secondaryMotionLevel: "high",
+          vfxAmount: "low"
+        },
+        experimental: true
+      }
     });
     const spriteGenerateJobJson = JSON.parse(await readFile(spriteGenerateJob.path, "utf8"));
     assert(spriteGenerateJobJson.workflowMode === "sprite-generate", "sprite generation job should include workflowMode");
     assert(spriteGenerateJobJson.intent.includes("chroma-key animation sprite sheet"), "sprite generation job should include sprite intent");
-    assert(spriteGenerateJobJson.spriteContext.frames === 8, "sprite generation job should include sprite frame count");
-    assert(spriteGenerateJobJson.spriteContext.grid.columns === 4, "sprite generation job should include sprite grid columns");
-    assert(spriteGenerateJobJson.spriteContext.action === "idle", "sprite generation job should include action");
+    assert(spriteGenerateJobJson.spriteContext.frames === 60, "sprite generation job should include total sprite frame count");
+    assert(spriteGenerateJobJson.spriteContext.framesPerDirection === 12, "sprite generation job should preserve the selected frame budget");
+    assert(spriteGenerateJobJson.spriteContext.grid.columns === 12, "sprite generation job should preserve the final sheet grid columns");
+    assert(spriteGenerateJobJson.spriteContext.action === "dash", "sprite generation job should include action");
     assert(spriteGenerateJobJson.spriteContext.cell.width === 512, "sprite generation job should include cell size");
     assert(spriteGenerateJobJson.spriteContext.chromaKey === "green", "sprite generation job should include chroma key");
     assert(spriteGenerateJobJson.spriteContext.variant === "standard", "sprite generation job should include the standard variant");
     assert(spriteGenerateJobJson.spriteContext.directions.length === 5, "sprite generation job should include five direction rows");
+    assert(spriteGenerateJobJson.spriteContext.motionRecipe.bodyTopology === "quadruped", "sprite generation job should preserve topology metadata");
+    assert(spriteGenerateJobJson.spriteContext.motionRecipe.modifiers.weight === "heavy", "sprite generation job should preserve structured modifiers");
     assert(spriteGenerateJobJson.selectedImage.assetPath, "sprite generation job should attach the source image");
     assert(spriteGenerateJobJson.annotationContext.annotationCount === 0, "sprite generation job should not carry edit annotations");
     assert(

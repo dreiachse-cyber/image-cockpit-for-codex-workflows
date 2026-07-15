@@ -621,7 +621,20 @@ async function assertAnimationPresetExamples() {
     { title: "Item Use", className: "sample-item-sheet", sheet: "item-use-sheet.png", direction: "normal", playback: "normal playback", includeMessage: "Choose Animation should include the Item Use animation card" },
     { title: "Talk / NPC Reaction", className: "sample-talk-sheet", sheet: "talk-sheet.png", direction: "normal", playback: "normal loop", includeMessage: "Choose Animation should include the Talk / NPC Reaction animation card" }
   ];
-  assert(snapshot.animationPresetModalSampleSprites === expectedAnimationPresetSamples.length, `Choose Animation should show 16 verified animated sprite samples, got ${snapshot.animationPresetModalSampleSprites}`);
+  assert(snapshot.animationPresetModalSampleSprites === 22, `Choose Animation should show 16 verified and 6 experimental animated samples, got ${snapshot.animationPresetModalSampleSprites}`);
+  const repertoireStatus = await evaluate(`(() => {
+    const cards = [...document.querySelectorAll(".animation-preset-modal .animation-preset-card")];
+    return {
+      verified: cards.filter((card) => [...card.querySelectorAll("small")].some((item) => item.textContent?.trim() === "Verified")).length,
+      experimental: cards.filter((card) => [...card.querySelectorAll("small")].some((item) => item.textContent?.trim() === "Experimental")).length,
+      titles: cards.map((card) => card.textContent || "")
+    };
+  })()`);
+  assert(repertoireStatus.verified === 16, `Choose Animation should keep 16 verified Recipes, got ${repertoireStatus.verified}`);
+  assert(repertoireStatus.experimental === 6, `Choose Animation should expose 6 experimental Recipes, got ${repertoireStatus.experimental}`);
+  ["Dash", "Dodge Roll / Backstep", "Charge / Heavy Attack", "Combo Attack", "Stun", "Get Up"].forEach((title) => {
+    assert(repertoireStatus.titles.some((text) => text.includes(title)), `Choose Animation should include experimental ${title}`);
+  });
   for (const sample of expectedAnimationPresetSamples) {
     assert(snapshot.text.includes(sample.title), sample.includeMessage);
     const usesGeneratedSheet = await evaluate(`(() => {
@@ -2651,13 +2664,18 @@ const cellWidth = Number(job.spriteContext?.cell?.width || 256);
 const cellHeight = Number(job.spriteContext?.cell?.height || 256);
 const chroma = job.spriteContext?.chromaKey === "magenta" ? [255, 0, 255, 255] : [0, 255, 0, 255];
 if (job.spriteContext?.variant === "standard") {
+  const framesPerDirection = [4, 6, 8, 12].includes(Number(job.spriteContext?.framesPerDirection))
+    ? Number(job.spriteContext.framesPerDirection)
+    : 8;
+  const directionColumns = framesPerDirection === 6 ? 3 : 4;
+  const directionRows = framesPerDirection === 4 ? 1 : framesPerDirection === 12 ? 3 : 2;
   const directionSlugs = ["front", "front-three-quarter", "side", "back-three-quarter", "back"];
   const directionNames = ["front", "front three-quarter", "side", "back three-quarter", "back"];
   if (existsSync(${JSON.stringify(mockManifestFirstDirectionSplitMarkerPath)})) {
     await rm(${JSON.stringify(mockManifestFirstDirectionSplitMarkerPath)}, { force: true });
     for (const [index, slug] of directionSlugs.entries()) {
       if (slug === "side") continue;
-      const png = makeSpriteSheetPng(cellWidth * 4, cellHeight * 2, 4, 2, cellWidth, cellHeight, chroma, index);
+      const png = makeSpriteSheetPng(cellWidth * directionColumns, cellHeight * directionRows, directionColumns, directionRows, cellWidth, cellHeight, chroma, index);
       await writeFile(join(outboxDir, \`\${jobId}-\${slug}.png\`), png);
     }
     await writeFile(join(outboxDir, \`\${jobId}-manifest.json\`), JSON.stringify({
@@ -2665,15 +2683,15 @@ if (job.spriteContext?.variant === "standard") {
       jobId,
       action: job.spriteContext?.action || "idle",
       directions: directionNames,
-      framesPerDirection: 8,
-      grid: { columns: 4, rows: 2, gutter: 0 },
+      framesPerDirection,
+      grid: { columns: directionColumns, rows: directionRows, gutter: 0 },
       cell: { width: cellWidth, height: cellHeight },
       files: Object.fromEntries(directionSlugs.map((slug, index) => [directionNames[index], \`\${jobId}-\${slug}.png\`]))
     }, null, 2), "utf8");
     console.log(\`mock manifest-first direction split waiting for side \${jobId}\`);
     await new Promise((resolve) => setTimeout(resolve, 5200));
     const sideIndex = directionSlugs.indexOf("side");
-    const sidePng = makeSpriteSheetPng(cellWidth * 4, cellHeight * 2, 4, 2, cellWidth, cellHeight, chroma, sideIndex);
+    const sidePng = makeSpriteSheetPng(cellWidth * directionColumns, cellHeight * directionRows, directionColumns, directionRows, cellWidth, cellHeight, chroma, sideIndex);
     await writeFile(join(outboxDir, \`\${jobId}-side.png\`), sidePng);
     console.log(\`mock manifest-first direction split recovered \${jobId}\`);
     process.exit(0);
@@ -2682,13 +2700,13 @@ if (job.spriteContext?.variant === "standard") {
     await rm(${JSON.stringify(mockPartialDirectionSplitMarkerPath)}, { force: true });
     for (const [index, slug] of directionSlugs.entries()) {
       if (index > 1) continue;
-      const png = makeSpriteSheetPng(cellWidth * 4, cellHeight * 2, 4, 2, cellWidth, cellHeight, chroma, index);
+      const png = makeSpriteSheetPng(cellWidth * directionColumns, cellHeight * directionRows, directionColumns, directionRows, cellWidth, cellHeight, chroma, index);
       await writeFile(join(outboxDir, \`\${jobId}-\${slug}.png\`), png);
     }
     console.log(\`mock partial direction split waiting for manifest \${jobId}\`);
     await new Promise((resolve) => setTimeout(resolve, 5200));
     for (const [index, slug] of directionSlugs.entries()) {
-      const png = makeSpriteSheetPng(cellWidth * 4, cellHeight * 2, 4, 2, cellWidth, cellHeight, chroma, index);
+      const png = makeSpriteSheetPng(cellWidth * directionColumns, cellHeight * directionRows, directionColumns, directionRows, cellWidth, cellHeight, chroma, index);
       await writeFile(join(outboxDir, \`\${jobId}-\${slug}.png\`), png);
     }
     await writeFile(join(outboxDir, \`\${jobId}-qa.json\`), JSON.stringify({ status: "pass", ignoredByUi: true }, null, 2), "utf8");
@@ -2697,8 +2715,8 @@ if (job.spriteContext?.variant === "standard") {
       jobId,
       action: job.spriteContext?.action || "idle",
       directions: directionNames,
-      framesPerDirection: 8,
-      grid: { columns: 4, rows: 2, gutter: 0 },
+      framesPerDirection,
+      grid: { columns: directionColumns, rows: directionRows, gutter: 0 },
       cell: { width: cellWidth, height: cellHeight },
       files: Object.fromEntries(directionSlugs.map((slug, index) => [directionNames[index], \`\${jobId}-\${slug}.png\`]))
     }, null, 2), "utf8");
@@ -2707,7 +2725,7 @@ if (job.spriteContext?.variant === "standard") {
   }
   if (existsSync(${JSON.stringify(mockQualityGateFailureMarkerPath)})) {
     for (const [index, slug] of directionSlugs.entries()) {
-      const png = makeSpriteSheetPng(cellWidth * 4, cellHeight * 2, 4, 2, cellWidth, cellHeight, chroma, index);
+      const png = makeSpriteSheetPng(cellWidth * directionColumns, cellHeight * directionRows, directionColumns, directionRows, cellWidth, cellHeight, chroma, index);
       await writeFile(join(outboxDir, \`\${jobId}-\${slug}.png\`), png);
     }
     await writeFile(join(outboxDir, \`\${jobId}-manifest.json\`), JSON.stringify({
@@ -2715,8 +2733,8 @@ if (job.spriteContext?.variant === "standard") {
       jobId,
       action: job.spriteContext?.action || "idle",
       directions: directionNames,
-      framesPerDirection: 8,
-      grid: { columns: 4, rows: 2, gutter: 0 },
+      framesPerDirection,
+      grid: { columns: directionColumns, rows: directionRows, gutter: 0 },
       cell: { width: cellWidth, height: cellHeight },
       files: Object.fromEntries(directionSlugs.map((slug, index) => [directionNames[index], \`\${jobId}-\${slug}.png\`])),
       qualityGate: {
@@ -2734,7 +2752,7 @@ if (job.spriteContext?.variant === "standard") {
   if (existsSync(${JSON.stringify(mockImportFailureMarkerPath)})) {
     for (const [index, slug] of directionSlugs.entries()) {
       if (slug === "side") continue;
-      const png = makeSpriteSheetPng(cellWidth * 4, cellHeight * 2, 4, 2, cellWidth, cellHeight, chroma, index);
+      const png = makeSpriteSheetPng(cellWidth * directionColumns, cellHeight * directionRows, directionColumns, directionRows, cellWidth, cellHeight, chroma, index);
       await writeFile(join(outboxDir, \`\${jobId}-\${slug}.png\`), png);
     }
     await writeFile(join(outboxDir, \`\${jobId}-manifest.json\`), JSON.stringify({
@@ -2742,8 +2760,8 @@ if (job.spriteContext?.variant === "standard") {
       jobId,
       action: job.spriteContext?.action || "idle",
       directions: directionNames,
-      framesPerDirection: 8,
-      grid: { columns: 4, rows: 2, gutter: 0 },
+      framesPerDirection,
+      grid: { columns: directionColumns, rows: directionRows, gutter: 0 },
       cell: { width: cellWidth, height: cellHeight },
       files: Object.fromEntries(directionSlugs.map((slug, index) => [directionNames[index], \`\${jobId}-\${slug}.png\`]))
     }, null, 2), "utf8");
@@ -2751,7 +2769,7 @@ if (job.spriteContext?.variant === "standard") {
     process.exit(0);
   }
   for (const [index, slug] of directionSlugs.entries()) {
-    const png = makeSpriteSheetPng(cellWidth * 4, cellHeight * 2, 4, 2, cellWidth, cellHeight, chroma, index);
+    const png = makeSpriteSheetPng(cellWidth * directionColumns, cellHeight * directionRows, directionColumns, directionRows, cellWidth, cellHeight, chroma, index);
     await writeFile(join(outboxDir, \`\${jobId}-\${slug}.png\`), png);
   }
   await writeFile(join(outboxDir, \`\${jobId}-manifest.json\`), JSON.stringify({
@@ -2759,8 +2777,8 @@ if (job.spriteContext?.variant === "standard") {
     jobId,
     action: job.spriteContext?.action || "idle",
     directions: directionNames,
-    framesPerDirection: 8,
-    grid: { columns: 4, rows: 2, gutter: 0 },
+    framesPerDirection,
+    grid: { columns: directionColumns, rows: directionRows, gutter: 0 },
     cell: { width: cellWidth, height: cellHeight },
     files: Object.fromEntries(directionSlugs.map((slug, index) => [directionNames[index], \`\${jobId}-\${slug}.png\`]))
   }, null, 2), "utf8");

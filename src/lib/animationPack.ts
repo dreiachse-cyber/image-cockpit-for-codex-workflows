@@ -159,12 +159,69 @@ function readMotionRecipeMetadata(value: unknown): AnimationPackManifest["motion
   const qualityProfiles = new Set(["grounded-strict", "grounded-soft", "airborne-or-exempt", "subtle-loop"]);
   const qualityProfile = readRequiredString(value, "qualityProfile");
   if (!qualityProfiles.has(qualityProfile)) throw new Error("Animation pack motionRecipe qualityProfile is invalid.");
+  const bodyTopology = readOptionalEnum(value.bodyTopology, "motionRecipe.bodyTopology", [
+    "biped",
+    "quadruped",
+    "serpentine-or-body-contact",
+    "floating",
+    "winged-flying",
+    "multi-leg"
+  ] as const);
+  const frameCount = value.frameCount === undefined
+    ? undefined
+    : readSupportedMotionFrameCount(value.frameCount);
+  const modifiers = readMotionRecipeModifiers(value.modifiers);
+  if (value.experimental !== undefined && typeof value.experimental !== "boolean") {
+    throw new Error("Animation pack motionRecipe.experimental must be a boolean.");
+  }
   return {
     id: readRequiredString(value, "id"),
     version: readPositiveInteger(value.version, "motionRecipe.version"),
     compilerVersion: readRequiredString(value, "compilerVersion"),
-    qualityProfile: qualityProfile as NonNullable<AnimationPackManifest["motionRecipe"]>["qualityProfile"]
+    qualityProfile: qualityProfile as NonNullable<AnimationPackManifest["motionRecipe"]>["qualityProfile"],
+    bodyTopology,
+    frameCount,
+    modifiers,
+    experimental: value.experimental as boolean | undefined
   };
+}
+
+function readSupportedMotionFrameCount(value: unknown): 4 | 6 | 8 | 12 {
+  const frameCount = readPositiveInteger(value, "motionRecipe.frameCount");
+  if (frameCount !== 4 && frameCount !== 6 && frameCount !== 8 && frameCount !== 12) {
+    throw new Error("Animation pack motionRecipe.frameCount must be 4, 6, 8, or 12.");
+  }
+  return frameCount;
+}
+
+function readMotionRecipeModifiers(value: unknown): NonNullable<NonNullable<AnimationPackManifest["motionRecipe"]>["modifiers"]> | undefined {
+  if (value === undefined || value === null) return undefined;
+  if (!isRecord(value)) throw new Error("Animation pack motionRecipe.modifiers must be a JSON object.");
+  return {
+    intensity: readRequiredEnum(value, "intensity", ["subtle", "normal", "strong"] as const),
+    tempo: readRequiredEnum(value, "tempo", ["slow", "normal", "fast"] as const),
+    weight: readRequiredEnum(value, "weight", ["light", "normal", "heavy"] as const),
+    exaggeration: readRequiredEnum(value, "exaggeration", ["low", "normal", "high"] as const),
+    handedness: readRequiredEnum(value, "handedness", ["inherit", "left", "right", "ambidextrous"] as const),
+    weaponClass: readRequiredEnum(value, "weaponClass", ["none", "unarmed", "sword", "heavy-weapon", "polearm", "bow", "firearm", "staff", "shield"] as const),
+    travelAmount: readRequiredEnum(value, "travelAmount", ["in-place", "short", "medium", "long"] as const),
+    secondaryMotionLevel: readRequiredEnum(value, "secondaryMotionLevel", ["low", "normal", "high"] as const),
+    vfxAmount: readRequiredEnum(value, "vfxAmount", ["none", "low", "normal", "high"] as const)
+  };
+}
+
+function readRequiredEnum<const T extends readonly string[]>(value: Record<string, unknown>, field: string, allowed: T): T[number] {
+  const parsed = readOptionalEnum(value[field], `motionRecipe.modifiers.${field}`, allowed);
+  if (!parsed) throw new Error(`Animation pack motionRecipe.modifiers.${field} is required.`);
+  return parsed;
+}
+
+function readOptionalEnum<const T extends readonly string[]>(value: unknown, field: string, allowed: T): T[number] | undefined {
+  if (value === undefined || value === null) return undefined;
+  if (typeof value !== "string" || !allowed.includes(value)) {
+    throw new Error(`Animation pack ${field} is invalid.`);
+  }
+  return value as T[number];
 }
 
 function readStringArray(value: unknown, field: string) {
@@ -206,6 +263,17 @@ async function zipEntryToDataUrl(entry: JSZip.JSZipObject, fallbackMime: string)
 }
 
 function blobToDataUrl(blob: Blob) {
+  if (typeof FileReader === "undefined") {
+    return blob.arrayBuffer().then((buffer) => {
+      const bytes = new Uint8Array(buffer);
+      let binary = "";
+      const chunkSize = 0x8000;
+      for (let offset = 0; offset < bytes.length; offset += chunkSize) {
+        binary += String.fromCharCode(...bytes.subarray(offset, offset + chunkSize));
+      }
+      return `data:${blob.type || "application/octet-stream"};base64,${btoa(binary)}`;
+    });
+  }
   return new Promise<string>((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => resolve(String(reader.result));

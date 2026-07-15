@@ -28,6 +28,9 @@ export interface BuildAnimationQualityReportInput {
     expectedPhases: string[];
     loopExpected?: boolean;
     loopSeamRequired?: boolean;
+    bodyTopology?: "biped" | "quadruped" | "serpentine-or-body-contact" | "floating" | "winged-flying" | "multi-leg";
+    contactQaDimension?: "footline" | "paw-contact" | "body-contact" | "hover-height" | "wing-beat" | "multi-contact";
+    footlineApplicable?: boolean;
   };
   rawFrames: AnimationQualityFrameInput[];
   normalizedFrames: AnimationQualityFrameInput[];
@@ -75,7 +78,7 @@ export function buildAnimationQualityReport(input: BuildAnimationQualityReportIn
   const normalizedMetrics = buildMetricSet(input.normalizedFrames, loopExpected);
   const normalizationCorrection = summarizeCorrections(input.corrections);
   const identity = scoreIdentity(input.normalizedFrames, input.referenceFrame);
-  const footlineScore = scoreFootline(rawMetrics, actionProfile);
+  const footlineScore = input.contract?.footlineApplicable === false ? 100 : scoreFootline(rawMetrics, actionProfile);
   const loopSeamScore = loopExpected ? scoreLoopSeam(normalizedMetrics) : null;
   const motionScore = scoreMotion(normalizedMetrics.averageMotion, actionProfile);
   const phaseScore = scorePhase(normalizedMetrics);
@@ -99,6 +102,9 @@ export function buildAnimationQualityReport(input: BuildAnimationQualityReportIn
     recordedAt: input.recordedAt ?? new Date().toISOString(),
     action,
     actionProfile,
+    bodyTopology: input.contract?.bodyTopology,
+    contactQaDimension: input.contract?.contactQaDimension,
+    footlineApplicable: input.contract?.footlineApplicable,
     expectedPhases: input.contract?.expectedPhases ?? animationActionExpectedPhases(action),
     loopExpected,
     rawMetrics,
