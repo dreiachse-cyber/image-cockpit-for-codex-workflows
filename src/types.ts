@@ -20,6 +20,9 @@ export interface HistoryItem {
   animationDirections?: string[];
   animationQuality?: AnimationQualityReportV2;
   motionRecipe?: MotionRecipeMetadata;
+  animationPackV2?: AnimationPackV2;
+  animationGenerationProfile?: "fast" | "balanced" | "best";
+  animationSourceFingerprint?: string;
 }
 
 export interface MotionRecipeMetadata {
@@ -261,12 +264,116 @@ export interface AnimationPackManifest {
   };
 }
 
+export type AnimationPackV2LoopMode = "loop" | "one-shot" | "ping-pong";
+export type AnimationPackV2Origin = "recipe" | "user";
+export type AnimationPackV2EventType = "startup" | "active" | "impact" | "recovery" | "loop-point" | "custom";
+
+export interface AnimationPackV2Frame {
+  id: string;
+  direction: string;
+  sourceFrameIndex: number;
+  sheetRect: ImageRectCoordinates;
+  fileRef?: string;
+  transparent?: boolean;
+}
+
+export interface AnimationPackV2Event {
+  id: string;
+  type: AnimationPackV2EventType;
+  name: string;
+  frameIndex: number;
+  origin: AnimationPackV2Origin;
+  direction?: string;
+}
+
+export interface AnimationPackV2Point {
+  id: string;
+  name: string;
+  frameIndex: number;
+  x: number;
+  y: number;
+  origin: AnimationPackV2Origin;
+  direction?: string;
+}
+
+export interface AnimationPackV2Rect {
+  id: string;
+  name: string;
+  frameIndex: number;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  origin: AnimationPackV2Origin;
+  direction?: string;
+}
+
+export interface AnimationPackV2DirectionOverride {
+  frameOrder?: number[];
+  frameDurations?: number[];
+  events?: AnimationPackV2Event[];
+}
+
+export interface AnimationPackV2 {
+  schema: "image-cockpit.animation.v2";
+  schemaVersion: 2;
+  title: string;
+  kind: AnimationLibraryKind;
+  actionId: string;
+  recipeId: string;
+  recipeVersion: number;
+  compilerVersion: string;
+  sourceFingerprint: string;
+  directions: string[];
+  frames: AnimationPackV2Frame[];
+  frameOrder: number[];
+  frameDurations: number[];
+  defaultFps: number;
+  loopMode: AnimationPackV2LoopMode;
+  events: AnimationPackV2Event[];
+  pivots: AnimationPackV2Point[];
+  anchors: AnimationPackV2Point[];
+  sockets: AnimationPackV2Point[];
+  hitboxes: AnimationPackV2Rect[];
+  hurtboxes: AnimationPackV2Rect[];
+  trimRects: AnimationPackV2Rect[];
+  directionOverrides?: Record<string, AnimationPackV2DirectionOverride>;
+  qualitySummary: {
+    rank: "gold" | "silver" | "bronze" | "failed" | "unknown";
+    warningCount: number;
+    loopSeamScore: number | null;
+    identityScore: number | null;
+  };
+  generationProfile: "fast" | "balanced" | "best" | "unknown";
+  provenance: {
+    createdAt: string;
+    createdWith: string;
+    sourceName?: string;
+    sourceJobId?: string;
+    migratedFrom?: "image-cockpit.animation.v1";
+  };
+  grid: GridSettings;
+  cell: { width: number; height: number };
+  files: {
+    sheet: string;
+    metadata: string;
+    engine: {
+      generic: string;
+      godot: string;
+      phaser: string;
+      aseprite: string;
+      unity: string;
+    };
+  };
+}
+
 export interface AnimationLibraryItem {
   id: string;
   kind: AnimationLibraryKind;
   title: string;
   action: string;
   manifest: AnimationPackManifest;
+  packV2?: AnimationPackV2;
   previewDataUrl?: string;
   previewWebpDataUrl?: string;
   previewApngDataUrl?: string;

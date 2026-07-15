@@ -1,6 +1,7 @@
 import JSZip from "jszip";
 import type { AnimationLibraryItem, AnimationPackManifest } from "../types";
 import { createId } from "./image";
+import { ANIMATION_PACK_V2_SCHEMA, migrateAnimationPackV1, packV2ToLegacyManifest, validateAnimationPackV2 } from "./animationPackV2";
 
 export const ANIMATION_PACK_SCHEMA = "image-cockpit.animation.v1";
 const MAX_PACK_SIZE_BYTES = 30 * 1024 * 1024;
@@ -16,7 +17,32 @@ export async function importAnimationPackBlob(blob: Blob, fileName = "animation-
   const manifestEntry = zip.file("manifest.json");
   if (!manifestEntry) throw new Error("Animation pack is missing manifest.json.");
 
-  const manifest = validateAnimationPackManifest(JSON.parse(await manifestEntry.async("string")));
+  const rawManifest: unknown = JSON.parse(await manifestEntry.async("string"));
+  if (isRecord(rawManifest) && rawManifest.schema === ANIMATION_PACK_V2_SCHEMA) {
+    const packV2 = validateAnimationPackV2(rawManifest);
+    const sheetEntry = zip.file(packV2.files.sheet);
+    if (!sheetEntry) throw new Error("Animation pack is missing its sheet image.");
+    const importedAt = new Date().toISOString();
+    const userPackV2 = {
+      ...packV2,
+      kind: "user" as const,
+      title: packV2.title.trim() || fileName.replace(/\.[^.]+$/, "") || "Imported Animation"
+    };
+    const manifest = packV2ToLegacyManifest(userPackV2);
+    return {
+      id: createId("animlib"),
+      kind: "user",
+      title: userPackV2.title,
+      action: userPackV2.actionId,
+      manifest,
+      packV2: userPackV2,
+      sheetDataUrl: await zipEntryToDataUrl(sheetEntry, "image/png"),
+      importedAt,
+      updatedAt: importedAt
+    };
+  }
+
+  const manifest = validateAnimationPackManifest(rawManifest);
   const sheetEntry = zip.file(manifest.files.sheet);
   if (!sheetEntry) throw new Error("Animation pack is missing its sheet image.");
 
@@ -37,6 +63,7 @@ export async function importAnimationPackBlob(blob: Blob, fileName = "animation-
     title: userManifest.title,
     action: userManifest.action,
     manifest: userManifest,
+    packV2: migrateAnimationPackV1(userManifest),
     previewDataUrl: previewEntry ? await zipEntryToDataUrl(previewEntry, "image/gif") : undefined,
     previewWebpDataUrl: previewWebpEntry ? await zipEntryToDataUrl(previewWebpEntry, "image/webp") : undefined,
     previewApngDataUrl: previewApngEntry ? await zipEntryToDataUrl(previewApngEntry, "image/apng") : undefined,

@@ -1,0 +1,65 @@
+{
+  "schema": "image-cockpit.animation-pack-v2-roundtrip-qa.v1",
+  "generatedAt": "2026-07-15T09:36:00+09:00",
+  "branch": "codex/animation-uplift-sequence",
+  "status": "complete",
+  "packSchema": "image-cockpit.animation.v2",
+  "packSchemaVersion": 2,
+  "coverage": {
+    "frameBudgets": [4, 6, 8, 12],
+    "directionCounts": [3, 5],
+    "loopModes": ["loop", "one-shot", "ping-pong"],
+    "metadata": ["events", "pivots", "anchors", "sockets", "hitboxes", "hurtboxes", "trimRects"],
+    "engines": ["generic", "godot", "phaser", "aseprite", "unity-common"]
+  },
+  "compatibility": {
+    "v1Migration": "passed-equal-duration-from-12fps",
+    "legacyPingPong": "passed",
+    "v2SemanticRoundTrip": "passed-exact",
+    "unknownSchemaReject": "passed",
+    "unsafeWindowsSeparatorReject": "passed",
+    "unicodeTitle": "passed",
+    "transparentFrameFlag": "passed"
+  },
+  "browserTrials": [
+    {
+      "sourceJobId": "codex-job-2026-07-14T23-39-48-498Z-kpq8rt",
+      "framesPerDirection": 12,
+      "directions": 3,
+      "logicalFramesAfterDuplicate": 13,
+      "playback": ["ping-pong", "one-shot"],
+      "durationChangedWithoutPngReferenceChange": true,
+      "gameMetadataEdited": ["impact", "pivot", "anchor", "socket", "hitbox", "hurtbox"],
+      "roundTrip": "identical"
+    },
+    {
+      "sourceJobId": "codex-job-2026-07-14T23-31-17-166Z-nixzjo",
+      "framesPerDirection": 6,
+      "directions": 3,
+      "playback": ["one-shot"],
+      "durationMs": 210,
+      "roundTrip": "identical"
+    },
+    {
+      "sourceJobId": "codex-job-2026-07-14T23-18-06-166Z-9ibt7n",
+      "framesPerDirection": 4,
+      "directions": 3,
+      "playback": ["loop"],
+      "playPause": "passed"
+    }
+  ],
+  "engineFiles": [
+    "engine/generic.json",
+    "engine/godot-spriteframes.json",
+    "engine/phaser.json",
+    "engine/aseprite.json",
+    "engine/unity-common.json"
+  ],
+  "automatedEvidence": {
+    "unitTests": { "passed": 167, "failed": 0 },
+    "typecheck": "passed",
+    "uiSmoke": "passed-in-268.2-seconds",
+    "mobileViewport": "390x844-passed-without-document-overflow",
+    "desktopViewport": "1280x720-passed"
+  }
+}

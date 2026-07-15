@@ -55,6 +55,23 @@ import {
   exportSpriteSheet
 } from "./lib/exporters";
 import { importAnimationPackBlob } from "./lib/animationPack";
+import {
+  addPackPoint,
+  addPackRect,
+  animationDirectionSyncWarnings,
+  buildAnimationPackV2EngineExports,
+  createAnimationPackV2,
+  createAnimationPackV2Zip,
+  duplicateAnimationFrame,
+  exportAnimationPackV2,
+  holdAnimationFrame,
+  moveAnimationEvent,
+  reverseAnimationTimeline,
+  setAnimationFrameDuration,
+  setAnimationLoopMode,
+  serializeAnimationPackV2,
+  validateAnimationPackV2
+} from "./lib/animationPackV2";
 import { animationExportAnchor, animationNormalizationFootline } from "./lib/animationAlignment";
 import { buildAnimationQualityReport } from "./lib/animationQuality";
 import type { AnimationQualityFrameInput } from "./lib/animationQuality";
@@ -114,6 +131,9 @@ import type {
   AnimationLibraryItem,
   AnimationLibraryKind,
   AnimationPackManifest,
+  AnimationPackV2,
+  AnimationPackV2Point,
+  AnimationPackV2Rect,
   AnimationNormalizationCorrection,
   AnimationQualityReportV2,
   CodexArtifactStatus,
@@ -590,8 +610,14 @@ interface ReadyDirectionSplitArtifact {
 
 type DirectionSplitImportContext = Pick<
   CodexJobQueueItem,
-  "id" | "actionName" | "cell" | "chromaKey" | "sourceImageId" | "sourceImageName" | "directions" | "motionRecipe" | "framesPerDirection"
+  "id" | "actionName" | "cell" | "chromaKey" | "sourceImageId" | "sourceImageName" | "directions" | "motionRecipe" | "framesPerDirection" | "generationProfile" | "sourceFingerprint"
 >;
+
+interface AnimationTimelineEditorSession {
+  initialPack: AnimationPackV2;
+  recipeDefault: AnimationPackV2;
+  frameDataUrls: Record<string, string[]>;
+}
 
 interface DirectionSplitPreparedCell {
   direction: string;
@@ -3969,6 +3995,7 @@ function App() {
   const [animationLibraryTab, setAnimationLibraryTab] = useState<AnimationLibraryKind>("official");
   const [userAnimationLibrary, setUserAnimationLibrary] = useState<AnimationLibraryItem[]>([]);
   const [showAnimationPackExportModal, setShowAnimationPackExportModal] = useState(false);
+  const [animationTimelineEditor, setAnimationTimelineEditor] = useState<AnimationTimelineEditorSession | null>(null);
   const [downloadModalOpen, setDownloadModalOpen] = useState(false);
   const [animationPackExportDraft, setAnimationPackExportDraft] = useState<AnimationPackExportDraft>(() => createAnimationPackExportDraft());
   const [language, setLanguage] = useState<Language>(loadLanguage);
@@ -7217,6 +7244,8 @@ function App() {
       animationDirections: sheetDirections,
       animationQuality: composed.animationQuality,
       motionRecipe: importedMotionRecipe,
+      animationGenerationProfile: importContext.generationProfile,
+      animationSourceFingerprint: importContext.sourceFingerprint,
       outboxImportKey: buildOutboxImportKey("direction-split", {
         jobId: importContext.id,
         filenames: importedResults.map((result) => result.name),
@@ -8382,6 +8411,77 @@ function App() {
 
   function deleteUserAnimationItem(item: AnimationLibraryItem) {
     setUserAnimationLibrary((current) => current.filter((currentItem) => currentItem.id !== item.id));
+  }
+
+  function buildSelectedAnimationPackV2(): AnimationTimelineEditorSession | null {
+    if (!selected || !selectedAnimationExportReady) return null;
+    const directions = selected.animationDirections?.length
+      ? selected.animationDirections
+      : selectedAnimationPreviewActions.map((preview) => preview.directionId);
+    const recipeDefault = createAnimationPackV2({
+      title: selected.name.replace(/\.[^.]+$/, "") || selectedAnimationAction.name,
+      actionId: activeAction.name,
+      directions,
+      framesPerDirection: selectedAnimationFramesPerDirection,
+      defaultFps: selectedAnimationAction.fps,
+      loopMode: selectedAnimationAction.playbackMode === "ping-pong-reverse"
+        ? "ping-pong"
+        : selectedAnimationAction.loop ? "loop" : "one-shot",
+      grid: selectedAnimationSheetGrid,
+      cell: selectedAnimationAction.cell,
+      motionRecipe: selected.motionRecipe,
+      sourceFingerprint: selected.animationSourceFingerprint ?? selected.derivedFromId ?? selected.id,
+      generationProfile: selected.animationGenerationProfile,
+      quality: selected.animationQuality,
+      sourceName: selectedAnimationSource?.name ?? selected.derivedFromName,
+      createdAt: selected.createdAt
+    });
+    const initialPack = selected.animationPackV2 ? validateAnimationPackV2(selected.animationPackV2) : recipeDefault;
+    const frameDataUrls = Object.fromEntries(initialPack.directions.map((direction, directionIndex) => [
+      direction,
+      selectedAnimationFrames
+        .slice(
+          directionIndex * selectedAnimationFramesPerDirection,
+          (directionIndex + 1) * selectedAnimationFramesPerDirection
+        )
+        .map((frame) => frame.dataUrl)
+    ]));
+    return { initialPack, recipeDefault, frameDataUrls };
+  }
+
+  function openAnimationTimelineEditor() {
+    const session = buildSelectedAnimationPackV2();
+    if (!session) return;
+    setDownloadModalOpen(false);
+    setShowAnimationPackExportModal(false);
+    setAnimationTimelineEditor(session);
+  }
+
+  function saveAnimationTimelinePack(pack: AnimationPackV2) {
+    if (!selected) return;
+    const valid = validateAnimationPackV2(pack);
+    setHistory((current) => current.map((item) => item.id === selected.id ? { ...item, animationPackV2: valid } : item));
+    setStatus(language === "ja" ? "タイムライン編集を保存しました（PNGは変更していません）" : "Timeline metadata saved (PNG unchanged)." );
+  }
+
+  async function exportSelectedAnimationPackV2(pack: AnimationPackV2) {
+    if (!selected) return;
+    await exportAnimationPackV2(pack, selected.dataUrl);
+    setStatus(language === "ja" ? `Animation Pack v2を書き出しました: ${pack.title}` : `Animation Pack v2 exported: ${pack.title}`);
+  }
+
+  function exportAnimationEngineMetadata(filename: string, data: Record<string, unknown>) {
+    downloadBlob(new Blob([JSON.stringify(data, null, 2)], { type: "application/json" }), filename.split("/").at(-1) ?? "animation.json");
+  }
+
+  async function verifyAnimationPackV2RoundTrip(pack: AnimationPackV2) {
+    if (!selected) throw new Error("No animation result is selected.");
+    const zip = await createAnimationPackV2Zip(pack, selected.dataUrl);
+    const imported = await importAnimationPackBlob(zip, `${pack.title}.zip`);
+    if (!imported.packV2 || serializeAnimationPackV2(imported.packV2) !== serializeAnimationPackV2(pack)) {
+      throw new Error("Pack v2 round-trip changed the timeline metadata.");
+    }
+    return language === "ja" ? "Pack v2往復検証: 一致" : "Pack v2 round-trip: identical";
   }
 
   function openSelectedAnimationPackExportModal() {
@@ -10006,6 +10106,7 @@ function App() {
           onExportWebp={() => void exportDirectionalAnimations("webp")}
           onExportApng={() => void exportDirectionalAnimations("apng")}
           onExportSpriteSheet={() => void exportSpriteSheet(frames, selectedAnimationAction, selectedAnimationFramesPerDirection)}
+          onEditTimeline={openAnimationTimelineEditor}
           onExportAnimationPack={openSelectedAnimationPackExportModal}
           onExportEffectGif={() => void exportSelectedEffectGif()}
           onExportEffectApng={() => void exportSelectedEffectApng()}
@@ -10022,6 +10123,17 @@ function App() {
           onChange={setAnimationPackExportDraft}
           onClose={() => setShowAnimationPackExportModal(false)}
           onExport={() => void exportSelectedAnimationPack()}
+        />
+      )}
+      {animationTimelineEditor && (
+        <AnimationTimelineEditorModal
+          language={language}
+          session={animationTimelineEditor}
+          onClose={() => setAnimationTimelineEditor(null)}
+          onSave={saveAnimationTimelinePack}
+          onExport={(pack) => void exportSelectedAnimationPackV2(pack)}
+          onExportEngine={exportAnimationEngineMetadata}
+          onRoundTrip={verifyAnimationPackV2RoundTrip}
         />
       )}
       {settingsOpen && (
@@ -13090,6 +13202,7 @@ function DownloadOptionsModal({
   onExportWebp,
   onExportApng,
   onExportSpriteSheet,
+  onEditTimeline,
   onExportAnimationPack,
   onExportEffectGif,
   onExportEffectApng,
@@ -13113,6 +13226,7 @@ function DownloadOptionsModal({
   onExportWebp: () => void;
   onExportApng: () => void;
   onExportSpriteSheet: () => void;
+  onEditTimeline: () => void;
   onExportAnimationPack: () => void;
   onExportEffectGif: () => void;
   onExportEffectApng: () => void;
@@ -13193,6 +13307,10 @@ function DownloadOptionsModal({
                 <FileImage size={16} aria-hidden="true" />
                 {copy.spriteSheetDownload}
               </button>
+              <button className="primary-button" onClick={onEditTimeline} disabled={!animationReady}>
+                <Grid3X3 size={16} aria-hidden="true" />
+                {language === "ja" ? "Review / Edit Timeline" : "Review / Edit Timeline"}
+              </button>
               <button onClick={onExportAnimationPack} disabled={!animationReady}>
                 <FileArchive size={16} aria-hidden="true" />
                 {copy.exportAnimationPack}
@@ -13204,6 +13322,313 @@ function DownloadOptionsModal({
               {copy.downloadPng}
             </button>
           )}
+        </div>
+      </section>
+    </div>
+  );
+}
+
+function AnimationTimelineEditorModal({
+  language,
+  session,
+  onClose,
+  onSave,
+  onExport,
+  onExportEngine,
+  onRoundTrip
+}: {
+  language: Language;
+  session: AnimationTimelineEditorSession;
+  onClose: () => void;
+  onSave: (pack: AnimationPackV2) => void;
+  onExport: (pack: AnimationPackV2) => void;
+  onExportEngine: (filename: string, data: Record<string, unknown>) => void;
+  onRoundTrip: (pack: AnimationPackV2) => Promise<string>;
+}) {
+  const [draft, setDraft] = useState(() => validateAnimationPackV2(session.initialPack));
+  const [savedSnapshot, setSavedSnapshot] = useState(() => serializeAnimationPackV2(session.initialPack));
+  const [past, setPast] = useState<AnimationPackV2[]>([]);
+  const [future, setFuture] = useState<AnimationPackV2[]>([]);
+  const [direction, setDirection] = useState(session.initialPack.directions[0]);
+  const [frameIndex, setFrameIndex] = useState(0);
+  const [playing, setPlaying] = useState(false);
+  const [playbackDirection, setPlaybackDirection] = useState<1 | -1>(1);
+  const [speed, setSpeed] = useState(1);
+  const [roundTripStatus, setRoundTripStatus] = useState("");
+  const dirty = serializeAnimationPackV2(draft) !== savedSnapshot;
+  const directionFrames = session.frameDataUrls[direction] ?? [];
+  const sourceFrameIndex = draft.frameOrder[frameIndex] ?? 0;
+  const currentFrameUrl = directionFrames[sourceFrameIndex] ?? directionFrames[0] ?? "";
+  const engineExports = useMemo(() => buildAnimationPackV2EngineExports(draft), [draft]);
+  const warnings = animationDirectionSyncWarnings(draft);
+  const selectedEvents = draft.events.filter((event) => event.frameIndex === frameIndex);
+  const selectedPoints = [
+    ...draft.pivots.map((point) => ({ kind: "Pivot", point })),
+    ...draft.anchors.map((point) => ({ kind: "Anchor", point })),
+    ...draft.sockets.map((point) => ({ kind: "Socket", point }))
+  ].filter((item) => item.point.frameIndex === frameIndex);
+  const selectedRects = [...draft.hitboxes, ...draft.hurtboxes].filter((rect) => rect.frameIndex === frameIndex);
+
+  function commit(next: AnimationPackV2) {
+    setPast((current) => [...current.slice(-49), draft]);
+    setDraft(validateAnimationPackV2(next));
+    setFuture([]);
+    setFrameIndex((current) => Math.min(current, next.frameOrder.length - 1));
+    setRoundTripStatus("");
+  }
+
+  function step(delta: number) {
+    setFrameIndex((current) => {
+      const next = current + delta;
+      if (draft.loopMode === "one-shot") return Math.max(0, Math.min(draft.frameOrder.length - 1, next));
+      return (next + draft.frameOrder.length) % draft.frameOrder.length;
+    });
+  }
+
+  function undo() {
+    const previous = past.at(-1);
+    if (!previous) return;
+    setPast((current) => current.slice(0, -1));
+    setFuture((current) => [draft, ...current].slice(0, 50));
+    setDraft(previous);
+    setFrameIndex((current) => Math.min(current, previous.frameOrder.length - 1));
+  }
+
+  function redo() {
+    const next = future[0];
+    if (!next) return;
+    setFuture((current) => current.slice(1));
+    setPast((current) => [...current.slice(-49), draft]);
+    setDraft(next);
+    setFrameIndex((current) => Math.min(current, next.frameOrder.length - 1));
+  }
+
+  function updatePoint(point: AnimationPackV2Point, field: "x" | "y", value: number) {
+    if (!Number.isFinite(value)) return;
+    const next = JSON.parse(JSON.stringify(draft)) as AnimationPackV2;
+    const collections = [next.pivots, next.anchors, next.sockets];
+    const target = collections.flat().find((candidate) => candidate.id === point.id);
+    if (!target) return;
+    target[field] = Math.max(0, Math.min(1, value));
+    target.origin = "user";
+    commit(next);
+  }
+
+  function updateRect(rect: AnimationPackV2Rect, field: "x" | "y" | "width" | "height", value: number) {
+    if (!Number.isFinite(value)) return;
+    const next = JSON.parse(JSON.stringify(draft)) as AnimationPackV2;
+    const target = [...next.hitboxes, ...next.hurtboxes].find((candidate) => candidate.id === rect.id);
+    if (!target) return;
+    target[field] = Math.max(0, Math.min(1, value));
+    target.origin = "user";
+    commit(next);
+  }
+
+  useEffect(() => {
+    if (!playing) return;
+    const timeout = window.setTimeout(() => {
+      setFrameIndex((current) => {
+        if (draft.loopMode === "ping-pong") {
+          if (playbackDirection === 1 && current >= draft.frameOrder.length - 1) {
+            setPlaybackDirection(-1);
+            return Math.max(0, current - 1);
+          }
+          if (playbackDirection === -1 && current <= 0) {
+            setPlaybackDirection(1);
+            return Math.min(draft.frameOrder.length - 1, current + 1);
+          }
+          return current + playbackDirection;
+        }
+        if (current < draft.frameOrder.length - 1) return current + 1;
+        if (draft.loopMode === "one-shot") {
+          setPlaying(false);
+          return current;
+        }
+        return 0;
+      });
+    }, Math.max(16, draft.frameDurations[frameIndex] / speed));
+    return () => window.clearTimeout(timeout);
+  }, [draft.frameDurations, draft.frameOrder.length, draft.loopMode, frameIndex, playbackDirection, playing, speed]);
+
+  useEffect(() => {
+    const listener = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement | null;
+      if (target?.matches("input, textarea, select")) return;
+      if (event.key === " ") {
+        event.preventDefault();
+        setPlaying((current) => !current);
+      } else if (event.key === "ArrowLeft") {
+        event.preventDefault();
+        step(-1);
+      } else if (event.key === "ArrowRight") {
+        event.preventDefault();
+        step(1);
+      } else if (event.key === "[" || event.key === "]") {
+        const impact = draft.events.find((candidate) => candidate.type === "impact");
+        if (!impact) return;
+        event.preventDefault();
+        commit(moveAnimationEvent(draft, impact.id, Math.max(0, Math.min(draft.frameOrder.length - 1, impact.frameIndex + (event.key === "[" ? -1 : 1)))));
+      }
+    };
+    window.addEventListener("keydown", listener);
+    return () => window.removeEventListener("keydown", listener);
+  });
+
+  return (
+    <div className="prompt-modal-backdrop timeline-editor-backdrop" role="presentation" onMouseDown={onClose}>
+      <section
+        className="prompt-modal animation-timeline-editor-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="animation-timeline-editor-title"
+        onMouseDown={(event) => event.stopPropagation()}
+      >
+        <div className="prompt-library-heading timeline-editor-heading">
+          <div>
+            <strong id="animation-timeline-editor-title">{language === "ja" ? "Animation Timeline Review / Edit" : "Animation Timeline Review / Edit"}</strong>
+            <span>{language === "ja" ? "PNGは再生成せず、再生順・時間・ゲーム用メタデータだけを編集します" : "Edit timing and game metadata without regenerating PNG frames."}</span>
+          </div>
+          <div className="timeline-heading-actions">
+            <span className={`timeline-dirty-badge ${dirty ? "is-dirty" : ""}`}>{dirty ? (language === "ja" ? "未保存" : "Unsaved") : (language === "ja" ? "保存済み" : "Saved")}</span>
+            <span className="metadata-only-badge">Metadata only</span>
+            <button className="icon-button" aria-label="Close timeline editor" onClick={onClose}><X size={18} aria-hidden="true" /></button>
+          </div>
+        </div>
+
+        <div className="timeline-editor-layout">
+          <section className="timeline-preview-panel">
+            <div className="timeline-preview-toolbar">
+              <label>
+                <span>{language === "ja" ? "方向" : "Direction"}</span>
+                <select value={direction} onChange={(event) => { setDirection(event.target.value); setFrameIndex(0); setPlaybackDirection(1); }}>
+                  {draft.directions.map((item) => <option key={item} value={item}>{item}</option>)}
+                </select>
+              </label>
+              <button onClick={() => step(-1)} aria-label="Previous frame">◀</button>
+              <button className="primary-button" onClick={() => setPlaying((current) => !current)} aria-label={playing ? "Pause animation" : "Play animation"}>{playing ? "Pause" : "Play"}</button>
+              <button onClick={() => step(1)} aria-label="Next frame">▶</button>
+              <label>
+                <span>{language === "ja" ? "速度" : "Speed"}</span>
+                <select value={speed} onChange={(event) => setSpeed(Number(event.target.value))}>
+                  {[0.5, 1, 1.5, 2].map((value) => <option key={value} value={value}>{value}x</option>)}
+                </select>
+              </label>
+            </div>
+            <div className="timeline-preview-stage" data-testid="timeline-preview-stage">
+              {currentFrameUrl ? <img src={currentFrameUrl} alt={`${direction} frame ${frameIndex + 1}`} /> : <span>{language === "ja" ? "フレームなし" : "No frame"}</span>}
+              <div className="timeline-preview-meta">
+                <strong>{frameIndex + 1}/{draft.frameOrder.length}</strong>
+                <span>source {sourceFrameIndex + 1}</span>
+                <span>{draft.frameDurations[frameIndex]}ms · {speed}x</span>
+              </div>
+            </div>
+            <div className="loop-seam-preview">
+              <figure><img src={directionFrames[draft.frameOrder[0]] ?? ""} alt="First loop frame" /><figcaption>Loop start</figcaption></figure>
+              <span>↔</span>
+              <figure><img src={directionFrames[draft.frameOrder.at(-1) ?? 0] ?? ""} alt="Last loop frame" /><figcaption>Loop seam</figcaption></figure>
+            </div>
+          </section>
+
+          <section className="timeline-controls-panel">
+            <div className="timeline-operation-row">
+              <button onClick={undo} disabled={past.length === 0}>Undo</button>
+              <button onClick={redo} disabled={future.length === 0}>Redo</button>
+              <button onClick={() => commit(validateAnimationPackV2(session.recipeDefault))}>{language === "ja" ? "Recipe初期値へ" : "Recipe defaults"}</button>
+              <button onClick={() => commit(holdAnimationFrame(draft, frameIndex, 100))}>Hold +100ms</button>
+              <button onClick={() => commit(duplicateAnimationFrame(draft, frameIndex))}>{language === "ja" ? "複製" : "Duplicate"}</button>
+              <button onClick={() => commit(reverseAnimationTimeline(draft))}>{language === "ja" ? "反転" : "Reverse"}</button>
+              <label className="timeline-loop-field">
+                <span>Loop</span>
+                <select value={draft.loopMode} onChange={(event) => { setPlaybackDirection(1); commit(setAnimationLoopMode(draft, event.target.value as AnimationPackV2["loopMode"])); }}>
+                  <option value="loop">Loop</option>
+                  <option value="one-shot">One-shot</option>
+                  <option value="ping-pong">Ping-pong</option>
+                </select>
+              </label>
+            </div>
+
+            <div className="timeline-strip" aria-label="Animation timeline">
+              {draft.frameOrder.map((sourceIndex, index) => (
+                <button
+                  key={`${sourceIndex}-${index}`}
+                  className={`timeline-frame-card ${frameIndex === index ? "is-selected" : ""}`}
+                    onClick={() => { setPlaying(false); setFrameIndex(index); setPlaybackDirection(1); }}
+                  aria-label={`Timeline frame ${index + 1}`}
+                >
+                  <span className="timeline-frame-number">{index + 1}</span>
+                  {directionFrames[sourceIndex] && <img src={directionFrames[sourceIndex]} alt="" />}
+                  <input
+                    aria-label={`Frame ${index + 1} duration`}
+                    type="number"
+                    min={1}
+                    value={draft.frameDurations[index]}
+                    onClick={(event) => event.stopPropagation()}
+                    onChange={(event) => {
+                      const value = Number(event.target.value);
+                      if (Number.isFinite(value) && value > 0) commit(setAnimationFrameDuration(draft, index, value));
+                    }}
+                  />
+                  <small>ms</small>
+                  <span className="timeline-event-dots">{draft.events.filter((event) => event.frameIndex === index).map((event) => <i key={event.id} title={`${event.name} (${event.origin})`} />)}</span>
+                </button>
+              ))}
+            </div>
+
+            <div className="timeline-metadata-grid">
+              <section>
+                <div className="timeline-section-heading"><strong>Events</strong><small>{language === "ja" ? "Recipe / User由来" : "Recipe / User origin"}</small></div>
+                <div className="timeline-event-list">
+                  {draft.events.map((event) => (
+                    <label key={event.id} className={event.frameIndex === frameIndex ? "is-active" : ""}>
+                      <span>{event.name}<small>{event.origin}</small></span>
+                      <input
+                        aria-label={`${event.name} event frame`}
+                        type="number"
+                        min={1}
+                        max={draft.frameOrder.length}
+                        value={event.frameIndex + 1}
+                        onChange={(changeEvent) => {
+                          const value = Number(changeEvent.target.value);
+                          if (Number.isInteger(value) && value >= 1 && value <= draft.frameOrder.length) commit(moveAnimationEvent(draft, event.id, value - 1));
+                        }}
+                      />
+                    </label>
+                  ))}
+                </div>
+              </section>
+              <section>
+                <div className="timeline-section-heading"><strong>{language === "ja" ? "ゲーム座標" : "Game coordinates"}</strong><small>{language === "ja" ? `選択フレーム ${frameIndex + 1}` : `Selected frame ${frameIndex + 1}`}</small></div>
+                <div className="timeline-add-row">
+                  <button onClick={() => commit(addPackPoint(draft, "pivot", frameIndex))}>+ Pivot</button>
+                  <button onClick={() => commit(addPackPoint(draft, "anchor", frameIndex))}>+ Anchor</button>
+                  <button onClick={() => commit(addPackPoint(draft, "socket", frameIndex))}>+ Socket</button>
+                  <button onClick={() => commit(addPackRect(draft, "hitbox", frameIndex))}>+ Hitbox</button>
+                  <button onClick={() => commit(addPackRect(draft, "hurtbox", frameIndex))}>+ Hurtbox</button>
+                </div>
+                <div className="timeline-coordinate-list">
+                  {selectedPoints.map(({ kind, point }) => (
+                    <div key={`${kind}-${point.id}`}><span>{kind}: {point.name}<small>{point.origin}</small></span><label>X<input type="number" min={0} max={1} step={0.05} value={point.x} onChange={(event) => updatePoint(point, "x", Number(event.target.value))} /></label><label>Y<input type="number" min={0} max={1} step={0.05} value={point.y} onChange={(event) => updatePoint(point, "y", Number(event.target.value))} /></label></div>
+                  ))}
+                  {selectedRects.map((rect) => (
+                    <div key={rect.id}><span>{rect.name}<small>{rect.origin}</small></span>{(["x", "y", "width", "height"] as const).map((field) => <label key={field}>{field[0].toUpperCase()}<input type="number" min={0} max={1} step={0.05} value={rect[field]} onChange={(event) => updateRect(rect, field, Number(event.target.value))} /></label>)}</div>
+                  ))}
+                  {selectedEvents.length === 0 && selectedPoints.length === 0 && selectedRects.length === 0 && <small>{language === "ja" ? "このフレームの追加メタデータはありません" : "No extra metadata on this frame."}</small>}
+                </div>
+              </section>
+            </div>
+          </section>
+        </div>
+
+        {warnings.length > 0 && <div className="timeline-warning-list">{warnings.map((warning) => <span key={warning}>{warning}</span>)}</div>}
+        <div className="timeline-export-row">
+          {engineExports.map((output) => <button key={output.filename} onClick={() => onExportEngine(output.filename, output.data)}>{output.filename.split("/").at(-1)}</button>)}
+          <button onClick={() => { setRoundTripStatus(language === "ja" ? "検証中…" : "Checking…"); void onRoundTrip(draft).then(setRoundTripStatus).catch((error: unknown) => setRoundTripStatus(error instanceof Error ? error.message : "Round-trip failed")); }}>Pack v2 Round-trip</button>
+          {roundTripStatus && <span>{roundTripStatus}</span>}
+        </div>
+        <div className="prompt-actions animation-pack-actions timeline-editor-actions">
+          <button onClick={onClose}>{language === "ja" ? "閉じる" : "Close"}</button>
+          <button onClick={() => onExport(draft)}><FileArchive size={15} aria-hidden="true" />Pack v2 ZIP</button>
+          <button className="primary-button" onClick={() => { onSave(draft); setSavedSnapshot(serializeAnimationPackV2(draft)); }}>{language === "ja" ? "タイムラインを保存" : "Save timeline"}</button>
         </div>
       </section>
     </div>

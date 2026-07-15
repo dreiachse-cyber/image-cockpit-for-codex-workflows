@@ -219,7 +219,7 @@ try {
     exerciseButton: "Generate Animation",
     expectedAfterExercise: "Animation generated",
     expectedAfterExerciseText: ["Animation frames ready", "Generated from", "Directional Previews", "GIF Preview", "Sprite Sheet Preview", "256 x 256 px"],
-    expectedDownloadModalButtons: ["Animated GIF", "Animated WebP", "Animated APNG", "Sprite Sheet", "Export Animation Pack"],
+    expectedDownloadModalButtons: ["Animated GIF", "Animated WebP", "Animated APNG", "Sprite Sheet", "Review / Edit Timeline", "Export Animation Pack"],
     downloadModalClickButtons: ["Animated WebP", "Animated APNG", "Sprite Sheet"],
     expectedCanvasPreviewModeAfterExercise: "result",
     expectedPreviewImages: 6,
@@ -230,6 +230,7 @@ try {
     reloadAfterExercise: true,
     exerciseTimeoutMs: 45000
   });
+  await assertAnimationTimelinePackV2();
   await assertAnimationResultNotEditable();
   await assertEffectAnimationWorkflow();
   await assertEffectCategoryMatrix();
@@ -729,6 +730,109 @@ async function assertAnimationLibraryHidden() {
   await selectWorkflowTab("Pixel Art Generation");
 }
 
+async function assertAnimationTimelinePackV2() {
+  await openDownloadModal();
+  await clickDownloadModalButtonByText("Review / Edit Timeline");
+  await waitForEval(
+    () => `Boolean(document.querySelector(".animation-timeline-editor-modal"))`,
+    "Animation Timeline Review / Edit modal"
+  );
+  let metrics = await evaluate(`(() => {
+    const modal = document.querySelector(".animation-timeline-editor-modal");
+    const timeline = modal?.querySelector(".timeline-strip");
+    return {
+      metadataOnly: modal?.innerText.includes("Metadata only"),
+      frameCount: timeline?.querySelectorAll(".timeline-frame-card").length || 0,
+      previewSources: Array.from(modal?.querySelectorAll(".timeline-preview-panel img") || []).map((image) => image.src),
+      eventInputs: modal?.querySelectorAll(".timeline-event-list input").length || 0,
+      engineButtons: modal?.querySelectorAll(".timeline-export-row button").length || 0,
+      undoDisabled: modal?.querySelector("button")?.disabled ?? false
+    };
+  })()`);
+  assert(metrics.metadataOnly, "Timeline editor should clearly label metadata-only edits");
+  assert(metrics.frameCount > 0, "Timeline editor should expose generated frames");
+  assert(metrics.eventInputs >= 4, `Timeline editor should expose recipe events, got ${metrics.eventInputs}`);
+  assert(metrics.engineButtons === 6, `Timeline editor should expose five engine JSON exports plus round-trip, got ${metrics.engineButtons}`);
+
+  const originalFrameCount = metrics.frameCount;
+  const originalPreviewSources = metrics.previewSources;
+  await evaluate(`(() => {
+    const input = document.querySelector('input[aria-label="Frame 1 duration"]');
+    if (!input) throw new Error("Frame 1 duration input not found");
+    const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value").set;
+    setter.call(input, "175");
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+  })()`);
+  await waitForEval(() => `document.querySelector(".timeline-dirty-badge")?.innerText.includes("Unsaved")`, "Timeline duration edit becomes unsaved");
+  metrics = await evaluate(`(() => ({
+    frameCount: document.querySelectorAll(".timeline-frame-card").length,
+    previewSources: Array.from(document.querySelectorAll(".timeline-preview-panel img")).map((image) => image.src),
+    duration: document.querySelector('input[aria-label="Frame 1 duration"]')?.value
+  }))()`);
+  assert(metrics.duration === "175", `Timeline duration should update to 175ms, got ${metrics.duration}`);
+  assert(metrics.frameCount === originalFrameCount, "Duration editing should not regenerate or add PNG frames");
+  assert(JSON.stringify(metrics.previewSources) === JSON.stringify(originalPreviewSources), "Duration editing should keep PNG frame references unchanged");
+
+  await clickButtonByText("Hold +100ms");
+  await clickButtonByText("Duplicate");
+  await waitForEval(() => `document.querySelectorAll(".timeline-frame-card").length === ${originalFrameCount + 1}`, "Timeline duplicate reuses a frame reference");
+  await clickButtonByText("Reverse");
+  await evaluate(`(() => {
+    const select = Array.from(document.querySelectorAll(".animation-timeline-editor-modal select")).find((item) => item.parentElement?.innerText.includes("Loop"));
+    if (!select) throw new Error("Loop selector not found");
+    const setter = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, "value").set;
+    setter.call(select, "one-shot");
+    select.dispatchEvent(new Event("change", { bubbles: true }));
+  })()`);
+  await waitForEval(() => `Array.from(document.querySelectorAll(".animation-timeline-editor-modal select")).some((item) => item.value === "one-shot")`, "Timeline one-shot mode");
+  await evaluate(`(() => {
+    const select = Array.from(document.querySelectorAll(".animation-timeline-editor-modal select")).find((item) => item.value === "one-shot");
+    const setter = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, "value").set;
+    setter.call(select, "ping-pong");
+    select.dispatchEvent(new Event("change", { bubbles: true }));
+  })()`);
+  await waitForEval(() => `Array.from(document.querySelectorAll(".animation-timeline-editor-modal select")).some((item) => item.value === "ping-pong")`, "Timeline ping-pong mode");
+
+  await clickButtonByText("+ Pivot");
+  await clickButtonByText("+ Anchor");
+  await clickButtonByText("+ Socket");
+  await clickButtonByText("+ Hitbox");
+  await clickButtonByText("+ Hurtbox");
+  const gameMetadata = await evaluate(`document.querySelector(".timeline-coordinate-list")?.innerText || ""`);
+  for (const label of ["Pivot", "Anchor", "Socket", "hitbox", "hurtbox"]) assert(gameMetadata.includes(label), `Timeline editor should add ${label} metadata`);
+
+  await clickButtonByText("Pack v2 Round-trip");
+  await waitForEval(() => `document.body.innerText.includes("Pack v2 round-trip: identical")`, "Pack v2 round-trip equality", 10000);
+
+  await cdp.send("Emulation.setDeviceMetricsOverride", { width: 390, height: 844, deviceScaleFactor: 1, mobile: true });
+  await delay(200);
+  const mobileFit = await evaluate(`(() => {
+    const modal = document.querySelector(".animation-timeline-editor-modal");
+    const rect = modal?.getBoundingClientRect();
+    const strip = modal?.querySelector(".timeline-strip");
+    return {
+      modalFits: Boolean(rect && rect.left >= -1 && rect.right <= window.innerWidth + 1),
+      documentFits: document.documentElement.scrollWidth <= window.innerWidth + 1,
+      stripScrollable: Boolean(strip && strip.scrollWidth >= strip.clientWidth),
+      actionsVisible: Boolean(modal?.querySelector(".timeline-editor-actions"))
+    };
+  })()`);
+  assert(mobileFit.modalFits, "Mobile timeline editor should fit within the viewport");
+  assert(mobileFit.documentFits, "Mobile timeline editor should not cause document overflow");
+  assert(mobileFit.stripScrollable, "Mobile timeline should keep its horizontal strip usable");
+  assert(mobileFit.actionsVisible, "Mobile timeline editor should keep save/export actions available");
+  await cdp.send("Emulation.setDeviceMetricsOverride", { width: 1280, height: 720, deviceScaleFactor: 1, mobile: false });
+  await delay(200);
+
+  await clickButtonByText("Recipe defaults");
+  await clickButtonByText("Save timeline");
+  await waitForEval(() => `document.querySelector(".timeline-dirty-badge")?.innerText.includes("Saved")`, "Timeline metadata saved");
+  await clickButtonByAriaLabel("Close timeline editor");
+  await waitForEval(() => `!document.querySelector(".animation-timeline-editor-modal")`, "Timeline editor closes");
+  await assertNoBrowserErrors("Animation Timeline Pack v2");
+  await maybeCapture("animation-timeline-pack-v2");
+}
+
 async function assertCodexQueue() {
   await selectWorkflowTab("Pixel Art Generation");
   await waitForEval(() => `document.body.innerText.includes("Pixel Art Generation")`, "Pixel Art Generation for Codex queue");
@@ -1174,7 +1278,7 @@ async function assertDetachedDirectionSplitRecoverResults() {
   assert(alpha.transparentPixels > 0 && alpha.opaquePixels > 0, "Detached direction split final sheet should preserve transparent character pixels");
 
   await assertDownloadModal({
-    expectedButtons: ["Animated GIF", "Animated WebP", "Animated APNG", "Sprite Sheet", "Export Animation Pack"],
+    expectedButtons: ["Animated GIF", "Animated WebP", "Animated APNG", "Sprite Sheet", "Review / Edit Timeline", "Export Animation Pack"],
     absentButtons: ["PNG"],
     label: "detached direction split download modal"
   });

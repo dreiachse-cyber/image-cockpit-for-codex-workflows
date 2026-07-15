@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import type { AnimationPackManifest } from "../types";
 import { createAnimationPackZip } from "./exporters";
 import { importAnimationPackBlob, isSafeAnimationPackPath, validateAnimationPackManifest } from "./animationPack";
+import { createAnimationPackV2, createAnimationPackV2Zip } from "./animationPackV2";
 
 describe("animation pack validation", () => {
   it("accepts the v1 animation manifest", () => {
@@ -49,6 +50,28 @@ describe("animation pack validation", () => {
 
     expect(imported.manifest.framesPerDirection).toBe(frameCount);
     expect(imported.manifest.grid).toEqual({ columns: frameCount, rows: 5, gutter: 0 });
+    expect(imported.packV2?.frameDurations).toEqual(Array(frameCount).fill(Math.round(1000 / 12)));
+    expect(imported.sheetDataUrl).toMatch(/^data:image\/png;base64,/);
+  });
+
+  it("imports a v2 pack and preserves its editable timeline exactly", async () => {
+    const pack = createAnimationPackV2({
+      title: "白猫 walk",
+      actionId: "walk",
+      directions: ["front", "side", "back"],
+      framesPerDirection: 6,
+      defaultFps: 10,
+      loopMode: "loop",
+      grid: { columns: 6, rows: 3, gutter: 0 },
+      cell: { width: 128, height: 128 },
+      sourceFingerprint: "sha256-roundtrip"
+    });
+    pack.frameDurations[2] = 240;
+    const blob = await createAnimationPackV2Zip(pack, new Blob(["png"], { type: "image/png" }));
+    const imported = await importAnimationPackBlob(blob, "白猫.zip");
+
+    expect(imported.packV2).toEqual(pack);
+    expect(imported.manifest.framesPerDirection).toBe(6);
     expect(imported.sheetDataUrl).toMatch(/^data:image\/png;base64,/);
   });
 
