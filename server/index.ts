@@ -44,6 +44,7 @@ const directionSplitSlugs = ["front", "front-three-quarter", "side", "back-three
 const directionSplitNames = ["front", "front three-quarter", "side", "back three-quarter", "back"];
 const directionSplitManifestSchema = "image-cockpit.direction-split-animation.v1";
 const artifactStableMs = parsePositiveNumber("IMAGE_COCKPIT_ARTIFACT_STABLE_MS", 1500);
+const maxActiveCodexJobs = 3;
 
 const runnerStatuses = new Map<string, CodexRunnerStatus>();
 const runnerProcesses = new Map<string, ReturnType<typeof spawn>>();
@@ -106,6 +107,7 @@ type MotionRecipeContext = {
 type AnimationGenerationProfile = "fast" | "balanced" | "best";
 type AnimationTournamentCandidateState = "queued" | "running" | "artifact-ready" | "quality-evaluated" | "accepted" | "repairing" | "failed" | "cancelled";
 type AnimationTournamentDirectionState = AnimationTournamentCandidateState;
+type MotionPilotState = "piloting" | "review" | "expanding" | "completed" | "fallback" | "failed";
 
 type AnimationTournamentCandidate = {
   index: number;
@@ -157,7 +159,20 @@ type AnimationTournamentManifest = {
   retryCount: number;
   thirdCandidateReason?: string;
   humanReview?: AnimationHumanReview;
-  state: "queued" | "running" | "accepted" | "failed" | "cancelled";
+  pilotMode?: boolean;
+  pilotState?: MotionPilotState;
+  pilotDirection?: string;
+  pilotCandidateIds?: string[];
+  pilotWinnerId?: string;
+  expansionDirectionIds?: string[];
+  expansionJobId?: string;
+  fallbackReason?: string;
+  fallbackTournamentId?: string;
+  directionOutputCount?: number;
+  totalCandidateJobs?: number;
+  elapsedTime?: number;
+  repairCount?: number;
+  state: "queued" | "running" | "pilot-review" | "pilot-expanding" | "accepted" | "failed" | "cancelled";
   templateRef: string;
   clientContext?: Record<string, unknown>;
   createdAt: string;
@@ -176,6 +191,8 @@ type AnimationTournamentRegistrationRequest = {
   requestedDirections?: unknown;
   maximumCandidateCount?: unknown;
   initialCandidateCount?: unknown;
+  pilotMode?: unknown;
+  pilotDirection?: unknown;
   jobTemplate?: unknown;
   clientContext?: unknown;
 };
@@ -694,6 +711,32 @@ const server = createServer(async (request, response) => {
       return;
     }
 
+    const motionPilotExpandMatch = pathname.match(/^\/api\/codex\/tournaments\/([^/]+)\/pilot\/expand$/);
+    if (request.method === "POST" && motionPilotExpandMatch) {
+      const tournamentId = decodeURIComponent(motionPilotExpandMatch[1]);
+      const body = (await readJson(request)) as { jobId?: unknown };
+      const jobId = typeof body.jobId === "string" ? body.jobId : "";
+      if (!isSafeTournamentId(tournamentId) || !isSafeJobId(jobId)) {
+        sendJson(response, 400, { error: "Unsupported or unsafe Motion Pilot expansion request" });
+        return;
+      }
+      const result = await startMotionPilotExpansion(tournamentId, jobId);
+      sendJson(response, result.reused ? 200 : 201, result);
+      return;
+    }
+
+    const motionPilotFallbackMatch = pathname.match(/^\/api\/codex\/tournaments\/([^/]+)\/pilot\/fallback$/);
+    if (request.method === "POST" && motionPilotFallbackMatch) {
+      const tournamentId = decodeURIComponent(motionPilotFallbackMatch[1]);
+      const body = (await readJson(request)) as { reason?: unknown };
+      if (!isSafeTournamentId(tournamentId)) {
+        sendJson(response, 400, { error: "Unsupported or unsafe Motion Pilot fallback request" });
+        return;
+      }
+      sendJson(response, 201, await fallbackMotionPilotTournament(tournamentId, normalizeShortText(body.reason) ?? "human review requested fallback"));
+      return;
+    }
+
     const tournamentWinnerMatch = pathname.match(/^\/api\/codex\/tournaments\/([^/]+)\/winner$/);
     if (request.method === "POST" && tournamentWinnerMatch) {
       const tournamentId = decodeURIComponent(tournamentWinnerMatch[1]);
@@ -887,6 +930,11 @@ async function registerAnimationTournament(registration: AnimationTournamentRegi
   const initialCandidateCount = normalizeBoundedInteger(registration.initialCandidateCount, profilePlan.initialCandidates, 1, maximumCandidateCount);
   const requestedDirections = normalizeDirectionNames(registration.requestedDirections);
   if (requestedDirections.length !== 3 && requestedDirections.length !== 5) throw new Error("Animation tournaments require 3 or 5 directions.");
+  const pilotMode = registration.pilotMode === true;
+  const requestedPilotDirection = normalizeDirectionNames([registration.pilotDirection])[0];
+  const pilotDirection = pilotMode
+    ? requestedDirections.includes(requestedPilotDirection) ? requestedPilotDirection : requestedDirections.includes("side") ? "side" : requestedDirections[0]
+    : undefined;
   if (!registration.jobTemplate || typeof registration.jobTemplate !== "object") throw new Error("Tournament job template is required.");
   const jobTemplate = JSON.parse(JSON.stringify(registration.jobTemplate)) as CodexJobRequest;
   if (!jobTemplate.prompt?.trim()) throw new Error("Tournament job template prompt is required.");
@@ -926,6 +974,14 @@ async function registerAnimationTournament(registration: AnimationTournamentRegi
     qualityReportRefs: [],
     acceptedDirectionHashes: {},
     retryCount: 0,
+    pilotMode,
+    pilotState: pilotMode ? "piloting" : undefined,
+    pilotDirection,
+    pilotCandidateIds: pilotMode ? [] : undefined,
+    expansionDirectionIds: pilotMode ? requestedDirections.filter((direction) => direction !== pilotDirection) : undefined,
+    directionOutputCount: 0,
+    totalCandidateJobs: 0,
+    repairCount: 0,
     state: "queued",
     templateRef: "template.json",
     clientContext: registration.clientContext && typeof registration.clientContext === "object"
@@ -949,14 +1005,25 @@ async function startAnimationTournamentCandidateUnlocked(tournamentId: string, c
   const candidate = manifest.candidates[candidateIndex];
   if (!candidate) throw new Error("Tournament candidate index is outside the registered plan.");
   if (candidate.jobId) return { reused: true, job: await codexJobResponse(candidate.jobId, true), tournament: await refreshAnimationTournamentManifest(tournamentId) };
+  await assertCodexRunnerSlotAvailable();
   const template = parseJsonText<CodexJobRequest>(await readFile(animationTournamentTemplatePath(tournamentId), "utf8"));
   const candidateLabel = `candidate ${candidateIndex + 1}/${manifest.maximumCandidateCount}`;
+  const pilotDirections = manifest.pilotMode && manifest.pilotDirection ? [manifest.pilotDirection] : undefined;
+  const candidateDirections = pilotDirections ?? manifest.requestedDirections;
+  const candidateFrameCount = normalizeMotionFrameCount(template.framesPerDirection) ?? 8;
   const body: CodexJobRequest = {
     ...template,
+    directions: candidateDirections,
+    grid: { columns: candidateFrameCount, rows: candidateDirections.length, gutter: 0 },
+    frames: candidateFrameCount * candidateDirections.length,
+    framesPerDirection: candidateFrameCount,
     jobNotes: [
       template.jobNotes ?? "",
       `Animation tournament ${tournamentId}, ${candidateLabel}, profile ${manifest.generationProfile}.`,
       "Generate this candidate independently from the same source and motion contract. Do not copy another candidate.",
+      manifest.pilotMode
+        ? `Motion Pilot experimental candidate. Generate only representative direction ${manifest.pilotDirection}. Preserve the full Recipe phase contract so the accepted pilot can expand to ${manifest.expansionDirectionIds?.join(", ")}.`
+        : "",
       reason ? `Adaptive candidate reason: ${reason}.` : ""
     ].filter(Boolean).join("\n"),
     tournamentId,
@@ -989,9 +1056,19 @@ async function attachJobToAnimationTournament(
   candidate.createdAt = candidate.createdAt ?? createdAt;
   candidate.state = runner.state === "running" ? "running" : runner.state === "completed" ? "artifact-ready" : "failed";
   candidate.updatedAt = new Date().toISOString();
-  manifest.state = candidate.state === "running" ? "running" : manifest.state;
+  if (manifest.pilotMode && !candidate.repairDirections?.length && !manifest.pilotCandidateIds?.includes(jobId)) {
+    manifest.pilotCandidateIds = [...(manifest.pilotCandidateIds ?? []), jobId];
+  }
+  manifest.totalCandidateJobs = manifest.candidates.filter((item) => Boolean(item.jobId)).length;
+  manifest.state = candidate.state === "running"
+    ? manifest.pilotMode && candidate.repairDirections?.length ? "pilot-expanding" : "running"
+    : manifest.state;
   if (candidate.state === "running") {
-    const activeDirections = repairDirections.length > 0 ? repairDirections : manifest.requestedDirections;
+    const activeDirections = repairDirections.length > 0
+      ? repairDirections
+      : manifest.pilotMode && manifest.pilotDirection
+        ? [manifest.pilotDirection]
+        : manifest.requestedDirections;
     activeDirections.forEach((direction) => {
       manifest.directionStates[direction] = { state: "running", updatedAt: candidate.updatedAt, jobId };
     });
@@ -1054,7 +1131,7 @@ async function recordAnimationTournamentEvaluationUnlocked(
   const jobId = typeof body.jobId === "string" ? body.jobId : "";
   const candidate = manifest.candidates.find((item) => item.jobId === jobId);
   if (!candidate) throw new Error("Tournament evaluation job was not registered.");
-  if (manifest.state === "accepted" && manifest.winnerCandidateId && !candidate.repairDirections?.length) {
+  if (manifest.state === "accepted" && manifest.winnerCandidateId && !manifest.pilotMode && !candidate.repairDirections?.length) {
     const terminalState: AnimationTournamentCandidateState = candidate.jobId === manifest.winnerCandidateId ? "accepted" : "cancelled";
     if (candidate.state !== terminalState) {
       candidate.state = terminalState;
@@ -1079,7 +1156,11 @@ async function recordAnimationTournamentEvaluationUnlocked(
   if (body.ready === true && manifest.state === "failed" && !manifest.winnerCandidateId) {
     manifest.state = "running";
   }
-  const evaluationDirections = candidate.repairDirections?.length ? candidate.repairDirections : manifest.requestedDirections;
+  const evaluationDirections = candidate.repairDirections?.length
+    ? candidate.repairDirections
+    : manifest.pilotMode && manifest.pilotDirection
+      ? [manifest.pilotDirection]
+      : manifest.requestedDirections;
   if (body.ready === true) {
     evaluationDirections.forEach((direction) => {
       manifest.directionStates[direction] = {
@@ -1091,17 +1172,36 @@ async function recordAnimationTournamentEvaluationUnlocked(
     });
   }
   if (candidate.repairDirections?.length && manifest.winnerCandidateId) {
-    manifest.state = "accepted";
+    manifest.state = manifest.pilotMode && manifest.pilotState === "expanding" ? "pilot-expanding" : "accepted";
+    if (manifest.pilotMode && body.ready === true) {
+      manifest.directionOutputCount = (manifest.pilotCandidateIds?.length ?? manifest.initialCandidateCount) + candidate.repairDirections.length;
+      manifest.totalCandidateJobs = manifest.candidates.filter((item) => Boolean(item.jobId)).length;
+    }
     manifest.requestedDirections
       .filter((direction) => body.ready !== true || !candidate.repairDirections?.includes(direction))
       .forEach((direction) => {
+        const acceptedPilotDirection = manifest.pilotMode && direction === manifest.pilotDirection;
         manifest.directionStates[direction] = {
-          state: "accepted",
+          state: acceptedPilotDirection || !manifest.pilotMode ? "accepted" : manifest.directionStates[direction]?.state ?? "queued",
           updatedAt: candidate.updatedAt,
           jobId: manifest.winnerCandidateId,
-          reason: body.ready === true ? "untargeted direction preserved from accepted winner" : "restored accepted winner after failed Direction Repair"
+          reason: acceptedPilotDirection
+            ? "accepted pilot direction preserved during expansion"
+            : body.ready === true ? "untargeted direction preserved from accepted winner" : "restored accepted winner after failed Direction Repair"
         };
       });
+  }
+  if (manifest.pilotMode && !candidate.repairDirections?.length && !manifest.pilotWinnerId) {
+    const pilotCandidates = manifest.candidates.slice(0, manifest.initialCandidateCount);
+    const allPilotCandidatesTerminal = pilotCandidates.every((item) => item.state === "quality-evaluated" || item.state === "failed");
+    if (allPilotCandidatesTerminal) {
+      const usablePilotCandidates = pilotCandidates.filter((item) => item.state === "quality-evaluated");
+      manifest.directionOutputCount = usablePilotCandidates.length;
+      manifest.totalCandidateJobs = pilotCandidates.filter((item) => Boolean(item.jobId)).length;
+      manifest.pilotState = usablePilotCandidates.length > 0 ? "review" : "failed";
+      manifest.state = usablePilotCandidates.length > 0 ? "pilot-review" : "failed";
+      if (usablePilotCandidates.length === 0) manifest.fallbackReason = "all pilot candidates failed Quality Gate v2";
+    }
   }
   await writeAnimationTournamentManifest(manifest);
   return manifest;
@@ -1151,6 +1251,139 @@ async function cancelAnimationTournamentUnlocked(tournamentId: string) {
   manifest.state = "cancelled";
   await writeAnimationTournamentManifest(manifest);
   return { ok: true, tournament: manifest, results };
+}
+
+async function startMotionPilotExpansion(tournamentId: string, winnerJobId: string) {
+  return withAnimationTournamentLock(tournamentId, () => startMotionPilotExpansionUnlocked(tournamentId, winnerJobId));
+}
+
+async function startMotionPilotExpansionUnlocked(tournamentId: string, winnerJobId: string) {
+  const manifest = await readAnimationTournamentManifestRequired(tournamentId);
+  if (!manifest.pilotMode || !manifest.pilotDirection || manifest.pilotState !== "review") {
+    throw new Error("Motion Pilot expansion requires pilot candidates in human review.");
+  }
+  const winner = manifest.candidates.find((candidate) => candidate.jobId === winnerJobId && !candidate.repairDirections?.length);
+  if (!winner || winner.state !== "quality-evaluated") throw new Error("Motion Pilot winner must pass Quality Gate v2 before expansion.");
+  if (manifest.humanReview?.manualWinnerJobId && manifest.humanReview.manualWinnerJobId !== winnerJobId) {
+    throw new Error("Motion Pilot winner differs from the saved human review winner.");
+  }
+  if (manifest.expansionJobId) {
+    return { reused: true, job: await codexJobResponse(manifest.expansionJobId, true), tournament: await refreshAnimationTournamentManifest(tournamentId) };
+  }
+  await assertCodexRunnerSlotAvailable();
+
+  const winnerDir = tournamentJobOutboxDir(tournamentId, winnerJobId);
+  const pilotFile = await findDirectionSplitCandidateFile(winnerJobId, directionSlug(manifest.pilotDirection), winnerDir);
+  if (!pilotFile) throw new Error(`Motion Pilot winner is missing ${manifest.pilotDirection}.`);
+  const pilotHash = await hashFile(pilotFile.path);
+  const expansionDirections = manifest.requestedDirections.filter((direction) => direction !== manifest.pilotDirection);
+  if (expansionDirections.length === 0) throw new Error("Motion Pilot has no remaining directions to expand.");
+
+  const template = parseJsonText<CodexJobRequest>(await readFile(animationTournamentTemplatePath(tournamentId), "utf8"));
+  const frameCount = normalizeMotionFrameCount(template.framesPerDirection) ?? 8;
+  const expansionIndex = manifest.candidates.length;
+  const idempotencyKey = `${manifest.idempotencyKey}:pilot-expansion:${directionSlug(manifest.pilotDirection)}`;
+  const now = new Date().toISOString();
+  manifest.winnerCandidateId = winnerJobId;
+  manifest.pilotWinnerId = winnerJobId;
+  manifest.pilotState = "expanding";
+  manifest.state = "pilot-expanding";
+  manifest.expansionDirectionIds = expansionDirections;
+  manifest.acceptedDirectionHashes = { [manifest.pilotDirection]: pilotHash };
+  manifest.directionStates[manifest.pilotDirection] = { state: "accepted", updatedAt: now, jobId: winnerJobId, reason: "human-reviewed Motion Pilot winner" };
+  expansionDirections.forEach((direction) => {
+    manifest.directionStates[direction] = { state: "repairing", updatedAt: now, reason: "expanding accepted pilot winner" };
+  });
+  manifest.candidates.forEach((candidate) => {
+    if (candidate.repairDirections?.length) return;
+    candidate.state = candidate.jobId === winnerJobId ? "accepted" : candidate.jobId ? "cancelled" : candidate.state;
+    candidate.updatedAt = now;
+  });
+  manifest.candidates.push({
+    index: expansionIndex,
+    state: "repairing",
+    idempotencyKey,
+    updatedAt: now,
+    repairDirections: expansionDirections,
+    reason: "Motion Pilot winner expansion"
+  });
+  await writeAnimationTournamentManifest(manifest);
+
+  const body: CodexJobRequest = {
+    ...template,
+    directions: expansionDirections,
+    grid: { columns: frameCount, rows: expansionDirections.length, gutter: 0 },
+    frames: frameCount * expansionDirections.length,
+    framesPerDirection: frameCount,
+    tournamentId,
+    tournamentCandidateIndex: expansionIndex,
+    tournamentCandidateCount: expansionIndex + 1,
+    generationProfile: manifest.generationProfile,
+    idempotencyKey,
+    sourceFingerprint: manifest.sourceFingerprint,
+    repairDirections: expansionDirections,
+    repairOfJobId: winnerJobId,
+    jobNotes: [
+      template.jobNotes ?? "",
+      `Motion Pilot expansion for tournament ${tournamentId}.`,
+      `Accepted pilot winner: ${winnerJobId}; reference direction: ${manifest.pilotDirection}; SHA-256: ${pilotHash}.`,
+      `Generate only remaining directions: ${expansionDirections.join(", ")}.`,
+      `Treat the accepted pilot frames in ${winnerDir} as the locked identity, palette, silhouette, timing, motion phase, topology, and contact reference.`,
+      "Do not regenerate the accepted pilot direction. Preserve the full Motion Recipe phase contract across every expansion direction."
+    ].filter(Boolean).join("\n")
+  };
+  const job = await createCodexJob(body);
+  const updated = await readAnimationTournamentManifestRequired(tournamentId);
+  updated.expansionJobId = job.id;
+  updated.directionOutputCount = updated.pilotCandidateIds?.length ?? updated.initialCandidateCount;
+  updated.totalCandidateJobs = (updated.pilotCandidateIds?.length ?? updated.initialCandidateCount) + 1;
+  updated.repairCount = updated.retryCount;
+  await writeAnimationTournamentManifest(updated);
+  return { reused: false, job, tournament: updated };
+}
+
+async function fallbackMotionPilotTournament(tournamentId: string, reason: string) {
+  return withAnimationTournamentLock(tournamentId, async () => {
+    const manifest = await readAnimationTournamentManifestRequired(tournamentId);
+    if (!manifest.pilotMode || (manifest.pilotState !== "review" && manifest.pilotState !== "failed")) {
+      throw new Error("Motion Pilot fallback requires review-ready or failed pilot candidates.");
+    }
+    const template = parseJsonText<CodexJobRequest>(await readFile(animationTournamentTemplatePath(tournamentId), "utf8"));
+    const fallbackTournamentId = `${tournamentId}-fallback`.slice(0, 96);
+    const fallback = await registerAnimationTournament({
+      tournamentId: fallbackTournamentId,
+      idempotencyKey: `${manifest.idempotencyKey}:fallback:balanced`,
+      sourceFingerprint: manifest.sourceFingerprint,
+      motionRecipeId: manifest.motionRecipeId,
+      motionRecipeVersion: manifest.motionRecipeVersion,
+      motionRecipeCompilerVersion: manifest.motionRecipeCompilerVersion,
+      presetId: manifest.presetId,
+      generationProfile: "balanced",
+      requestedDirections: manifest.requestedDirections,
+      maximumCandidateCount: 3,
+      initialCandidateCount: 2,
+      pilotMode: false,
+      jobTemplate: template,
+      clientContext: { ...(manifest.clientContext ?? {}), motionPilotFallbackFrom: tournamentId, fallbackReason: reason }
+    });
+    manifest.pilotState = "fallback";
+    manifest.fallbackReason = reason;
+    manifest.fallbackTournamentId = fallbackTournamentId;
+    manifest.state = "cancelled";
+    manifest.elapsedTime = Math.max(0, Date.now() - Date.parse(manifest.createdAt));
+    manifest.directionOutputCount = manifest.candidates
+      .slice(0, manifest.initialCandidateCount)
+      .filter((candidate) => Boolean(candidate.jobId && candidate.qualityReportRef))
+      .length;
+    manifest.totalCandidateJobs = manifest.candidates.filter((candidate) => Boolean(candidate.jobId)).length;
+    manifest.repairCount = manifest.retryCount;
+    manifest.candidates.forEach((candidate) => {
+      if (candidate.state !== "accepted") candidate.state = "cancelled";
+      candidate.updatedAt = new Date().toISOString();
+    });
+    await writeAnimationTournamentManifest(manifest);
+    return { ok: true, tournament: manifest, fallbackTournament: fallback.tournament };
+  });
 }
 
 async function startAnimationDirectionRepair(tournamentId: string, requestedDirections: unknown) {
@@ -1226,6 +1459,7 @@ async function acceptAnimationDirectionRepairUnlocked(tournamentId: string, repa
   const manifest = await readAnimationTournamentManifestRequired(tournamentId);
   const repair = manifest.candidates.find((candidate) => candidate.jobId === repairJobId && candidate.repairDirections?.length);
   if (!repair?.repairDirections || !manifest.winnerCandidateId) throw new Error("Direction Repair job is not registered or the winner is missing.");
+  const isPilotExpansion = manifest.pilotMode && manifest.pilotState === "expanding" && manifest.expansionJobId === repairJobId;
   const repairStatus = await getRunnerStatus(repairJobId);
   if (repairStatus.state === "running") throw new Error("Direction Repair is still running.");
   const repairDir = tournamentJobOutboxDir(tournamentId, repairJobId);
@@ -1238,12 +1472,16 @@ async function acceptAnimationDirectionRepairUnlocked(tournamentId: string, repa
   const beforeHashes = { ...manifest.acceptedDirectionHashes };
   for (const direction of repair.repairDirections) {
     const slug = directionSlug(direction);
-    const [repairFile, winnerFile] = await Promise.all([
+    const [repairFile, existingWinnerFile] = await Promise.all([
       findDirectionSplitCandidateFile(repairJobId, slug, repairDir),
       findDirectionSplitCandidateFile(winnerJobId, slug, winnerDir)
     ]);
-    if (!repairFile || !winnerFile) throw new Error(`Direction Repair is missing ${direction}.`);
-    await copyFile(repairFile.path, winnerFile.path);
+    if (!repairFile) throw new Error(`Direction Repair is missing ${direction}.`);
+    const winnerPath = existingWinnerFile?.path ?? (isPilotExpansion
+      ? join(winnerDir, repairFile.finalName.replace(repairJobId, winnerJobId))
+      : "");
+    if (!winnerPath) throw new Error(`Accepted winner is missing ${direction}.`);
+    await copyFile(repairFile.path, winnerPath);
   }
 
   const afterHashes: Record<string, string> = {};
@@ -1252,10 +1490,11 @@ async function acceptAnimationDirectionRepairUnlocked(tournamentId: string, repa
     const winnerFile = await findDirectionSplitCandidateFile(winnerJobId, directionSlug(direction), winnerDir);
     if (!winnerFile) throw new Error(`Accepted winner is missing ${direction} after repair.`);
     afterHashes[direction] = await hashFile(winnerFile.path);
-    if (!repair.repairDirections.includes(direction) && beforeHashes[direction] !== afterHashes[direction]) changedUntargeted.push(direction);
+    if (!repair.repairDirections.includes(direction) && beforeHashes[direction] && beforeHashes[direction] !== afterHashes[direction]) changedUntargeted.push(direction);
   }
   if (changedUntargeted.length > 0) throw new Error(`Direction Repair changed untargeted directions: ${changedUntargeted.join(", ")}`);
 
+  if (isPilotExpansion) await updateMotionPilotWinnerExpectedDirections(winnerJobId, manifest.requestedDirections);
   await new Promise((resolveDelay) => setTimeout(resolveDelay, Math.min(artifactStableMs + 50, 2000)));
   const published = await publishTournamentWinnerUnlocked(tournamentId, winnerJobId);
   const updated = await readAnimationTournamentManifestRequired(tournamentId);
@@ -1281,6 +1520,15 @@ async function acceptAnimationDirectionRepairUnlocked(tournamentId: string, repa
     updatedRepair.updatedAt = new Date().toISOString();
   }
   updated.state = "accepted";
+  if (isPilotExpansion) {
+    updated.pilotState = "completed";
+    updated.expansionDirectionIds = repair.repairDirections;
+    updated.expansionJobId = repairJobId;
+    updated.directionOutputCount = (updated.pilotCandidateIds?.length ?? updated.initialCandidateCount) + repair.repairDirections.length;
+    updated.totalCandidateJobs = (updated.pilotCandidateIds?.length ?? updated.initialCandidateCount) + 1;
+    updated.elapsedTime = Math.max(0, Date.now() - Date.parse(updated.createdAt));
+    updated.repairCount = updated.retryCount;
+  }
   await writeAnimationTournamentManifest(updated);
   return {
     ok: true,
@@ -1291,6 +1539,22 @@ async function acceptAnimationDirectionRepairUnlocked(tournamentId: string, repa
     afterHashes,
     unchangedDirections: manifest.requestedDirections.filter((direction) => !repair.repairDirections?.includes(direction))
   };
+}
+
+async function updateMotionPilotWinnerExpectedDirections(jobId: string, directions: string[]) {
+  const path = join(inboxDir, `${jobId}.json`);
+  const job = parseJsonText<Record<string, unknown>>(await readFile(path, "utf8"));
+  const spriteContext = job.spriteContext && typeof job.spriteContext === "object"
+    ? job.spriteContext as Record<string, unknown>
+    : {};
+  const framesPerDirection = normalizeMotionFrameCount(spriteContext.framesPerDirection) ?? 8;
+  job.spriteContext = {
+    ...spriteContext,
+    directions,
+    grid: { columns: framesPerDirection, rows: directions.length, gutter: 0 },
+    frames: framesPerDirection * directions.length
+  };
+  await writeFile(path, JSON.stringify(job, null, 2), "utf8");
 }
 
 async function refreshAnimationTournamentManifest(tournamentId: string) {
@@ -1321,7 +1585,7 @@ async function refreshAnimationTournamentManifest(tournamentId: string) {
       changed = true;
     }
   }
-  if (manifest.state !== "accepted" && manifest.state !== "cancelled") {
+  if (manifest.state !== "accepted" && manifest.state !== "cancelled" && manifest.state !== "pilot-review" && manifest.state !== "pilot-expanding") {
     const started = manifest.candidates.filter((candidate) => candidate.jobId);
     const hasActiveCandidate = started.some((candidate) => ["running", "artifact-ready", "quality-evaluated", "repairing"].includes(candidate.state));
     const nextState = hasActiveCandidate
@@ -1349,6 +1613,14 @@ async function refreshAnimationTournamentManifest(tournamentId: string) {
       });
     }
   }
+  if (manifest.pilotMode && manifest.pilotState === "review" && manifest.state !== "pilot-review") {
+    manifest.state = "pilot-review";
+    changed = true;
+  }
+  if (manifest.pilotMode && manifest.pilotState === "expanding" && manifest.state !== "pilot-expanding") {
+    manifest.state = "pilot-expanding";
+    changed = true;
+  }
   const hasPendingDirectionRepair = manifest.candidates.some((candidate) =>
     candidate.repairDirections?.length && ["running", "repairing", "artifact-ready", "quality-evaluated"].includes(candidate.state)
   );
@@ -1365,6 +1637,25 @@ async function refreshAnimationTournamentManifest(tournamentId: string) {
       };
       changed = true;
     });
+  }
+  if (manifest.pilotMode && !manifest.pilotWinnerId) {
+    const completedPilotOutputs = manifest.candidates
+      .slice(0, manifest.initialCandidateCount)
+      .filter((candidate) => Boolean(candidate.jobId && candidate.qualityReportRef))
+      .length;
+    if (manifest.directionOutputCount !== completedPilotOutputs) {
+      manifest.directionOutputCount = completedPilotOutputs;
+      changed = true;
+    }
+  }
+  const totalCandidateJobs = manifest.candidates.filter((candidate) => Boolean(candidate.jobId)).length;
+  if (manifest.totalCandidateJobs !== totalCandidateJobs) {
+    manifest.totalCandidateJobs = totalCandidateJobs;
+    changed = true;
+  }
+  if (manifest.repairCount !== manifest.retryCount) {
+    manifest.repairCount = manifest.retryCount;
+    changed = true;
   }
   if (changed) await writeAnimationTournamentManifest(manifest);
   return manifest;
@@ -2257,6 +2548,23 @@ async function cancelCodexRunner(jobId: string) {
     jobId,
     status: cancelledStatus
   };
+}
+
+async function activeCodexRunnerCount() {
+  const statusNames = await readdir(statusDir).catch(() => [] as string[]);
+  const jobIds = statusNames
+    .filter((name) => name.endsWith(".json"))
+    .map((name) => name.slice(0, -5))
+    .filter(isSafeJobId);
+  const statuses = await Promise.all(jobIds.map((jobId) => getRunnerStatus(jobId).catch(() => null)));
+  return statuses.filter((status) => status?.state === "running").length;
+}
+
+async function assertCodexRunnerSlotAvailable() {
+  const activeCount = await activeCodexRunnerCount();
+  if (activeCount >= maxActiveCodexJobs) {
+    throw new Error(`Codex runner slots are full (${activeCount}/${maxActiveCodexJobs}). Wait for a job to finish before starting another.`);
+  }
 }
 
 async function getRunnerStatus(jobId: string): Promise<CodexRunnerStatus> {
@@ -3440,11 +3748,12 @@ async function writeDirectionSplitQualityGate(jobId: string, qualityGate: CodexR
 
 async function writeDirectionSplitAnimationQuality(jobId: string, animationQuality: AnimationQualityReportV2) {
   const resultDir = await resolveJobOutboxDir(jobId) ?? outboxDir;
-  const manifestPaths = [
+  const manifestPaths = [...new Set([
     join(resultDir, `${jobId}-manifest.json`),
     join(resultDir, ".staging", jobId, `${jobId}-manifest.json`),
-    join(resultDir, ".staging", jobId, "manifest.json")
-  ];
+    join(resultDir, ".staging", jobId, "manifest.json"),
+    join(outboxDir, `${jobId}-manifest.json`)
+  ])];
   const written: string[] = [];
   const recordedAt = new Date().toISOString();
   const existingManifests = await Promise.all(manifestPaths.map(async (manifestPath) => ({

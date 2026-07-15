@@ -956,7 +956,20 @@ interface AnimationTournamentManifestClient {
   retryCount: number;
   thirdCandidateReason?: string;
   humanReview?: AnimationHumanReview;
-  state: "queued" | "running" | "accepted" | "failed" | "cancelled";
+  pilotMode?: boolean;
+  pilotState?: "piloting" | "review" | "expanding" | "completed" | "fallback" | "failed";
+  pilotDirection?: string;
+  pilotCandidateIds?: string[];
+  pilotWinnerId?: string;
+  expansionDirectionIds?: string[];
+  expansionJobId?: string;
+  fallbackReason?: string;
+  fallbackTournamentId?: string;
+  directionOutputCount?: number;
+  totalCandidateJobs?: number;
+  elapsedTime?: number;
+  repairCount?: number;
+  state: "queued" | "running" | "pilot-review" | "pilot-expanding" | "accepted" | "failed" | "cancelled";
   clientContext?: Record<string, unknown>;
   createdAt: string;
   updatedAt: string;
@@ -4186,6 +4199,7 @@ function App() {
   const [animationChromaKey, setAnimationChromaKey] = useState<AnimationChromaKeyName>("green");
   const [animationDirectionPreset, setAnimationDirectionPreset] = useState<AnimationDirectionPresetId>("five");
   const [animationGenerationProfile, setAnimationGenerationProfile] = useState<AnimationGenerationProfile>("best");
+  const [motionPilotEnabled, setMotionPilotEnabled] = useState(false);
   const [animationTournamentMonitors, setAnimationTournamentMonitors] = useState<AnimationTournamentMonitorEntry[]>([]);
   const [directionRepairSelections, setDirectionRepairSelections] = useState<Record<string, string[]>>({});
   const [animationReviewManifest, setAnimationReviewManifest] = useState<AnimationTournamentManifestClient | null>(null);
@@ -4781,10 +4795,17 @@ function App() {
       if (!response.ok) throw new Error(await response.text());
       const manifests = ((await response.json()) as { tournaments: AnimationTournamentManifestClient[] }).tournaments;
       if (cancelled) return;
-      setAnimationTournamentMonitors(manifests.slice(0, 12).map((manifest) => ({ manifest, restoredAt: new Date().toISOString() })));
+      const resumableManifests = manifests.filter((item) => item.state === "queued" || item.state === "running" || item.state === "pilot-expanding");
+      const resumableIds = new Set(resumableManifests.map((item) => item.tournamentId));
+      const recentTerminalManifests = manifests
+        .filter((item) => !resumableIds.has(item.tournamentId))
+        .slice(0, Math.max(0, 12 - resumableManifests.length));
+      setAnimationTournamentMonitors(
+        [...resumableManifests, ...recentTerminalManifests]
+          .map((manifest) => ({ manifest, restoredAt: new Date().toISOString() }))
+      );
       const existingIds = new Set(codexJobs.map((job) => job.id));
       const restored: CodexJobQueueItem[] = [];
-      const resumableManifests = manifests.filter((item) => item.state === "queued" || item.state === "running");
       for (const manifest of resumableManifests) {
         for (const candidate of manifest.candidates) {
           if (
@@ -5273,6 +5294,21 @@ function App() {
     ));
     if (transientEvaluations.length > 0) return "pending";
 
+    if (manifest.pilotMode && !manifest.pilotWinnerId) {
+      const refreshedPilot = await loadCodexAnimationTournament(tournamentId);
+      updateAnimationTournamentMonitor(refreshedPilot);
+      if (refreshedPilot.state === "pilot-review" || (refreshedPilot.state === "failed" && refreshedPilot.pilotState === "failed")) {
+        statuses.forEach(({ job, status }) => {
+          clearCodexFailureNotice(job.id);
+          removeCodexJob(job.id, status?.state ?? (refreshedPilot.state === "failed" ? "failed" : "completed"), { notify: false });
+        });
+        setStatus(refreshedPilot.state === "pilot-review"
+          ? `Motion Pilot A/B/C is ready for human review: ${refreshedPilot.pilotDirection}. Choose a winner to expand or use Balanced fallback.`
+          : `Motion Pilot candidates failed. Balanced fallback is available: ${refreshedPilot.fallbackReason ?? tournamentId}.`);
+        return "pilot-review";
+      }
+    }
+
     const readyEvaluations = evaluations.filter((evaluation) => evaluation.ready);
     const activeCandidate = statuses.some(({ job, status }) => job.state === "queued" || shouldWaitForCodexRunner(status ?? undefined));
 
@@ -5390,6 +5426,15 @@ function App() {
     window.requestAnimationFrame(() => animationReviewReturnFocusRef.current?.focus());
   }
 
+  function animationTournamentCandidateDirectionsForManifest(
+    manifest: AnimationTournamentManifestClient,
+    candidate?: AnimationTournamentManifestClient["candidates"][number]
+  ) {
+    if (candidate?.repairDirections?.length) return resolveAnimationTournamentCandidateDirections(manifest.requestedDirections, candidate.repairDirections);
+    if (manifest.pilotMode && manifest.pilotDirection && (candidate?.index ?? 0) < manifest.initialCandidateCount) return [manifest.pilotDirection];
+    return normalizeAnimationDirections(manifest.requestedDirections);
+  }
+
   async function openAnimationReviewCockpit(manifest: AnimationTournamentManifestClient, trigger?: HTMLElement) {
     animationReviewReturnFocusRef.current = trigger ?? document.activeElement as HTMLElement | null;
     const context = manifest.clientContext ?? {};
@@ -5401,7 +5446,6 @@ function App() {
       : ANIMATION_FRAME_COUNT;
     const sourceImageId = typeof context.sourceImageId === "string" ? context.sourceImageId : "";
     const reviewCandidates = manifest.candidates
-      .slice(0, manifest.maximumCandidateCount)
       .filter((candidate): candidate is typeof candidate & { jobId: string } => Boolean(candidate.jobId));
     setAnimationReviewManifest(manifest);
     setAnimationReviewFrameCount(framesPerDirection);
@@ -5430,7 +5474,7 @@ function App() {
           message: "Animation Review Cockpit artifact read",
           finishedAt: new Date().toISOString()
         });
-        const candidateDirections = resolveAnimationTournamentCandidateDirections(manifest.requestedDirections, candidate.repairDirections);
+        const candidateDirections = animationTournamentCandidateDirectionsForManifest(manifest, candidate);
         return {
           jobId: candidate.jobId,
           label: `Candidate ${String.fromCharCode(65 + candidate.index)}`,
@@ -5469,10 +5513,47 @@ function App() {
 
   async function adoptAnimationReviewWinner(jobId: string) {
     if (!animationReviewManifest) throw new Error("Animation Review tournament is not open.");
+    if (animationReviewManifest.pilotMode && animationReviewManifest.state === "pilot-review") {
+      const activeCount = activeCodexJobCount(codexJobs, startingQueuedJobIdsRef.current);
+      if (activeCount >= MAX_ACTIVE_CODEX_JOBS) {
+        throw new Error(`Runner slots are full (${activeCount}/${MAX_ACTIVE_CODEX_JOBS}). The Pilot expansion will stay in review until a slot is free.`);
+      }
+      const response = await fetch(`/api/codex/tournaments/${encodeURIComponent(animationReviewManifest.tournamentId)}/pilot/expand`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ jobId })
+      });
+      if (!response.ok) throw new Error(await response.text());
+      const payload = (await response.json()) as { job: CodexJobResponse; tournament: AnimationTournamentManifestClient };
+      updateAnimationTournamentMonitor(payload.tournament);
+      setAnimationReviewManifest(payload.tournament);
+      const expansion = payload.tournament.candidates.find((candidate) => candidate.jobId === payload.job.id);
+      if (!expansion) throw new Error("Motion Pilot expansion candidate was not registered.");
+      const queueItem = tournamentQueueItemFromManifest(payload.tournament, expansion.index, payload.job);
+      if (shouldWaitForCodexRunner(payload.job.runner)) {
+        setCodexJobs((current) => current.some((job) => job.id === queueItem.id) ? current : [...current, queueItem]);
+      }
+      setStatus(`Motion Pilot winner adopted: ${jobId}. Expanding ${payload.tournament.expansionDirectionIds?.join(", ")}.`);
+      closeAnimationReviewCockpit();
+      return;
+    }
     const payload = await publishCodexTournamentWinner(animationReviewManifest.tournamentId, jobId);
     updateAnimationTournamentMonitor(payload.tournament);
     await refreshAcceptedTournamentArtifact(payload.tournament);
     setStatus(`Manual tournament winner adopted: ${jobId}`);
+  }
+
+  async function fallbackMotionPilotFromUi(manifest: AnimationTournamentManifestClient, reason = "human review requested Balanced fallback") {
+    const response = await fetch(`/api/codex/tournaments/${encodeURIComponent(manifest.tournamentId)}/pilot/fallback`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ reason })
+    });
+    if (!response.ok) throw new Error(await response.text());
+    const payload = (await response.json()) as { tournament: AnimationTournamentManifestClient; fallbackTournament: AnimationTournamentManifestClient };
+    updateAnimationTournamentMonitor(payload.tournament);
+    updateAnimationTournamentMonitor(payload.fallbackTournament);
+    setStatus(`Motion Pilot frozen for this trial: ${reason}. Balanced fallback ${payload.fallbackTournament.tournamentId} registered.`);
   }
 
   async function repairAnimationReviewDirection(direction: string) {
@@ -5489,7 +5570,7 @@ function App() {
     const context = manifest.clientContext ?? {};
     const candidate = manifest.candidates[candidateIndex];
     const baseLabel = typeof context.label === "string" ? context.label : "Animation tournament";
-    const candidateDirections = resolveAnimationTournamentCandidateDirections(manifest.requestedDirections, candidate?.repairDirections);
+    const candidateDirections = animationTournamentCandidateDirectionsForManifest(manifest, candidate);
     const isRepairCandidate = Boolean(candidate?.repairDirections?.length);
     const contextMotionRecipe = typeof context.motionRecipe === "object" && context.motionRecipe
       ? context.motionRecipe as unknown as MotionRecipeReference
@@ -5508,7 +5589,7 @@ function App() {
       createdAt: job.createdAt,
       workflowMode: context.workflowMode === "sprite-generate" ? "sprite-generate" : "sprite-generate",
       actionName: typeof context.actionName === "string" ? context.actionName : manifest.motionRecipeId,
-      grid: isRepairCandidate
+      grid: isRepairCandidate || (manifest.pilotMode && !manifest.pilotWinnerId && !candidate?.repairDirections?.length)
         ? animationSheetGridForDirections(candidateDirections, framesPerDirection)
         : context.grid && typeof context.grid === "object" ? context.grid as GridSettings : animationSheetGridForDirections(candidateDirections, framesPerDirection),
       cell: context.cell && typeof context.cell === "object" ? context.cell as SpriteAction["cell"] : STANDARD_ANIMATION_CELL,
@@ -5658,17 +5739,40 @@ function App() {
       path: `server-tournament:${manifest.tournamentId}:${winnerJobId}`,
       createdAt: winner.createdAt ?? manifest.createdAt
     });
-    const evaluation = await evaluateDirectionSplitTournamentCandidate(job, {
-      jobId: winnerJobId,
-      state: "completed",
-      message: "Direction Repair accepted",
-      finishedAt: new Date().toISOString()
-    });
-    if (!evaluation.ready) throw new Error(evaluation.error ?? "Accepted repaired artifact could not be refreshed.");
-    const retainedHistory = historyRef.current.filter((item) => !(item.outboxImportKey?.includes(winnerJobId) && item.name.includes("direction-split-animation-sheet")));
+    const acceptedJob: CodexJobQueueItem = {
+      ...job,
+      directions: normalizeAnimationDirections(manifest.requestedDirections),
+      grid: animationSheetGridForDirections(manifest.requestedDirections, job.framesPerDirection ?? ANIMATION_FRAME_COUNT),
+      repairDirections: undefined
+    };
+    const previousHistory = historyRef.current;
+    const retainedHistory = previousHistory.filter((item) => !(item.outboxImportKey?.includes(winnerJobId) && item.name.includes("direction-split-animation-sheet")));
     historyRef.current = retainedHistory;
     setHistory(retainedHistory);
-    await importDirectionSplitAnimationResults(evaluation.importedResults, evaluation.manifest, job, evaluation.manifestResult?.name);
+    try {
+      const imported = await importLatestOutboxResult({
+        job: acceptedJob,
+        limit: 200,
+        background: true,
+        quietEmpty: true,
+        failOnIncompleteDirectionSplit: true,
+        throwOnError: true
+      });
+      if (!imported) throw new Error("Accepted repaired artifact could not be refreshed from the published outbox final.");
+    } catch (error) {
+      historyRef.current = previousHistory;
+      setHistory(previousHistory);
+      throw error;
+    }
+  }
+
+  async function revalidateAcceptedPilotFromUi(manifest: AnimationTournamentManifestClient) {
+    try {
+      await refreshAcceptedTournamentArtifact(manifest);
+      setStatus(`Motion Pilot final revalidated across ${manifest.requestedDirections.length} published directions: ${manifest.tournamentId}`);
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "Motion Pilot final revalidation failed.");
+    }
   }
 
   function toggleBatchMatrixSource(sourceId: string) {
@@ -6290,10 +6394,19 @@ function App() {
     const tournamentId = tournamentDrafts[0]?.tournamentId ?? "";
     const profile = draft.generationProfile ?? "best";
     const profileDefinition = animationGenerationProfileDefinition(profile);
-    const manifest = await registerCodexAnimationTournament(tournamentId, draft, profileDefinition.initialCandidates, profileDefinition.maximumCandidates);
+    const manifest = await registerCodexAnimationTournament(
+      tournamentId,
+      draft,
+      profileDefinition.initialCandidates,
+      profileDefinition.maximumCandidates,
+      {},
+      motionPilotEnabled
+    );
     updateAnimationTournamentMonitor(manifest);
     setStatus(
-      profile === "balanced"
+      motionPilotEnabled
+        ? `Experimental Motion Pilot registered: ${profileDefinition.initialCandidates} ${manifest.pilotDirection ?? "side"}-only candidates. Human review is required before expansion.`
+        : profile === "balanced"
         ? `Animation tournament registered: 2 initial candidates; candidate C is adaptive. Open runner slots will start automatically.`
         : `Animation tournament registered: ${profileDefinition.initialCandidates}/${tournamentDrafts.length} candidates (${profile}). Open runner slots will start automatically.`
     );
@@ -6304,7 +6417,8 @@ function App() {
     draft: CodexJobDraft,
     initialCandidateCount: number,
     maximumCandidateCount: number,
-    clientContextExtensions: Record<string, unknown> = {}
+    clientContextExtensions: Record<string, unknown> = {},
+    pilotMode = false
   ) {
     const response = await fetch("/api/codex/tournaments", {
       method: "POST",
@@ -6321,6 +6435,8 @@ function App() {
         requestedDirections: draft.resultDirections ?? draft.directions,
         maximumCandidateCount,
         initialCandidateCount,
+        pilotMode,
+        pilotDirection: pilotMode ? (draft.resultDirections ?? draft.directions).includes("side") ? "side" : (draft.resultDirections ?? draft.directions)[0] : undefined,
         jobTemplate: codexJobRequestFromDraft(draft),
         clientContext: {
           label: draft.label,
@@ -9100,7 +9216,7 @@ function App() {
           <WorkflowTabs language={language} activeMode={workflowMode} onSelect={beginWorkflow} />
 
           {isAnimationWorkflow ? (
-            <div className="animation-steps">
+            <div className={`animation-steps${motionPilotEnabled ? " motion-pilot-active" : ""}`}>
               <details className={`animation-step collapsible-animation-step ${animationSourceReady ? "complete" : ""}`} open>
                 <summary className="step-heading">
                   <strong>{copy.animationStepSourceTitle}</strong>
@@ -9235,7 +9351,10 @@ function App() {
                           className={animationGenerationProfile === profile ? "active" : ""}
                           aria-pressed={animationGenerationProfile === profile}
                           title={definition.description}
-                          onClick={() => setAnimationGenerationProfile(profile)}
+                          onClick={() => {
+                            setAnimationGenerationProfile(profile);
+                            if (profile !== "best") setMotionPilotEnabled(false);
+                          }}
                         >
                           {definition.label}
                           <small>{definition.initialCandidates}{definition.maximumCandidates > definition.initialCandidates ? "+1" : ""} candidate{definition.maximumCandidates === 1 ? "" : "s"}</small>
@@ -9246,6 +9365,24 @@ function App() {
                   <span className="generation-profile-summary">
                     {animationGenerationProfileDefinition(animationGenerationProfile).description}
                   </span>
+                  <label className="motion-pilot-toggle">
+                    <input
+                      type="checkbox"
+                      checked={motionPilotEnabled}
+                      disabled={animationGenerationProfile !== "best"}
+                      onChange={(event) => setMotionPilotEnabled(event.target.checked)}
+                    />
+                    <span>
+                      <strong>Motion Pilot Tournament</strong>
+                      <small>Experimental · Best only · default OFF · {selectedAnimationDirections.length === 5 ? "15→7" : "9→5"} theoretical direction outputs</small>
+                    </span>
+                  </label>
+                  {motionPilotEnabled && (
+                    <div className="motion-pilot-experiment-note" role="note">
+                      <strong>Human review gate</strong>
+                      <span>Generate A/B/C in side only, choose a pilot winner, then expand the remaining {Math.max(0, selectedAnimationDirections.length - 1)} directions. Fallback stays available.</span>
+                    </div>
+                  )}
                 </div>
               </details>
 
@@ -9365,10 +9502,19 @@ function App() {
                       <header>
                         <span>
                           <strong>{manifest.generationProfile.toUpperCase()}</strong>
+                          {manifest.pilotMode && <b className="motion-pilot-badge">PILOT · {manifest.pilotDirection}</b>}
                           <code title={manifest.tournamentId}>{manifest.tournamentId.slice(-12)}</code>
                         </span>
                         <em>{manifest.state} · {formatDurationSinceAt(manifest.createdAt, Date.now())}</em>
                       </header>
+                      {manifest.pilotMode && (
+                        <div className="motion-pilot-metrics">
+                          <span>phase <strong>{manifest.pilotState ?? "piloting"}</strong></span>
+                          <span>direction outputs <strong>{manifest.directionOutputCount ?? manifest.pilotCandidateIds?.length ?? 0}</strong></span>
+                          <span>jobs <strong>{manifest.totalCandidateJobs ?? manifest.pilotCandidateIds?.length ?? 0}</strong></span>
+                          <span>repairs <strong>{manifest.repairCount ?? manifest.retryCount}</strong></span>
+                        </div>
+                      )}
                       <div className="tournament-candidate-grid">
                         {manifest.candidates.map((candidate) => (
                           <button
@@ -9392,7 +9538,7 @@ function App() {
                         disabled={!manifest.candidates.some((candidate) => Boolean(candidate.jobId))}
                         onClick={(event) => void openAnimationReviewCockpit(manifest, event.currentTarget)}
                       >
-                        <Film size={13} aria-hidden="true" /> Review A/B/C
+                        <Film size={13} aria-hidden="true" /> {manifest.candidates.filter((candidate) => Boolean(candidate.jobId)).length > 3 ? "Review A/B/C/D" : "Review A/B/C"}
                       </button>
                       <div className="tournament-direction-grid">
                         {manifest.requestedDirections.map((direction) => (
@@ -9409,16 +9555,28 @@ function App() {
                         ))}
                       </div>
                       {manifest.thirdCandidateReason && <p>Candidate C: {manifest.thirdCandidateReason}</p>}
-                      {manifest.state === "accepted" && (
+                      {manifest.pilotMode && (manifest.state === "pilot-review" || (manifest.state === "failed" && manifest.pilotState === "failed")) && (
+                        <button className="secondary-button mini motion-pilot-fallback" type="button" onClick={() => void fallbackMotionPilotFromUi(manifest)}>
+                          <RefreshCw size={13} aria-hidden="true" /> Fallback to Balanced
+                        </button>
+                      )}
+                      {(manifest.state === "accepted" || manifest.state === "pilot-expanding") && (
                         <div className="tournament-repair-actions">
-                          <button
-                            className="secondary-button mini"
-                            type="button"
-                            disabled={(directionRepairSelections[manifest.tournamentId]?.length ?? 0) === 0 || manifest.retryCount >= 2}
-                            onClick={() => void startDirectionRepairFromUi(manifest)}
-                          >
-                            <RefreshCw size={13} aria-hidden="true" /> Repair selected ({manifest.retryCount}/2 used)
-                          </button>
+                          {manifest.state === "accepted" && manifest.pilotMode && <button
+                              className="secondary-button mini"
+                              type="button"
+                              onClick={() => void revalidateAcceptedPilotFromUi(manifest)}
+                            >
+                              <CheckCircle2 size={13} aria-hidden="true" /> Revalidate Pilot Final
+                            </button>}
+                          {manifest.state === "accepted" && <button
+                              className="secondary-button mini"
+                              type="button"
+                              disabled={(directionRepairSelections[manifest.tournamentId]?.length ?? 0) === 0 || manifest.retryCount >= 2}
+                              onClick={() => void startDirectionRepairFromUi(manifest)}
+                            >
+                              <RefreshCw size={13} aria-hidden="true" /> Repair selected ({manifest.retryCount}/2 used)
+                            </button>}
                           {manifest.candidates.filter((candidate) => candidate.repairDirections?.length && candidate.state === "quality-evaluated" && candidate.jobId).map((candidate) => (
                             <button
                               className="primary-button mini"
@@ -9426,7 +9584,7 @@ function App() {
                               key={candidate.jobId}
                               onClick={() => void acceptDirectionRepairFromUi(manifest, candidate.jobId ?? "")}
                             >
-                              <CheckCircle2 size={13} aria-hidden="true" /> Accept Repair {candidate.repairDirections?.join(", ")}
+                              <CheckCircle2 size={13} aria-hidden="true" /> {manifest.pilotMode && manifest.state === "pilot-expanding" ? "Accept Pilot Expansion" : "Accept Repair"} {candidate.repairDirections?.join(", ")}
                             </button>
                           ))}
                         </div>
@@ -10454,7 +10612,12 @@ function App() {
           frameCount={animationReviewFrameCount}
           sourceDataUrl={animationReviewSourceDataUrl}
           initialReview={animationReviewManifest.humanReview}
+          initialDirection={animationReviewManifest.pilotMode ? animationReviewManifest.pilotDirection : undefined}
           loading={animationReviewLoading}
+          adoptDisabled={animationReviewManifest.pilotMode && animationReviewManifest.state === "pilot-review" && activeCodexJobCount(codexJobs, startingQueuedJobIdsRef.current) >= MAX_ACTIVE_CODEX_JOBS}
+          adoptDisabledReason={animationReviewManifest.pilotMode && animationReviewManifest.state === "pilot-review" && activeCodexJobCount(codexJobs, startingQueuedJobIdsRef.current) >= MAX_ACTIVE_CODEX_JOBS
+            ? `Runner slots are full (${activeCodexJobCount(codexJobs, startingQueuedJobIdsRef.current)}/${MAX_ACTIVE_CODEX_JOBS}). Pilot expansion will remain in review until a slot is free.`
+            : undefined}
           onClose={closeAnimationReviewCockpit}
           onSaveReview={saveAnimationHumanReview}
           onAdopt={adoptAnimationReviewWinner}

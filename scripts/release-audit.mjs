@@ -78,6 +78,11 @@ const requiredFiles = [
   "src/lib/effectQuality.test.ts",
   "docs/qa/vfx-composite-stage.md",
   "docs/qa/vfx-composite-stage-matrix.json",
+  "src/lib/motionPilot.ts",
+  "src/lib/motionPilot.test.ts",
+  "docs/qa/animation-uplift-final-benchmark.md",
+  "docs/qa/animation-uplift-final-benchmark.json",
+  "docs/qa/animation-uplift-review-index.md",
   "src/lib/officialAnimations.ts",
   "docs/review/mvp-review-report.md",
   "docs/roadmap/release-roadmap.md",
@@ -473,9 +478,12 @@ function checkWorkflowIds() {
   const vfxCompositeUiText = readText("src/VfxCompositeStage.tsx");
   const effectQualityText = readText("src/lib/effectQuality.ts");
   const vfxCompositeQaText = readText("docs/qa/vfx-composite-stage.md");
+  const motionPilotText = readText("src/lib/motionPilot.ts");
+  const finalBenchmarkText = readText("docs/qa/animation-uplift-final-benchmark.md");
+  const finalReviewIndexText = readText("docs/qa/animation-uplift-review-index.md");
   const realCodexSmokeText = readText("scripts/real-codex-runner-smoke.mjs");
   const imageEditFullBodyQaText = readText("docs/qa/image-edit-full-body-fit.md");
-  if (!appText || !stylesText || !smokeText || !uiSmokeText || !realCodexSmokeText || !animationTournamentText || !animationReviewText || !animationReviewUiText || !serverText || !animationReviewQaText || !vfxCompositeText || !vfxCompositeUiText || !effectQualityText || !vfxCompositeQaText) return;
+  if (!appText || !stylesText || !smokeText || !uiSmokeText || !realCodexSmokeText || !animationTournamentText || !animationReviewText || !animationReviewUiText || !serverText || !animationReviewQaText || !vfxCompositeText || !vfxCompositeUiText || !effectQualityText || !vfxCompositeQaText || !motionPilotText || !finalBenchmarkText || !finalReviewIndexText) return;
 
   requiredWorkflowIds.forEach((workflowId) => {
     if (!appText.includes(workflowId)) {
@@ -816,6 +824,7 @@ function checkWorkflowIds() {
 
   [
     "Candidate A/B/C · Sync Compare",
+    "Candidate A/B/C/D · Sync Compare",
     "Direction × Frame QC Matrix",
     "Preview Studio",
     "Adjacent diff",
@@ -925,6 +934,73 @@ function checkWorkflowIds() {
     "separate-layer export"
   ].forEach((marker) => {
     if (!vfxCompositeQaText.includes(marker)) failures.push(`VFX Composite QA evidence is missing: ${marker}`);
+  });
+
+  [
+    "theoreticalMotionPilotDirectionOutputs",
+    "decideMotionPilotReview",
+    "summarizeAnimationBenchmark",
+    "motionPilotMeetsAdoptionGate"
+  ].forEach((marker) => {
+    if (!motionPilotText.includes(marker)) failures.push(`Motion Pilot benchmark model is missing: ${marker}`);
+  });
+
+  [
+    "Motion Pilot Tournament",
+    "Experimental · Best only · default OFF",
+    "pilot/expand",
+    "Fallback to Balanced",
+    "Accept Pilot Expansion",
+    "Revalidate Pilot Final",
+    "adoptDisabledReason",
+    "Pilot expansion will remain in review until a slot is free",
+    "artifactDirections"
+  ].forEach((marker) => {
+    if (!appText.includes(marker)) failures.push(`Motion Pilot UI/client flow is missing: ${marker}`);
+  });
+
+  [
+    "startMotionPilotExpansion",
+    "fallbackMotionPilotTournament",
+    "pilotCandidateIds",
+    "directionOutputCount",
+    "totalCandidateJobs",
+    "assertCodexRunnerSlotAvailable"
+  ].forEach((marker) => {
+    if (!serverText.includes(marker)) failures.push(`Motion Pilot server manifest flow is missing: ${marker}`);
+  });
+
+  [
+    "Motion Pilot Tournament must remain experimental and default OFF",
+    "Best only",
+    "Human review gate",
+    "remaining 4 directions"
+  ].forEach((marker) => {
+    if (!uiSmokeText.includes(marker)) failures.push(`UI smoke should cover Motion Pilot gating: ${marker}`);
+  });
+
+  [
+    "Animation Uplift Final Benchmark",
+    "standard real browser trials",
+    "Motion Pilot A/B",
+    "false success 0",
+    "stuck 0"
+  ].forEach((marker) => {
+    if (!finalBenchmarkText.includes(marker)) failures.push(`Final benchmark evidence is missing: ${marker}`);
+  });
+
+  [
+    "Phase 1",
+    "Phase 2",
+    "Phase 3",
+    "Phase 4",
+    "Phase 5",
+    "Phase 6",
+    "Phase 7",
+    "Phase 8",
+    "rollback checkpoint"
+  ].forEach((marker) => {
+    if (!finalReviewIndexText.includes(marker)) failures.push(`Animation Uplift review index is missing: ${marker}`);
   });
 
   [

@@ -601,9 +601,19 @@ async function assertAnimationPresetExamples() {
   assert(["Fast", "Balanced", "Best"].every((label) => profileSnapshot.buttons.includes(label) || profileSnapshot.text.includes(label)), "Generation profile should expose Fast, Balanced, and Best");
   const defaultBest = await evaluate(`document.querySelector(".generation-profile-buttons button.active")?.innerText.includes("Best")`);
   assert(defaultBest, "Best should remain the default animation generation profile");
+  const motionPilotDefaultOff = await evaluate(`document.querySelector(".motion-pilot-toggle input")?.checked === false`);
+  assert(motionPilotDefaultOff, "Motion Pilot Tournament must remain experimental and default OFF");
+  assert(profileSnapshot.text.includes("Best only"), "Motion Pilot should explain that A/B/C pilot generation is limited to Best");
+  await clickSelector(".motion-pilot-toggle input");
+  const motionPilotEnabled = await evaluate(`(() => ({ checked: document.querySelector(".motion-pilot-toggle input")?.checked, note: document.querySelector(".motion-pilot-experiment-note")?.innerText || "" }))()`);
+  assert(motionPilotEnabled.checked === true, "Motion Pilot experimental flag should be explicitly selectable");
+  assert(motionPilotEnabled.note.includes("Human review gate") && motionPilotEnabled.note.includes("remaining 4 directions"), `Motion Pilot should explain staged generation and review: ${JSON.stringify(motionPilotEnabled)}`);
+  await clickSelector(".motion-pilot-toggle input");
   await clickSelector(".generation-profile-buttons button:nth-child(2)");
   const balancedActive = await evaluate(`document.querySelector(".generation-profile-buttons button.active")?.innerText.includes("Balanced")`);
   assert(balancedActive, "Balanced profile should be selectable");
+  const motionPilotBalancedDisabled = await evaluate(`document.querySelector(".motion-pilot-toggle input")?.disabled === true && document.querySelector(".motion-pilot-toggle input")?.checked === false`);
+  assert(motionPilotBalancedDisabled, "Motion Pilot should stay Best-only and reset OFF when another profile is selected");
   await clickSelector(".generation-profile-buttons button:nth-child(3)");
 
   await clickButtonByText("Choose Animation");

@@ -66,7 +66,10 @@ interface AnimationReviewCockpitProps {
   frameCount: number;
   sourceDataUrl?: string;
   initialReview?: AnimationHumanReview;
+  initialDirection?: string;
   loading?: boolean;
+  adoptDisabled?: boolean;
+  adoptDisabledReason?: string;
   onClose: () => void;
   onSaveReview: (review: AnimationHumanReview) => Promise<void>;
   onAdopt: (jobId: string) => Promise<void>;
@@ -184,7 +187,10 @@ export function AnimationReviewCockpit({
   frameCount,
   sourceDataUrl,
   initialReview,
+  initialDirection,
   loading,
+  adoptDisabled = false,
+  adoptDisabledReason,
   onClose,
   onSaveReview,
   onAdopt,
@@ -193,7 +199,13 @@ export function AnimationReviewCockpit({
   const ja = language === "ja";
   const dialogRef = useRef<HTMLElement>(null);
   const firstFocusRef = useRef<HTMLButtonElement>(null);
-  const [directionIndex, setDirectionIndex] = useState(0);
+  const artifactDirections = manifest.requestedDirections.filter((requestedDirection) =>
+    candidates.some((candidate) => Boolean(candidate.sheets[requestedDirection]))
+  );
+  const directions = artifactDirections.length > 0
+    ? artifactDirections
+    : manifest.requestedDirections.length > 0 ? manifest.requestedDirections : ["front"];
+  const [directionIndex, setDirectionIndex] = useState(Math.max(0, directions.indexOf(initialDirection ?? "")));
   const [frameIndex, setFrameIndex] = useState(0);
   const [playing, setPlaying] = useState(false);
   const [speed, setSpeed] = useState(1);
@@ -215,14 +227,19 @@ export function AnimationReviewCockpit({
   const [showHurtbox, setShowHurtbox] = useState(false);
   const [background, setBackground] = useState<"checker" | "light" | "dark">("checker");
   const [reducedMotion, setReducedMotion] = useState(false);
-  const directions = manifest.requestedDirections.length > 0 ? manifest.requestedDirections : ["front"];
   const direction = directions[Math.min(directionIndex, directions.length - 1)];
   const activeCandidate = candidates.find((candidate) => candidate.jobId === activeCandidateId) ?? candidates[0];
+  const candidateCompareTitle = candidates.length > 3 ? "Candidate A/B/C/D · Sync Compare" : "Candidate A/B/C · Sync Compare";
   const activeDecision = review.decisions.find((entry) => entry.jobId === activeCandidate?.jobId);
   const qcCells = useMemo(
     () => animationReviewQcMatrix(activeCandidate?.quality, directions, frameCount, heatMode),
     [activeCandidate?.quality, directions, frameCount, heatMode]
   );
+
+  useEffect(() => {
+    setDirectionIndex(Math.max(0, directions.indexOf(initialDirection ?? "")));
+    setFrameIndex(0);
+  }, [manifest.tournamentId, initialDirection]);
 
   useEffect(() => {
     const media = window.matchMedia("(prefers-reduced-motion: reduce)");
@@ -390,7 +407,7 @@ export function AnimationReviewCockpit({
         <main className="animation-review-scroll">
           <section className="review-section" aria-labelledby="candidate-compare-title">
             <div className="review-section-heading">
-              <div><span className="step-number">1</span><h3 id="candidate-compare-title">Candidate A/B/C · Sync Compare</h3></div>
+              <div><span className="step-number">1</span><h3 id="candidate-compare-title">{candidateCompareTitle}</h3></div>
               <p>{ja ? "全候補を同じ方向・フレーム・速度で比較するニャ" : "Compare every candidate at the same direction, frame and speed."}</p>
             </div>
             {loading ? <div className="review-loading" role="status">Loading candidate artifacts…</div> : null}
@@ -491,9 +508,9 @@ export function AnimationReviewCockpit({
         </main>
 
         <footer className="animation-review-footer">
-          <div aria-live="polite"><strong>{review.manualWinnerJobId ? `${candidates.find((candidate) => candidate.jobId === review.manualWinnerJobId)?.label ?? "Candidate"} selected` : ja ? "採用候補を選択してください" : "Select an adoption candidate"}</strong><small className={actionError ? "review-action-error" : ""}>{actionError || (ja ? "自動採用理由と警告を確認してから確定" : "Confirm automatic reasons and warnings before adoption.")}</small></div>
+          <div aria-live="polite"><strong>{review.manualWinnerJobId ? `${candidates.find((candidate) => candidate.jobId === review.manualWinnerJobId)?.label ?? "Candidate"} selected` : ja ? "採用候補を選択してください" : "Select an adoption candidate"}</strong><small className={actionError ? "review-action-error" : ""}>{actionError || adoptDisabledReason || (ja ? "自動採用理由と警告を確認してから確定" : "Confirm automatic reasons and warnings before adoption.")}</small></div>
           <button type="button" className="secondary-button" onClick={onClose}>{ja ? "閉じる" : "Close"}</button>
-          <button type="button" className="primary-button" disabled={!review.manualWinnerJobId || actionState !== "idle"} onClick={() => void adoptWinner()}><Check size={16} />{actionState === "adopting" ? "Adopting…" : ja ? "選択候補を採用" : "Adopt selected candidate"}</button>
+          <button type="button" className="primary-button" disabled={!review.manualWinnerJobId || actionState !== "idle" || adoptDisabled} title={adoptDisabled ? adoptDisabledReason : undefined} onClick={() => void adoptWinner()}><Check size={16} />{actionState === "adopting" ? "Adopting…" : ja ? "選択候補を採用" : "Adopt selected candidate"}</button>
         </footer>
       </section>
     </div>

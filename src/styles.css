@@ -1787,6 +1787,82 @@ button {
   line-height: 1.4;
 }
 
+.motion-pilot-toggle {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-top: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--panel-soft);
+  cursor: pointer;
+}
+
+.motion-pilot-toggle input {
+  margin-top: 3px;
+}
+
+.motion-pilot-toggle:has(input:disabled) {
+  cursor: not-allowed;
+  opacity: 0.62;
+}
+
+.motion-pilot-toggle span {
+  display: grid;
+  gap: 2px;
+}
+
+.motion-pilot-toggle small,
+.motion-pilot-experiment-note span {
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
+.motion-pilot-experiment-note {
+  display: grid;
+  gap: 3px;
+  margin-top: 8px;
+  padding: 9px 11px;
+  border-left: 3px solid var(--teal);
+  background: color-mix(in srgb, var(--teal) 8%, var(--panel));
+}
+
+.motion-pilot-badge {
+  padding: 2px 6px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--teal) 13%, var(--panel));
+  color: var(--teal);
+  font-size: 9px;
+  letter-spacing: 0.05em;
+}
+
+.motion-pilot-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+  margin: 8px 0;
+}
+
+.motion-pilot-metrics span {
+  display: grid;
+  gap: 2px;
+  padding: 6px 8px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--text-muted);
+  font-size: 9px;
+}
+
+.motion-pilot-metrics strong {
+  color: #17211b;
+  font-size: 11px;
+}
+
+.motion-pilot-fallback {
+  margin-top: 8px;
+}
+
 .animation-source-fingerprint {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
@@ -4538,6 +4614,12 @@ button:disabled {
   }
 }
 
+@media (max-width: 680px) {
+  .motion-pilot-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
 .vfx-composite-launch-panel {
   border-color: #9fc9af;
   background: linear-gradient(135deg, #fbfffc, #edf8f1);
@@ -5198,6 +5280,11 @@ button:disabled {
   bottom: 8px;
   border-color: #8fc8a5;
   box-shadow: 0 10px 26px rgba(22, 72, 42, 0.16);
+}
+
+.animation-steps.motion-pilot-active .animation-generate-step {
+  position: relative;
+  bottom: auto;
 }
 
 .animation-source-mismatch {

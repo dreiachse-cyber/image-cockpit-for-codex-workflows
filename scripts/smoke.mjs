@@ -370,6 +370,117 @@ async function runManualHandoffSmoke() {
     const candidateAJson = JSON.parse(await readFile(candidateA.job.path, "utf8"));
     const candidateCJson = JSON.parse(await readFile(candidateC.job.path, "utf8"));
     assert(candidateAJson.selectedImage.assetPath === candidateCJson.selectedImage.assetPath, "tournament candidates should share one content-addressed source asset");
+
+    const motionPilotId = "smoke-motion-pilot-tournament";
+    const motionPilotRegistration = await postJson(port, "/api/codex/tournaments", {
+      ...tournamentRegistration,
+      tournamentId: motionPilotId,
+      idempotencyKey: "smoke:motion-pilot:v1",
+      generationProfile: "best",
+      maximumCandidateCount: 3,
+      initialCandidateCount: 3,
+      pilotMode: true,
+      pilotDirection: "side",
+      clientContext: { ...tournamentRegistration.clientContext, label: "Smoke Motion Pilot" }
+    });
+    assert(motionPilotRegistration.tournament.pilotMode === true, "Motion Pilot should persist as an explicit experimental mode");
+    assert(motionPilotRegistration.tournament.pilotDirection === "side", "Motion Pilot should persist the representative direction");
+    const pilotCandidates = [];
+    for (let index = 0; index < 3; index += 1) {
+      const candidate = await postJson(port, `/api/codex/tournaments/${motionPilotId}/candidates`, { candidateIndex: index });
+      pilotCandidates.push(candidate);
+      const candidateJob = JSON.parse(await readFile(candidate.job.path, "utf8"));
+      assert(candidateJob.spriteContext.directions.join(",") === "side", "pilot candidates should generate only the representative direction");
+      assert(candidateJob.spriteContext.grid.rows === 1, "pilot candidate grid should have one direction row");
+    }
+    for (let index = 0; index < pilotCandidates.length; index += 1) {
+      const candidate = pilotCandidates[index];
+      await writeFile(join(candidate.job.outboxPath, `${candidate.job.id}-side.png`), tinyPngBytes);
+      await writeFile(join(candidate.job.outboxPath, `${candidate.job.id}-manifest.json`), JSON.stringify({
+        schema: "image-cockpit.direction-split-animation.v1",
+        jobId: candidate.job.id,
+        action: "walk",
+        directions: ["side"],
+        files: { side: `${candidate.job.id}-side.png` },
+        chromaKey: { name: "green" },
+        animationQuality: animationQualityReport
+      }, null, 2), "utf8");
+      const evaluated = await postJson(port, `/api/codex/tournaments/${motionPilotId}/evaluation`, {
+        jobId: candidate.job.id,
+        ready: true,
+        score: 3300 - index * 100,
+        warningCount: 0,
+        qualityReportRef: `${candidate.job.id}-manifest.json#animationQuality`
+      });
+      if (index === 2) {
+        assert(evaluated.tournament.state === "pilot-review", "three evaluated pilot candidates should stop at the human review gate");
+        assert(evaluated.tournament.directionOutputCount === 3, "pilot review should report its three completed representative-direction outputs");
+        assert(evaluated.tournament.totalCandidateJobs === 3, "pilot review should report all three initial candidate jobs");
+      }
+    }
+    await postJson(port, `/api/codex/tournaments/${motionPilotId}/review`, {
+      review: {
+        manualWinnerJobId: pilotCandidates[0].job.id,
+        decisions: [{ jobId: pilotCandidates[0].job.id, decision: "winner", reasonTags: ["motion-readability"], note: "smoke pilot winner" }]
+      }
+    });
+    const pilotExpansion = await postJson(port, `/api/codex/tournaments/${motionPilotId}/pilot/expand`, { jobId: pilotCandidates[0].job.id });
+    assert(pilotExpansion.tournament.state === "pilot-expanding", "adopting a pilot should start remaining-direction expansion without publishing a partial winner");
+    assert(pilotExpansion.tournament.expansionDirectionIds.join(",") === "front,back", "pilot expansion should exclude the accepted representative direction");
+    const expansionJobJson = JSON.parse(await readFile(pilotExpansion.job.path, "utf8"));
+    assert(expansionJobJson.spriteContext.directions.join(",") === "front,back", "pilot expansion should generate only remaining directions");
+    for (const slug of ["front", "back"]) {
+      await writeFile(join(pilotExpansion.job.outboxPath, `${pilotExpansion.job.id}-${slug}.png`), tinyPngBytes);
+    }
+    await writeFile(join(pilotExpansion.job.outboxPath, `${pilotExpansion.job.id}-manifest.json`), JSON.stringify({
+      schema: "image-cockpit.direction-split-animation.v1",
+      jobId: pilotExpansion.job.id,
+      action: "walk",
+      directions: ["front", "back"],
+      files: {
+        front: `${pilotExpansion.job.id}-front.png`,
+        back: `${pilotExpansion.job.id}-back.png`
+      },
+      chromaKey: { name: "green" },
+      animationQuality: animationQualityReport
+    }, null, 2), "utf8");
+    await postJson(port, `/api/codex/tournaments/${motionPilotId}/evaluation`, {
+      jobId: pilotExpansion.job.id,
+      ready: true,
+      score: 3200,
+      warningCount: 0,
+      qualityReportRef: `${pilotExpansion.job.id}-manifest.json#animationQuality`
+    });
+    const acceptedPilotExpansion = await postJson(port, `/api/codex/tournaments/${motionPilotId}/repairs/accept`, { jobId: pilotExpansion.job.id });
+    assert(acceptedPilotExpansion.tournament.state === "accepted", "verified Motion Pilot expansion should publish one complete accepted winner");
+    assert(acceptedPilotExpansion.tournament.pilotState === "completed", "Motion Pilot should persist its completed phase");
+    assert(acceptedPilotExpansion.tournament.directionOutputCount === 5, "three pilot outputs plus two expansion directions should record five outputs for a 3-direction run");
+    assert(acceptedPilotExpansion.tournament.totalCandidateJobs === 4, "Motion Pilot should record three pilot jobs plus one expansion job");
+    const revalidatedPilotQuality = { ...animationQualityReport, identityScore: 97.5, recordedAt: new Date().toISOString() };
+    await postJson(port, `/api/codex/artifacts/${pilotCandidates[0].job.id}/animation-quality`, { report: revalidatedPilotQuality });
+    const publishedPilotManifest = JSON.parse(await readFile(join(handoffDir, "outbox", `${pilotCandidates[0].job.id}-manifest.json`), "utf8"));
+    assert(publishedPilotManifest.animationQuality?.identityScore === 97.5, "accepted Pilot final revalidation should update the published root manifest, not only tournament work files");
+
+    const motionPilotFallbackId = "smoke-motion-pilot-fallback";
+    await postJson(port, "/api/codex/tournaments", {
+      ...tournamentRegistration,
+      tournamentId: motionPilotFallbackId,
+      idempotencyKey: "smoke:motion-pilot:fallback:v1",
+      generationProfile: "best",
+      maximumCandidateCount: 3,
+      initialCandidateCount: 3,
+      pilotMode: true,
+      pilotDirection: "side"
+    });
+    for (let index = 0; index < 3; index += 1) {
+      const candidate = await postJson(port, `/api/codex/tournaments/${motionPilotFallbackId}/candidates`, { candidateIndex: index });
+      await postJson(port, `/api/codex/tournaments/${motionPilotFallbackId}/evaluation`, { jobId: candidate.job.id, ready: true, score: 3000 - index, warningCount: 0 });
+    }
+    const pilotFallback = await postJson(port, `/api/codex/tournaments/${motionPilotFallbackId}/pilot/fallback`, { reason: "scores too close to call" });
+    assert(pilotFallback.tournament.pilotState === "fallback", "Motion Pilot should persist the fallback reason and phase");
+    assert(pilotFallback.fallbackTournament.generationProfile === "balanced", "Motion Pilot fallback should register the existing Balanced regime");
+    assert(pilotFallback.fallbackTournament.pilotMode === false, "fallback tournament should use the standard full-direction path");
+    assert(pilotFallback.fallbackTournament.requestedDirections.join(",") === "front,side,back", "fallback should restore every requested direction");
     await stopServer(server);
     server = startServer({
       port,
@@ -878,6 +989,45 @@ async function runMockAutorunSmoke() {
     assert(resumedStatus.status.initialStartedAt === originalStartedAt, "resumed runner should preserve the initial start time");
     assert(resumedStatus.status.resumedAt, "resumed runner should record resumedAt");
 
+    const capacityHoldTemplate = {
+      workflowMode: "sprite-generate",
+      prompt: "Smoke test capacity hold",
+      negativePrompt: "text",
+      jobNotes: "Keep three runner slots occupied for the tournament admission guard.",
+      annotations: [],
+      directions: ["front", "front three-quarter", "side", "back three-quarter", "back"],
+      grid: { columns: 8, rows: 5, gutter: 0 },
+      action: "idle",
+      frames: 40,
+      framesPerDirection: 8
+    };
+    const capacityJobs = [];
+    for (let index = 0; index < 3; index += 1) capacityJobs.push(await postJson(port, "/api/codex/jobs", capacityHoldTemplate));
+    assert(capacityJobs.every((item) => item.runner?.state === "running"), "capacity fixture should occupy all three runner slots");
+    const capacityTournamentId = "smoke-runner-cap-tournament";
+    await postJson(port, "/api/codex/tournaments", {
+      tournamentId: capacityTournamentId,
+      idempotencyKey: "smoke:runner-cap:v1",
+      sourceFingerprint: "smoke-runner-cap-source",
+      motionRecipeId: "idle-breathing",
+      motionRecipeVersion: 1,
+      motionRecipeCompilerVersion: "1.1.0",
+      presetId: "idle",
+      generationProfile: "fast",
+      requestedDirections: capacityHoldTemplate.directions,
+      maximumCandidateCount: 1,
+      initialCandidateCount: 1,
+      jobTemplate: capacityHoldTemplate
+    });
+    const capacityResponse = await fetch(`http://127.0.0.1:${port}/api/codex/tournaments/${capacityTournamentId}/candidates`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ candidateIndex: 0 })
+    });
+    const capacityText = await capacityResponse.text();
+    assert(capacityResponse.status === 500 && capacityText.includes("runner slots are full (3/3)"), `fourth tournament runner should be rejected before manifest mutation: ${capacityResponse.status} ${capacityText}`);
+    await Promise.all(capacityJobs.map((item) => waitForJobState(port, item.id, "completed")));
+
     const job = await postJson(port, "/api/codex/jobs", {
       workflowMode: "image-generate",
       prompt: "Smoke test mock autorun generation",
@@ -1130,6 +1280,10 @@ if (job.id !== jobId) {
 
 if (job.prompt.includes("API restart resume")) {
   await new Promise((resolve) => setTimeout(resolve, 1500));
+}
+
+if (job.prompt.includes("capacity hold")) {
+  await new Promise((resolve) => setTimeout(resolve, 1800));
 }
 
 if (job.prompt.includes("policy blocked sidecar")) {
