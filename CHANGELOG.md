@@ -4,6 +4,41 @@
 
 No unreleased changes yet.
 
+## v0.1.6 - 2026-07-16
+
+Animation generation efficiency, repertoire, quality tooling, and workflow readability release after v0.1.5.
+
+### Added
+
+- Added Quality Gate v2 shadow metrics for raw/normalized comparison, correction amount, identity, palette, silhouette, phase, action-profile, and loop-seam review without changing the existing hard gate.
+- Added resumable Fast / Balanced / Best adaptive tournaments, Direction Repair, a 2x2 Batch Matrix, and global three-runner concurrency control.
+- Added the versioned Motion Recipe compiler with 22 recipes, six body topologies, nine structured modifiers, and variable 4 / 6 / 8 / 12-frame budgets.
+- Added non-destructive Animation Timeline editing, Animation Pack v2 round-trip metadata, and Generic / Godot / Phaser / Aseprite / Unity export support.
+- Added Animation Review Cockpit A/B/C comparison, eight review axes, Direction x Frame QC matrices, visual diff modes, overlays, and persisted human review decisions.
+- Added VFX Composite Stage character/effect layers, sockets, events, depth/blend/transform/timing controls, expanded effect repertoire, and combined export packs.
+- Added the opt-in Motion Pilot Tournament benchmark flow with side-only review, remaining-direction expansion, and Balanced fallback.
+
+### Changed
+
+- Animation Generation and Effect Animation now keep only their primary choices and generate action visible in the left column; optional controls live in focused modals or collapsible tools.
+- The four primary workflow switches now appear at the top of the left column in a large 2x2 control.
+- Base UI typography is now 16px, major targets are 48-60px high, and narrow layouts stack without horizontal overflow.
+- Motion Pilot remains Experimental, Best-only, default OFF because final benchmarks were materially slower than the standard Fast path.
+- The public repository excludes heavy local QA outputs and includes smaller optimized sample PNGs.
+
+### Fixed
+
+- Preserved real-runner visibility and Cockpit health while guarding production imagegen flows from mock-runner output.
+- Restored the three-candidate parallel default, removed the low-value one-direction mode, and balanced the five/three-direction control.
+- Prevented enlarged result-card text from overflowing normal and Effect result cards while keeping the center preview width intact.
+- Stabilized full UI smoke timing around queued fourth jobs and Effect completion.
+
+### Verification
+
+- v0.1.6 release prep tracks package/app/API version `0.1.6`.
+- Final release validation covers syntax, doctor, typecheck, 184 Vitest tests, build, smoke, release audit, full browser UI smoke, and Git diff checks.
+- The app remains local-first and does not call the OpenAI API directly or require an API key.
+
 ## v0.1.5 - 2026-07-04
 
 Monster Girl Chibi prompt catalog and animation QA release after v0.1.4.
