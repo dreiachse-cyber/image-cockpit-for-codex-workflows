@@ -1,0 +1,81 @@
+{
+  "schema": "image-cockpit.animation-review-calibration.v1",
+  "exportedAt": "2026-07-15T00:00:00.000Z",
+  "tournamentId": "fixture-best-three-candidates",
+  "sourceFingerprint": "sha256:fixture-source",
+  "winnerJobId": "fixture-candidate-b",
+  "humanReview": {
+    "updatedAt": "2026-07-15T00:00:00.000Z",
+    "manualWinnerJobId": "fixture-candidate-b",
+    "decisions": [
+      {
+        "jobId": "fixture-candidate-a",
+        "decision": "reject",
+        "reasonTags": ["loop-seam"],
+        "note": "Loop seam remains visible in side direction."
+      },
+      {
+        "jobId": "fixture-candidate-b",
+        "decision": "winner",
+        "reasonTags": [],
+        "note": "Best identity and phase readability."
+      },
+      {
+        "jobId": "fixture-candidate-c",
+        "decision": "hold",
+        "reasonTags": ["over-correction"],
+        "note": "Useful repair reference, but translation correction is too large."
+      }
+    ]
+  },
+  "candidates": [
+    {
+      "jobId": "fixture-candidate-a",
+      "dimensions": [
+        { "id": "identity", "label": "Identity", "score": 78, "status": "pass" },
+        { "id": "palette", "label": "Palette", "score": 82, "status": "pass" },
+        { "id": "silhouette", "label": "Silhouette", "score": 74, "status": "warning" },
+        { "id": "footline", "label": "footline", "score": 68, "status": "warning" },
+        { "id": "loop", "label": "Loop seam", "score": 48, "status": "fail" },
+        { "id": "phase", "label": "Phase", "score": 76, "status": "pass" },
+        { "id": "motion", "label": "Motion", "score": 80, "status": "pass" },
+        { "id": "correction", "label": "Correction", "score": 72, "status": "warning" }
+      ],
+      "warnings": ["loop seam exceeds threshold"],
+      "shadowWouldBlock": true,
+      "shadowReasons": ["loop seam"]
+    },
+    {
+      "jobId": "fixture-candidate-b",
+      "dimensions": [
+        { "id": "identity", "label": "Identity", "score": 93, "status": "pass" },
+        { "id": "palette", "label": "Palette", "score": 91, "status": "pass" },
+        { "id": "silhouette", "label": "Silhouette", "score": 88, "status": "pass" },
+        { "id": "footline", "label": "footline", "score": 86, "status": "pass" },
+        { "id": "loop", "label": "Loop seam", "score": 90, "status": "pass" },
+        { "id": "phase", "label": "Phase", "score": 92, "status": "pass" },
+        { "id": "motion", "label": "Motion", "score": 89, "status": "pass" },
+        { "id": "correction", "label": "Correction", "score": 84, "status": "pass" }
+      ],
+      "warnings": [],
+      "shadowWouldBlock": false,
+      "shadowReasons": []
+    },
+    {
+      "jobId": "fixture-candidate-c",
+      "dimensions": [
+        { "id": "identity", "label": "Identity", "score": 84, "status": "pass" },
+        { "id": "palette", "label": "Palette", "score": 86, "status": "pass" },
+        { "id": "silhouette", "label": "Silhouette", "score": 80, "status": "pass" },
+        { "id": "footline", "label": "footline", "score": 79, "status": "pass" },
+        { "id": "loop", "label": "Loop seam", "score": 81, "status": "pass" },
+        { "id": "phase", "label": "Phase", "score": 83, "status": "pass" },
+        { "id": "motion", "label": "Motion", "score": 87, "status": "pass" },
+        { "id": "correction", "label": "Correction", "score": 41, "status": "fail" }
+      ],
+      "warnings": ["normalization translation peaked"],
+      "shadowWouldBlock": true,
+      "shadowReasons": ["normalization masks source drift"]
+    }
+  ]
+}

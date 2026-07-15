@@ -66,6 +66,11 @@ const requiredFiles = [
   "src/App.test.ts",
   "src/lib/animationPack.ts",
   "src/lib/animationPack.test.ts",
+  "src/AnimationReviewCockpit.tsx",
+  "src/lib/animationReview.ts",
+  "src/lib/animationReview.test.ts",
+  "docs/qa/animation-review-cockpit-uiux.md",
+  "docs/qa/animation-review-calibration-sample.json",
   "src/lib/officialAnimations.ts",
   "docs/review/mvp-review-report.md",
   "docs/roadmap/release-roadmap.md",
@@ -453,9 +458,13 @@ function checkWorkflowIds() {
   const exportersText = readText("src/lib/exporters.ts");
   const animationPackText = readText("src/lib/animationPack.ts");
   const animationTournamentText = readText("src/lib/animationTournament.ts");
+  const animationReviewText = readText("src/lib/animationReview.ts");
+  const animationReviewUiText = readText("src/AnimationReviewCockpit.tsx");
+  const serverText = readText("server/index.ts");
+  const animationReviewQaText = readText("docs/qa/animation-review-cockpit-uiux.md");
   const realCodexSmokeText = readText("scripts/real-codex-runner-smoke.mjs");
   const imageEditFullBodyQaText = readText("docs/qa/image-edit-full-body-fit.md");
-  if (!appText || !stylesText || !smokeText || !uiSmokeText || !realCodexSmokeText || !animationTournamentText) return;
+  if (!appText || !stylesText || !smokeText || !uiSmokeText || !realCodexSmokeText || !animationTournamentText || !animationReviewText || !animationReviewUiText || !serverText || !animationReviewQaText) return;
 
   requiredWorkflowIds.forEach((workflowId) => {
     if (!appText.includes(workflowId)) {
@@ -785,6 +794,63 @@ function checkWorkflowIds() {
   });
 
   [
+    "animationReviewDimensionScores",
+    "animationReviewQcMatrix",
+    "normalizeAnimationHumanReview",
+    "buildAnimationCalibrationExport",
+    "image-cockpit.animation-review-calibration.v1"
+  ].forEach((marker) => {
+    if (!animationReviewText.includes(marker)) failures.push(`Animation Review model is missing: ${marker}`);
+  });
+
+  [
+    "Candidate A/B/C · Sync Compare",
+    "Direction × Frame QC Matrix",
+    "Preview Studio",
+    "Adjacent diff",
+    "Frame-range Repair",
+    "prefers-reduced-motion: reduce"
+  ].forEach((marker) => {
+    if (!`${animationReviewUiText}\n${stylesText}`.includes(marker)) failures.push(`Animation Review UI is missing: ${marker}`);
+  });
+
+  [
+    "Review A/B/C",
+    "collapsible-animation-step",
+    "animation-source-mismatch",
+    "/review",
+    "Category",
+    "Status"
+  ].forEach((marker) => {
+    if (!appText.includes(marker)) failures.push(`Animation Review integration is missing: ${marker}`);
+  });
+
+  [
+    "recordAnimationHumanReview",
+    "normalizeAnimationHumanReviewForManifest",
+    "/review"
+  ].forEach((marker) => {
+    if (!serverText.includes(marker)) failures.push(`Animation Review persistence is missing: ${marker}`);
+  });
+
+  [
+    "assertAnimationReviewCockpit",
+    "Mobile Animation Review should fit",
+    "Human review persistence",
+    "Motion Browser samples should pause"
+  ].forEach((marker) => {
+    if (!uiSmokeText.includes(marker)) failures.push(`UI smoke should cover Animation Review: ${marker}`);
+  });
+
+  [
+    "Animation Review Cockpit UI/UX QA",
+    "171 tests pass",
+    "390×844"
+  ].forEach((marker) => {
+    if (!animationReviewQaText.includes(marker)) failures.push(`Animation Review QA evidence is missing: ${marker}`);
+  });
+
+  [
     ".direction-preset-buttons",
     "grid-template-columns: repeat(2, minmax(0, 1fr));"
   ].forEach((marker) => {
@@ -957,7 +1023,6 @@ function checkWorkflowIds() {
     }
   });
 
-  const serverText = readText("server/index.ts");
   [
     "imagegen skill default built-in image generation path",
     "never a procedural placeholder",

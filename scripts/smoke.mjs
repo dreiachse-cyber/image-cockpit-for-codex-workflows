@@ -353,6 +353,17 @@ async function runManualHandoffSmoke() {
       reason: "smoke terminal failure"
     });
     assert(failedCandidateEvaluation.tournament.candidates[2].warningCount === 0, "failed evaluations should not persist the client warning sentinel");
+    const savedHumanReview = await postJson(port, `/api/codex/tournaments/${persistentTournamentId}/review`, {
+      review: {
+        manualWinnerJobId: candidateA.job.id,
+        decisions: [
+          { jobId: candidateA.job.id, decision: "winner", reasonTags: [], note: "best silhouette" },
+          { jobId: candidateC.job.id, decision: "reject", reasonTags: ["loop-seam", "loop-seam"], note: "visible seam" }
+        ]
+      }
+    });
+    assert(savedHumanReview.tournament.humanReview.manualWinnerJobId === candidateA.job.id, "human review should persist the manual winner separately from auto acceptance");
+    assert(savedHumanReview.tournament.humanReview.decisions[1].reasonTags.length === 1, "human review reason tags should be normalized and deduplicated");
     const templateJson = JSON.parse(await readFile(join(handoffDir, "outbox", ".tournaments", persistentTournamentId, "template.json"), "utf8"));
     assert(templateJson.selectedImageDataUrl === "", "persistent tournament template should not duplicate the source Data URL");
     assert(templateJson.selectedImageAssetPath, "persistent tournament template should use a content-addressed source asset reference");
@@ -372,6 +383,7 @@ async function runManualHandoffSmoke() {
     const restoredTournament = await getJson(port, `/api/codex/tournaments/${persistentTournamentId}`);
     assert(restoredTournament.tournament.candidates[0].jobId === candidateA.job.id, "API restart should restore candidate A from disk manifest");
     assert(restoredTournament.tournament.candidates[2].jobId === candidateC.job.id, "API restart should restore adaptive candidate C without duplication");
+    assert(restoredTournament.tournament.humanReview.decisions[0].note === "best silhouette", "API restart should restore human review notes from the tournament manifest");
     for (const slug of ["front", "side", "back"]) {
       await writeFile(join(candidateA.job.outboxPath, `${candidateA.job.id}-${slug}.png`), tinyPngBytes);
     }

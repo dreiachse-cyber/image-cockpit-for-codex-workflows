@@ -37,6 +37,8 @@ import {
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties, UIEvent } from "react";
+import { AnimationReviewCockpit } from "./AnimationReviewCockpit";
+import type { AnimationReviewCandidateView } from "./AnimationReviewCockpit";
 import monsterGirlPromptsMarkdown from "../docs/prompt-examples/monster-girl-prompts.md?raw";
 import monsterPromptsMarkdown from "../docs/prompt-examples/monster-prompts.md?raw";
 import professionCharacterPromptsMarkdown from "../docs/prompt-examples/profession-character-prompts.md?raw";
@@ -103,6 +105,7 @@ import {
   tournamentNeedsAllStartedCandidates
 } from "./lib/animationTournament";
 import type { AnimationGenerationProfile } from "./lib/animationTournament";
+import type { AnimationHumanReview } from "./lib/animationReview";
 import { createId, dataUrlToBlob, downloadBlob, loadImage, readFileAsDataUrl } from "./lib/image";
 import { OFFICIAL_ANIMATION_LIBRARY } from "./lib/officialAnimations";
 import { calculateGridCells, summarizeFrames } from "./lib/sprite";
@@ -837,6 +840,7 @@ interface AnimationTournamentManifestClient {
   acceptedDirectionHashes: Record<string, string>;
   retryCount: number;
   thirdCandidateReason?: string;
+  humanReview?: AnimationHumanReview;
   state: "queued" | "running" | "accepted" | "failed" | "cancelled";
   clientContext?: Record<string, unknown>;
   createdAt: string;
@@ -4056,6 +4060,11 @@ function App() {
   const [animationGenerationProfile, setAnimationGenerationProfile] = useState<AnimationGenerationProfile>("best");
   const [animationTournamentMonitors, setAnimationTournamentMonitors] = useState<AnimationTournamentMonitorEntry[]>([]);
   const [directionRepairSelections, setDirectionRepairSelections] = useState<Record<string, string[]>>({});
+  const [animationReviewManifest, setAnimationReviewManifest] = useState<AnimationTournamentManifestClient | null>(null);
+  const [animationReviewCandidates, setAnimationReviewCandidates] = useState<AnimationReviewCandidateView[]>([]);
+  const [animationReviewFrameCount, setAnimationReviewFrameCount] = useState<number>(ANIMATION_FRAME_COUNT);
+  const [animationReviewSourceDataUrl, setAnimationReviewSourceDataUrl] = useState<string>();
+  const [animationReviewLoading, setAnimationReviewLoading] = useState(false);
   const [batchMatrixSourceIds, setBatchMatrixSourceIds] = useState<string[]>([]);
   const [batchMatrixPresetIds, setBatchMatrixPresetIds] = useState<string[]>(["idle-breathing", "walk-cycle"]);
   const [isBatchMatrixStarting, setIsBatchMatrixStarting] = useState(false);
@@ -4083,6 +4092,8 @@ function App() {
   const [imagegenSmokeState] = useState<ImagegenSmokeState>("not_run");
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const animationReviewReturnFocusRef = useRef<HTMLElement | null>(null);
+  const animationPresetReturnFocusRef = useRef<HTMLElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const animationPackInputRef = useRef<HTMLInputElement | null>(null);
   const historyListRef = useRef<HTMLDivElement | null>(null);
@@ -5211,6 +5222,104 @@ function App() {
     ].slice(0, 12));
   }
 
+  function closeAnimationReviewCockpit() {
+    setAnimationReviewManifest(null);
+    setAnimationReviewCandidates([]);
+    setAnimationReviewLoading(false);
+    window.requestAnimationFrame(() => animationReviewReturnFocusRef.current?.focus());
+  }
+
+  async function openAnimationReviewCockpit(manifest: AnimationTournamentManifestClient, trigger?: HTMLElement) {
+    animationReviewReturnFocusRef.current = trigger ?? document.activeElement as HTMLElement | null;
+    const context = manifest.clientContext ?? {};
+    const contextMotionRecipe = typeof context.motionRecipe === "object" && context.motionRecipe
+      ? context.motionRecipe as unknown as MotionRecipeReference
+      : undefined;
+    const framesPerDirection = MOTION_FRAME_COUNTS.includes(Number(context.framesPerDirection ?? contextMotionRecipe?.frameCount) as MotionFrameCount)
+      ? Number(context.framesPerDirection ?? contextMotionRecipe?.frameCount) as MotionFrameCount
+      : ANIMATION_FRAME_COUNT;
+    const sourceImageId = typeof context.sourceImageId === "string" ? context.sourceImageId : "";
+    const reviewCandidates = manifest.candidates
+      .slice(0, manifest.maximumCandidateCount)
+      .filter((candidate): candidate is typeof candidate & { jobId: string } => Boolean(candidate.jobId));
+    setAnimationReviewManifest(manifest);
+    setAnimationReviewFrameCount(framesPerDirection);
+    setAnimationReviewSourceDataUrl(historyRef.current.find((item) => item.id === sourceImageId)?.dataUrl);
+    setAnimationReviewCandidates(reviewCandidates.map((candidate) => ({
+      jobId: candidate.jobId,
+      label: `Candidate ${String.fromCharCode(65 + candidate.index)}`,
+      state: candidate.state,
+      score: candidate.score,
+      warningCount: candidate.warningCount,
+      reason: candidate.reason,
+      sheets: {},
+      repairDirections: candidate.repairDirections
+    })));
+    setAnimationReviewLoading(true);
+    try {
+      const loaded = await Promise.all(reviewCandidates.map(async (candidate): Promise<AnimationReviewCandidateView> => {
+        const job = tournamentQueueItemFromManifest(manifest, candidate.index, {
+          id: candidate.jobId,
+          path: `server-tournament:${manifest.tournamentId}:${candidate.jobId}`,
+          createdAt: candidate.createdAt ?? manifest.createdAt
+        });
+        const evaluation = await evaluateDirectionSplitTournamentCandidate(job, {
+          jobId: candidate.jobId,
+          state: "completed",
+          message: "Animation Review Cockpit artifact read",
+          finishedAt: new Date().toISOString()
+        });
+        const candidateDirections = resolveAnimationTournamentCandidateDirections(manifest.requestedDirections, candidate.repairDirections);
+        return {
+          jobId: candidate.jobId,
+          label: `Candidate ${String.fromCharCode(65 + candidate.index)}`,
+          state: candidate.state,
+          score: candidate.score ?? evaluation.score,
+          warningCount: candidate.warningCount ?? evaluation.warningCount,
+          reason: candidate.reason,
+          error: evaluation.ready ? undefined : evaluation.error,
+          sheets: Object.fromEntries(candidateDirections.map((direction, index) => [direction, evaluation.importedResults[index]?.dataUrl])),
+          quality: evaluation.animationQuality,
+          repairDirections: candidate.repairDirections
+        };
+      }));
+      setAnimationReviewCandidates(loaded);
+      setStatus(`Animation Review loaded: ${loaded.filter((candidate) => !candidate.error).length}/${loaded.length} candidates ready.`);
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "Animation Review could not load candidate artifacts.");
+    } finally {
+      setAnimationReviewLoading(false);
+    }
+  }
+
+  async function saveAnimationHumanReview(review: AnimationHumanReview) {
+    if (!animationReviewManifest) throw new Error("Animation Review tournament is not open.");
+    const response = await fetch(`/api/codex/tournaments/${encodeURIComponent(animationReviewManifest.tournamentId)}/review`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ review })
+    });
+    if (!response.ok) throw new Error(await response.text());
+    const manifest = ((await response.json()) as { tournament: AnimationTournamentManifestClient }).tournament;
+    updateAnimationTournamentMonitor(manifest);
+    setAnimationReviewManifest(manifest);
+    setStatus(`Human review saved: ${manifest.tournamentId}`);
+  }
+
+  async function adoptAnimationReviewWinner(jobId: string) {
+    if (!animationReviewManifest) throw new Error("Animation Review tournament is not open.");
+    const payload = await publishCodexTournamentWinner(animationReviewManifest.tournamentId, jobId);
+    updateAnimationTournamentMonitor(payload.tournament);
+    await refreshAcceptedTournamentArtifact(payload.tournament);
+    setStatus(`Manual tournament winner adopted: ${jobId}`);
+  }
+
+  async function repairAnimationReviewDirection(direction: string) {
+    if (!animationReviewManifest) throw new Error("Animation Review tournament is not open.");
+    setDirectionRepairSelections((current) => ({ ...current, [animationReviewManifest.tournamentId]: [direction] }));
+    await startDirectionRepairFromUi(animationReviewManifest, [direction]);
+  }
+
   function tournamentQueueItemFromManifest(
     manifest: AnimationTournamentManifestClient,
     candidateIndex: number,
@@ -5334,8 +5443,8 @@ function App() {
     });
   }
 
-  async function startDirectionRepairFromUi(manifest: AnimationTournamentManifestClient) {
-    const directions = directionRepairSelections[manifest.tournamentId] ?? [];
+  async function startDirectionRepairFromUi(manifest: AnimationTournamentManifestClient, requestedDirections?: string[]) {
+    const directions = requestedDirections ?? directionRepairSelections[manifest.tournamentId] ?? [];
     if (directions.length === 0) {
       setStatus("Select one or more directions to Repair.");
       return;
@@ -8265,8 +8374,13 @@ function App() {
     selectAnimationPreset(example);
     setWorkflowMode("sprite-generate");
     setProviderId("codex-handoff");
-    setShowAnimationPresetExamples(false);
+    closeAnimationPresetExamples();
     setStatus(`${copy.animationPresetExampleApplied}: ${localizedText(example.title, language)}`);
+  }
+
+  function closeAnimationPresetExamples() {
+    setShowAnimationPresetExamples(false);
+    window.requestAnimationFrame(() => animationPresetReturnFocusRef.current?.focus());
   }
 
   async function handleAnimationPackFiles(files: FileList | File[]) {
@@ -8610,6 +8724,15 @@ function App() {
       (isAnimationWorkflow && runningStandardAnimationJobCount >= MAX_ACTIVE_STANDARD_ANIMATION_CODEX_JOBS));
   const isImageEditWorkflow = workflowMode === "image-edit";
   const animationSourceReady = !isAnimationWorkflow || isAnimationSource(animationSource);
+  const animationPreviewSourceMismatch = Boolean(
+    isAnimationWorkflow &&
+    selectedIsAnimationResult &&
+    (!isAnimationSource(animationSource) || (
+      selected?.animationSourceFingerprint &&
+      animationSourceFingerprint &&
+      selected.animationSourceFingerprint !== animationSourceFingerprint
+    ))
+  );
   const imageEditSourceReady = !isImageEditWorkflow || Boolean(selected && !selectedIsAnimationResult && !selectedIsEffectResult);
   const primaryActionDisabled = isBusy || !animationSourceReady || !imageEditSourceReady;
   const previewMode = !selected ? "empty" : isPreviewingSelectedFrame ? "frame" : isImageEditWorkflow && !selectedIsAnimationResult && !selectedIsEffectResult ? "edit" : "result";
@@ -8786,11 +8909,11 @@ function App() {
 
           {isAnimationWorkflow ? (
             <div className="animation-steps">
-              <section className={`animation-step ${animationSourceReady ? "complete" : ""}`}>
-                <div className="step-heading">
+              <details className={`animation-step collapsible-animation-step ${animationSourceReady ? "complete" : ""}`} open>
+                <summary className="step-heading">
                   <strong>{copy.animationStepSourceTitle}</strong>
                   <span>{copy.animationStepSourceBody}</span>
-                </div>
+                </summary>
                 <button className="secondary-button full" onClick={() => fileInputRef.current?.click()}>
                   <Upload size={16} aria-hidden="true" />
                   {copy.uploadPixelArt}
@@ -8809,13 +8932,13 @@ function App() {
                     <span>{copy.noAnimationSource}</span>
                   )}
                 </div>
-              </section>
+              </details>
 
-              <section className="animation-step">
-                <div className="step-heading">
+              <details className="animation-step collapsible-animation-step" open>
+                <summary className="step-heading">
                   <strong>{copy.animationStepMotionTitle}</strong>
                   <span>{copy.animationStepMotionBody}</span>
-                </div>
+                </summary>
                 <div className="selected-animation-card">
                   <small className="step-kicker">
                     {copy.motionPreset} · {selectedMotionRecipe.experimental ? "Experimental" : "Verified"}
@@ -8847,6 +8970,7 @@ function App() {
                             type="button"
                             key={frameCount}
                             className={animationFrameCount === frameCount ? "active" : ""}
+                            aria-pressed={animationFrameCount === frameCount}
                             disabled={!selectedMotionRecipe.allowedFrameCounts.includes(frameCount)}
                             onClick={() => selectAnimationFrameCount(frameCount)}
                           >
@@ -8886,7 +9010,7 @@ function App() {
                     <span>modifiers +{selectedMotionRecipeCompilation.diagnostics.appliedModifiers.length} / −{selectedMotionRecipeCompilation.diagnostics.removedModifiers.length} / dedupe {selectedMotionRecipeCompilation.diagnostics.deduplicatedSegmentCount}</span>
                   </details>
                 </div>
-                <button className="prompt-example-trigger animation-preset-example-trigger" onClick={() => setShowAnimationPresetExamples(true)}>
+                <button className="prompt-example-trigger animation-preset-example-trigger" onClick={(event) => { animationPresetReturnFocusRef.current = event.currentTarget; setShowAnimationPresetExamples(true); }}>
                   <Film size={15} aria-hidden="true" />
                   {copy.chooseAnimation}
                 </button>
@@ -8898,6 +9022,7 @@ function App() {
                         key={presetId}
                         type="button"
                         className={animationDirectionPreset === presetId ? "active" : ""}
+                        aria-pressed={animationDirectionPreset === presetId}
                         title={ANIMATION_DIRECTION_PRESETS[presetId].join(" / ")}
                         onClick={() => setAnimationDirectionPreset(presetId)}
                       >
@@ -8916,6 +9041,7 @@ function App() {
                           key={profile}
                           type="button"
                           className={animationGenerationProfile === profile ? "active" : ""}
+                          aria-pressed={animationGenerationProfile === profile}
                           title={definition.description}
                           onClick={() => setAnimationGenerationProfile(profile)}
                         >
@@ -8929,7 +9055,7 @@ function App() {
                     {animationGenerationProfileDefinition(animationGenerationProfile).description}
                   </span>
                 </div>
-              </section>
+              </details>
 
               {SHOW_ANIMATION_LIBRARY && (
                 <section className="animation-step animation-library-panel">
@@ -9004,17 +9130,23 @@ function App() {
                 </section>
               )}
 
-              <section className="animation-step">
-                <div className="step-heading">
+              <details className="animation-step collapsible-animation-step animation-generate-step" open>
+                <summary className="step-heading">
                   <strong>{copy.animationStepGenerateTitle}</strong>
                   <span>{animationGenerateBody}</span>
-                </div>
+                </summary>
                 <small className="step-kicker">{animationLockedSizeNote}</small>
                 <div className="animation-source-fingerprint">
                   <span>Actual source</span>
                   <strong>{animationSource?.name ?? "-"}</strong>
                   <code title={animationSourceFingerprint}>{animationSourceFingerprint ? animationSourceFingerprint.slice(0, 16) : "fingerprinting..."}</code>
                 </div>
+                {animationPreviewSourceMismatch && (
+                  <div className="animation-source-mismatch" role="alert">
+                    <AlertTriangle size={15} aria-hidden="true" />
+                    <span>{language === "ja" ? "中央のプレビューは過去結果です。生成には上の Actual source だけを使用します。" : "The canvas shows a previous result. Generation uses only the Actual source shown above."}</span>
+                  </div>
+                )}
                 <button className="primary-button full" onClick={() => void handleGenerate()} disabled={primaryActionDisabled}>
                   <PrimaryActionIcon providerId={providerId} isBusy={isBusy} />
                   {shouldQueueCodexJob ? codexQueueCopy.queueAction : copy.generateLocalSprite}
@@ -9028,7 +9160,8 @@ function App() {
                   <Bell size={14} aria-hidden="true" />
                   <span>{copy.jobNotifications}</span>
                 </label>
-              </section>
+                <small className="animation-active-job-count" aria-live="polite">{codexJobs.filter((job) => job.workflowMode === "sprite-generate").length} animation job(s) active</small>
+              </details>
               {animationTournamentMonitors.length > 0 && (
                 <section className="animation-step tournament-monitor">
                   <div className="step-heading">
@@ -9052,6 +9185,7 @@ function App() {
                             className={`tournament-candidate state-${candidate.state}`}
                             disabled={Boolean(candidate.jobId) || candidate.state === "cancelled" || manifest.state === "accepted"}
                             title={candidate.reason ?? candidate.jobId ?? "Not started"}
+                            aria-label={`Candidate ${String.fromCharCode(65 + candidate.index)}: ${candidate.state}`}
                             onClick={() => void startPersistedTournamentCandidate(manifest, candidate.index, "manual resume")}
                           >
                             <strong>{String.fromCharCode(65 + candidate.index)}</strong>
@@ -9060,12 +9194,21 @@ function App() {
                           </button>
                         ))}
                       </div>
+                      <button
+                        className="secondary-button mini tournament-review-button"
+                        type="button"
+                        disabled={!manifest.candidates.some((candidate) => Boolean(candidate.jobId))}
+                        onClick={(event) => void openAnimationReviewCockpit(manifest, event.currentTarget)}
+                      >
+                        <Film size={13} aria-hidden="true" /> Review A/B/C
+                      </button>
                       <div className="tournament-direction-grid">
                         {manifest.requestedDirections.map((direction) => (
                           <button
                             type="button"
                             key={direction}
                             className={`${directionRepairSelections[manifest.tournamentId]?.includes(direction) ? "selected" : ""} state-${manifest.directionStates[direction]?.state ?? "queued"}`}
+                            aria-pressed={directionRepairSelections[manifest.tournamentId]?.includes(direction) ?? false}
                             disabled={manifest.state !== "accepted" || manifest.directionStates[direction]?.state === "repairing"}
                             onClick={() => toggleDirectionRepairSelection(manifest.tournamentId, direction)}
                           >
@@ -10084,9 +10227,24 @@ function App() {
           language={language}
           favoriteIds={favoriteAnimationPresetIds}
           recentIds={recentAnimationPresetIds}
-          onClose={() => setShowAnimationPresetExamples(false)}
+          onClose={closeAnimationPresetExamples}
           onUse={useAnimationPresetExample}
           onToggleFavorite={toggleFavoriteAnimationPreset}
+        />
+      )}
+      {animationReviewManifest && (
+        <AnimationReviewCockpit
+          language={language}
+          manifest={animationReviewManifest}
+          candidates={animationReviewCandidates}
+          frameCount={animationReviewFrameCount}
+          sourceDataUrl={animationReviewSourceDataUrl}
+          initialReview={animationReviewManifest.humanReview}
+          loading={animationReviewLoading}
+          onClose={closeAnimationReviewCockpit}
+          onSaveReview={saveAnimationHumanReview}
+          onAdopt={adoptAnimationReviewWinner}
+          onRepairDirection={repairAnimationReviewDirection}
         />
       )}
       {downloadModalOpen && (
@@ -13054,18 +13212,49 @@ function AnimationPresetExamplesModal({
   onToggleFavorite: (id: string) => void;
 }) {
   const copy = uiCopy[language];
+  const modalRef = useRef<HTMLElement>(null);
+  const searchRef = useRef<HTMLInputElement>(null);
   const [search, setSearch] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState<MotionRecipe["family"] | "all">("all");
+  const [statusFilter, setStatusFilter] = useState<"all" | "verified" | "experimental">("all");
   const [topologyFilter, setTopologyFilter] = useState<BodyTopologyId | "all">("all");
   const [loopFilter, setLoopFilter] = useState<"all" | "loop" | "one-shot">("all");
   const [weaponFilter, setWeaponFilter] = useState<"all" | "weapon" | "no-weapon">("all");
   const [movementFilter, setMovementFilter] = useState<"all" | "movement" | "stationary">("all");
   const [frameFilter, setFrameFilter] = useState<"all" | `${MotionFrameCount}`>("all");
   const [collectionFilter, setCollectionFilter] = useState<"all" | "recent" | "favorites">("all");
+  useEffect(() => {
+    searchRef.current?.focus();
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        onClose();
+        return;
+      }
+      if (event.key !== "Tab") return;
+      const focusable = Array.from(modalRef.current?.querySelectorAll<HTMLElement>('button:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])') ?? []);
+      if (focusable.length === 0) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, []);
   const filteredExamples = useMemo(() => {
     const query = search.trim().toLowerCase();
     return animationPresetExamples.filter((example) => {
       const searchable = [example.id, example.title.en, example.title.ja, example.summary.en, example.summary.ja, ...example.tags].join(" ").toLowerCase();
       if (query && !searchable.includes(query)) return false;
+      if (categoryFilter !== "all" && example.family !== categoryFilter) return false;
+      if (statusFilter === "verified" && example.experimental) return false;
+      if (statusFilter === "experimental" && !example.experimental) return false;
       if (topologyFilter !== "all" && !example.supportedTopologies.includes(topologyFilter)) return false;
       if (loopFilter === "loop" && example.loopMode === "one-shot") return false;
       if (loopFilter === "one-shot" && example.loopMode !== "one-shot") return false;
@@ -13085,10 +13274,11 @@ function AnimationPresetExamplesModal({
       if (leftRecent >= 0 || rightRecent >= 0) return (leftRecent < 0 ? 999 : leftRecent) - (rightRecent < 0 ? 999 : rightRecent);
       return Number(left.experimental) - Number(right.experimental);
     });
-  }, [collectionFilter, favoriteIds, frameFilter, loopFilter, movementFilter, recentIds, search, topologyFilter, weaponFilter]);
+  }, [categoryFilter, collectionFilter, favoriteIds, frameFilter, loopFilter, movementFilter, recentIds, search, statusFilter, topologyFilter, weaponFilter]);
   return (
     <div className="prompt-modal-backdrop" role="presentation" onMouseDown={onClose}>
       <section
+        ref={modalRef}
         className="prompt-modal animation-preset-modal"
         role="dialog"
         aria-modal="true"
@@ -13108,7 +13298,20 @@ function AnimationPresetExamplesModal({
         <div className="motion-preset-filters">
           <label className="motion-preset-search">
             <span>{language === "ja" ? "検索" : "Search"}</span>
-            <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="dash, combat, movement..." />
+            <input ref={searchRef} value={search} onChange={(event) => setSearch(event.target.value)} placeholder="dash, combat, movement..." />
+          </label>
+          <label>
+            <span>Category</span>
+            <select value={categoryFilter} onChange={(event) => setCategoryFilter(event.target.value as typeof categoryFilter)}>
+              <option value="all">All</option>
+              {(["core", "locomotion", "combat", "magic", "social", "utility"] as MotionRecipe["family"][]).map((family) => <option key={family} value={family}>{family}</option>)}
+            </select>
+          </label>
+          <label>
+            <span>Status</span>
+            <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as typeof statusFilter)}>
+              <option value="all">All</option><option value="verified">Verified</option><option value="experimental">Experimental</option>
+            </select>
           </label>
           <label>
             <span>Topology</span>

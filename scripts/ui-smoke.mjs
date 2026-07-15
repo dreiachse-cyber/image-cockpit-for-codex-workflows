@@ -230,6 +230,7 @@ try {
     reloadAfterExercise: true,
     exerciseTimeoutMs: 45000
   });
+  await assertAnimationReviewCockpit();
   await assertAnimationTimelinePackV2();
   await assertAnimationResultNotEditable();
   await assertEffectAnimationWorkflow();
@@ -604,6 +605,9 @@ async function assertAnimationPresetExamples() {
   const snapshot = await pageSnapshot();
   assert(snapshot.text.includes("Pick an animated sample"), "Choose Animation intro should be visible");
   assert(snapshot.buttons.includes("Select Animation"), "Choose Animation should expose select buttons");
+  assert(snapshot.text.includes("Category") && snapshot.text.includes("Status"), "Motion Browser should expose Category and Status filters");
+  const initialFilterFocus = await evaluate(`document.activeElement?.closest(".motion-preset-search") !== null`);
+  assert(initialFilterFocus, "Motion Browser should place initial focus in search");
   const expectedAnimationPresetSamples = [
     { title: "Idle Breathing", className: "sample-idle-sheet", sheet: "idle-breathing-sheet.png", direction: "normal", playback: "normal loop", includeMessage: "Choose Animation should include the Idle Breathing animation card" },
     { title: "Walk Cycle", className: "sample-walk-sheet", sheet: "walk-cycle-sheet.png", direction: "normal", playback: "normal loop", includeMessage: "Choose Animation should include the Walk Cycle animation card" },
@@ -633,6 +637,20 @@ async function assertAnimationPresetExamples() {
   })()`);
   assert(repertoireStatus.verified === 16, `Choose Animation should keep 16 verified Recipes, got ${repertoireStatus.verified}`);
   assert(repertoireStatus.experimental === 6, `Choose Animation should expose 6 experimental Recipes, got ${repertoireStatus.experimental}`);
+  await evaluate(`(() => {
+    const selects = [...document.querySelectorAll(".motion-preset-filters select")];
+    const status = selects.find((select) => select.parentElement?.innerText.includes("Status"));
+    status.value = "experimental";
+    status.dispatchEvent(new Event("change", { bubbles: true }));
+  })()`);
+  await waitForEval(() => `document.querySelectorAll(".animation-preset-card").length === 6`, "Experimental Motion Recipe status filter");
+  await evaluate(`(() => {
+    const selects = [...document.querySelectorAll(".motion-preset-filters select")];
+    const status = selects.find((select) => select.parentElement?.innerText.includes("Status"));
+    status.value = "all";
+    status.dispatchEvent(new Event("change", { bubbles: true }));
+  })()`);
+  await waitForEval(() => `document.querySelectorAll(".animation-preset-card").length === 22`, "Motion Recipe status filter reset");
   ["Dash", "Dodge Roll / Backstep", "Charge / Heavy Attack", "Combo Attack", "Stun", "Get Up"].forEach((title) => {
     assert(repertoireStatus.titles.some((text) => text.includes(title)), `Choose Animation should include experimental ${title}`);
   });
@@ -655,6 +673,11 @@ async function assertAnimationPresetExamples() {
   assert(snapshot.promptRawTextBlocks === 0, `Choose Animation should hide raw prompt text, got ${snapshot.promptRawTextBlocks} raw blocks`);
   const animationName = await evaluate(`getComputedStyle(document.querySelector(".animation-preset-modal .animation-sample-sprite")).animationName`);
   assert(animationName && animationName !== "none", "Choose Animation samples should be animated");
+  await cdp.send("Emulation.setEmulatedMedia", { features: [{ name: "prefers-reduced-motion", value: "reduce" }] });
+  await delay(100);
+  const reducedMotionPaused = await evaluate(`getComputedStyle(document.querySelector(".animation-preset-modal .animation-sample-sprite")).animationPlayState === "paused"`);
+  assert(reducedMotionPaused, "Motion Browser samples should pause when reduced motion is requested");
+  await cdp.send("Emulation.setEmulatedMedia", { features: [] });
   await maybeCapture("animation-preset-examples-modal");
 
   await clickButtonByText("Select Animation");
@@ -668,6 +691,9 @@ async function assertAnimationPresetExamples() {
   assert(stillNoFreePrompt, "Select Animation should keep free-form motion prompt textareas hidden");
   const modalClosed = await evaluate(`!document.querySelector(".animation-preset-modal")`);
   assert(modalClosed, "Select Animation should close the Choose Animation modal");
+  await delay(50);
+  const presetFocusReturned = await evaluate(`document.activeElement?.classList.contains("animation-preset-example-trigger") || false`);
+  assert(presetFocusReturned, "Select Animation should return focus to the Choose Animation trigger");
 
   await selectWorkflowTab("Pixel Art Generation");
 }
@@ -728,6 +754,109 @@ async function assertAnimationLibraryHidden() {
   assert(!snapshot.text.includes("User Animations"), "User Animations tab should stay hidden with the library");
   assert(snapshot.animationLibraryCards === 0, `Animation Library cards should be hidden, got ${snapshot.animationLibraryCards}`);
   await selectWorkflowTab("Pixel Art Generation");
+}
+
+async function assertAnimationReviewCockpit() {
+  await selectWorkflowTab("Animation Generation");
+  await waitForEval(() => `Boolean(document.querySelector(".tournament-review-button"))`, "Tournament Review A/B/C button", 20000);
+
+  const stepper = await evaluate(`(() => ({
+    count: document.querySelectorAll("details.collapsible-animation-step").length,
+    open: [...document.querySelectorAll("details.collapsible-animation-step")].every((details) => details.open),
+    stickyCta: getComputedStyle(document.querySelector(".animation-generate-step")).position === "sticky",
+    sourceSummary: document.querySelector(".animation-source-fingerprint")?.innerText || ""
+  }))()`);
+  assert(stepper.count === 3, `Animation flow should expose three collapsible steps, got ${stepper.count}`);
+  assert(stepper.open, "Animation flow should open all three steps initially");
+  assert(stepper.stickyCta, "Animation generation CTA should remain sticky");
+  assert(stepper.sourceSummary.includes("Actual source"), "Sticky generation CTA should identify its Actual source");
+
+  await clickSelector(".tournament-review-button");
+  await waitForEval(() => `Boolean(document.querySelector(".animation-review-cockpit .review-candidate-card img"))`, "Animation Review candidate artifacts", 20000);
+  const initial = await evaluate(`(() => {
+    const modal = document.querySelector(".animation-review-cockpit");
+    return {
+      dialog: modal?.getAttribute("role"),
+      candidateCount: modal?.querySelectorAll(".review-candidate-card").length || 0,
+      frameImages: modal?.querySelectorAll(".review-candidate-card .review-frame-stage img").length || 0,
+      dimensionCount: modal?.querySelectorAll(".candidate-dimension-grid .dimension-score").length || 0,
+      qcRows: modal?.querySelectorAll(".qc-matrix tbody tr").length || 0,
+      heatModes: modal?.querySelectorAll(".qc-mode-tabs [role=tab]").length || 0,
+      overlays: modal?.querySelectorAll(".preview-overlay-controls button").length || 0,
+      frameLabel: modal?.querySelector(".animation-review-toolbar strong")?.innerText || "",
+      initialFocus: document.activeElement?.innerText?.includes("Calibration JSON") || false
+    };
+  })()`);
+  assert(initial.dialog === "dialog", "Animation Review should use dialog semantics");
+  assert(initial.candidateCount >= 1 && initial.frameImages >= 1, "Animation Review should render real candidate frame artifacts");
+  assert(initial.dimensionCount >= initial.candidateCount * 8, `Animation Review should show eight dimensions per candidate, got ${initial.dimensionCount}`);
+  assert(initial.qcRows >= 3, `Animation Review should expose Direction x Frame rows, got ${initial.qcRows}`);
+  assert(initial.heatModes === 6, `Animation Review should expose six QC heatmaps, got ${initial.heatModes}`);
+  assert(initial.overlays === 7, `Preview Studio should expose seven overlays, got ${initial.overlays}`);
+  assert(initial.frameLabel.includes("F 1/"), `Animation Review should begin at frame 1, got ${initial.frameLabel}`);
+  assert(initial.initialFocus, "Animation Review should place initial focus inside the modal");
+
+  await clickSelector(".decision-control button:first-child");
+  await evaluate(`(() => {
+    const note = document.querySelector(".review-note textarea");
+    note.value = "UI smoke human calibration note";
+    note.dispatchEvent(new Event("input", { bubbles: true }));
+    const tag = document.querySelector('.reason-tag-grid input[type="checkbox"]');
+    tag.click();
+  })()`);
+  await clickSelector(".review-save-panel button");
+  await waitForEval(() => `document.querySelector(".review-save-panel")?.innerText.includes("Saved")`, "Human review persistence");
+  const winnerEnabled = await evaluate(`!document.querySelector(".animation-review-footer .primary-button")?.disabled`);
+  assert(winnerEnabled, "Manual winner selection should enable the adoption action");
+
+  await evaluate(`(() => {
+    const tab = [...document.querySelectorAll(".qc-mode-tabs button")].find((button) => button.innerText.trim() === "BBox");
+    if (!tab) throw new Error("BBox heatmap tab not found");
+    tab.click();
+  })()`);
+  await clickSelector(".qc-matrix tbody .qc-cell");
+  await waitForEval(() => `Boolean(document.querySelector(".qc-cell-inspector"))`, "QC cell inspector");
+  const inspector = await evaluate(`(() => ({
+    comparisons: [...document.querySelectorAll(".qc-frame-comparison figcaption")].map((caption) => caption.innerText),
+    correctionFacts: document.querySelectorAll(".correction-facts dd").length,
+    directionRepair: Boolean(document.querySelector(".repair-actions button:not(:disabled)")),
+    frameRepairDisabled: Boolean(document.querySelector(".repair-actions button:disabled"))
+  }))()`);
+  for (const label of ["Raw", "Normalized", "Adjacent diff"]) assert(inspector.comparisons.includes(label), `QC inspector should show ${label}`);
+  assert(inspector.correctionFacts === 3, "QC inspector should expose scale and translation corrections");
+  assert(inspector.directionRepair && inspector.frameRepairDisabled, "QC inspector should enable Direction Repair and explain disabled frame-range repair");
+
+  await clickSelector(".preview-overlay-controls button:first-child");
+  const onionPressed = await evaluate(`document.querySelector(".preview-overlay-controls button:first-child")?.getAttribute("aria-pressed") === "true"`);
+  assert(onionPressed, "Preview Studio onion overlay should be keyboard-readable and toggleable");
+  await evaluate(`document.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true }))`);
+  await waitForEval(() => `document.querySelector(".animation-review-toolbar strong")?.innerText.includes("F 2/")`, "Animation Review keyboard frame step");
+  await maybeCapture("animation-review-cockpit");
+
+  await cdp.send("Emulation.setDeviceMetricsOverride", { width: 390, height: 844, deviceScaleFactor: 1, mobile: true });
+  await delay(250);
+  const mobile = await evaluate(`(() => {
+    const modal = document.querySelector(".animation-review-cockpit");
+    const rect = modal?.getBoundingClientRect();
+    const footer = modal?.querySelector(".animation-review-footer")?.getBoundingClientRect();
+    return {
+      modalFits: Boolean(rect && rect.left >= -1 && rect.right <= window.innerWidth + 1),
+      modalScrollFits: Boolean(modal && modal.scrollWidth <= modal.clientWidth + 1),
+      footerFits: Boolean(footer && footer.left >= -1 && footer.right <= window.innerWidth + 1),
+      documentFits: document.documentElement.scrollWidth <= window.innerWidth + 1
+    };
+  })()`);
+  assert(mobile.modalFits && mobile.modalScrollFits, "Mobile Animation Review should fit within the modal viewport");
+  assert(mobile.footerFits, "Mobile Animation Review should keep adoption actions visible without horizontal overflow");
+  assert(mobile.documentFits, "Mobile Animation Review should not cause document overflow");
+  await cdp.send("Emulation.setDeviceMetricsOverride", { width: 1280, height: 720, deviceScaleFactor: 1, mobile: false });
+  await delay(200);
+
+  await evaluate(`document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }))`);
+  await waitForEval(() => `!document.querySelector(".animation-review-cockpit")`, "Animation Review closes with Escape");
+  const focusReturned = await evaluate(`document.activeElement?.classList.contains("tournament-review-button") || false`);
+  assert(focusReturned, "Animation Review should return focus to its Review A/B/C trigger");
+  await assertNoBrowserErrors("Animation Review Cockpit");
 }
 
 async function assertAnimationTimelinePackV2() {

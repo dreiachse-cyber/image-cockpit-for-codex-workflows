@@ -121,6 +121,19 @@ type AnimationTournamentCandidate = {
   repairDirections?: string[];
 };
 
+type AnimationHumanReviewDecision = {
+  jobId: string;
+  decision: "winner" | "reject" | "hold";
+  reasonTags: string[];
+  note: string;
+};
+
+type AnimationHumanReview = {
+  updatedAt: string;
+  manualWinnerJobId?: string;
+  decisions: AnimationHumanReviewDecision[];
+};
+
 type AnimationTournamentManifest = {
   schema: "image-cockpit.animation-tournament.v1";
   schemaVersion: 1;
@@ -143,6 +156,7 @@ type AnimationTournamentManifest = {
   acceptedDirectionHashes: Record<string, string>;
   retryCount: number;
   thirdCandidateReason?: string;
+  humanReview?: AnimationHumanReview;
   state: "queued" | "running" | "accepted" | "failed" | "cancelled";
   templateRef: string;
   clientContext?: Record<string, unknown>;
@@ -668,6 +682,18 @@ const server = createServer(async (request, response) => {
       return;
     }
 
+    const tournamentReviewMatch = pathname.match(/^\/api\/codex\/tournaments\/([^/]+)\/review$/);
+    if (request.method === "POST" && tournamentReviewMatch) {
+      const tournamentId = decodeURIComponent(tournamentReviewMatch[1]);
+      if (!isSafeTournamentId(tournamentId)) {
+        sendJson(response, 400, { error: "Unsupported or unsafe tournament review request" });
+        return;
+      }
+      const body = (await readJson(request)) as { review?: unknown };
+      sendJson(response, 200, { tournament: await recordAnimationHumanReview(tournamentId, body.review) });
+      return;
+    }
+
     const tournamentWinnerMatch = pathname.match(/^\/api\/codex\/tournaments\/([^/]+)\/winner$/);
     if (request.method === "POST" && tournamentWinnerMatch) {
       const tournamentId = decodeURIComponent(tournamentWinnerMatch[1]);
@@ -978,6 +1004,46 @@ async function recordAnimationTournamentEvaluation(
   body: { jobId?: unknown; ready?: unknown; score?: unknown; warningCount?: unknown; qualityReportRef?: unknown; reason?: unknown }
 ) {
   return withAnimationTournamentLock(tournamentId, () => recordAnimationTournamentEvaluationUnlocked(tournamentId, body));
+}
+
+function normalizeAnimationHumanReviewForManifest(value: unknown, manifest: AnimationTournamentManifest): AnimationHumanReview {
+  if (!value || typeof value !== "object") throw new Error("Animation human review payload is required.");
+  const source = value as { manualWinnerJobId?: unknown; decisions?: unknown };
+  const candidateIds = new Set(manifest.candidates.flatMap((candidate) => candidate.jobId ? [candidate.jobId] : []));
+  const manualWinnerJobId = typeof source.manualWinnerJobId === "string" && candidateIds.has(source.manualWinnerJobId)
+    ? source.manualWinnerJobId
+    : undefined;
+  const decisions: AnimationHumanReviewDecision[] = Array.isArray(source.decisions)
+    ? source.decisions.flatMap((entry) => {
+        if (!entry || typeof entry !== "object") return [];
+        const item = entry as { jobId?: unknown; decision?: unknown; reasonTags?: unknown; note?: unknown };
+        if (typeof item.jobId !== "string" || !candidateIds.has(item.jobId)) return [];
+        const decision = item.decision === "winner" || item.decision === "reject" ? item.decision : "hold";
+        const reasonTags = Array.isArray(item.reasonTags)
+          ? [...new Set(item.reasonTags.filter((tag): tag is string => typeof tag === "string" && tag.trim().length > 0).map((tag) => tag.trim().slice(0, 48)))].slice(0, 12)
+          : [];
+        return [{
+          jobId: item.jobId,
+          decision,
+          reasonTags,
+          note: typeof item.note === "string" ? item.note.trim().slice(0, 1000) : ""
+        }];
+      })
+    : [];
+  return {
+    updatedAt: new Date().toISOString(),
+    ...(manualWinnerJobId ? { manualWinnerJobId } : {}),
+    decisions
+  };
+}
+
+async function recordAnimationHumanReview(tournamentId: string, value: unknown) {
+  return withAnimationTournamentLock(tournamentId, async () => {
+    const manifest = await readAnimationTournamentManifestRequired(tournamentId);
+    manifest.humanReview = normalizeAnimationHumanReviewForManifest(value, manifest);
+    await writeAnimationTournamentManifest(manifest);
+    return manifest;
+  });
 }
 
 async function recordAnimationTournamentEvaluationUnlocked(
