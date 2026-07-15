@@ -1035,6 +1035,20 @@ function checkWorkflowIds() {
   });
 
   [
+    "effect-steps-simplified",
+    "effect-picker-trigger",
+    "effect-advanced-settings-trigger",
+    "effect-picker-modal-body",
+    "effect-optional-tools",
+    "Selected effect",
+    "Use This Effect"
+  ].forEach((marker) => {
+    if (!appText.includes(marker)) {
+      failures.push(`Effect Animation should keep optional controls in utility modals: ${marker}`);
+    }
+  });
+
+  [
     "--ui-readable-font-floor: 16px",
     ".source-panel > .workflow-tabs button.active",
     "grid-auto-rows: minmax(54px, auto)",
@@ -1055,6 +1069,18 @@ function checkWorkflowIds() {
   ].forEach((marker) => {
     if (!uiSmokeText.includes(marker)) {
       failures.push(`UI smoke should cover the simplified animation controls: ${marker}`);
+    }
+  });
+
+  [
+    "Effect Animation should show only choose and generate steps by default",
+    "Effect optional controls should stay out of the default left column",
+    "Effect picker should return focus to its trigger",
+    "Effect advanced settings should return focus to its trigger",
+    "VFX Composite Stage should stay collapsed as an optional post-generation tool"
+  ].forEach((marker) => {
+    if (!uiSmokeText.includes(marker)) {
+      failures.push(`UI smoke should cover the simplified effect controls: ${marker}`);
     }
   });
 

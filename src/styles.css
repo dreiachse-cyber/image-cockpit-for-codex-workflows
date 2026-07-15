@@ -1199,6 +1199,120 @@ button {
   box-shadow: 0 0 0 1px #b9d9c3 inset;
 }
 
+.effect-steps-simplified {
+  align-content: start;
+}
+
+.effect-primary-step,
+.effect-generate-step {
+  gap: 12px;
+  padding: 12px;
+}
+
+.effect-selected-summary {
+  gap: 9px;
+}
+
+.effect-summary-row {
+  display: grid;
+  gap: 8px;
+}
+
+.effect-summary-swatches span {
+  width: 30px;
+  height: 20px;
+}
+
+.effect-selected-meta {
+  min-width: 0;
+}
+
+.app-shell .effect-picker-trigger,
+.app-shell .effect-advanced-settings-trigger {
+  width: 100%;
+  min-height: 48px;
+  margin: 0;
+  justify-content: center;
+}
+
+.effect-picker-modal-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(250px, 0.34fr);
+  align-items: start;
+  gap: 16px;
+}
+
+.effect-picker-category-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.effect-picker-category-grid button {
+  min-height: 72px;
+  padding: 10px;
+}
+
+.effect-picker-category-grid strong,
+.effect-picker-category-grid small {
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
+}
+
+.effect-picker-category-grid button:focus-visible,
+.effect-background-switch button:focus-visible {
+  outline: 3px solid rgb(27 169 120 / 35%);
+  outline-offset: 2px;
+}
+
+.app-shell .effect-picker-selection .primary-button {
+  min-height: 48px;
+}
+
+.effect-picker-selection {
+  position: sticky;
+  top: 0;
+}
+
+.effect-optional-tools {
+  padding: 0;
+}
+
+.effect-optional-tools > summary {
+  cursor: pointer;
+  list-style-position: inside;
+  padding: 16px;
+}
+
+.effect-optional-tools[open] > summary {
+  border-bottom: 1px solid var(--line);
+}
+
+.effect-optional-tools-body {
+  display: grid;
+  gap: 10px;
+  padding: 14px 16px 16px;
+}
+
+.effect-generation-summary {
+  display: block;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #f8faf8;
+  color: var(--text-muted);
+  padding: 9px 10px;
+}
+
+.effect-generate-step {
+  border-color: #9fceb0;
+  background: #fbfffc;
+}
+
+.app-shell .effect-generate-step .primary-button {
+  min-height: 52px;
+  justify-content: center;
+}
+
 .result-download-panel {
   min-height: 78px;
   display: grid;
@@ -5580,6 +5694,26 @@ button:disabled {
 
   .effect-background-switch {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .effect-picker-category-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .effect-picker-modal-body {
+    grid-template-columns: 1fr;
+  }
+
+  .effect-picker-selection {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    order: -1;
+    box-shadow: 0 8px 18px rgb(30 59 44 / 10%);
+  }
+
+  .effect-summary-row {
+    gap: 10px;
   }
 
   .animation-source-status,

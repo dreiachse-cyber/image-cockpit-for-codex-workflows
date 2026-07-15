@@ -1713,13 +1713,14 @@ async function assertAnimationResultNotEditable() {
 
 async function assertEffectAnimationWorkflow() {
   await installDownloadSpy();
+  await assertEffectControlsSimplified();
   await assertWorkflow({
     label: "Effect Animation",
     route: "Route: Codex Handoff",
-    buttons: ["Generate Effect", "Download"],
+    buttons: ["Choose Effect", "Open advanced settings", "Generate Effect", "Download"],
     hiddenButtons: ["Import Latest", "Import File", "Animated WebP", "Animated APNG", "Export Animation Pack"],
-    hiddenText: ["Sprite Actions", "Export Sprite", "Generation Method"],
-    requiredText: ["Slash Arc", "Hit Spark", "Magic Cast", "Projectile", "Impact", "Telegraph / AOE", "Aura / Status", "Heal / Buff", "Barrier / Shield", "Spawn / Portal", "Movement Trail / Landing", "Frames", "Canvas", "Layout", "Loop", "Anchor", "Palette", "VFX Composite Stage"],
+    hiddenText: ["Sprite Actions", "Export Sprite", "Generation Method", "Prompt (optional)", "Compositing tools (after generation)"],
+    requiredText: ["1. Choose Effect", "Selected effect", "Choose Effect", "Open advanced settings", "2. Generate"],
     exerciseButton: "Generate Effect",
     expectedAfterExercise: "Effect imported",
     expectedAfterExerciseText: ["Effect exports ready", "GIF preview", "Sheet preview", "Frame timeline", "GOLD"],
@@ -1736,6 +1737,67 @@ async function assertEffectAnimationWorkflow() {
   assert(apng.found, `Effect Animation APNG download should contain an acTL chunk: ${JSON.stringify(apng)}`);
   assert(apng.frameCount === 8, `Effect Animation APNG should contain 8 frames, got ${JSON.stringify(apng)}`);
   assert(apng.loopCount === 0, `Effect Animation APNG should loop forever, got ${JSON.stringify(apng)}`);
+}
+
+async function assertEffectControlsSimplified() {
+  await selectWorkflowTab("Effect Animation");
+  const defaultState = await evaluate(`(() => {
+    const panel = document.querySelector(".source-panel");
+    const steps = [...(panel?.querySelectorAll(".effect-steps-simplified > .effect-step") || [])];
+    const buttons = [...(panel?.querySelectorAll("button") || [])];
+    return {
+      stepCount: steps.length,
+      selectCount: panel?.querySelectorAll(".effect-steps-simplified select").length || 0,
+      textareaCount: panel?.querySelectorAll(".effect-steps-simplified textarea").length || 0,
+      categoryGridCount: panel?.querySelectorAll(".effect-category-grid").length || 0,
+      summary: panel?.querySelector(".effect-selected-summary")?.innerText.replace(/\\s+/g, " ").trim() || "",
+      actionHeights: buttons
+        .filter((button) => ["Choose Effect", "Open advanced settings", "Generate Effect"].includes(button.innerText.trim()))
+        .map((button) => Math.round(button.getBoundingClientRect().height))
+    };
+  })()`);
+  assert(defaultState.stepCount === 2, `Effect Animation should show only choose and generate steps by default: ${JSON.stringify(defaultState)}`);
+  assert(defaultState.selectCount === 0 && defaultState.textareaCount === 0 && defaultState.categoryGridCount === 0, `Effect optional controls should stay out of the default left column: ${JSON.stringify(defaultState)}`);
+  assert(defaultState.summary.includes("Selected effect") && defaultState.summary.includes("Verified"), `Effect Animation should show a compact selected-effect summary: ${defaultState.summary}`);
+  assert(defaultState.actionHeights.length === 3 && defaultState.actionHeights.every((height) => height >= 48), `Effect primary actions should remain easy to press: ${JSON.stringify(defaultState.actionHeights)}`);
+
+  await clickButtonByText("Choose Effect");
+  await waitForEval(() => `Boolean(document.querySelector(".effect-picker-modal-body"))`, "Effect picker modal opens");
+  const pickerState = await evaluate(`(() => ({
+    categoryCount: document.querySelectorAll(".effect-picker-category-grid button").length,
+    selectedCount: document.querySelectorAll(".effect-picker-category-grid button[aria-pressed=true]").length,
+    variationCount: document.querySelector(".effect-picker-selection select")?.options.length || 0
+  }))()`);
+  assert(pickerState.categoryCount === 11, `Effect picker should keep all eleven effect categories available: ${JSON.stringify(pickerState)}`);
+  assert(pickerState.selectedCount === 1 && pickerState.variationCount >= 3, `Effect picker should expose one active category and its variations: ${JSON.stringify(pickerState)}`);
+  await clickSelector(".animation-utility-heading .icon-button");
+  await waitForEval(() => `!document.querySelector(".effect-picker-modal-body")`, "Effect picker modal closes");
+  await waitForEval(
+    () => `document.activeElement?.classList.contains("effect-picker-trigger") || false`,
+    "Effect picker should return focus to its trigger"
+  );
+
+  await clickButtonByText("Open advanced settings");
+  await waitForEval(() => `Boolean(document.querySelector("[aria-labelledby=effect-advanced-settings-title]"))`, "Effect advanced settings modal opens");
+  const advancedState = await evaluate(`(() => {
+    const dialog = document.querySelector("[aria-labelledby=effect-advanced-settings-title]");
+    return {
+      selectCount: dialog?.querySelectorAll("select").length || 0,
+      textareaCount: dialog?.querySelectorAll("textarea").length || 0,
+      backgroundCount: dialog?.querySelectorAll(".effect-background-switch button").length || 0,
+      optionalClosed: dialog?.querySelector(".effect-optional-tools")?.open === false,
+      activeBackgrounds: dialog?.querySelectorAll(".effect-background-switch button[aria-pressed=true]").length || 0
+    };
+  })()`);
+  assert(advancedState.selectCount === 7 && advancedState.textareaCount === 3, `Effect advanced settings should retain appearance, sheet, and prompt controls: ${JSON.stringify(advancedState)}`);
+  assert(advancedState.backgroundCount === 4 && advancedState.activeBackgrounds === 1, `Effect preview backgrounds should remain available in advanced settings: ${JSON.stringify(advancedState)}`);
+  assert(advancedState.optionalClosed, "VFX Composite Stage should stay collapsed as an optional post-generation tool");
+  await clickSelector(".animation-utility-heading .icon-button");
+  await waitForEval(() => `!document.querySelector("[aria-labelledby=effect-advanced-settings-title]")`, "Effect advanced settings closes");
+  await waitForEval(
+    () => `document.activeElement?.classList.contains("effect-advanced-settings-trigger") || false`,
+    "Effect advanced settings should return focus to its trigger"
+  );
 }
 
 async function assertEffectResultNotEditable() {
@@ -1800,6 +1862,9 @@ async function assertEffectCategoryMatrix() {
 
 async function assertVfxCompositeStage() {
   await selectWorkflowTab("Effect Animation");
+  await clickButtonByText("Open advanced settings");
+  await waitForEval(() => `Boolean(document.querySelector("[aria-labelledby=effect-advanced-settings-title]"))`, "Effect advanced settings for VFX Composite Stage");
+  await clickSelector(".effect-optional-tools > summary");
   await waitForEval(() => `Boolean(Array.from(document.querySelectorAll("button")).find((button) => button.textContent?.includes("Open Composite Stage") && !button.disabled))`, "VFX Composite Stage launch ready");
   await cdp.send("Emulation.setEmulatedMedia", { features: [{ name: "prefers-reduced-motion", value: "reduce" }] });
   await clickButtonByText("Open Composite Stage");
@@ -1924,6 +1989,8 @@ async function assertVfxCompositeStage() {
     () => `document.activeElement?.textContent?.includes('Open Composite Stage') || false`,
     "VFX Composite Stage should return focus to its launcher"
   );
+  await clickSelector(".animation-utility-heading .icon-button");
+  await waitForEval(() => `!document.querySelector("[aria-labelledby=effect-advanced-settings-title]")`, "Effect advanced settings closes after VFX Composite Stage");
   await assertNoBrowserErrors("VFX Composite Stage");
 }
 
@@ -2383,6 +2450,8 @@ async function selectWorkflowTab(label) {
 }
 
 async function clickEffectCategory(label) {
+  await clickButtonByText("Choose Effect");
+  await waitForEval(() => `Boolean(document.querySelector(".effect-picker-modal-body"))`, `${label} effect picker opens`);
   await waitForEval(
     () => `Array.from(document.querySelectorAll(".effect-category-grid button")).some((item) => item.innerText.replace(/\\s+/g, " ").trim().startsWith(${JSON.stringify(label)}))`,
     `${label} effect category button`
@@ -2395,6 +2464,12 @@ async function clickEffectCategory(label) {
   await waitForEval(
     () => `Array.from(document.querySelectorAll(".effect-category-grid button.selected")).some((item) => item.innerText.replace(/\\s+/g, " ").trim().startsWith(${JSON.stringify(label)}))`,
     `${label} effect category active`
+  );
+  await clickButtonByText("Use This Effect");
+  await waitForEval(() => `!document.querySelector(".effect-picker-modal-body")`, `${label} effect picker closes`);
+  await waitForEval(
+    () => `document.querySelector(".effect-selected-summary")?.innerText.includes(${JSON.stringify(label)})`,
+    `${label} selected effect summary`
   );
 }
 

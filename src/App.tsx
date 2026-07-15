@@ -4224,6 +4224,10 @@ function App() {
   const [effectBackgroundPreview, setEffectBackgroundPreview] = useState<EffectBackgroundPreview>("checkerboard");
   const [effectGifPreviewUrl, setEffectGifPreviewUrl] = useState("");
   const [isEffectPreviewBuilding, setIsEffectPreviewBuilding] = useState(false);
+  const [showEffectPicker, setShowEffectPicker] = useState(false);
+  const [effectPickerCategoryId, setEffectPickerCategoryId] = useState<EffectCategoryId>("slash-arc");
+  const [effectPickerTypeId, setEffectPickerTypeId] = useState("crescent");
+  const [showEffectAdvancedSettings, setShowEffectAdvancedSettings] = useState(false);
   const [showVfxCompositeStage, setShowVfxCompositeStage] = useState(false);
   const [imageEditComparison, setImageEditComparison] = useState<ImageEditComparison | null>(null);
   const [codexFailureNotices, setCodexFailureNotices] = useState<CodexFailureNotice[]>([]);
@@ -4241,6 +4245,8 @@ function App() {
   const animationPresetReturnFocusRef = useRef<HTMLElement | null>(null);
   const animationAdvancedReturnFocusRef = useRef<HTMLElement | null>(null);
   const animationActivityReturnFocusRef = useRef<HTMLElement | null>(null);
+  const effectPickerReturnFocusRef = useRef<HTMLElement | null>(null);
+  const effectAdvancedReturnFocusRef = useRef<HTMLElement | null>(null);
   const vfxCompositeReturnFocusRef = useRef<HTMLElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const animationPackInputRef = useRef<HTMLInputElement | null>(null);
@@ -4392,6 +4398,10 @@ function App() {
   const activeEffectCategory = useMemo(
     () => getEffectCategoryById(effectCategoryId),
     [effectCategoryId]
+  );
+  const effectPickerCategory = useMemo(
+    () => getEffectCategoryById(effectPickerCategoryId),
+    [effectPickerCategoryId]
   );
   const activeEffectType = useMemo(
     () => getEffectTypeById(activeEffectCategory, effectTypeId),
@@ -5416,6 +5426,16 @@ function App() {
   function closeVfxCompositeStage() {
     setShowVfxCompositeStage(false);
     window.requestAnimationFrame(() => vfxCompositeReturnFocusRef.current?.focus());
+  }
+
+  function closeEffectPicker() {
+    setShowEffectPicker(false);
+    window.requestAnimationFrame(() => effectPickerReturnFocusRef.current?.focus());
+  }
+
+  function closeEffectAdvancedSettings() {
+    setShowEffectAdvancedSettings(false);
+    window.requestAnimationFrame(() => effectAdvancedReturnFocusRef.current?.focus());
   }
 
   function openVfxSourceResult(id: string) {
@@ -9709,176 +9729,293 @@ function App() {
               )}
             </div>
           ) : isEffectWorkflow ? (
-            <div className="effect-steps">
-              <section className="effect-step vfx-composite-launch-panel">
+            <div className="effect-steps effect-steps-simplified">
+              <section className="effect-step effect-primary-step">
                 <div className="step-heading">
-                  <strong>VFX Composite Stage</strong>
-                  <span>{language === "ja" ? "既存のcharacter animationとGold/Silver effectを別layerで同期" : "Sync an existing character animation with a Gold/Silver effect as separate layers."}</span>
+                  <strong>{language === "ja" ? "1. エフェクトを選ぶ" : "1. Choose Effect"}</strong>
+                  <span>{language === "ja" ? "種類だけ選べば生成できます。色やフレームは詳細設定で調整できます。" : "Choose an effect and generate. Color, frames, and prompts stay optional."}</span>
                 </div>
-                <div className="vfx-launch-summary">
-                  <span><Film size={14} aria-hidden="true" /> {vfxCompositeCharacters.length} character</span>
-                  <span><Sparkles size={14} aria-hidden="true" /> {vfxCompositeEffects.length} effect</span>
-                  <span>socket + event + Pack v2</span>
+                <div className="selected-animation-card animation-selected-summary effect-selected-summary">
+                  <small className="step-kicker">
+                    {language === "ja" ? "選択中のエフェクト" : "Selected effect"} · {activeEffectCategory.experimental ? "Experimental" : "Verified"}
+                  </small>
+                  <strong>{localizedText(activeEffectType.label, language)}</strong>
+                  <span>{localizedText(activeEffectCategory.label, language)} · {localizedText(activeEffectCategory.detail, language)}</span>
+                  <div className="effect-summary-row">
+                    <div className="effect-swatches effect-summary-swatches" aria-label={localizedText(activeEffectPalette.label, language)}>
+                      {activeEffectPalette.swatches.map((swatch) => (
+                        <span key={swatch} style={{ background: swatch }} />
+                      ))}
+                    </div>
+                    <div className="animation-selected-meta effect-selected-meta" aria-label={language === "ja" ? "現在の詳細設定" : "Current advanced settings"}>
+                      <em>{localizedText(activeEffectStyle.label, language)}</em>
+                      <em>{localizedText(activeEffectPalette.label, language)}</em>
+                      <em>{effectFrameCount}f</em>
+                      <em>{effectCanvasSize}px</em>
+                    </div>
+                  </div>
                 </div>
                 <button
                   type="button"
-                  className="secondary-button full"
-                  disabled={vfxCompositeCharacters.length === 0 || vfxCompositeEffects.length === 0}
-                  onClick={(event) => openVfxCompositeStage(event.currentTarget)}
+                  className="prompt-example-trigger effect-picker-trigger"
+                  onClick={(event) => {
+                    effectPickerReturnFocusRef.current = event.currentTarget;
+                    setEffectPickerCategoryId(effectCategoryId);
+                    setEffectPickerTypeId(effectTypeId);
+                    setShowEffectPicker(true);
+                  }}
                 >
-                  <Layers3 size={15} aria-hidden="true" /> Open Composite Stage
+                  <Sparkles size={16} aria-hidden="true" />
+                  {language === "ja" ? "エフェクトを選ぶ" : "Choose Effect"}
                 </button>
-                {(vfxCompositeCharacters.length === 0 || vfxCompositeEffects.length === 0) && (
-                  <small>{language === "ja" ? "character animationとdownload可能なeffectを先に用意してください" : "Create a character animation and a downloadable effect first."}</small>
-                )}
-              </section>
-              <section className="effect-step">
-                <div className="step-heading">
-                  <strong>{language === "ja" ? "1. Effect Type" : "1. Effect Type"}</strong>
-                  <span>{localizedText(activeEffectCategory.detail, language)}</span>
-                </div>
-                <div className="effect-category-grid">
-                  {effectCategoryDefinitions.map((category) => (
-                    <button
-                      key={category.id}
-                      type="button"
-                      className={category.id === effectCategoryId ? "selected" : ""}
-                      onClick={() => setEffectCategoryId(category.id)}
-                    >
-                      <Sparkles size={15} aria-hidden="true" />
-                      <span>
-                        <strong>{localizedText(category.label, language)}</strong>
-                        <small>{localizedText(category.detail, language)}</small>
-                      </span>
-                    </button>
-                  ))}
-                </div>
-                <div className="field-row">
-                  <label className="field">
-                    <span>{language === "ja" ? "Type" : "Type"}</span>
-                    <select value={effectTypeId} onChange={(event) => setEffectTypeId(event.target.value)}>
-                      {activeEffectCategory.types.map((type) => (
-                        <option key={type.id} value={type.id}>{localizedText(type.label, language)}</option>
-                      ))}
-                    </select>
-                  </label>
-                  <label className="field">
-                    <span>{language === "ja" ? "Style" : "Style"}</span>
-                    <select value={effectStyleId} onChange={(event) => setEffectStyleId(event.target.value as EffectStyleId)}>
-                      {effectStyleOptions.map((style) => (
-                        <option key={style.id} value={style.id}>{localizedText(style.label, language)}</option>
-                      ))}
-                    </select>
-                  </label>
-                </div>
-                <label className="field">
-                  <span>{language === "ja" ? "Palette" : "Palette"}</span>
-                  <select value={effectPaletteId} onChange={(event) => setEffectPaletteId(event.target.value as EffectPaletteId)}>
-                    {effectPaletteOptions.map((palette) => (
-                      <option key={palette.id} value={palette.id}>{localizedText(palette.label, language)}</option>
-                    ))}
-                  </select>
-                </label>
-                <div className="effect-swatches" aria-label={localizedText(activeEffectPalette.label, language)}>
-                  {activeEffectPalette.swatches.map((swatch) => (
-                    <span key={swatch} style={{ background: swatch }} />
-                  ))}
-                </div>
+                <button
+                  type="button"
+                  className="secondary-button full effect-advanced-settings-trigger"
+                  onClick={(event) => {
+                    effectAdvancedReturnFocusRef.current = event.currentTarget;
+                    setShowEffectAdvancedSettings(true);
+                  }}
+                >
+                  <Settings size={16} aria-hidden="true" />
+                  {language === "ja" ? "詳細設定を開く" : "Open advanced settings"}
+                </button>
               </section>
 
-              <section className="effect-step">
-                <div className="step-heading">
-                  <strong>{language === "ja" ? "2. Sheet" : "2. Sheet"}</strong>
-                  <span>{effectSheetSize.width}x{effectSheetSize.height} / {effectSheetGrid.columns}x{effectSheetGrid.rows}</span>
-                </div>
-                <div className="field-row">
-                  <label className="field">
-                    <span>{language === "ja" ? "Frames" : "Frames"}</span>
-                    <select value={effectFrameCount} onChange={(event) => setEffectFrameCount(Number(event.target.value))}>
-                      {effectFrameCountOptions.map((frameCount) => (
-                        <option key={frameCount} value={frameCount}>{frameCount}</option>
-                      ))}
-                    </select>
-                  </label>
-                  <label className="field">
-                    <span>{language === "ja" ? "Canvas" : "Canvas"}</span>
-                    <select value={effectCanvasSize} onChange={(event) => setEffectCanvasSize(Number(event.target.value))}>
-                      {effectCanvasSizeOptions.map((canvasSize) => (
-                        <option key={canvasSize} value={canvasSize}>{canvasSize} x {canvasSize}</option>
-                      ))}
-                    </select>
-                  </label>
-                </div>
-                <div className="field-row">
-                  <label className="field">
-                    <span>{language === "ja" ? "Layout" : "Layout"}</span>
-                    <select value={effectLayoutId} onChange={(event) => setEffectLayoutId(event.target.value as EffectLayoutId)}>
-                      {effectLayoutOptions.map((layoutOption) => (
-                        <option key={layoutOption.id} value={layoutOption.id}>{localizedText(layoutOption.label, language)}</option>
-                      ))}
-                    </select>
-                  </label>
-                  <label className="field">
-                    <span>{language === "ja" ? "Loop" : "Loop"}</span>
-                    <select value={effectLoopMode} onChange={(event) => setEffectLoopMode(event.target.value as EffectLoopMode)}>
-                      {effectLoopModeOptions.map((loopOption) => (
-                        <option key={loopOption.id} value={loopOption.id}>{localizedText(loopOption.label, language)}</option>
-                      ))}
-                    </select>
-                  </label>
-                </div>
-                <label className="field">
-                  <span>{language === "ja" ? "Anchor" : "Anchor"}</span>
-                  <select value={effectAnchorMode} onChange={(event) => setEffectAnchorMode(event.target.value as EffectAnchorMode)}>
-                    {effectAnchorOptions.map((anchorOption) => (
-                      <option key={anchorOption.id} value={anchorOption.id}>{localizedText(anchorOption.label, language)}</option>
-                    ))}
-                  </select>
-                </label>
-                <div className="effect-sheet-mini" style={effectSheetGridStyle} aria-label={`${activeEffectLayout.id} ${effectSheetGrid.columns} by ${effectSheetGrid.rows}`}>
-                  {Array.from({ length: effectSheetGrid.columns * effectSheetGrid.rows }, (_, index) => (
-                    <span key={index} className={index < effectFrameCount ? "filled" : ""}>{index + 1}</span>
-                  ))}
-                </div>
-              </section>
+              {showEffectPicker && (
+                <AnimationUtilityModal
+                  id="effect-picker"
+                  title={language === "ja" ? "エフェクトを選ぶ" : "Choose Effect"}
+                  description={language === "ja" ? "用途を選び、その中の種類を1つ決めます。" : "Pick a use case, then choose one variation."}
+                  onClose={closeEffectPicker}
+                >
+                  <div className="effect-picker-modal-body">
+                    <section className="animation-utility-section">
+                      <div className="step-heading">
+                        <strong>{language === "ja" ? "カテゴリ" : "Category"}</strong>
+                        <span>{localizedText(effectPickerCategory.detail, language)}</span>
+                      </div>
+                      <div className="effect-category-grid effect-picker-category-grid" aria-label={language === "ja" ? "エフェクトカテゴリ" : "Effect categories"}>
+                        {effectCategoryDefinitions.map((category) => (
+                          <button
+                            key={category.id}
+                            type="button"
+                            className={category.id === effectPickerCategoryId ? "selected" : ""}
+                            aria-pressed={category.id === effectPickerCategoryId}
+                            onClick={() => {
+                              setEffectPickerCategoryId(category.id);
+                              setEffectPickerTypeId(category.types[0]?.id ?? "");
+                            }}
+                          >
+                            <Sparkles size={17} aria-hidden="true" />
+                            <span>
+                              <strong>{localizedText(category.label, language)}</strong>
+                              <small>{localizedText(category.detail, language)}</small>
+                            </span>
+                          </button>
+                        ))}
+                      </div>
+                    </section>
+                    <section className="animation-utility-section effect-picker-selection">
+                      <label className="field">
+                        <span>{language === "ja" ? "種類" : "Variation"}</span>
+                        <select value={effectPickerTypeId} onChange={(event) => setEffectPickerTypeId(event.target.value)}>
+                          {effectPickerCategory.types.map((type) => (
+                            <option key={type.id} value={type.id}>{localizedText(type.label, language)}</option>
+                          ))}
+                        </select>
+                      </label>
+                      <button
+                        type="button"
+                        className="primary-button full"
+                        onClick={() => {
+                          setEffectCategoryId(effectPickerCategoryId);
+                          setEffectTypeId(effectPickerTypeId);
+                          closeEffectPicker();
+                        }}
+                      >
+                        <CheckCircle2 size={16} aria-hidden="true" />
+                        {language === "ja" ? "このエフェクトを使う" : "Use This Effect"}
+                      </button>
+                    </section>
+                  </div>
+                </AnimationUtilityModal>
+              )}
 
-              <section className="effect-step">
+              {showEffectAdvancedSettings && (
+                <AnimationUtilityModal
+                  id="effect-advanced-settings"
+                  title={language === "ja" ? "エフェクト詳細設定" : "Effect advanced settings"}
+                  description={language === "ja" ? "必要なときだけ見た目、シート、プロンプト、プレビューと合成ツールを調整します。" : "Adjust appearance, sheet, prompts, preview, and compositing tools only when needed."}
+                  onClose={closeEffectAdvancedSettings}
+                >
+                  <section className="animation-utility-section">
+                    <div className="step-heading">
+                      <strong>{language === "ja" ? "見た目" : "Appearance"}</strong>
+                      <span>{language === "ja" ? "スタイルと色だけを上書きします。" : "Override only the visual style and palette."}</span>
+                    </div>
+                    <div className="field-row">
+                      <label className="field">
+                        <span>{language === "ja" ? "スタイル" : "Style"}</span>
+                        <select value={effectStyleId} onChange={(event) => setEffectStyleId(event.target.value as EffectStyleId)}>
+                          {effectStyleOptions.map((style) => (
+                            <option key={style.id} value={style.id}>{localizedText(style.label, language)}</option>
+                          ))}
+                        </select>
+                      </label>
+                      <label className="field">
+                        <span>{language === "ja" ? "パレット" : "Palette"}</span>
+                        <select value={effectPaletteId} onChange={(event) => setEffectPaletteId(event.target.value as EffectPaletteId)}>
+                          {effectPaletteOptions.map((palette) => (
+                            <option key={palette.id} value={palette.id}>{localizedText(palette.label, language)}</option>
+                          ))}
+                        </select>
+                      </label>
+                    </div>
+                    <div className="effect-swatches" aria-label={localizedText(activeEffectPalette.label, language)}>
+                      {activeEffectPalette.swatches.map((swatch) => (
+                        <span key={swatch} style={{ background: swatch }} />
+                      ))}
+                    </div>
+                  </section>
+
+                  <section className="animation-utility-section">
+                    <div className="step-heading">
+                      <strong>{language === "ja" ? "シート" : "Sheet"}</strong>
+                      <span>{effectSheetSize.width}x{effectSheetSize.height} / {effectSheetGrid.columns}x{effectSheetGrid.rows}</span>
+                    </div>
+                    <div className="field-row">
+                      <label className="field">
+                        <span>{language === "ja" ? "フレーム" : "Frames"}</span>
+                        <select value={effectFrameCount} onChange={(event) => setEffectFrameCount(Number(event.target.value))}>
+                          {effectFrameCountOptions.map((frameCount) => (
+                            <option key={frameCount} value={frameCount}>{frameCount}</option>
+                          ))}
+                        </select>
+                      </label>
+                      <label className="field">
+                        <span>{language === "ja" ? "キャンバス" : "Canvas"}</span>
+                        <select value={effectCanvasSize} onChange={(event) => setEffectCanvasSize(Number(event.target.value))}>
+                          {effectCanvasSizeOptions.map((canvasSize) => (
+                            <option key={canvasSize} value={canvasSize}>{canvasSize} x {canvasSize}</option>
+                          ))}
+                        </select>
+                      </label>
+                    </div>
+                    <div className="field-row">
+                      <label className="field">
+                        <span>{language === "ja" ? "レイアウト" : "Layout"}</span>
+                        <select value={effectLayoutId} onChange={(event) => setEffectLayoutId(event.target.value as EffectLayoutId)}>
+                          {effectLayoutOptions.map((layoutOption) => (
+                            <option key={layoutOption.id} value={layoutOption.id}>{localizedText(layoutOption.label, language)}</option>
+                          ))}
+                        </select>
+                      </label>
+                      <label className="field">
+                        <span>{language === "ja" ? "ループ" : "Loop"}</span>
+                        <select value={effectLoopMode} onChange={(event) => setEffectLoopMode(event.target.value as EffectLoopMode)}>
+                          {effectLoopModeOptions.map((loopOption) => (
+                            <option key={loopOption.id} value={loopOption.id}>{localizedText(loopOption.label, language)}</option>
+                          ))}
+                        </select>
+                      </label>
+                    </div>
+                    <label className="field">
+                      <span>{language === "ja" ? "アンカー" : "Anchor"}</span>
+                      <select value={effectAnchorMode} onChange={(event) => setEffectAnchorMode(event.target.value as EffectAnchorMode)}>
+                        {effectAnchorOptions.map((anchorOption) => (
+                          <option key={anchorOption.id} value={anchorOption.id}>{localizedText(anchorOption.label, language)}</option>
+                        ))}
+                      </select>
+                    </label>
+                    <div className="effect-sheet-mini" style={effectSheetGridStyle} aria-label={`${activeEffectLayout.id} ${effectSheetGrid.columns} by ${effectSheetGrid.rows}`}>
+                      {Array.from({ length: effectSheetGrid.columns * effectSheetGrid.rows }, (_, index) => (
+                        <span key={index} className={index < effectFrameCount ? "filled" : ""}>{index + 1}</span>
+                      ))}
+                    </div>
+                  </section>
+
+                  <section className="animation-utility-section">
+                    <div className="step-heading">
+                      <strong>{language === "ja" ? "プロンプト（任意）" : "Prompt (optional)"}</strong>
+                      <span>{language === "ja" ? "現在値のままでも生成できます。必要な指示だけ追記します。" : "The defaults are ready to use. Add only the direction you need."}</span>
+                    </div>
+                    <label className="field">
+                      <span>{activeWorkflowFormCopy.promptLabel}</span>
+                      <textarea value={prompt} onChange={(event) => setPrompt(event.target.value)} maxLength={1200} />
+                      <small>{prompt.length} / 1200</small>
+                    </label>
+                    <label className="field">
+                      <span>{activeWorkflowFormCopy.negativeLabel}</span>
+                      <textarea value={negativePrompt} onChange={(event) => setNegativePrompt(event.target.value)} rows={2} />
+                    </label>
+                    <label className="field">
+                      <span>{activeWorkflowFormCopy.notesLabel}</span>
+                      <textarea
+                        value={jobNotes}
+                        onChange={(event) => setJobNotes(event.target.value)}
+                        rows={3}
+                        maxLength={1000}
+                        placeholder={activeWorkflowFormCopy.notesPlaceholder}
+                      />
+                      <small>{jobNotes.length} / 1000</small>
+                    </label>
+                  </section>
+
+                  <section className="animation-utility-section">
+                    <div className="step-heading">
+                      <strong>{language === "ja" ? "プレビュー背景" : "Preview background"}</strong>
+                      <span>{language === "ja" ? "透過境界を確認しやすい背景を選びます。" : "Choose a background that makes alpha edges easy to inspect."}</span>
+                    </div>
+                    <div className="effect-background-switch" aria-label={language === "ja" ? "プレビュー背景" : "Preview background"}>
+                      {effectBackgroundOptions.map((background) => (
+                        <button
+                          key={background.id}
+                          type="button"
+                          className={effectBackgroundPreview === background.id ? "active" : ""}
+                          aria-pressed={effectBackgroundPreview === background.id}
+                          onClick={() => setEffectBackgroundPreview(background.id)}
+                        >
+                          {background.label}
+                        </button>
+                      ))}
+                    </div>
+                  </section>
+
+                  <details className="animation-utility-section effect-optional-tools">
+                    <summary className="step-heading">
+                      <strong>{language === "ja" ? "合成ツール（生成後）" : "Compositing tools (after generation)"}</strong>
+                      <span>{language === "ja" ? "キャラクターとエフェクトを別レイヤーで同期するときだけ使います。" : "Use only when syncing a character and effect as separate layers."}</span>
+                    </summary>
+                    <div className="effect-optional-tools-body vfx-composite-launch-panel">
+                      <div className="vfx-launch-summary">
+                        <span><Film size={14} aria-hidden="true" /> {vfxCompositeCharacters.length} character</span>
+                        <span><Sparkles size={14} aria-hidden="true" /> {vfxCompositeEffects.length} effect</span>
+                        <span>socket + event + Pack v2</span>
+                      </div>
+                      <button
+                        type="button"
+                        className="secondary-button full"
+                        disabled={vfxCompositeCharacters.length === 0 || vfxCompositeEffects.length === 0}
+                        onClick={(event) => openVfxCompositeStage(event.currentTarget)}
+                      >
+                        <Layers3 size={15} aria-hidden="true" /> Open Composite Stage
+                      </button>
+                      {(vfxCompositeCharacters.length === 0 || vfxCompositeEffects.length === 0) && (
+                        <small>{language === "ja" ? "character animationとdownload可能なeffectを先に用意してください" : "Create a character animation and a downloadable effect first."}</small>
+                      )}
+                    </div>
+                  </details>
+                </AnimationUtilityModal>
+              )}
+
+              <section className="effect-step effect-generate-step">
                 <div className="step-heading">
-                  <strong>{language === "ja" ? "3. Prompt" : "3. Prompt"}</strong>
-                  <span>{localizedText(activeEffectStyle.label, language)} / {effectJobContext.frameCount} frames / {effectJobContext.frameSize.width}px / {effectJobContext.loopMode}</span>
+                  <strong>{language === "ja" ? "2. 生成する" : "2. Generate"}</strong>
+                  <span>{language === "ja" ? "選択内容で透過エフェクトシートを生成します。" : "Generate a transparent effect sheet with the current selection."}</span>
                 </div>
-                <label className="field">
-                  <span>{activeWorkflowFormCopy.promptLabel}</span>
-                  <textarea value={prompt} onChange={(event) => setPrompt(event.target.value)} maxLength={1200} />
-                  <small>{prompt.length} / 1200</small>
-                </label>
-                <label className="field">
-                  <span>{activeWorkflowFormCopy.negativeLabel}</span>
-                  <textarea value={negativePrompt} onChange={(event) => setNegativePrompt(event.target.value)} rows={2} />
-                </label>
-                <label className="field">
-                  <span>{activeWorkflowFormCopy.notesLabel}</span>
-                  <textarea
-                    value={jobNotes}
-                    onChange={(event) => setJobNotes(event.target.value)}
-                    rows={3}
-                    maxLength={1000}
-                    placeholder={activeWorkflowFormCopy.notesPlaceholder}
-                  />
-                  <small>{jobNotes.length} / 1000</small>
-                </label>
-                <div className="effect-background-switch" aria-label={language === "ja" ? "Preview background" : "Preview background"}>
-                  {effectBackgroundOptions.map((background) => (
-                    <button
-                      key={background.id}
-                      type="button"
-                      className={effectBackgroundPreview === background.id ? "active" : ""}
-                      onClick={() => setEffectBackgroundPreview(background.id)}
-                    >
-                      {background.label}
-                    </button>
-                  ))}
-                </div>
+                <small className="effect-generation-summary">
+                  {localizedText(activeEffectType.label, language)} · {effectSheetSize.width}x{effectSheetSize.height} · {localizedText(effectLoopModeOptions.find((item) => item.id === effectLoopMode)?.label ?? effectLoopModeOptions[0].label, language)}
+                </small>
                 <button className="primary-button full" onClick={() => void handleGenerate()} disabled={primaryActionDisabled}>
                   <PrimaryActionIcon providerId={providerId} isBusy={isBusy} />
                   {shouldQueueCodexJob ? codexQueueCopy.queueAction : language === "ja" ? "エフェクト生成" : "Generate Effect"}
