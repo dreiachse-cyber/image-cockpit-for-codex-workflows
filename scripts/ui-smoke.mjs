@@ -264,6 +264,9 @@ async function assertInitialWorkspace() {
   assert(snapshot.buttons.includes("Animation Generation"), "Initial workspace should expose Animation Generation tab");
   assert(snapshot.buttons.includes("Effect Animation"), "Initial workspace should expose Effect Animation tab");
   assert(snapshot.workflowTabsInsidePanel, "Initial workspace should place workflow tabs under 1. Workflow");
+  assert(snapshot.workflowTabsLeadHierarchy, "Initial workspace should place primary workflow buttons before summary and health");
+  assert(snapshot.workflowTabsTopOffset <= 50, `Primary workflow buttons should stay at the top of the left column, got offset ${snapshot.workflowTabsTopOffset}`);
+  assert(snapshot.workflowTabsWithinInitialViewport, "Primary workflow buttons should be visible without scrolling the initial workspace");
   assert(snapshot.canvasVisible, "Initial workspace should render the preview canvas immediately");
   assert(snapshot.resultDownloadPanelInWorkspace, "Initial workspace should place the result download card under the preview workspace");
   assert(snapshot.resultDownloadActionButtons === 1, "Initial workspace should expose one compact Download button");
@@ -1072,13 +1075,25 @@ async function assertCodexQueue() {
   await clickButtonByText("Generate Pixel Art");
   await waitForEval(() => `document.body.innerText.includes("Active 3/3")`, "three Codex jobs running");
   await waitForButtonEnabled("Queue Codex Job");
+  const queueActionAtCapacity = await evaluate(`Array.from(document.querySelectorAll("button")).some((button) => button.innerText.replace(/\\s+/g, " ").trim() === "Queue Codex Job" && !button.disabled)`);
+  assert(queueActionAtCapacity, "Codex queue should switch the primary action to Queue Codex Job at three active jobs");
 
   await clickButtonByText("Queue Codex Job");
-  await waitForEval(() => `document.body.innerText.includes("Queued") && document.body.innerText.includes("Waiting for an open slot")`, "fourth Codex job queued");
+  await waitForEval(() => `(() => {
+    const text = document.body.innerText;
+    const queued = text.includes("Queued") && text.includes("Waiting for an open slot");
+    if (queued) {
+      window.__uiSmokeQueueEvidence = {
+        text,
+        rows: document.querySelectorAll(".codex-job-row").length
+      };
+    }
+    return queued;
+  })()`, "fourth Codex job queued");
+  const queueEvidence = await evaluate(`window.__uiSmokeQueueEvidence || { text: "", rows: 0 }`);
+  assert(queueEvidence.text.includes("Codex job queued"), "Codex queue should report that the fourth job was queued");
+  assert(queueEvidence.rows === 4, `Codex queue should show 4 job rows when the fourth job queues, got ${queueEvidence.rows}`);
   const snapshot = await pageSnapshot();
-  assert(snapshot.buttons.includes("Queue Codex Job"), "Codex queue should switch the primary action to Queue Codex Job at three active jobs");
-  assert(snapshot.text.includes("Codex job queued"), "Codex queue should report that the fourth job was queued");
-  assert(snapshot.codexJobRows === 4, `Codex queue should show 4 job rows, got ${snapshot.codexJobRows}`);
   assert(snapshot.codexJobShelfInHistory, "Codex job shelf should appear above the Results cards in the right column");
   assert(!snapshot.codexJobShelfInSource, "Codex job shelf should not remain in the left source column");
   assert(snapshot.codexJobShelfBeforeHistoryList, "Codex job shelf should sit before the result card list");
@@ -2144,6 +2159,7 @@ async function assertWorkflow({
   assert(snapshot.buttons.includes("Animation Generation"), `${label} should expose the Animation Generation tab`);
   assert(snapshot.buttons.includes("Effect Animation"), `${label} should expose the Effect Animation tab`);
   assert(snapshot.workflowTabsInsidePanel, `${label} should place workflow tabs under 1. Workflow`);
+  assert(snapshot.workflowTabsLeadHierarchy, `${label} should keep primary workflow buttons before summary and health`);
   assert(!snapshot.workflowTabsInTopbar, `${label} should not place workflow tabs in the global header`);
   assert(snapshot.summary.includes(route), `${label} should select ${route}`);
   assert(snapshot.canvasVisible, `${label} should render the canvas`);
@@ -2774,6 +2790,12 @@ async function pageSnapshot() {
     buttons: Array.from(document.querySelectorAll("button")).map((button) => button.innerText.replace(/\\s+/g, " ").trim()).filter(Boolean),
     disabledButtons: Array.from(document.querySelectorAll("button:disabled")).map((button) => button.innerText.replace(/\\s+/g, " ").trim()).filter(Boolean),
     workflowTabsInsidePanel: Boolean(document.querySelector(".source-panel > .workflow-tabs")),
+    workflowTabsLeadHierarchy: Boolean(document.querySelector(".source-panel > .panel-title + .workflow-tabs + .workflow-summary + .cockpit-health-panel")),
+    workflowTabsTopOffset: Math.round((document.querySelector(".workflow-tabs")?.getBoundingClientRect().top || 0) - (document.querySelector(".source-panel")?.getBoundingClientRect().top || 0)),
+    workflowTabsWithinInitialViewport: (() => {
+      const rect = document.querySelector(".source-panel > .workflow-tabs")?.getBoundingClientRect();
+      return Boolean(rect && rect.top >= 0 && rect.bottom <= window.innerHeight);
+    })(),
     workflowTabsInTopbar: Boolean(document.querySelector(".topbar .workflow-tabs")),
     canvasVisible: Boolean(document.querySelector("canvas")),
     canvasPanelVisible: Boolean(document.querySelector(".canvas-panel")),

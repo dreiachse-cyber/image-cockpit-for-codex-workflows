@@ -9222,6 +9222,7 @@ function App() {
       <main className={`cockpit ${SHOW_LOW_PRIORITY_CONTROLS ? "" : "simple-cockpit"} ${showSpriteActionsPanel ? "" : "without-sprite-actions"}`}>
         <aside className="panel source-panel">
           <PanelTitle index="1" title={copy.workflowPanelTitle} />
+          <WorkflowTabs language={language} activeMode={workflowMode} onSelect={beginWorkflow} />
           <div className="workflow-summary">
             <small>{copy.currentWorkflow}</small>
             <strong>{activeWorkflowCopy.label}</strong>
@@ -9249,8 +9250,6 @@ function App() {
               <span>{language === "ja" ? "この結果はローカル簡易生成です。Codex imagegenの成功結果ではありません。" : "This result is local procedural generation, not a Codex imagegen success result."}</span>
             </div>
           )}
-          <WorkflowTabs language={language} activeMode={workflowMode} onSelect={beginWorkflow} />
-
           {isAnimationWorkflow ? (
             <div className={`animation-steps${motionPilotEnabled ? " motion-pilot-active" : ""}`}>
               <details className={`animation-step collapsible-animation-step ${animationSourceReady ? "complete" : ""}`} open={!animationSourceReady}>

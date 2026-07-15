@@ -1059,8 +1059,25 @@ function checkWorkflowIds() {
       failures.push(`Readable workflow navigation treatment is missing: ${marker}`);
     }
   });
+  if (!/\.source-panel > \.workflow-tabs\s*\{[^}]*order:\s*0;/s.test(stylesText)) {
+    failures.push("Primary workflow navigation should keep source-panel order zero at responsive widths");
+  }
+
+  const sourcePanelStart = appText.indexOf('<aside className="panel source-panel">');
+  const sourcePanelEnd = appText.indexOf("{isAnimationWorkflow ? (", sourcePanelStart);
+  const sourcePanelShell = sourcePanelStart >= 0 && sourcePanelEnd > sourcePanelStart
+    ? appText.slice(sourcePanelStart, sourcePanelEnd)
+    : "";
+  const workflowTabsIndex = sourcePanelShell.indexOf("<WorkflowTabs");
+  const workflowSummaryIndex = sourcePanelShell.indexOf('className="workflow-summary"');
+  const cockpitHealthIndex = sourcePanelShell.indexOf("<CockpitHealthPanel");
+  if (!(workflowTabsIndex >= 0 && workflowTabsIndex < workflowSummaryIndex && workflowSummaryIndex < cockpitHealthIndex)) {
+    failures.push("Primary workflow navigation should lead the left-column hierarchy before summary and health");
+  }
 
   [
+    "Initial workspace should place primary workflow buttons before summary and health",
+    "Primary workflow buttons should be visible without scrolling the initial workspace",
     "Workflow buttons should not overlap the following animation controls",
     "Responsive workflow panels should stack instead of covering the primary workflow buttons",
     "Collapsed animation source step should keep Upload Pixel Art available on demand",

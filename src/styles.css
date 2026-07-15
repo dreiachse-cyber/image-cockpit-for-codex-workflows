@@ -158,6 +158,7 @@ button {
 
 .source-panel > .workflow-tabs {
   display: grid;
+  order: 0;
   flex: 0 0 auto;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   grid-auto-rows: minmax(54px, auto);
