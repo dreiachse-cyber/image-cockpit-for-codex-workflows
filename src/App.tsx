@@ -10547,7 +10547,7 @@ function App() {
                 <button
                   key={item.id}
                   className={`history-item ${selected?.id === item.id ? "selected" : ""} ${isEffectAnimationHistoryItem(item) ? "effect-result" : ""}`}
-                  title={effectMetadata ? item.name : undefined}
+                  title={item.name}
                   onClick={() => selectHistoryResult(item)}
                 >
                   <img src={item.dataUrl} alt="" loading="lazy" decoding="async" />

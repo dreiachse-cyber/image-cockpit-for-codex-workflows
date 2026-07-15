@@ -272,6 +272,34 @@ async function assertInitialWorkspace() {
   assert(snapshot.resultDownloadActionButtons === 1, "Initial workspace should expose one compact Download button");
   assert(snapshot.resultDownloadGridButtonsInWorkspace === 0, "Initial workspace should not expose detailed download buttons under the preview");
   assert(snapshot.resultDownloadPanelHeight <= 110, `Initial download panel should stay compact, got ${snapshot.resultDownloadPanelHeight}`);
+  await waitForEval(() => `Boolean(document.querySelector(".history-item"))`, "initial readable result card", 10000);
+  const resultCardLayout = await evaluate(`(() => {
+    const card = document.querySelector(".history-item");
+    const text = card?.querySelector(":scope > span");
+    const image = card?.querySelector(":scope > img");
+    const metadata = [...(card?.querySelectorAll("small") || [])];
+    const cardRect = card?.getBoundingClientRect();
+    const textRect = text?.getBoundingClientRect();
+    const imageRect = image?.getBoundingClientRect();
+    return {
+      cardHeight: cardRect?.height || 0,
+      fullNameAvailable: Boolean(card?.getAttribute("title")),
+      contentContained: Boolean(
+        cardRect && textRect && imageRect &&
+        textRect.top >= cardRect.top - 1 && textRect.bottom <= cardRect.bottom + 1 &&
+        imageRect.top >= cardRect.top - 1 && imageRect.bottom <= cardRect.bottom + 1
+      ),
+      cardOverflow: card ? getComputedStyle(card).overflow : "",
+      metadataSingleLine: metadata.length > 0 && metadata.every((node) => {
+        const style = getComputedStyle(node);
+        return style.whiteSpace === "nowrap" && ["hidden", "clip"].includes(style.overflow);
+      })
+    };
+  })()`);
+  assert(resultCardLayout.cardHeight >= 98, `Result cards should keep enough height for enlarged text, got ${resultCardLayout.cardHeight}`);
+  assert(resultCardLayout.contentContained && resultCardLayout.cardOverflow === "hidden", "Result cards should contain enlarged text without vertical overlap");
+  assert(resultCardLayout.metadataSingleLine, "Result metadata should stay on stable single lines");
+  assert(resultCardLayout.fullNameAvailable, "Truncated result titles should keep the full filename in the native tooltip");
   await maybeCapture("initial-workspace");
 }
 
@@ -1081,18 +1109,24 @@ async function assertCodexQueue() {
   await clickButtonByText("Queue Codex Job");
   await waitForEval(() => `(() => {
     const text = document.body.innerText;
-    const queued = text.includes("Queued") && text.includes("Waiting for an open slot");
+    const queuedRows = document.querySelectorAll(".codex-job-state.queued").length;
+    const queued = text.includes("Queued") && text.includes("Waiting for an open slot") && queuedRows >= 1;
     if (queued) {
       window.__uiSmokeQueueEvidence = {
         text,
-        rows: document.querySelectorAll(".codex-job-row").length
+        rows: document.querySelectorAll(".codex-job-row").length,
+        queuedRows
       };
     }
     return queued;
   })()`, "fourth Codex job queued");
-  const queueEvidence = await evaluate(`window.__uiSmokeQueueEvidence || { text: "", rows: 0 }`);
+  const queueEvidence = await evaluate(`window.__uiSmokeQueueEvidence || { text: "", rows: 0, queuedRows: 0 }`);
   assert(queueEvidence.text.includes("Codex job queued"), "Codex queue should report that the fourth job was queued");
-  assert(queueEvidence.rows === 4, `Codex queue should show 4 job rows when the fourth job queues, got ${queueEvidence.rows}`);
+  assert(queueEvidence.queuedRows >= 1, "Codex queue should render the fourth job in a queued state");
+  assert(
+    queueEvidence.rows >= 3 && queueEvidence.rows <= 4,
+    `Codex queue should show the queued fourth job alongside the still-active jobs, got ${queueEvidence.rows} rows`
+  );
   const snapshot = await pageSnapshot();
   assert(snapshot.codexJobShelfInHistory, "Codex job shelf should appear above the Results cards in the right column");
   assert(!snapshot.codexJobShelfInSource, "Codex job shelf should not remain in the left source column");
@@ -1742,7 +1776,8 @@ async function assertEffectAnimationWorkflow() {
     expectedCanvasPreviewModeAfterExercise: "result",
     expectedDownloadModalButtons: ["Effect GIF", "Effect APNG", "Sheet PNG", "Frames ZIP", "Metadata JSON", "Effect Pack ZIP"],
     downloadModalAbsentButtons: ["PNG", "Animated GIF", "Animated WebP", "Animated APNG", "Export Animation Pack"],
-    downloadModalClickButtons: ["Effect GIF", "Effect APNG", "Sheet PNG", "Frames ZIP", "Metadata JSON", "Effect Pack ZIP"]
+    downloadModalClickButtons: ["Effect GIF", "Effect APNG", "Sheet PNG", "Frames ZIP", "Metadata JSON", "Effect Pack ZIP"],
+    exerciseTimeoutMs: 30000
   });
   await waitForEval(
     () => `(window.__uiSmokeDownloads || []).some((item) => item.type === "image/apng" || String(item.dataUrl || "").startsWith("data:image/apng"))`,

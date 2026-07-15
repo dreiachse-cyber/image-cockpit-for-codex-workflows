@@ -4926,6 +4926,26 @@ button:disabled {
   min-height: 40px;
 }
 
+/* Result cards need their own readable rhythm after the global 16px type floor. */
+.app-shell .history-item {
+  min-height: 100px;
+  overflow: hidden;
+}
+
+.app-shell .history-item.effect-result {
+  min-height: 66px;
+}
+
+.app-shell .history-item img {
+  flex: 0 0 auto;
+}
+
+.app-shell .history-item small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 @media (max-width: 620px) {
   .animation-utility-backdrop {
     padding: 0;

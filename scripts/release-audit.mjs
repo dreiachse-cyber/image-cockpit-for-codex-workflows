@@ -1062,6 +1062,18 @@ function checkWorkflowIds() {
   if (!/\.source-panel > \.workflow-tabs\s*\{[^}]*order:\s*0;/s.test(stylesText)) {
     failures.push("Primary workflow navigation should keep source-panel order zero at responsive widths");
   }
+  if (!/\.app-shell \.history-item\s*\{[^}]*min-height:\s*100px;[^}]*overflow:\s*hidden;/s.test(stylesText)) {
+    failures.push("Readable result cards should contain the 16px text within a 100px card");
+  }
+  if (!/\.app-shell \.history-item\.effect-result\s*\{[^}]*min-height:\s*66px;/s.test(stylesText)) {
+    failures.push("Effect result cards should keep their compact two-line readable height");
+  }
+  if (!/\.app-shell \.history-item small\s*\{[^}]*text-overflow:\s*ellipsis;[^}]*white-space:\s*nowrap;/s.test(stylesText)) {
+    failures.push("Result metadata should stay on stable single lines with ellipsis");
+  }
+  if (!appText.includes("title={item.name}")) {
+    failures.push("Truncated result titles should retain the full filename in a native tooltip");
+  }
 
   const sourcePanelStart = appText.indexOf('<aside className="panel source-panel">');
   const sourcePanelEnd = appText.indexOf("{isAnimationWorkflow ? (", sourcePanelStart);
@@ -1078,6 +1090,9 @@ function checkWorkflowIds() {
   [
     "Initial workspace should place primary workflow buttons before summary and health",
     "Primary workflow buttons should be visible without scrolling the initial workspace",
+    "Result cards should contain enlarged text without vertical overlap",
+    "Result metadata should stay on stable single lines",
+    "Truncated result titles should keep the full filename in the native tooltip",
     "Workflow buttons should not overlap the following animation controls",
     "Responsive workflow panels should stack instead of covering the primary workflow buttons",
     "Collapsed animation source step should keep Upload Pixel Art available on demand",
