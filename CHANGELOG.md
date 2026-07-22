@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+No unreleased changes yet.
+
+## v0.1.7 - 2026-07-23
+
+Selectable single-direction animation generation and Experimental extended frame budgets after v0.1.6.
+
 ### Added
 
 - Added a 1 direction Animation Generation preset with a second selector for front, front three-quarter, side, back three-quarter, or back while keeping side as its default.
@@ -16,6 +22,7 @@
 ### Fixed
 
 - Preserved direction, Motion Recipe, frame-budget, and Pack v2 metadata when an imported Animation Pack is used, preventing 16f / 20f packs from falling back to 8f.
+- Hardened full UI smoke coverage against slow recovery-page navigation and the short three-runner queue-capacity window.
 
 ## v0.1.6 - 2026-07-16
 

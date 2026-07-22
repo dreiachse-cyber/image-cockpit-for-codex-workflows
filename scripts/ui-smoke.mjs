@@ -423,7 +423,7 @@ async function assertStoragePreflightRecovery() {
   assert(recovery.dangerLoad, "Storage recovery should expose the explicit unsafe-load option");
   await assertNoBrowserErrors("mock large storage recovery");
   await cdp.send("Page.navigate", { url: `http://127.0.0.1:${vitePort}/` });
-  await waitForEval(() => `document.body.innerText.includes("Pixel Art Generation")`, "storage recovery return to normal workspace");
+  await waitForEval(() => `document.body.innerText.includes("Pixel Art Generation")`, "storage recovery return to normal workspace", 30000);
 }
 
 async function assertResetLocalStatePage() {
@@ -1485,11 +1485,16 @@ async function assertCodexQueue() {
 
   await clickButtonByText("Generate Pixel Art");
   await waitForEval(() => `document.body.innerText.includes("Active 3/3")`, "three Codex jobs running");
-  await waitForButtonEnabled("Queue Codex Job");
-  const queueActionAtCapacity = await evaluate(`Array.from(document.querySelectorAll("button")).some((button) => button.innerText.replace(/\\s+/g, " ").trim() === "Queue Codex Job" && !button.disabled)`);
+  await waitForEval(() => `(() => {
+    const button = Array.from(document.querySelectorAll("button")).find((item) => item.innerText.replace(/\\s+/g, " ").trim() === "Queue Codex Job" && !item.disabled);
+    if (!button) return false;
+    window.__uiSmokeQueueActionAtCapacity = true;
+    button.click();
+    return true;
+  })()`, "Queue Codex Job button enabled and clicked at three active jobs");
+  const queueActionAtCapacity = await evaluate(`window.__uiSmokeQueueActionAtCapacity === true`);
   assert(queueActionAtCapacity, "Codex queue should switch the primary action to Queue Codex Job at three active jobs");
 
-  await clickButtonByText("Queue Codex Job");
   await waitForEval(() => `(() => {
     const text = document.body.innerText;
     const queuedRows = document.querySelectorAll(".codex-job-state.queued").length;

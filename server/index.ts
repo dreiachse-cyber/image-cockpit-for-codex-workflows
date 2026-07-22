@@ -361,7 +361,7 @@ const server = createServer(async (request, response) => {
       const runner = await checkCodexRunnerPreflight();
       sendJson(response, 200, {
         app: "image-cockpit",
-        version: "0.1.6",
+        version: "0.1.7",
         role: "api",
         port,
         handoffRoot,

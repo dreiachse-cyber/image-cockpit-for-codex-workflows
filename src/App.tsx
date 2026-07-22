@@ -4370,7 +4370,7 @@ function App() {
     const selectedMime = selected?.dataUrl.match(/^data:([^;,]+)/)?.[1];
     const storageEstimate = storageScreen.preflight?.estimate;
     return buildImageCockpitEnvironmentReport({
-      appVersion: "0.1.6",
+      appVersion: "0.1.7",
       appUrl: window.location.origin,
       route: `${window.location.pathname}${window.location.search}`,
       userAgent: navigator.userAgent,
@@ -9306,7 +9306,7 @@ function App() {
           <Grid3X3 size={18} aria-hidden="true" />
           <strong>Image Cockpit for Codex Workflows</strong>
           <span>{activeWorkflowCopy.label}</span>
-          <small>v0.1.6</small>
+          <small>v0.1.7</small>
         </div>
         <div className="project-strip">
           <LanguageSelect language={language} label={copy.language} onChange={setLanguage} />
@@ -11175,7 +11175,7 @@ function SettingsModal({
           <div className="settings-section">
             <article className="settings-card">
               <small>Image Cockpit</small>
-              <strong>v0.1.6</strong>
+              <strong>v0.1.7</strong>
               <span>{isJa ? "ChatGPTの画像生成可否と、ローカルCodex runner内でimagegenを使えるかは別の状態です。" : "ChatGPT image generation availability and local Codex runner imagegen availability are separate states."}</span>
             </article>
             <article className="settings-card">
@@ -11353,7 +11353,7 @@ function LocalStateRecoveryScreen({
           <Grid3X3 size={18} aria-hidden="true" />
           <strong>Image Cockpit for Codex Workflows</strong>
           <span>Storage recovery</span>
-          <small>v0.1.6</small>
+          <small>v0.1.7</small>
         </div>
       </header>
 
