@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   annotationImageCoordinates,
+  animationDirectionSelectionForDirections,
+  animationDirectionsForPreset,
   animationScaleReferenceLabel,
   buildOutboxImportKey,
   buildAnimationManifestPreviewActions,
@@ -111,14 +113,46 @@ describe("Codex runner wait state", () => {
   });
 });
 
-describe("single horizontal direction preset", () => {
-  it("uses side as the single-direction scale reference and keeps Motion Pilot unavailable", () => {
-    expect(animationScaleReferenceLabel(["side"])).toBe("side ready stance");
+describe("selectable single direction preset", () => {
+  const canonicalDirections = ["front", "front three-quarter", "side", "back three-quarter", "back"];
+
+  it("keeps side as the default and resolves every canonical single direction", () => {
+    expect(animationDirectionsForPreset("one")).toEqual(["side"]);
+    canonicalDirections.forEach((direction) => {
+      expect(animationDirectionsForPreset("one", direction)).toEqual([direction]);
+      expect(animationScaleReferenceLabel([direction])).toBe(`${direction} ready stance`);
+    });
+    expect(animationDirectionsForPreset("one", "unsupported direction")).toEqual(["side"]);
+  });
+
+  it("keeps multi-direction presets independent from the remembered single direction", () => {
+    expect(animationDirectionsForPreset("five", "back")).toEqual(canonicalDirections);
+    expect(animationDirectionsForPreset("three", "front three-quarter")).toEqual(["front", "side", "back"]);
+  });
+
+  it("restores canonical and fallback single-direction selections from persisted metadata", () => {
+    expect(animationDirectionSelectionForDirections(["back-three-quarter"])).toEqual({
+      presetId: "one",
+      singleDirection: "back three-quarter",
+      directions: ["back three-quarter"]
+    });
+    expect(animationDirectionSelectionForDirections(["unsupported direction"])).toEqual({
+      presetId: "one",
+      singleDirection: "side",
+      directions: ["side"]
+    });
+    expect(animationDirectionSelectionForDirections(["front", "back"])).toBeNull();
+  });
+
+  it("keeps Motion Pilot unavailable for every single direction", () => {
     expect(animationScaleReferenceLabel(["front", "side", "back"])).toBe("front ready stance");
-    expect(canUseMotionPilot("best", ["side"])).toBe(false);
+    canonicalDirections.forEach((direction) => {
+      expect(canUseMotionPilot("best", [direction])).toBe(false);
+      expect(motionPilotAvailabilityText("best", [direction])).toContain("single-direction generation");
+      expect(motionPilotAvailabilityText("best", [direction])).not.toContain("side-only");
+    });
     expect(canUseMotionPilot("best", ["front", "side", "back"])).toBe(true);
     expect(canUseMotionPilot("balanced", ["front", "side", "back"])).toBe(false);
-    expect(motionPilotAvailabilityText("best", ["side"])).toContain("side-only");
     expect(motionPilotAvailabilityText("fast", ["front", "side", "back"])).toContain("select Best");
     expect(motionPilotAvailabilityText("best", ["front", "side", "back"])).toContain("9→5");
   });

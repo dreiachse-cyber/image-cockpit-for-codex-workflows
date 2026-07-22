@@ -930,9 +930,6 @@ async function registerAnimationTournament(registration: AnimationTournamentRegi
   const initialCandidateCount = normalizeBoundedInteger(registration.initialCandidateCount, profilePlan.initialCandidates, 1, maximumCandidateCount);
   const requestedDirections = normalizeDirectionNames(registration.requestedDirections);
   if (![1, 3, 5].includes(requestedDirections.length)) throw new Error("Animation tournaments require 1, 3, or 5 directions.");
-  if (requestedDirections.length === 1 && requestedDirections[0] !== "side") {
-    throw new Error("Single-direction animation tournaments require the side direction.");
-  }
   const pilotMode = registration.pilotMode === true;
   if (pilotMode && requestedDirections.length === 1) {
     throw new Error("Motion Pilot requires more than one requested direction.");

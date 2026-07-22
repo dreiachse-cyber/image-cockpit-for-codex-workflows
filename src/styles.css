@@ -1971,8 +1971,28 @@ button {
   white-space: normal;
 }
 
+.single-direction-control {
+  min-width: 0;
+  display: grid;
+  gap: 5px;
+}
+
+.single-direction-buttons {
+  min-width: 0;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.segmented-control.single-direction-buttons button {
+  min-width: 0;
+  min-height: 48px;
+  padding: 4px;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
 .direction-preset-note {
   color: var(--text-muted);
+  line-height: 1.4;
 }
 
 .generation-profile-control {

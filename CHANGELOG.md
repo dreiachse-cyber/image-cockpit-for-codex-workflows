@@ -4,13 +4,14 @@
 
 ### Added
 
-- Added a 1 direction Animation Generation preset that produces only the canonical side profile while keeping the existing 5- and 3-direction modes.
-- Added side-only tournament, manifest, one-row sheet, Animation Pack v2, responsive selector, and Motion Pilot guard coverage.
+- Added a 1 direction Animation Generation preset with a second selector for front, front three-quarter, side, back three-quarter, or back while keeping side as its default.
+- Added arbitrary single-direction tournament, manifest, one-row sheet, Animation Pack v2 round-trip, responsive selector, and Motion Pilot guard coverage.
 - Added Experimental 16f and 20f Motion Recipe budgets to Animation Generation, including 4x4 and 4x5 direction-image contracts, Pack round trips, and max-path browser coverage.
 
 ### Changed
 
 - Kept 8f as the default and 4f / 6f / 8f / 12f as Stable while clearly warning that 16f / 20f take longer, create larger outputs, and may exceed some engine texture limits.
+- Generalized the single-direction Motion Pilot guard and scale-reference wording so they apply to every selectable direction rather than only side.
 
 ### Fixed
 

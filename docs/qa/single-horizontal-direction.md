@@ -4,6 +4,8 @@ Date: 2026-07-22
 Branch: `codex/single-horizontal-direction`
 Baseline: `origin/main` at `79a219c`
 
+> Historical record: this side-only implementation was later superseded by [Selectable single-direction animation QA](./selectable-single-animation-direction.md), which keeps side as the default and adds the other four canonical choices.
+
 ## Scope
 
 Animation Generation now exposes three direction presets in this order:

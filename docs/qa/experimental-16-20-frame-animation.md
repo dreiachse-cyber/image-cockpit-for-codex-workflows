@@ -4,6 +4,8 @@ Date: 2026-07-22
 Branch: `codex/experimental-16-20-frame-animation`
 Baseline: `1e57f67` (`codex/single-horizontal-direction`)
 
+> Historical record: selectable one-direction support was added afterward without changing these frame contracts; see [Selectable single-direction animation QA](./selectable-single-animation-direction.md).
+
 ## Scope
 
 Animation Generation now offers six Motion Recipe frame budgets: 4f, 6f, 8f, 12f, 16f, and 20f. The existing 8f default is unchanged. The existing 4f / 6f / 8f / 12f choices remain Stable; only 16f / 20f are labeled Experimental.

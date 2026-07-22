@@ -197,26 +197,67 @@ export const INITIAL_HISTORY_RENDER_COUNT = 100;
 export const HISTORY_RENDER_BATCH_SIZE = 20;
 const HISTORY_SCROLL_LOAD_THRESHOLD_PX = 160;
 const ANIMATION_SHEET_GRID: GridSettings = { columns: ANIMATION_FRAME_COUNT, rows: ANIMATION_DIRECTION_COUNT, gutter: 0 };
-const ANIMATION_DIRECTIONS = ["front", "front three-quarter", "side", "back three-quarter", "back"];
+export type AnimationDirectionId = "front" | "front three-quarter" | "side" | "back three-quarter" | "back";
+const ANIMATION_DIRECTIONS: AnimationDirectionId[] = ["front", "front three-quarter", "side", "back three-quarter", "back"];
 const DIRECTION_SPLIT_ANIMATION_SCHEMA = "image-cockpit.direction-split-animation.v1";
 const DIRECTION_SPLIT_ANIMATION_GRID: GridSettings = motionFrameGrid(ANIMATION_FRAME_COUNT);
 const DIRECTION_SPLIT_ANIMATION_FILE_SLUGS = ["front", "front-three-quarter", "side", "back-three-quarter", "back"];
 const DIRECTION_SPLIT_ANIMATION_RESULT_COUNT = ANIMATION_DIRECTION_COUNT;
 
-type AnimationDirectionPresetId = "five" | "three" | "one";
+export type AnimationDirectionPresetId = "five" | "three" | "one";
 const ANIMATION_DIRECTION_PRESET_IDS: AnimationDirectionPresetId[] = ["five", "three", "one"];
 const ANIMATION_DIRECTION_PRESETS: Record<AnimationDirectionPresetId, string[]> = {
   five: ANIMATION_DIRECTIONS,
   three: ["front", "side", "back"],
   one: ["side"]
 };
+const DEFAULT_SINGLE_ANIMATION_DIRECTION: AnimationDirectionId = "side";
+
+function canonicalAnimationDirection(direction: string): AnimationDirectionId | undefined {
+  const slug = animationDirectionSlug(direction);
+  return ANIMATION_DIRECTIONS.find((candidate) => animationDirectionSlug(candidate) === slug);
+}
+
+export function animationDirectionsForPreset(
+  presetId: AnimationDirectionPresetId,
+  singleDirection: string = DEFAULT_SINGLE_ANIMATION_DIRECTION
+): string[] {
+  if (presetId !== "one") return [...ANIMATION_DIRECTION_PRESETS[presetId]];
+  return [canonicalAnimationDirection(singleDirection) ?? DEFAULT_SINGLE_ANIMATION_DIRECTION];
+}
+
+export function animationDirectionSelectionForDirections(directions?: readonly string[] | null): {
+  presetId: AnimationDirectionPresetId;
+  singleDirection: AnimationDirectionId;
+  directions: string[];
+} | null {
+  if (!Array.isArray(directions) || directions.length === 0) return null;
+  if (directions.length === 1) {
+    const singleDirection = typeof directions[0] === "string"
+      ? canonicalAnimationDirection(directions[0]) ?? DEFAULT_SINGLE_ANIMATION_DIRECTION
+      : DEFAULT_SINGLE_ANIMATION_DIRECTION;
+    return { presetId: "one", singleDirection, directions: [singleDirection] };
+  }
+  const normalized = Array.from(new Set(directions
+    .filter((direction): direction is string => typeof direction === "string")
+    .map(canonicalAnimationDirection)
+    .filter((direction): direction is AnimationDirectionId => Boolean(direction))));
+  const ordered = ANIMATION_DIRECTIONS.filter((direction) => normalized.includes(direction));
+  const matchingPreset = (["three", "five"] as const).find((presetId) => {
+    const presetDirections = ANIMATION_DIRECTION_PRESETS[presetId];
+    return presetDirections.length === ordered.length && presetDirections.every((direction, index) => direction === ordered[index]);
+  });
+  return matchingPreset
+    ? { presetId: matchingPreset, singleDirection: DEFAULT_SINGLE_ANIMATION_DIRECTION, directions: ordered }
+    : null;
+}
 
 export function canUseMotionPilot(profile: AnimationGenerationProfile, directions: readonly string[]) {
   return profile === "best" && directions.length > 1;
 }
 
 export function motionPilotAvailabilityText(profile: AnimationGenerationProfile, directions: readonly string[]) {
-  if (directions.length === 1) return "Experimental · Best only · unavailable for side-only generation";
+  if (directions.length === 1) return "Experimental · Best only · unavailable for single-direction generation";
   if (profile !== "best") return "Experimental · Best only · select Best to enable";
   return `Experimental · Best only · default OFF · ${directions.length * 3}→${directions.length + 2} theoretical direction outputs`;
 }
@@ -1148,6 +1189,8 @@ const baseUiCopy = {
     animationDirectionFive: "5 directions",
     animationDirectionThree: "3 directions",
     animationDirectionOne: "1 direction",
+    animationSingleDirection: "Single direction",
+    animationSingleDirectionHint: "Choose one direction. Side remains the default.",
     animationStepGenerateTitle: "3. Generate",
     animationStepGenerateBody: "Send the uploaded source to Codex and generate chroma-key direction frames.",
     hatchPetGenerateBody: "Send the uploaded source to Codex and try the hatch-pet workflow for a Codex pet atlas.",
@@ -1388,6 +1431,8 @@ const baseUiCopy = {
     animationDirectionFive: "5方向",
     animationDirectionThree: "3方向",
     animationDirectionOne: "1方向",
+    animationSingleDirection: "生成する方向",
+    animationSingleDirectionHint: "1方向だけ生成します。初期値は横です。",
     animationStepGenerateTitle: "3. 生成する",
     animationStepGenerateBody: "アップロード画像からanimation sheetとtimeline framesを生成します。",
     hatchPetGenerateBody: "アップロード画像をCodexに渡し、hatch-pet工程でCodex pet atlasを試作します。",
@@ -3676,7 +3721,7 @@ export function selectDirectionSplitAnimationResults(
     expectedDirections ?? manifest?.directions ?? (artifactDirections.length > 0 ? artifactDirections : undefined)
   );
   const byDirection = directions.map((direction) => {
-    const canonicalIndex = ANIMATION_DIRECTIONS.indexOf(direction);
+    const canonicalIndex = ANIMATION_DIRECTIONS.findIndex((candidate) => candidate === direction);
     const slug = DIRECTION_SPLIT_ANIMATION_FILE_SLUGS[canonicalIndex] ?? animationDirectionSlug(direction);
     const manifestFile = manifestFiles.get(direction) ?? manifestFiles.get(slug);
     if (manifestFile) {
@@ -4228,6 +4273,7 @@ function App() {
   const [isAnimationPreviewBuilding, setIsAnimationPreviewBuilding] = useState(false);
   const [animationChromaKey, setAnimationChromaKey] = useState<AnimationChromaKeyName>("green");
   const [animationDirectionPreset, setAnimationDirectionPreset] = useState<AnimationDirectionPresetId>("five");
+  const [animationSingleDirection, setAnimationSingleDirection] = useState<AnimationDirectionId>(DEFAULT_SINGLE_ANIMATION_DIRECTION);
   const [animationGenerationProfile, setAnimationGenerationProfile] = useState<AnimationGenerationProfile>("best");
   const [motionPilotEnabled, setMotionPilotEnabled] = useState(false);
   const [animationTournamentMonitors, setAnimationTournamentMonitors] = useState<AnimationTournamentMonitorEntry[]>([]);
@@ -4413,15 +4459,19 @@ function App() {
     () => getBodyTopologyProfile(animationBodyTopology),
     [animationBodyTopology]
   );
+  const selectedAnimationDirections = useMemo(
+    () => animationDirectionsForPreset(animationDirectionPreset, animationSingleDirection),
+    [animationDirectionPreset, animationSingleDirection]
+  );
   const selectedMotionRecipeCompilation = useMemo(
     () => compileMotionRecipe({
       recipe: selectedMotionRecipe,
-      directions: ANIMATION_DIRECTION_PRESETS[animationDirectionPreset] ?? ANIMATION_DIRECTIONS,
+      directions: selectedAnimationDirections,
       topology: animationBodyTopology,
       frameCount: animationFrameCount,
       variant: animationMotionVariant
     }),
-    [selectedMotionRecipe, animationDirectionPreset, animationBodyTopology, animationFrameCount, animationMotionVariant]
+    [selectedMotionRecipe, selectedAnimationDirections, animationBodyTopology, animationFrameCount, animationMotionVariant]
   );
   const activeEffectCategory = useMemo(
     () => getEffectCategoryById(effectCategoryId),
@@ -6218,7 +6268,7 @@ function App() {
       : isHatchPetAnimationJob
       ? hatchPetSpriteAction()
       : normalizeAnimationAction(defaultActions.find((action) => action.name === animationPresetForJob.actionName) ?? activeAction);
-    const standardAnimationDirections = ANIMATION_DIRECTION_PRESETS[animationDirectionPreset] ?? ANIMATION_DIRECTIONS;
+    const standardAnimationDirections = selectedAnimationDirections;
     const directionImageGrid = directionSplitAnimationGrid(frameCountForJob);
     const spriteGrid = isAnimationJob
       ? isDirectionalHatchPetAnimationJob
@@ -7283,7 +7333,7 @@ function App() {
 
     const animationAction = normalizeAnimationAction(activeAction);
     const animationGrid = { columns: animationFrameCount, rows: 1, gutter: 0 };
-    const localAnimationDirections = ANIMATION_DIRECTION_PRESETS[animationDirectionPreset] ?? ANIMATION_DIRECTIONS;
+    const localAnimationDirections = selectedAnimationDirections;
     const sheetDataUrl = await renderAnimationSheet(source.dataUrl, animationAction.cell, animationAction.name, animationFrameCount);
     const sheetName = `${source.name.replace(/\.[^.]+$/, "")}_${animationAction.name}_animation_sheet.png`;
     const item: HistoryItem = {
@@ -7705,6 +7755,7 @@ function App() {
     if (newFrames.length === 0) throw new Error("Returned direction split animation could not be split into frames.");
 
     setAnimationGenerationMode("standard");
+    restoreAnimationDirectionSelection(sheetDirections, importedFrameCount, sheetGrid);
     setAnimationChromaKey(chromaKey.name);
     setGrid(sheetGrid);
     addLocalInboxHistoryItem(item);
@@ -8401,13 +8452,33 @@ function App() {
     setSelectedFrameId("");
   }
 
+  function restoreAnimationDirectionSelection(
+    directions?: readonly string[] | null,
+    frameCount?: MotionFrameCount,
+    nextGrid?: GridSettings
+  ) {
+    const selection = animationDirectionSelectionForDirections(directions);
+    if (!selection) return false;
+    setAnimationDirectionPreset(selection.presetId);
+    if (selection.presetId === "one") {
+      setAnimationSingleDirection(selection.singleDirection);
+      setMotionPilotEnabled(false);
+    }
+    if (frameCount) setAnimationFrameCount(frameCount);
+    setGrid(nextGrid ?? animationSheetGridForDirections(selection.directions, frameCount ?? animationFrameCount));
+    return true;
+  }
+
   function selectHistoryResult(item: HistoryItem) {
+    const itemAnimationDirections = item.animationDirections;
+    const itemAnimationFrameCount = historyAnimationFrameCount(item);
     setSelectedId(item.id);
     setSelectedFrameId("");
     if (isAnimationWorkflow) {
       if (isAnimationSource(item)) {
         setAnimationSourceId(item.id);
       } else if (isAnimationResultHistoryItem(item)) {
+        restoreAnimationDirectionSelection(itemAnimationDirections, itemAnimationFrameCount);
         setStatus(animationResultNotSourceMessage(item, language));
       }
     }
@@ -8627,7 +8698,7 @@ function App() {
       setShowCenter(true);
       setGrid(
         mode === "sprite-generate"
-          ? animationSheetGridForDirections(ANIMATION_DIRECTION_PRESETS[animationDirectionPreset] ?? ANIMATION_DIRECTIONS, animationFrameCount)
+          ? animationSheetGridForDirections(selectedAnimationDirections, animationFrameCount)
           : { columns: animationFrameCount, rows: 1, gutter: 0 }
       );
       setActions((current) => normalizeAnimationActions(current));
@@ -8709,7 +8780,7 @@ function App() {
     setRecentAnimationPresetIds((current) => [example.id, ...current.filter((id) => id !== example.id)].slice(0, 12));
     setAnimationGenerationMode("standard");
     setActiveActionName(example.actionName);
-    setGrid(animationSheetGridForDirections(ANIMATION_DIRECTION_PRESETS[animationDirectionPreset] ?? ANIMATION_DIRECTIONS, recipeFrameCount));
+    setGrid(animationSheetGridForDirections(selectedAnimationDirections, recipeFrameCount));
   }
 
   function toggleFavoriteAnimationPreset(id: string) {
@@ -8725,7 +8796,7 @@ function App() {
 
   function selectAnimationFrameCount(frameCount: MotionFrameCount) {
     setAnimationFrameCount(frameCount);
-    setGrid(animationSheetGridForDirections(ANIMATION_DIRECTION_PRESETS[animationDirectionPreset] ?? ANIMATION_DIRECTIONS, frameCount));
+    setGrid(animationSheetGridForDirections(selectedAnimationDirections, frameCount));
   }
 
   function updateAnimationMotionVariant(key: MotionVariantModifierKey, value: string) {
@@ -8825,6 +8896,7 @@ function App() {
       setFrames((current) => [...current, ...newFrames]);
       setActions((current) => upsertSpriteAction(current, nextAction));
       setActiveActionName(nextAction.name);
+      restoreAnimationDirectionSelection(manifest.directions, resolveMotionFrameCount(manifest.framesPerDirection), manifest.grid);
       setGrid(manifest.grid);
       setWorkflowMode("sprite-generate");
       setAnimationGenerationMode("standard");
@@ -9125,7 +9197,6 @@ function App() {
   const showSpriteTuningControls = SHOW_LOW_PRIORITY_CONTROLS || workflowMode === "sprite-edit";
   const showAnnotationToolbar = isImageEditWorkflow && !selectedIsAnimationResult && !selectedIsEffectResult;
   const showSpriteActionsPanel = SHOW_SPRITE_ACTIONS_PANEL;
-  const selectedAnimationDirections = ANIMATION_DIRECTION_PRESETS[animationDirectionPreset] ?? ANIMATION_DIRECTIONS;
   const motionPilotAvailable = canUseMotionPilot(animationGenerationProfile, selectedAnimationDirections);
   const selectedAnimationSheetSize = {
     width: STANDARD_ANIMATION_CELL.width * animationFrameCount,
@@ -9342,11 +9413,11 @@ function App() {
                         className={animationDirectionPreset === presetId ? "active" : ""}
                         aria-pressed={animationDirectionPreset === presetId}
                         aria-label={presetId === "one"
-                          ? (language === "ja" ? "1方向（横だけ）" : "1 direction (side only)")
+                          ? (language === "ja" ? "1方向（方向を選択）" : "1 direction (choose direction)")
                           : animationDirectionPresetLabel(presetId, copy)}
-                        title={ANIMATION_DIRECTION_PRESETS[presetId].join(" / ")}
+                        title={animationDirectionsForPreset(presetId, animationSingleDirection).join(" / ")}
                         onClick={() => {
-                          const nextDirections = ANIMATION_DIRECTION_PRESETS[presetId];
+                          const nextDirections = animationDirectionsForPreset(presetId, animationSingleDirection);
                           setAnimationDirectionPreset(presetId);
                           setGrid(animationSheetGridForDirections(nextDirections, animationFrameCount));
                           if (presetId === "one") setMotionPilotEnabled(false);
@@ -9357,9 +9428,39 @@ function App() {
                     ))}
                   </div>
                   {animationDirectionPreset === "one" && (
-                    <small className="direction-preset-note">
-                      {language === "ja" ? "横向き（side）だけを生成します。" : "Generates the side profile only."}
-                    </small>
+                    <div className="single-direction-control">
+                      <small className="step-kicker">{copy.animationSingleDirection}</small>
+                      <div
+                        className="segmented-control single-direction-buttons"
+                        role="group"
+                        aria-label={copy.animationSingleDirection}
+                      >
+                        {ANIMATION_DIRECTIONS.map((direction) => {
+                          const label = animationDirectionLabel(direction, language);
+                          return (
+                            <button
+                              key={direction}
+                              type="button"
+                              data-animation-direction={animationDirectionSlug(direction)}
+                              className={animationSingleDirection === direction ? "active" : ""}
+                              aria-pressed={animationSingleDirection === direction}
+                              aria-label={`${copy.animationSingleDirection}: ${label}`}
+                              title={direction}
+                              onClick={() => {
+                                setAnimationSingleDirection(direction);
+                                setGrid(animationSheetGridForDirections([direction], animationFrameCount));
+                                setMotionPilotEnabled(false);
+                              }}
+                            >
+                              {label}
+                            </button>
+                          );
+                        })}
+                      </div>
+                      <small className="direction-preset-note">
+                        {copy.animationSingleDirectionHint} {language === "ja" ? `選択中：${animationDirectionLabel(animationSingleDirection, language)}` : `Selected: ${animationDirectionLabel(animationSingleDirection, language)}`}
+                      </small>
+                    </div>
                   )}
                 </div>
                 <button
@@ -12299,11 +12400,12 @@ function buildDirectionalHatchPetPreviewActions(action: SpriteAction, actionFram
 
 function animationDirectionLabel(directionId: string, language: Language) {
   const labels = uiCopy[language] as Record<string, string>;
-  if (directionId === "front") return labels.previewFront;
-  if (directionId === "back") return labels.previewBack;
-  if (directionId === "back three-quarter") return labels.previewBackThreeQuarter;
-  if (directionId === "front three-quarter") return labels.previewFrontThreeQuarter;
-  if (directionId === "side") return labels.previewSide;
+  const direction = canonicalAnimationDirection(directionId) ?? directionId;
+  if (direction === "front") return labels.previewFront;
+  if (direction === "back") return labels.previewBack;
+  if (direction === "back three-quarter") return labels.previewBackThreeQuarter;
+  if (direction === "front three-quarter") return labels.previewFrontThreeQuarter;
+  if (direction === "side") return labels.previewSide;
   return directionId;
 }
 

@@ -711,35 +711,99 @@ async function assertSingleDirectionAnimationWorkflow() {
   await waitForEval(() => `!document.querySelector(".animation-utility-modal")`, "single-direction advanced settings closed");
 
   await clickButtonByText("1 direction");
-  const sidePreset = await evaluate(`(() => ({
+  const singleDirectionPreset = await evaluate(`(() => ({
     active: document.querySelector(".direction-preset-buttons button.active")?.textContent.trim() || "",
     title: document.querySelector(".direction-preset-buttons button.active")?.getAttribute("title") || "",
     note: document.querySelector(".direction-preset-note")?.textContent.trim() || "",
+    directionSlugs: [...document.querySelectorAll(".single-direction-buttons button")].map((button) => button.dataset.animationDirection || ""),
+    directionLabels: [...document.querySelectorAll(".single-direction-buttons button")].map((button) => button.textContent.trim()),
+    directionAriaLabels: [...document.querySelectorAll(".single-direction-buttons button")].map((button) => button.getAttribute("aria-label") || ""),
+    selectedDirection: document.querySelector(".single-direction-buttons button.active")?.dataset.animationDirection || "",
     gridColumns: document.querySelector("canvas")?.dataset.gridColumns || "",
     gridRows: document.querySelector("canvas")?.dataset.gridRows || ""
   }))()`);
-  assert(sidePreset.active === "1 direction" && sidePreset.title === "side", "One direction should select side only");
-  assert(sidePreset.note.includes("side profile only"), "One direction should keep the side-only meaning visible");
-  assert(sidePreset.gridColumns === "20" && sidePreset.gridRows === "1", `One direction should synchronize the canvas to 20x1, got ${JSON.stringify(sidePreset)}`);
+  assert(singleDirectionPreset.active === "1 direction" && singleDirectionPreset.title === "side", "One direction should keep side as the default selection");
+  assert(singleDirectionPreset.directionSlugs.join(",") === "front,front-three-quarter,side,back-three-quarter,back", `Single-direction selector should expose all five canonical directions in order, got ${JSON.stringify(singleDirectionPreset.directionSlugs)}`);
+  assert(singleDirectionPreset.directionLabels.join("|") === "Front|Front 3/4|Side|Back 3/4|Back", `Single-direction selector should expose concise English labels, got ${JSON.stringify(singleDirectionPreset.directionLabels)}`);
+  assert(singleDirectionPreset.directionAriaLabels.join("|") === "Single direction: Front|Single direction: Front 3/4|Single direction: Side|Single direction: Back 3/4|Single direction: Back", `Single-direction selector should expose English accessible names, got ${JSON.stringify(singleDirectionPreset.directionAriaLabels)}`);
+  assert(singleDirectionPreset.selectedDirection === "side" && singleDirectionPreset.note.includes("Side remains the default") && singleDirectionPreset.note.includes("Selected: Side"), "Single-direction selector should make the side default and current selection visible");
+  assert(singleDirectionPreset.gridColumns === "20" && singleDirectionPreset.gridRows === "1", `One direction should synchronize the canvas to 20x1, got ${JSON.stringify(singleDirectionPreset)}`);
+
+  await evaluate(`(() => {
+    const select = document.querySelector(".language-control select");
+    select.value = "ja";
+    select.dispatchEvent(new Event("change", { bubbles: true }));
+  })()`);
+  await waitForEval(() => `document.querySelector('.single-direction-buttons button[data-animation-direction="front"]')?.getAttribute("aria-label") === "生成する方向: 正面"`, "Japanese single-direction accessible names");
+  const japaneseDirectionNames = await evaluate(`[...document.querySelectorAll(".single-direction-buttons button")].map((button) => button.getAttribute("aria-label"))`);
+  assert(japaneseDirectionNames.join("|") === "生成する方向: 正面|生成する方向: 斜め前|生成する方向: 横|生成する方向: 斜め後ろ|生成する方向: 背面", `Single-direction selector should expose Japanese accessible names, got ${JSON.stringify(japaneseDirectionNames)}`);
+  await evaluate(`(() => {
+    const select = document.querySelector(".language-control select");
+    select.value = "en";
+    select.dispatchEvent(new Event("change", { bubbles: true }));
+  })()`);
+  await waitForEval(() => `document.querySelector('.single-direction-buttons button[data-animation-direction="front"]')?.getAttribute("aria-label") === "Single direction: Front"`, "English single-direction accessible names restored");
+
+  for (const directionSlug of ["front", "front-three-quarter", "side", "back-three-quarter", "back"]) {
+    await clickSelector(`.single-direction-buttons button[data-animation-direction="${directionSlug}"]`);
+    const activeDirection = await evaluate(`document.querySelector(".single-direction-buttons button.active")?.dataset.animationDirection || ""`);
+    assert(activeDirection === directionSlug, `Single-direction selector should activate ${directionSlug}, got ${activeDirection}`);
+  }
+  await clickSelector('.single-direction-buttons button[data-animation-direction="back-three-quarter"]');
+  await clickButtonByText("5 directions");
+  await clickButtonByText("1 direction");
+  const retainedDirection = await evaluate(`(() => ({
+    active: document.querySelector(".single-direction-buttons button.active")?.dataset.animationDirection || "",
+    title: document.querySelector(".direction-preset-buttons button.active")?.getAttribute("title") || "",
+    gridColumns: document.querySelector("canvas")?.dataset.gridColumns || "",
+    gridRows: document.querySelector("canvas")?.dataset.gridRows || ""
+  }))()`);
+  assert(retainedDirection.active === "back-three-quarter" && retainedDirection.title === "back three-quarter", `One-to-five-to-one switching should retain the selected direction, got ${JSON.stringify(retainedDirection)}`);
+  assert(retainedDirection.gridColumns === "20" && retainedDirection.gridRows === "1", `Retained single direction should restore the 20x1 canvas, got ${JSON.stringify(retainedDirection)}`);
+
+  await cdp.send("Emulation.setDeviceMetricsOverride", { width: 390, height: 844, deviceScaleFactor: 1, mobile: false });
+  await waitForEval(() => `window.innerWidth === 390`, "single-direction mobile viewport");
+  const mobileDirectionLayout = await evaluate(`(() => {
+    const container = document.querySelector(".single-direction-buttons");
+    const buttons = [...(container?.querySelectorAll("button") || [])];
+    const containerRect = container?.getBoundingClientRect();
+    const rowTops = [...new Set(buttons.map((button) => Math.round(button.getBoundingClientRect().top)))];
+    return {
+      columns: getComputedStyle(container).gridTemplateColumns.trim().split(/\\s+/).filter(Boolean).length,
+      rows: rowTops.length,
+      minHeight: Math.min(...buttons.map((button) => button.getBoundingClientRect().height)),
+      fits: Boolean(containerRect && buttons.length === 5 && buttons.every((button) => {
+        const rect = button.getBoundingClientRect();
+        return rect.left >= containerRect.left - 1 && rect.right <= containerRect.right + 1 && button.scrollWidth <= button.clientWidth + 1;
+      })),
+      scrollWidth: document.documentElement.scrollWidth,
+      clientWidth: document.documentElement.clientWidth
+    };
+  })()`);
+  assert(mobileDirectionLayout.columns === 3 && mobileDirectionLayout.rows === 2, `390px single-direction selector should use a 3-column / 2-row layout, got ${JSON.stringify(mobileDirectionLayout)}`);
+  assert(mobileDirectionLayout.minHeight >= 48 && mobileDirectionLayout.fits, `390px single-direction selector should keep 48px targets inside its control, got ${JSON.stringify(mobileDirectionLayout)}`);
+  assert(mobileDirectionLayout.scrollWidth <= mobileDirectionLayout.clientWidth, `390px single-direction selector should not overflow horizontally, got ${JSON.stringify(mobileDirectionLayout)}`);
+  await cdp.send("Emulation.setDeviceMetricsOverride", { width: 1280, height: 720, deviceScaleFactor: 1, mobile: false });
+  await waitForEval(() => `window.innerWidth === 1280`, "single-direction desktop viewport restored");
 
   await clickButtonByText("Open advanced settings");
-  await waitForEval(() => `Boolean(document.querySelector(".animation-utility-modal"))`, "side-only advanced settings");
-  const sidePilot = await evaluate(`(() => ({
+  await waitForEval(() => `Boolean(document.querySelector(".animation-utility-modal"))`, "single-direction advanced settings");
+  const singleDirectionPilot = await evaluate(`(() => ({
     disabled: document.querySelector(".motion-pilot-toggle input")?.disabled === true,
     checked: document.querySelector(".motion-pilot-toggle input")?.checked === true,
     text: document.querySelector(".motion-pilot-toggle")?.innerText || ""
   }))()`);
-  assert(sidePilot.disabled && !sidePilot.checked && sidePilot.text.includes("unavailable for side-only generation"), "Side-only generation should disable Motion Pilot with the correct reason");
+  assert(singleDirectionPilot.disabled && !singleDirectionPilot.checked && singleDirectionPilot.text.includes("unavailable for single-direction generation"), "Single-direction generation should disable Motion Pilot with the generic reason");
   await clickSelector(".animation-utility-heading .icon-button");
-  await waitForEval(() => `!document.querySelector(".animation-utility-modal")`, "side-only advanced settings closed");
+  await waitForEval(() => `!document.querySelector(".animation-utility-modal")`, "single-direction advanced settings closed");
 
   const beforeJobsResponse = await fetch(`http://127.0.0.1:${apiPort}/api/codex/jobs`);
   const beforeJobs = new Set((await beforeJobsResponse.json()).jobs || []);
   await waitForButtonEnabled("Generate Animation");
   await clickButtonByText("Generate Animation");
-  await waitForEval(() => `document.body.innerText.includes("Animation generated")`, "side-only 20f animation generated", 90000);
-  await waitForEval(() => `document.querySelectorAll(".direction-preview-row").length === 1`, "side-only 20f direction preview", 30000);
-  await waitForEval(() => `document.querySelectorAll(".codex-job-row").length === 0`, "side-only 20f job completion", 30000);
+  await waitForEval(() => `document.body.innerText.includes("Animation generated")`, "back-three-quarter single-direction 20f animation generated", 90000);
+  await waitForEval(() => `document.querySelectorAll(".direction-preview-row").length === 1`, "back-three-quarter single-direction 20f direction preview", 30000);
+  await waitForEval(() => `document.querySelectorAll(".codex-job-row").length === 0`, "back-three-quarter single-direction 20f job completion", 30000);
   const result = await evaluate(`(() => ({
     previewImages: document.querySelectorAll(".animation-preview img").length,
     directionRows: document.querySelectorAll(".direction-preview-row").length,
@@ -748,20 +812,43 @@ async function assertSingleDirectionAnimationWorkflow() {
     height: document.querySelector(".sprite-sheet-preview-card .result-preview-image")?.naturalHeight || 0,
     gridRows: getComputedStyle(document.querySelector(".sprite-sheet-grid-preview")).getPropertyValue("--sprite-grid-rows").trim()
   }))()`);
-  assert(result.previewImages === 2 && result.directionRows === 1, `Side-only result should render one direction preview plus one sheet, got ${JSON.stringify(result)}`);
-  assert(result.directionLabels.join(",") === "side", `Side-only result should label only side, got ${JSON.stringify(result.directionLabels)}`);
-  assert(result.width === 5120 && result.height === 256 && result.gridRows === "1", `Side-only 20f final sheet should be 5120x256 with one row, got ${JSON.stringify(result)}`);
+  assert(result.previewImages === 2 && result.directionRows === 1, `Single-direction result should render one direction preview plus one sheet, got ${JSON.stringify(result)}`);
+  assert(result.directionLabels.join(",") === "back 3/4", `Single-direction result should label only Back 3/4, got ${JSON.stringify(result.directionLabels)}`);
+  assert(result.width === 5120 && result.height === 256 && result.gridRows === "1", `Single-direction 20f final sheet should be 5120x256 with one row, got ${JSON.stringify(result)}`);
+  const singleDirectionHistoryName = await evaluate(`document.querySelector(".history-item.selected")?.getAttribute("title") || ""`);
+  assert(singleDirectionHistoryName.includes("direction-split-animation-sheet"), `Single-direction result should have a selectable history entry, got ${singleDirectionHistoryName}`);
 
   const afterJobsResponse = await fetch(`http://127.0.0.1:${apiPort}/api/codex/jobs`);
   const createdJobNames = ((await afterJobsResponse.json()).jobs || []).filter((name) => !beforeJobs.has(name));
   const createdJobs = await Promise.all(createdJobNames.map(async (name) => JSON.parse(await readFile(join(handoffDir, "inbox", name), "utf8"))));
-  assert(createdJobs.length === 1, `Fast side-only generation should create one job, got ${createdJobs.length}`);
-  assert(createdJobs.every((job) => job.spriteContext?.directions?.join(",") === "side"), "Every side-only browser job should request exactly side");
-  assert(createdJobs.every((job) => job.spriteContext?.grid?.columns === 20 && job.spriteContext?.grid?.rows === 1 && job.spriteContext?.frames === 20), "Every side-only browser job should keep a 20x1 / 20-frame contract");
-  assert(createdJobs.every((job) => job.spriteContext?.framesPerDirection === 20 && job.spriteContext?.motionRecipe?.frameCount === 20), "Every side-only browser job should preserve 20f Motion Recipe metadata");
+  assert(createdJobs.length === 1, `Fast single-direction generation should create one job, got ${createdJobs.length}`);
+  assert(createdJobs.every((job) => job.spriteContext?.directions?.join(",") === "back three-quarter"), "Every single-direction browser job should request exactly back three-quarter");
+  assert(createdJobs.every((job) => job.spriteContext?.grid?.columns === 20 && job.spriteContext?.grid?.rows === 1 && job.spriteContext?.frames === 20), "Every single-direction browser job should keep a 20x1 / 20-frame contract");
+  assert(createdJobs.every((job) => job.spriteContext?.framesPerDirection === 20 && job.spriteContext?.motionRecipe?.frameCount === 20), "Every single-direction browser job should preserve 20f Motion Recipe metadata");
   const createdManifests = await Promise.all(createdJobs.map(async (job) => JSON.parse(await readFile(join(job.returnTo.outboxDir, `${job.id}-manifest.json`), "utf8"))));
-  assert(createdManifests.every((manifest) => manifest.framesPerDirection === 20), "Every side-only browser manifest should preserve 20 frames per direction");
-  assert(createdManifests.every((manifest) => manifest.grid?.columns === 4 && manifest.grid?.rows === 5), "Every side-only browser manifest should preserve a 4x5 raw direction grid");
+  assert(createdManifests.every((manifest) => manifest.directions?.join(",") === "back three-quarter"), "Every single-direction browser manifest should preserve the chosen back three-quarter direction");
+  assert(createdManifests.every((manifest) => manifest.framesPerDirection === 20), "Every single-direction browser manifest should preserve 20 frames per direction");
+  assert(createdManifests.every((manifest) => manifest.grid?.columns === 4 && manifest.grid?.rows === 5), "Every single-direction browser manifest should preserve a 4x5 raw direction grid");
+
+  await installDownloadSpy();
+  await openDownloadModal();
+  await clickDownloadModalButtonByText("Export Animation Pack");
+  await waitForEval(() => `document.querySelector(".animation-pack-export-modal")?.innerText.includes("Export Animation Pack")`, "single-direction 20f Animation Pack modal");
+  await clickButtonByText("Export");
+  await waitForEval(() => `(window.__uiSmokeDownloads || []).some((item) => item.type === "application/zip")`, "single-direction 20f Animation Pack download", 180000);
+  await waitForEval(() => `document.body.innerText.includes("Animation pack exported")`, "single-direction 20f Animation Pack export status", 30000);
+  const singleDirectionPackDataUrl = await evaluate(`(window.__uiSmokeDownloads || []).slice().reverse().find((item) => item.type === "application/zip")?.dataUrl || ""`);
+  assert(singleDirectionPackDataUrl.startsWith("data:application/zip;base64,"), "Single-direction Animation Pack should be captured as a ZIP data URL");
+  const singleDirectionPack = await JSZip.loadAsync(Buffer.from(singleDirectionPackDataUrl.slice(singleDirectionPackDataUrl.indexOf(",") + 1), "base64"));
+  const singleDirectionPackManifestEntry = singleDirectionPack.file("manifest.json");
+  const singleDirectionPackMetadataEntry = singleDirectionPack.file("metadata.json");
+  assert(singleDirectionPackManifestEntry && singleDirectionPackMetadataEntry, "Single-direction Animation Pack should include manifest.json and metadata.json");
+  const singleDirectionPackManifest = JSON.parse(await singleDirectionPackManifestEntry.async("string"));
+  const singleDirectionPackMetadata = JSON.parse(await singleDirectionPackMetadataEntry.async("string"));
+  assert(singleDirectionPackManifest.directions?.join(",") === "back three-quarter", `Single-direction Animation Pack manifest should preserve back three-quarter, got ${JSON.stringify(singleDirectionPackManifest.directions)}`);
+  assert(singleDirectionPackManifest.framesPerDirection === 20 && singleDirectionPackManifest.grid?.columns === 20 && singleDirectionPackManifest.grid?.rows === 1, `Single-direction Animation Pack manifest should preserve the 20x1 contract, got ${JSON.stringify(singleDirectionPackManifest)}`);
+  assert(singleDirectionPackManifest.files?.directionPreviews?.map((preview) => preview.direction).join(",") === "back three-quarter", "Single-direction Animation Pack preview metadata should contain only back three-quarter");
+  assert(singleDirectionPackMetadata.directions?.join(",") === "back three-quarter" && singleDirectionPackMetadata.framesPerDirection === 20, `Single-direction Animation Pack metadata should preserve direction and frame count, got ${JSON.stringify(singleDirectionPackMetadata)}`);
 
   const beforeFiveDirectionJobsResponse = await fetch(`http://127.0.0.1:${apiPort}/api/codex/jobs`);
   const beforeFiveDirectionJobs = new Set((await beforeFiveDirectionJobsResponse.json()).jobs || []);
@@ -803,6 +890,16 @@ async function assertSingleDirectionAnimationWorkflow() {
   await clickButtonByText("Export");
   await waitForEval(() => `(window.__uiSmokeDownloads || []).some((item) => item.type === "application/zip")`, "five-direction 20f Animation Pack download", 180000);
   await waitForEval(() => `document.body.innerText.includes("Animation pack exported")`, "five-direction 20f Animation Pack export status", 30000);
+
+  await clickHistoryItemByName(singleDirectionHistoryName);
+  await waitForEval(
+    () => `document.querySelector(".direction-preset-buttons button.active")?.textContent.trim() === "1 direction"
+      && document.querySelector('.single-direction-buttons button.active')?.dataset.animationDirection === "back-three-quarter"
+      && document.querySelector("canvas")?.dataset.gridColumns === "20"
+      && document.querySelector("canvas")?.dataset.gridRows === "1"`,
+    "single-direction history restores exact direction and frame grid"
+  );
+
   await assertNoBrowserErrors("single-direction Animation Generation");
 }
 
@@ -900,28 +997,46 @@ async function assertAnimationPresetExamples() {
   assert(directionPresetDefault.active === "5 directions", "Five directions should remain the default");
   assert(directionPresetDefault.columns === 3 && directionPresetDefault.fits, "Direction preset should render as a balanced three-column control");
   assert(directionPresetDefault.buttonHeights.every((height) => height >= 48), "Direction preset buttons should remain easy to press");
-  assert(directionPresetDefault.oneTitle === "side" && directionPresetDefault.oneAria.includes("side only"), "One direction should explicitly mean the side profile");
+  assert(directionPresetDefault.oneTitle === "side" && directionPresetDefault.oneAria.includes("choose direction"), "One direction should advertise a selectable direction while retaining side as its default");
 
   await clickButtonByText("1 direction");
-  const sideOnlyPreset = await evaluate(`(() => ({
+  const selectableSinglePreset = await evaluate(`(() => ({
     active: document.querySelector(".direction-preset-buttons button.active")?.textContent.trim() || "",
+    title: document.querySelector(".direction-preset-buttons button.active")?.getAttribute("title") || "",
+    note: document.querySelector(".direction-preset-note")?.textContent.trim() || "",
+    slugs: [...document.querySelectorAll(".single-direction-buttons button")].map((button) => button.dataset.animationDirection || ""),
+    labels: [...document.querySelectorAll(".single-direction-buttons button")].map((button) => button.textContent.trim()),
+    ariaLabels: [...document.querySelectorAll(".single-direction-buttons button")].map((button) => button.getAttribute("aria-label") || ""),
+    selected: document.querySelector(".single-direction-buttons button.active")?.dataset.animationDirection || ""
+  }))()`);
+  assert(selectableSinglePreset.active === "1 direction" && selectableSinglePreset.title === "side" && selectableSinglePreset.selected === "side", "One direction should initially select side");
+  assert(selectableSinglePreset.slugs.join(",") === "front,front-three-quarter,side,back-three-quarter,back", `One direction should expose all five canonical choices, got ${JSON.stringify(selectableSinglePreset.slugs)}`);
+  assert(selectableSinglePreset.labels.join("|") === "Front|Front 3/4|Side|Back 3/4|Back", `One direction should expose all five English labels, got ${JSON.stringify(selectableSinglePreset.labels)}`);
+  assert(selectableSinglePreset.ariaLabels.every((label) => label.startsWith("Single direction: ")), `One direction choices should expose localized accessible names, got ${JSON.stringify(selectableSinglePreset.ariaLabels)}`);
+  assert(selectableSinglePreset.note.includes("Side remains the default") && selectableSinglePreset.note.includes("Selected: Side"), "Single-direction selection should stay visible without relying on a tooltip");
+
+  await clickSelector('.single-direction-buttons button[data-animation-direction="front-three-quarter"]');
+  await clickButtonByText("5 directions");
+  await clickButtonByText("1 direction");
+  const retainedSingleDirection = await evaluate(`(() => ({
+    active: document.querySelector(".single-direction-buttons button.active")?.dataset.animationDirection || "",
     title: document.querySelector(".direction-preset-buttons button.active")?.getAttribute("title") || "",
     note: document.querySelector(".direction-preset-note")?.textContent.trim() || ""
   }))()`);
-  assert(sideOnlyPreset.active === "1 direction" && sideOnlyPreset.title === "side", "One direction should select only side");
-  assert(sideOnlyPreset.note.includes("side profile only"), "Side-only selection should stay visible without relying on a tooltip");
+  assert(retainedSingleDirection.active === "front-three-quarter" && retainedSingleDirection.title === "front three-quarter", `One-to-five-to-one switching should retain the selected front three-quarter direction, got ${JSON.stringify(retainedSingleDirection)}`);
+  assert(retainedSingleDirection.note.includes("Selected: Front 3/4"), "Retained single direction should remain visible in the selection note");
 
   await clickButtonByText("Open advanced settings");
-  await waitForEval(() => 'Boolean(document.querySelector(".animation-utility-modal"))', "Side-only advanced settings modal");
-  const sideOnlyPilot = await evaluate(`(() => ({
+  await waitForEval(() => 'Boolean(document.querySelector(".animation-utility-modal"))', "Single-direction advanced settings modal");
+  const singleDirectionPilot = await evaluate(`(() => ({
     disabled: document.querySelector(".motion-pilot-toggle input")?.disabled === true,
     checked: document.querySelector(".motion-pilot-toggle input")?.checked === true,
     text: document.querySelector(".motion-pilot-toggle")?.innerText || ""
   }))()`);
-  assert(sideOnlyPilot.disabled && !sideOnlyPilot.checked, "Motion Pilot should stay OFF and disabled for side-only generation");
-  assert(sideOnlyPilot.text.includes("unavailable for side-only generation"), "Motion Pilot should explain why side-only generation cannot use expansion");
+  assert(singleDirectionPilot.disabled && !singleDirectionPilot.checked, "Motion Pilot should stay OFF and disabled for single-direction generation");
+  assert(singleDirectionPilot.text.includes("unavailable for single-direction generation"), "Motion Pilot should explain why single-direction generation cannot use expansion");
   await clickSelector(".animation-utility-heading .icon-button");
-  await waitForEval(() => '!document.querySelector(".animation-utility-modal")', "Side-only advanced settings closed");
+  await waitForEval(() => '!document.querySelector(".animation-utility-modal")', "Single-direction advanced settings closed");
 
   await clickButtonByText("Choose Animation");
   await waitForEval(() => `document.querySelector(".animation-preset-modal")?.innerText.includes("Idle Breathing")`, "Choose Animation modal");
@@ -1032,6 +1147,10 @@ async function assertAnimationPresetExamples() {
     const directionControl = document.querySelector(".direction-preset-buttons");
     const directionButtons = [...(directionControl?.querySelectorAll("button") || [])];
     const directionRect = directionControl?.getBoundingClientRect();
+    const singleDirectionControl = document.querySelector(".single-direction-buttons");
+    const singleDirectionButtons = [...(singleDirectionControl?.querySelectorAll("button") || [])];
+    const singleDirectionRect = singleDirectionControl?.getBoundingClientRect();
+    const singleDirectionRowTops = [...new Set(singleDirectionButtons.map((button) => Math.round(button.getBoundingClientRect().top)))];
     return {
       stacked: Boolean(source && workspace && history && workspace.top >= source.bottom - 1 && history.top >= workspace.bottom - 1),
       documentFits: document.documentElement.scrollWidth <= window.innerWidth + 1,
@@ -1041,7 +1160,14 @@ async function assertAnimationPresetExamples() {
         const buttonRect = button.getBoundingClientRect();
         return buttonRect.left >= directionRect.left - 1 && buttonRect.right <= directionRect.right + 1;
       })),
-      directionButtonHeights: directionButtons.map((button) => Math.round(button.getBoundingClientRect().height))
+      directionButtonHeights: directionButtons.map((button) => Math.round(button.getBoundingClientRect().height)),
+      singleDirectionColumns: getComputedStyle(singleDirectionControl).gridTemplateColumns.trim().split(/\\s+/).filter(Boolean).length,
+      singleDirectionRows: singleDirectionRowTops.length,
+      singleDirectionFits: Boolean(singleDirectionRect && singleDirectionButtons.length === 5 && singleDirectionButtons.every((button) => {
+        const buttonRect = button.getBoundingClientRect();
+        return buttonRect.left >= singleDirectionRect.left - 1 && buttonRect.right <= singleDirectionRect.right + 1 && button.scrollWidth <= button.clientWidth + 1;
+      })),
+      singleDirectionButtonHeights: singleDirectionButtons.map((button) => Math.round(button.getBoundingClientRect().height))
     };
   })()`);
   assert(mobileWorkflowLayout.stacked, "Responsive workflow panels should stack instead of covering the primary workflow buttons");
@@ -1050,9 +1176,11 @@ async function assertAnimationPresetExamples() {
   assert(mobileWorkflowLayout.buttonFonts.every((size) => size >= 16), `Responsive workflow buttons should retain readable text: ${JSON.stringify(mobileWorkflowLayout.buttonFonts)}`);
   assert(mobileWorkflowLayout.directionPresetFits, "Responsive direction preset should keep all three options inside the control");
   assert(mobileWorkflowLayout.directionButtonHeights.every((height) => height >= 48), "Responsive direction preset buttons should keep 48px targets");
+  assert(mobileWorkflowLayout.singleDirectionColumns === 3 && mobileWorkflowLayout.singleDirectionRows === 2 && mobileWorkflowLayout.singleDirectionFits, `Responsive single-direction selector should use three columns and two rows without overflow: ${JSON.stringify(mobileWorkflowLayout)}`);
+  assert(mobileWorkflowLayout.singleDirectionButtonHeights.every((height) => height >= 48), "Responsive single-direction buttons should keep 48px targets");
   await clickButtonByText("5 directions");
   const restoredFiveDirections = await evaluate('document.querySelector(".direction-preset-buttons button.active")?.textContent.trim() === "5 directions"');
-  assert(restoredFiveDirections, "Direction preset should return to the five-direction default after side-only UI coverage");
+  assert(restoredFiveDirections, "Direction preset should return to the five-direction default after selectable single-direction UI coverage");
   await cdp.send("Emulation.setDeviceMetricsOverride", { width: 1280, height: 720, deviceScaleFactor: 1, mobile: false });
   await delay(200);
 
@@ -3031,7 +3159,7 @@ async function inspectDownloadedApng() {
 async function clickSelector(selector) {
   await evaluate(`(() => {
     const target = document.querySelector(${JSON.stringify(selector)});
-    if (!target) throw new Error("Selector not found: ${selector}");
+    if (!target) throw new Error("Selector not found: " + ${JSON.stringify(selector)});
     target.click();
   })()`);
 }

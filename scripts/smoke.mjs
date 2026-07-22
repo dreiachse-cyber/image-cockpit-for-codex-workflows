@@ -329,23 +329,26 @@ async function runManualHandoffSmoke() {
         directions: ["front", "side", "back"]
       }
     };
-    const sideOnlyTournamentId = "smoke-side-only-tournament";
-    const sideOnlyRegistration = {
+    const canonicalSingleDirections = ["front", "front three-quarter", "side", "back three-quarter", "back"];
+    const singleDirection = "back three-quarter";
+    const singleDirectionSlug = "back-three-quarter";
+    const singleDirectionTournamentId = "smoke-single-back-three-quarter-tournament";
+    const singleDirectionRegistration = {
       ...tournamentRegistration,
-      tournamentId: sideOnlyTournamentId,
-      idempotencyKey: "smoke:side-only:v1",
+      tournamentId: singleDirectionTournamentId,
+      idempotencyKey: "smoke:single-back-three-quarter:v1",
       generationProfile: "fast",
-      requestedDirections: ["side"],
+      requestedDirections: [singleDirection],
       maximumCandidateCount: 1,
       initialCandidateCount: 1,
-      clientContext: { ...tournamentRegistration.clientContext, label: "Smoke side-only tournament" },
+      clientContext: { ...tournamentRegistration.clientContext, label: "Smoke selected single-direction tournament" },
       jobTemplate: {
         ...tournamentRegistration.jobTemplate,
-        prompt: "Smoke test side-only tournament",
+        prompt: "Smoke test selected single-direction tournament",
         grid: { columns: 20, rows: 1, gutter: 0 },
         frames: 20,
         framesPerDirection: 20,
-        directions: ["side"],
+        directions: [singleDirection],
         motionRecipe: {
           id: "walk-cycle",
           version: 1,
@@ -356,25 +359,42 @@ async function runManualHandoffSmoke() {
         }
       }
     };
-    const sideOnlyRegistered = await postJson(port, "/api/codex/tournaments", sideOnlyRegistration);
-    assert(sideOnlyRegistered.tournament.requestedDirections.join(",") === "side", "side-only tournament should persist exactly the side direction");
-    assert(sideOnlyRegistered.tournament.pilotMode === false, "side-only tournament should use the standard non-Pilot path");
-    const sideOnlyCandidate = await postJson(port, "/api/codex/tournaments/" + sideOnlyTournamentId + "/candidates", { candidateIndex: 0 });
-    const sideOnlyJobJson = JSON.parse(await readFile(sideOnlyCandidate.job.path, "utf8"));
-    assert(sideOnlyJobJson.spriteContext.directions.join(",") === "side", "side-only candidate should request only the side profile");
-    assert(sideOnlyJobJson.spriteContext.grid.columns === 20 && sideOnlyJobJson.spriteContext.grid.rows === 1 && sideOnlyJobJson.spriteContext.frames === 20, "side-only candidate should keep a 20x1 / 20-frame final sheet contract");
-    assert(sideOnlyJobJson.spriteContext.framesPerDirection === 20 && sideOnlyJobJson.spriteContext.motionRecipe.frameCount === 20, "side-only candidate should preserve the experimental 20f metadata");
-    assert(sideOnlyJobJson.notes.some((note) => note.includes("complete requested direction set")), "runner notes should describe the requested set instead of forcing five directions");
-    await writeFile(join(sideOnlyCandidate.job.outboxPath, sideOnlyCandidate.job.id + "-side.png"), tinyPngBytes);
-    await writeFile(join(sideOnlyCandidate.job.outboxPath, sideOnlyCandidate.job.id + "-manifest.json"), JSON.stringify({
+    const singleDirectionRegistered = await postJson(port, "/api/codex/tournaments", singleDirectionRegistration);
+    assert(singleDirectionRegistered.tournament.requestedDirections.join(",") === singleDirection, "single-direction tournament should persist exactly the selected non-side direction");
+    assert(singleDirectionRegistered.tournament.pilotMode === false, "single-direction tournament should use the standard non-Pilot path");
+
+    for (const direction of canonicalSingleDirections) {
+      if (direction === singleDirection) continue;
+      const slug = direction.replaceAll(" ", "-");
+      const registeredChoice = await postJson(port, "/api/codex/tournaments", {
+        ...singleDirectionRegistration,
+        tournamentId: `smoke-single-direction-${slug}`,
+        idempotencyKey: `smoke:single-direction:${slug}:v1`,
+        requestedDirections: [direction],
+        jobTemplate: { ...singleDirectionRegistration.jobTemplate, directions: [direction] }
+      });
+      assert(
+        registeredChoice.tournament.requestedDirections.join(",") === direction,
+        `single-direction registration should accept the canonical ${direction} choice`
+      );
+    }
+
+    const singleDirectionCandidate = await postJson(port, "/api/codex/tournaments/" + singleDirectionTournamentId + "/candidates", { candidateIndex: 0 });
+    const singleDirectionJobJson = JSON.parse(await readFile(singleDirectionCandidate.job.path, "utf8"));
+    assert(singleDirectionJobJson.spriteContext.directions.join(",") === singleDirection, "single-direction candidate should request only the selected non-side direction");
+    assert(singleDirectionJobJson.spriteContext.grid.columns === 20 && singleDirectionJobJson.spriteContext.grid.rows === 1 && singleDirectionJobJson.spriteContext.frames === 20, "single-direction candidate should keep a 20x1 / 20-frame final sheet contract");
+    assert(singleDirectionJobJson.spriteContext.framesPerDirection === 20 && singleDirectionJobJson.spriteContext.motionRecipe.frameCount === 20, "single-direction candidate should preserve the experimental 20f metadata");
+    assert(singleDirectionJobJson.notes.some((note) => note.includes("complete requested direction set")), "runner notes should describe the requested set instead of forcing five directions");
+    await writeFile(join(singleDirectionCandidate.job.outboxPath, singleDirectionCandidate.job.id + `-${singleDirectionSlug}.png`), tinyPngBytes);
+    await writeFile(join(singleDirectionCandidate.job.outboxPath, singleDirectionCandidate.job.id + "-manifest.json"), JSON.stringify({
       schema: "image-cockpit.direction-split-animation.v1",
-      jobId: sideOnlyCandidate.job.id,
+      jobId: singleDirectionCandidate.job.id,
       action: "walk",
-      directions: ["side"],
+      directions: [singleDirection],
       framesPerDirection: 20,
       grid: { columns: 4, rows: 5, gutter: 0 },
       cell: { width: 256, height: 256 },
-      files: { side: sideOnlyCandidate.job.id + "-side.png" },
+      files: { [singleDirectionSlug]: singleDirectionCandidate.job.id + `-${singleDirectionSlug}.png` },
       qualityGate: {
         classification: "usable-final",
         reason: "server verified",
@@ -384,55 +404,55 @@ async function runManualHandoffSmoke() {
       },
       animationQuality: animationQualityReport
     }, null, 2), "utf8");
-    await getJson(port, "/api/codex/jobs/" + sideOnlyCandidate.job.id + "/results");
-    await postJson(port, "/api/codex/tournaments/" + sideOnlyTournamentId + "/evaluation", {
-      jobId: sideOnlyCandidate.job.id,
+    await getJson(port, "/api/codex/jobs/" + singleDirectionCandidate.job.id + "/results");
+    await postJson(port, "/api/codex/tournaments/" + singleDirectionTournamentId + "/evaluation", {
+      jobId: singleDirectionCandidate.job.id,
       ready: true,
       score: 3300,
       warningCount: 0,
-      qualityReportRef: sideOnlyCandidate.job.id + "-manifest.json#animationQuality"
+      qualityReportRef: singleDirectionCandidate.job.id + "-manifest.json#animationQuality"
     });
-    const acceptedSideOnly = await postJson(port, "/api/codex/tournaments/" + sideOnlyTournamentId + "/winner", { jobId: sideOnlyCandidate.job.id });
-    assert(acceptedSideOnly.tournament.state === "accepted", "side-only winner should reach the accepted state");
-    const publishedSideOnlyManifest = JSON.parse(await readFile(join(handoffDir, "outbox", sideOnlyCandidate.job.id + "-manifest.json"), "utf8"));
-    assert(publishedSideOnlyManifest.directions.join(",") === "side", "published side-only manifest should contain only side");
-    assert(Object.keys(publishedSideOnlyManifest.files).join(",") === "side", "published side-only manifest should expose only the side file");
-    assert(publishedSideOnlyManifest.framesPerDirection === 20, "published side-only manifest should preserve 20 frames per direction");
-    assert(publishedSideOnlyManifest.grid.columns === 4 && publishedSideOnlyManifest.grid.rows === 5, "published side-only manifest should preserve the 4x5 raw direction grid");
-    assert(publishedSideOnlyManifest.motionRecipe.frameCount === 20, "published side-only manifest should preserve the 20f Motion Recipe metadata");
+    const acceptedSingleDirection = await postJson(port, "/api/codex/tournaments/" + singleDirectionTournamentId + "/winner", { jobId: singleDirectionCandidate.job.id });
+    assert(acceptedSingleDirection.tournament.state === "accepted", "single-direction winner should reach the accepted state");
+    const publishedSingleDirectionManifest = JSON.parse(await readFile(join(handoffDir, "outbox", singleDirectionCandidate.job.id + "-manifest.json"), "utf8"));
+    assert(publishedSingleDirectionManifest.directions.join(",") === singleDirection, "published single-direction manifest should contain only the selected non-side direction");
+    assert(Object.keys(publishedSingleDirectionManifest.files).join(",") === singleDirection, "published single-direction manifest should expose only the selected non-side file");
+    assert(publishedSingleDirectionManifest.framesPerDirection === 20, "published single-direction manifest should preserve 20 frames per direction");
+    assert(publishedSingleDirectionManifest.grid.columns === 4 && publishedSingleDirectionManifest.grid.rows === 5, "published single-direction manifest should preserve the 4x5 raw direction grid");
+    assert(publishedSingleDirectionManifest.motionRecipe.frameCount === 20, "published single-direction manifest should preserve the 20f Motion Recipe metadata");
 
-    const rejectedSideOnlyPilot = await fetch("http://127.0.0.1:" + port + "/api/codex/tournaments", {
+    const rejectedSingleDirectionPilot = await fetch("http://127.0.0.1:" + port + "/api/codex/tournaments", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        ...sideOnlyRegistration,
-        tournamentId: "smoke-side-only-pilot-rejected",
-        idempotencyKey: "smoke:side-only:pilot-rejected:v1",
+        ...singleDirectionRegistration,
+        tournamentId: "smoke-single-direction-pilot-rejected",
+        idempotencyKey: "smoke:single-direction:pilot-rejected:v1",
         pilotMode: true,
-        pilotDirection: "side"
+        pilotDirection: singleDirection
       })
     });
-    const rejectedSideOnlyPilotText = await rejectedSideOnlyPilot.text();
+    const rejectedSingleDirectionPilotText = await rejectedSingleDirectionPilot.text();
     assert(
-      rejectedSideOnlyPilot.status === 500 && rejectedSideOnlyPilotText.includes("Motion Pilot requires more than one requested direction"),
-      "server should reject Motion Pilot for a side-only tournament"
+      rejectedSingleDirectionPilot.status === 500 && rejectedSingleDirectionPilotText.includes("Motion Pilot requires more than one requested direction"),
+      "server should reject Motion Pilot for any single-direction tournament"
     );
 
-    const rejectedFrontOnly = await fetch("http://127.0.0.1:" + port + "/api/codex/tournaments", {
+    const rejectedNonCanonicalDirection = await fetch("http://127.0.0.1:" + port + "/api/codex/tournaments", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        ...sideOnlyRegistration,
-        tournamentId: "smoke-front-only-rejected",
-        idempotencyKey: "smoke:front-only:rejected:v1",
-        requestedDirections: ["front"],
-        jobTemplate: { ...sideOnlyRegistration.jobTemplate, directions: ["front"] }
+        ...singleDirectionRegistration,
+        tournamentId: "smoke-non-canonical-direction-rejected",
+        idempotencyKey: "smoke:non-canonical-direction:rejected:v1",
+        requestedDirections: ["left"],
+        jobTemplate: { ...singleDirectionRegistration.jobTemplate, directions: ["left"] }
       })
     });
-    const rejectedFrontOnlyText = await rejectedFrontOnly.text();
+    const rejectedNonCanonicalDirectionText = await rejectedNonCanonicalDirection.text();
     assert(
-      rejectedFrontOnly.status === 500 && rejectedFrontOnlyText.includes("Single-direction animation tournaments require the side direction"),
-      "server should reject front-only tournaments because one direction means side only"
+      rejectedNonCanonicalDirection.status === 500 && rejectedNonCanonicalDirectionText.includes("Animation tournaments require 1, 3, or 5 directions"),
+      "server should reject single-direction values outside the five canonical choices"
     );
 
     const registeredTournament = await postJson(port, "/api/codex/tournaments", tournamentRegistration);

@@ -39,6 +39,7 @@ const requiredFiles = [
   "docs/qa/local-state-oom-safe-mode-retention.md",
   "docs/qa/v0.1.6-release-prep.md",
   "docs/qa/experimental-16-20-frame-animation.md",
+  "docs/qa/selectable-single-animation-direction.md",
   "docs/qa/v0.1.5-release-prep.md",
   "docs/qa/v0.1.4-release-prep.md",
   "docs/qa/v0.1.3-release-prep.md",
@@ -477,6 +478,7 @@ function checkWorkflowIds() {
   const motionRecipesText = readText("src/lib/motionRecipes.ts");
   const appTestText = readText("src/App.test.ts");
   const extendedFrameQaText = readText("docs/qa/experimental-16-20-frame-animation.md");
+  const selectableSingleDirectionQaText = readText("docs/qa/selectable-single-animation-direction.md");
   const animationTournamentText = readText("src/lib/animationTournament.ts");
   const animationReviewText = readText("src/lib/animationReview.ts");
   const animationReviewUiText = readText("src/AnimationReviewCockpit.tsx");
@@ -491,7 +493,7 @@ function checkWorkflowIds() {
   const finalReviewIndexText = readText("docs/qa/animation-uplift-review-index.md");
   const realCodexSmokeText = readText("scripts/real-codex-runner-smoke.mjs");
   const imageEditFullBodyQaText = readText("docs/qa/image-edit-full-body-fit.md");
-  if (!appText || !stylesText || !smokeText || !uiSmokeText || !realCodexSmokeText || !animationTournamentText || !animationReviewText || !animationReviewUiText || !serverText || !animationReviewQaText || !vfxCompositeText || !vfxCompositeUiText || !effectQualityText || !vfxCompositeQaText || !motionPilotText || !finalBenchmarkText || !finalReviewIndexText || !motionRecipesText || !appTestText || !extendedFrameQaText) return;
+  if (!appText || !stylesText || !smokeText || !uiSmokeText || !realCodexSmokeText || !animationTournamentText || !animationReviewText || !animationReviewUiText || !serverText || !animationReviewQaText || !vfxCompositeText || !vfxCompositeUiText || !effectQualityText || !vfxCompositeQaText || !motionPilotText || !finalBenchmarkText || !finalReviewIndexText || !motionRecipesText || !appTestText || !extendedFrameQaText || !selectableSingleDirectionQaText) return;
 
   requiredWorkflowIds.forEach((workflowId) => {
     if (!appText.includes(workflowId)) {
@@ -1016,28 +1018,58 @@ function checkWorkflowIds() {
     failures.push("Direction preset control should render as a balanced 3-option segmented control.");
   }
 
+  const singleDirectionLayoutPattern = /\.single-direction-buttons\s*\{[^}]*grid-template-columns:\s*repeat\(3,\s*minmax\(0,\s*1fr\)\);[^}]*\}/s;
+  const singleDirectionTargetPattern = /\.segmented-control\.single-direction-buttons button\s*\{[^}]*min-height:\s*48px;[^}]*\}/s;
+  if (!singleDirectionLayoutPattern.test(stylesText) || !singleDirectionTargetPattern.test(stylesText)) {
+    failures.push("Selectable single-direction control should use a responsive three-column layout with 48px targets.");
+  }
+
   [
-    [appText, 'one: ["side"]'],
+    [appText, 'const DEFAULT_SINGLE_ANIMATION_DIRECTION: AnimationDirectionId = "side"'],
     [appText, 'animationDirectionOne: "1 direction"'],
     [appText, 'animationDirectionOne: "1方向"'],
+    [appText, "animationDirectionsForPreset"],
+    [appText, "animationDirectionSelectionForDirections"],
+    [appText, "single-direction-buttons"],
+    [appText, "data-animation-direction"],
+    [appText, "animationSingleDirectionHint"],
     [appText, "canUseMotionPilot"],
     [appText, "motionPilotAvailabilityText"],
     [appText, "select Best to enable"],
     [appText, "setGrid(animationSheetGridForDirections(nextDirections, animationFrameCount))"],
-    [appText, "unavailable for side-only generation"],
+    [appText, "unavailable for single-direction generation"],
+    [appTestText, 'canonicalDirections = ["front", "front three-quarter", "side", "back three-quarter", "back"]'],
+    [appTestText, 'animationDirectionsForPreset("one", direction)'],
+    [appTestText, 'animationDirectionSelectionForDirections(["back-three-quarter"])'],
     [serverText, "![1, 3, 5].includes(requestedDirections.length)"],
-    [serverText, "Single-direction animation tournaments require the side direction."],
     [serverText, "Motion Pilot requires more than one requested direction."],
     [serverText, "complete requested direction set"],
-    [smokeText, "smoke-side-only-tournament"],
-    [smokeText, "smoke-front-only-rejected"],
+    [smokeText, 'const canonicalSingleDirections = ["front", "front three-quarter", "side", "back three-quarter", "back"]'],
+    [smokeText, "smoke-single-back-three-quarter-tournament"],
+    [smokeText, "single-direction registration should accept the canonical ${direction} choice"],
+    [smokeText, "server should reject Motion Pilot for any single-direction tournament"],
+    [smokeText, "server should reject single-direction values outside the five canonical choices"],
     [uiSmokeText, '"1 direction"'],
-    [uiSmokeText, 'oneTitle === "side"'],
+    [uiSmokeText, ".single-direction-buttons"],
+    [uiSmokeText, "back-three-quarter"],
+    [uiSmokeText, "single-direction history restores exact direction and frame grid"],
     [uiSmokeText, "IMAGE_COCKPIT_UI_SMOKE_ONLY_SINGLE_DIRECTION"],
-    [uiSmokeText, 'sidePreset.gridColumns === "20" && sidePreset.gridRows === "1"']
+    [selectableSingleDirectionQaText, "Side remains the initial single-direction choice"],
+    [selectableSingleDirectionQaText, "front three-quarter"],
+    [selectableSingleDirectionQaText, "back three-quarter"],
+    [selectableSingleDirectionQaText, "4096 x 256 px"],
+    [selectableSingleDirectionQaText, "5120 x 256 px"]
   ].forEach(([text, marker]) => {
     if (!text.includes(marker)) {
-      failures.push("Animation Generation should keep the side-only 1-direction contract: " + marker);
+      failures.push("Animation Generation should keep the selectable 1-direction contract: " + marker);
+    }
+  });
+  [
+    [appText, "unavailable for side-only generation"],
+    [serverText, "Single-direction animation tournaments require the side direction."]
+  ].forEach(([text, retiredMarker]) => {
+    if (text.includes(retiredMarker)) {
+      failures.push("Animation Generation should not retain the retired side-only restriction: " + retiredMarker);
     }
   });
   [
@@ -1053,12 +1085,13 @@ function checkWorkflowIds() {
     [animationPackText, "4, 6, 8, 12, 16, or 20"],
     [animationPackText, "animationLibraryHistoryMetadata"],
     [appText, "historyAnimationFrameCount(selected)"],
-    [smokeText, "side-only candidate should keep a 20x1 / 20-frame final sheet contract"],
-    [uiSmokeText, "Side-only 20f final sheet should be 5120x256"],
+    [smokeText, "single-direction candidate should keep a 20x1 / 20-frame final sheet contract"],
+    [uiSmokeText, "Single-direction 20f final sheet should be 5120x256"],
     [uiSmokeText, "Five-direction 20f final sheet should be 5120x1280"],
     [uiSmokeText, "Japanese frame buttons should keep localized accessible names"],
+    [uiSmokeText, "single-direction 20f Animation Pack download"],
     [uiSmokeText, "five-direction 20f Animation Pack download"],
-    [uiSmokeText, "Every side-only browser manifest should preserve a 4x5 raw direction grid"],
+    [uiSmokeText, "Every single-direction browser manifest should preserve a 4x5 raw direction grid"],
     [appTestText, "[20, { columns: 4, rows: 5, gutter: 0 }]"],
     [extendedFrameQaText, "20f side-only"],
     [extendedFrameQaText, "5120x256"],
