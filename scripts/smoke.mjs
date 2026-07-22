@@ -342,10 +342,18 @@ async function runManualHandoffSmoke() {
       jobTemplate: {
         ...tournamentRegistration.jobTemplate,
         prompt: "Smoke test side-only tournament",
-        grid: { columns: 8, rows: 1, gutter: 0 },
-        frames: 8,
-        framesPerDirection: 8,
-        directions: ["side"]
+        grid: { columns: 20, rows: 1, gutter: 0 },
+        frames: 20,
+        framesPerDirection: 20,
+        directions: ["side"],
+        motionRecipe: {
+          id: "walk-cycle",
+          version: 1,
+          compilerVersion: "1.2.0",
+          qualityProfile: "grounded-soft",
+          bodyTopology: "biped",
+          frameCount: 20
+        }
       }
     };
     const sideOnlyRegistered = await postJson(port, "/api/codex/tournaments", sideOnlyRegistration);
@@ -354,7 +362,8 @@ async function runManualHandoffSmoke() {
     const sideOnlyCandidate = await postJson(port, "/api/codex/tournaments/" + sideOnlyTournamentId + "/candidates", { candidateIndex: 0 });
     const sideOnlyJobJson = JSON.parse(await readFile(sideOnlyCandidate.job.path, "utf8"));
     assert(sideOnlyJobJson.spriteContext.directions.join(",") === "side", "side-only candidate should request only the side profile");
-    assert(sideOnlyJobJson.spriteContext.grid.rows === 1 && sideOnlyJobJson.spriteContext.frames === 8, "side-only candidate should keep an 8x1 final sheet contract");
+    assert(sideOnlyJobJson.spriteContext.grid.columns === 20 && sideOnlyJobJson.spriteContext.grid.rows === 1 && sideOnlyJobJson.spriteContext.frames === 20, "side-only candidate should keep a 20x1 / 20-frame final sheet contract");
+    assert(sideOnlyJobJson.spriteContext.framesPerDirection === 20 && sideOnlyJobJson.spriteContext.motionRecipe.frameCount === 20, "side-only candidate should preserve the experimental 20f metadata");
     assert(sideOnlyJobJson.notes.some((note) => note.includes("complete requested direction set")), "runner notes should describe the requested set instead of forcing five directions");
     await writeFile(join(sideOnlyCandidate.job.outboxPath, sideOnlyCandidate.job.id + "-side.png"), tinyPngBytes);
     await writeFile(join(sideOnlyCandidate.job.outboxPath, sideOnlyCandidate.job.id + "-manifest.json"), JSON.stringify({
@@ -362,8 +371,8 @@ async function runManualHandoffSmoke() {
       jobId: sideOnlyCandidate.job.id,
       action: "walk",
       directions: ["side"],
-      framesPerDirection: 8,
-      grid: { columns: 4, rows: 2, gutter: 0 },
+      framesPerDirection: 20,
+      grid: { columns: 4, rows: 5, gutter: 0 },
       cell: { width: 256, height: 256 },
       files: { side: sideOnlyCandidate.job.id + "-side.png" },
       qualityGate: {
@@ -388,6 +397,9 @@ async function runManualHandoffSmoke() {
     const publishedSideOnlyManifest = JSON.parse(await readFile(join(handoffDir, "outbox", sideOnlyCandidate.job.id + "-manifest.json"), "utf8"));
     assert(publishedSideOnlyManifest.directions.join(",") === "side", "published side-only manifest should contain only side");
     assert(Object.keys(publishedSideOnlyManifest.files).join(",") === "side", "published side-only manifest should expose only the side file");
+    assert(publishedSideOnlyManifest.framesPerDirection === 20, "published side-only manifest should preserve 20 frames per direction");
+    assert(publishedSideOnlyManifest.grid.columns === 4 && publishedSideOnlyManifest.grid.rows === 5, "published side-only manifest should preserve the 4x5 raw direction grid");
+    assert(publishedSideOnlyManifest.motionRecipe.frameCount === 20, "published side-only manifest should preserve the 20f Motion Recipe metadata");
 
     const rejectedSideOnlyPilot = await fetch("http://127.0.0.1:" + port + "/api/codex/tournaments", {
       method: "POST",

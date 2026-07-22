@@ -6,7 +6,7 @@ exports[`versioned Motion Recipes > snapshots Experimental compiler contract for
   "id": "charge-heavy-attack",
   "metadata": {
     "bodyTopology": "biped",
-    "compilerVersion": "1.1.0",
+    "compilerVersion": "1.2.0",
     "experimental": true,
     "frameCount": 12,
     "id": "charge-heavy-attack",
@@ -24,7 +24,7 @@ exports[`versioned Motion Recipes > snapshots Experimental compiler contract for
     "qualityProfile": "grounded-soft",
     "version": 1,
   },
-  "prompt": "HARD: Motion Recipe: charge-heavy-attack v1; compiler 1.1.0. Create exactly 12 source frames for each requested direction. Use fixed 256px by 256px cells and keep every frame isolated inside its own cell.
+  "prompt": "HARD: Motion Recipe: charge-heavy-attack v1; compiler 1.2.0. Create exactly 12 source frames for each requested direction. Use fixed 256px by 256px cells and keep every frame isolated inside its own cell.
 MOTION: Heavy charged attack with visible weight loading, delayed release, one decisive impact, broad follow-through, and controlled recovery. The support contacts and prop grip must remain coherent while the attack arc becomes wider than a basic attack. hair and clothing follow-through must lag the body motion without replacing the primary action Variant intensity is strong: widen the primary action silhouette and preserve controlled recovery. Variant tempo is slow: extend anticipation and settling beats without duplicating frames. Variant weight is heavy: use deeper loading, broader committed motion, delayed follow-through, and stronger support contact. Keep right-handed grip and weapon-side identity consistent in every direction and frame. Preserve one consistent heavy-weapon design, grip, scale, and attachment through all phases. Use low VFX drawn only from the Recipe allowlist and keep body, prop, and contact silhouette visible.
 PHASES: Frames 1-1: ready. Frames 2-3: load weight. Frames 4-4: deep charge. Frames 5-6: release begins. Frames 7-7: heavy impact. Frames 8-9: follow-through. Frames 10-10: recover weight. Frames 11-12: ready end.
 IDENTITY: Preserve the uploaded character's identity, outfit, palette, head-to-body ratio, silhouette, props, and pixel density in every frame. Keep one real character scale across every direction and pose; lower poses become shorter and must never be enlarged to fill the cell. Keep the complete hair, head, hands, props, effects, outfit, and feet inside every 256px cell with readable padding. Keep the root centered; do not translate, skate, or auto-center each frame independently. Keep at least one planted foot or the robe hem on a stable visual baseline; preserve bottom-center export anchor. Body topology: biped. Keep the full head-to-feet silhouette inside the cell with stable head size and leg length. Use the bottom-center root between the planted feet and preserve the standing baseline. Measure root translation from the pelvis and the midpoint between planted feet. Keep both legs readable in front and rear views. Keep the profile foot order and weapon side readable in side view.
@@ -108,7 +108,7 @@ NEGATIVE: cropped hair, cropped head, cropped feet, duplicated heads, body fragm
     ],
     "recipe": {
       "bodyTopology": "biped",
-      "compilerVersion": "1.1.0",
+      "compilerVersion": "1.2.0",
       "experimental": true,
       "frameCount": 12,
       "id": "charge-heavy-attack",
@@ -148,7 +148,7 @@ exports[`versioned Motion Recipes > snapshots Experimental compiler contract for
   "id": "combo-attack",
   "metadata": {
     "bodyTopology": "biped",
-    "compilerVersion": "1.1.0",
+    "compilerVersion": "1.2.0",
     "experimental": true,
     "frameCount": 12,
     "id": "combo-attack",
@@ -166,7 +166,7 @@ exports[`versioned Motion Recipes > snapshots Experimental compiler contract for
     "qualityProfile": "grounded-soft",
     "version": 1,
   },
-  "prompt": "HARD: Motion Recipe: combo-attack v1; compiler 1.1.0. Create exactly 12 source frames for each requested direction. Use fixed 256px by 256px cells and keep every frame isolated inside its own cell.
+  "prompt": "HARD: Motion Recipe: combo-attack v1; compiler 1.2.0. Create exactly 12 source frames for each requested direction. Use fixed 256px by 256px cells and keep every frame isolated inside its own cell.
 MOTION: Two or three clearly linked attacks with alternating silhouettes, one readable finisher, and a full recovery instead of a seamless loop. Preserve handedness, weapon class, grip, and facing through every link; do not duplicate one strike pose. hair and clothing follow-through must lag the body motion without replacing the primary action Variant intensity is strong: widen the primary action silhouette and preserve controlled recovery. Variant tempo is fast: shorten holds, keep silhouettes distinct, and retain the complete phase order. Variant exaggeration is high: amplify pose contrast and arcs without changing anatomy or scale. Use high secondary motion; it must lag and support the primary action without obscuring it.
 PHASES: Frames 1-1: ready. Frames 2-3: first wind-up. Frames 4-4: first strike. Frames 5-6: link. Frames 7-7: second strike. Frames 8-9: finisher. Frames 10-10: follow-through. Frames 11-12: ready end.
 IDENTITY: Preserve the uploaded character's identity, outfit, palette, head-to-body ratio, silhouette, props, and pixel density in every frame. Keep one real character scale across every direction and pose; lower poses become shorter and must never be enlarged to fill the cell. Keep the complete hair, head, hands, props, effects, outfit, and feet inside every 256px cell with readable padding. Keep the root centered; do not translate, skate, or auto-center each frame independently. Keep at least one planted foot or the robe hem on a stable visual baseline; preserve bottom-center export anchor. Body topology: biped. Keep the full head-to-feet silhouette inside the cell with stable head size and leg length. Use the bottom-center root between the planted feet and preserve the standing baseline. Measure root translation from the pelvis and the midpoint between planted feet. Keep both legs readable in front and rear views. Keep the profile foot order and weapon side readable in side view.
@@ -244,7 +244,7 @@ NEGATIVE: cropped hair, cropped head, cropped feet, duplicated heads, body fragm
     ],
     "recipe": {
       "bodyTopology": "biped",
-      "compilerVersion": "1.1.0",
+      "compilerVersion": "1.2.0",
       "experimental": true,
       "frameCount": 12,
       "id": "combo-attack",
@@ -283,7 +283,7 @@ exports[`versioned Motion Recipes > snapshots Experimental compiler contract for
   "id": "dash",
   "metadata": {
     "bodyTopology": "biped",
-    "compilerVersion": "1.1.0",
+    "compilerVersion": "1.2.0",
     "experimental": true,
     "frameCount": 12,
     "id": "dash",
@@ -301,7 +301,7 @@ exports[`versioned Motion Recipes > snapshots Experimental compiler contract for
     "qualityProfile": "airborne-or-exempt",
     "version": 1,
   },
-  "prompt": "HARD: Motion Recipe: dash v1; compiler 1.1.0. Create exactly 12 source frames for each requested direction. Use fixed 256px by 256px cells and keep every frame isolated inside its own cell.
+  "prompt": "HARD: Motion Recipe: dash v1; compiler 1.2.0. Create exactly 12 source frames for each requested direction. Use fixed 256px by 256px cells and keep every frame isolated inside its own cell.
 MOTION: Explosive game dash with compression, strong launch silhouette, controlled travel, braking contact, and a readable recovery. Travel must stay within the cell and the final frame must not be mistaken for a looping run pose. hair and clothing follow-through must lag the body motion without replacing the primary action Variant intensity is strong: widen the primary action silhouette and preserve controlled recovery. Variant tempo is fast: shorten holds, keep silhouettes distinct, and retain the complete phase order. Variant exaggeration is high: amplify pose contrast and arcs without changing anatomy or scale. Use high secondary motion; it must lag and support the primary action without obscuring it.
 PHASES: Frames 1-1: ready. Frames 2-3: compression. Frames 4-4: launch. Frames 5-6: acceleration. Frames 7-7: peak travel. Frames 8-9: brake. Frames 10-10: replant. Frames 11-12: ready end.
 IDENTITY: Preserve the uploaded character's identity, outfit, palette, head-to-body ratio, silhouette, props, and pixel density in every frame. Keep one real character scale across every direction and pose; lower poses become shorter and must never be enlarged to fill the cell. Keep the complete hair, head, hands, props, effects, outfit, and feet inside every 256px cell with readable padding. Keep the root centered; do not translate, skate, or auto-center each frame independently. Keep at least one planted foot or the robe hem on a stable visual baseline; preserve bottom-center export anchor. Body topology: biped. Keep the full head-to-feet silhouette inside the cell with stable head size and leg length. Use the bottom-center root between the planted feet and preserve the standing baseline. Measure root translation from the pelvis and the midpoint between planted feet. Keep both legs readable in front and rear views. Keep the profile foot order and weapon side readable in side view.
@@ -379,7 +379,7 @@ NEGATIVE: cropped hair, cropped head, cropped feet, duplicated heads, body fragm
     ],
     "recipe": {
       "bodyTopology": "biped",
-      "compilerVersion": "1.1.0",
+      "compilerVersion": "1.2.0",
       "experimental": true,
       "frameCount": 12,
       "id": "dash",
@@ -416,7 +416,7 @@ exports[`versioned Motion Recipes > snapshots Experimental compiler contract for
   "id": "dodge-roll",
   "metadata": {
     "bodyTopology": "biped",
-    "compilerVersion": "1.1.0",
+    "compilerVersion": "1.2.0",
     "experimental": true,
     "frameCount": 12,
     "id": "dodge-roll",
@@ -434,7 +434,7 @@ exports[`versioned Motion Recipes > snapshots Experimental compiler contract for
     "qualityProfile": "airborne-or-exempt",
     "version": 1,
   },
-  "prompt": "HARD: Motion Recipe: dodge-roll v1; compiler 1.1.0. Create exactly 12 source frames for each requested direction. Use fixed 256px by 256px cells and keep every frame isolated inside its own cell.
+  "prompt": "HARD: Motion Recipe: dodge-roll v1; compiler 1.2.0. Create exactly 12 source frames for each requested direction. Use fixed 256px by 256px cells and keep every frame isolated inside its own cell.
 MOTION: Compact evasive roll or backstep chosen to fit the source topology, followed by a clean replant and ready stance. Do not force a humanoid somersault onto a topology that should sidestep, coil, hop, or hover-shift instead. hair and clothing follow-through must lag the body motion without replacing the primary action Variant intensity is strong: widen the primary action silhouette and preserve controlled recovery. Variant tempo is fast: shorten holds, keep silhouettes distinct, and retain the complete phase order. Variant exaggeration is high: amplify pose contrast and arcs without changing anatomy or scale. Use high secondary motion; it must lag and support the primary action without obscuring it.
 PHASES: Frames 1-1: ready. Frames 2-3: evade anticipation. Frames 4-4: leave line. Frames 5-6: compact transit. Frames 7-7: clear threat. Frames 8-9: replant. Frames 10-10: turn back. Frames 11-12: ready end.
 IDENTITY: Preserve the uploaded character's identity, outfit, palette, head-to-body ratio, silhouette, props, and pixel density in every frame. Keep one real character scale across every direction and pose; lower poses become shorter and must never be enlarged to fill the cell. Keep the complete hair, head, hands, props, effects, outfit, and feet inside every 256px cell with readable padding. Keep the root centered; do not translate, skate, or auto-center each frame independently. Keep at least one planted foot or the robe hem on a stable visual baseline; preserve bottom-center export anchor. Body topology: biped. Keep the full head-to-feet silhouette inside the cell with stable head size and leg length. Use the bottom-center root between the planted feet and preserve the standing baseline. Measure root translation from the pelvis and the midpoint between planted feet. Keep both legs readable in front and rear views. Keep the profile foot order and weapon side readable in side view.
@@ -512,7 +512,7 @@ NEGATIVE: cropped hair, cropped head, cropped feet, duplicated heads, body fragm
     ],
     "recipe": {
       "bodyTopology": "biped",
-      "compilerVersion": "1.1.0",
+      "compilerVersion": "1.2.0",
       "experimental": true,
       "frameCount": 12,
       "id": "dodge-roll",
@@ -549,7 +549,7 @@ exports[`versioned Motion Recipes > snapshots Experimental compiler contract for
   "id": "get-up",
   "metadata": {
     "bodyTopology": "biped",
-    "compilerVersion": "1.1.0",
+    "compilerVersion": "1.2.0",
     "experimental": true,
     "frameCount": 12,
     "id": "get-up",
@@ -567,7 +567,7 @@ exports[`versioned Motion Recipes > snapshots Experimental compiler contract for
     "qualityProfile": "airborne-or-exempt",
     "version": 1,
   },
-  "prompt": "HARD: Motion Recipe: get-up v1; compiler 1.1.0. Create exactly 12 source frames for each requested direction. Use fixed 256px by 256px cells and keep every frame isolated inside its own cell.
+  "prompt": "HARD: Motion Recipe: get-up v1; compiler 1.2.0. Create exactly 12 source frames for each requested direction. Use fixed 256px by 256px cells and keep every frame isolated inside its own cell.
 MOTION: Topology-aware recovery from a compact downed pose into the source ready stance with clear support regain and no scale popping. Bipeds push or kneel, quadrupeds regain paws, body-contact creatures uncoil, and multi-leg creatures restore their support cluster. hair and clothing follow-through must lag the body motion without replacing the primary action Variant intensity is strong: widen the primary action silhouette and preserve controlled recovery. Variant tempo is fast: shorten holds, keep silhouettes distinct, and retain the complete phase order. Variant exaggeration is high: amplify pose contrast and arcs without changing anatomy or scale. Use high secondary motion; it must lag and support the primary action without obscuring it.
 PHASES: Frames 1-1: downed hold. Frames 2-3: find support. Frames 4-4: lift begins. Frames 5-6: mid recovery. Frames 7-7: support returns. Frames 8-9: rise or uncoil. Frames 10-10: settle. Frames 11-12: ready end.
 IDENTITY: Preserve the uploaded character's identity, outfit, palette, head-to-body ratio, silhouette, props, and pixel density in every frame. Keep one real character scale across every direction and pose; lower poses become shorter and must never be enlarged to fill the cell. Keep the complete hair, head, hands, props, effects, outfit, and feet inside every 256px cell with readable padding. Keep the root centered; do not translate, skate, or auto-center each frame independently. Keep at least one planted foot or the robe hem on a stable visual baseline; preserve bottom-center export anchor. Body topology: biped. Keep the full head-to-feet silhouette inside the cell with stable head size and leg length. Use the bottom-center root between the planted feet and preserve the standing baseline. Measure root translation from the pelvis and the midpoint between planted feet. Keep both legs readable in front and rear views. Keep the profile foot order and weapon side readable in side view.
@@ -645,7 +645,7 @@ NEGATIVE: cropped hair, cropped head, cropped feet, duplicated heads, body fragm
     ],
     "recipe": {
       "bodyTopology": "biped",
-      "compilerVersion": "1.1.0",
+      "compilerVersion": "1.2.0",
       "experimental": true,
       "frameCount": 12,
       "id": "get-up",
@@ -682,7 +682,7 @@ exports[`versioned Motion Recipes > snapshots Experimental compiler contract for
   "id": "stun",
   "metadata": {
     "bodyTopology": "biped",
-    "compilerVersion": "1.1.0",
+    "compilerVersion": "1.2.0",
     "experimental": true,
     "frameCount": 12,
     "id": "stun",
@@ -700,7 +700,7 @@ exports[`versioned Motion Recipes > snapshots Experimental compiler contract for
     "qualityProfile": "airborne-or-exempt",
     "version": 1,
   },
-  "prompt": "HARD: Motion Recipe: stun v1; compiler 1.1.0. Create exactly 12 source frames for each requested direction. Use fixed 256px by 256px cells and keep every frame isolated inside its own cell.
+  "prompt": "HARD: Motion Recipe: stun v1; compiler 1.2.0. Create exactly 12 source frames for each requested direction. Use fixed 256px by 256px cells and keep every frame isolated inside its own cell.
 MOTION: Non-gory stun reaction with an immediate control break, a readable unstable hold, and a partial recovery without becoming downed. Use topology-appropriate support loss: foot stagger, paw brace, body wobble, hover disruption, wing hitch, or leg-cluster instability. hair and clothing follow-through must lag the body motion without replacing the primary action Variant intensity is strong: widen the primary action silhouette and preserve controlled recovery. Variant tempo is fast: shorten holds, keep silhouettes distinct, and retain the complete phase order. Variant exaggeration is high: amplify pose contrast and arcs without changing anatomy or scale. Use high secondary motion; it must lag and support the primary action without obscuring it.
 PHASES: Frames 1-1: ready. Frames 2-3: stun impact. Frames 4-4: balance breaks. Frames 5-6: unstable peak. Frames 7-7: stunned hold. Frames 8-9: regain control. Frames 10-10: settle. Frames 11-12: ready end.
 IDENTITY: Preserve the uploaded character's identity, outfit, palette, head-to-body ratio, silhouette, props, and pixel density in every frame. Keep one real character scale across every direction and pose; lower poses become shorter and must never be enlarged to fill the cell. Keep the complete hair, head, hands, props, effects, outfit, and feet inside every 256px cell with readable padding. Keep the root centered; do not translate, skate, or auto-center each frame independently. Keep at least one planted foot or the robe hem on a stable visual baseline; preserve bottom-center export anchor. Body topology: biped. Keep the full head-to-feet silhouette inside the cell with stable head size and leg length. Use the bottom-center root between the planted feet and preserve the standing baseline. Measure root translation from the pelvis and the midpoint between planted feet. Keep both legs readable in front and rear views. Keep the profile foot order and weapon side readable in side view.
@@ -778,7 +778,7 @@ NEGATIVE: cropped hair, cropped head, cropped feet, duplicated heads, body fragm
     ],
     "recipe": {
       "bodyTopology": "biped",
-      "compilerVersion": "1.1.0",
+      "compilerVersion": "1.2.0",
       "experimental": true,
       "frameCount": 12,
       "id": "stun",
@@ -826,7 +826,7 @@ exports[`versioned Motion Recipes > validates and snapshots basic-attack 1`] = `
     "ready end",
   ],
   "promptHead": [
-    "HARD: Motion Recipe: basic-attack v1; compiler 1.1.0. Create exactly 8 source frames for each requested direction. Use fixed 256px by 256px cells and keep every frame isolated inside its own cell.",
+    "HARD: Motion Recipe: basic-attack v1; compiler 1.2.0. Create exactly 8 source frames for each requested direction. Use fixed 256px by 256px cells and keep every frame isolated inside its own cell.",
     "MOTION: Generic forward armed or unarmed attack with a planted pivot foot, readable strike direction, compact lunge, impact, and recovery. Keep the lower body stable and the strike, hand, weapon, and any tiny trail within the cell. hair and clothing follow-through must lag the body motion without replacing the primary action",
     "PHASES: Frames 1-1: ready. Frames 2-2: anticipation. Frames 3-3: wind-up. Frames 4-4: strike. Frames 5-5: impact. Frames 6-6: follow-through. Frames 7-7: recover. Frames 8-8: ready end.",
   ],
@@ -893,7 +893,7 @@ exports[`versioned Motion Recipes > validates and snapshots basic-attack 1`] = `
     ],
     "recipe": {
       "bodyTopology": "biped",
-      "compilerVersion": "1.1.0",
+      "compilerVersion": "1.2.0",
       "frameCount": 8,
       "id": "basic-attack",
       "modifiers": {
@@ -954,7 +954,7 @@ exports[`versioned Motion Recipes > validates and snapshots charge-heavy-attack 
     "ready end",
   ],
   "promptHead": [
-    "HARD: Motion Recipe: charge-heavy-attack v1; compiler 1.1.0. Create exactly 8 source frames for each requested direction. Use fixed 256px by 256px cells and keep every frame isolated inside its own cell.",
+    "HARD: Motion Recipe: charge-heavy-attack v1; compiler 1.2.0. Create exactly 8 source frames for each requested direction. Use fixed 256px by 256px cells and keep every frame isolated inside its own cell.",
     "MOTION: Heavy charged attack with visible weight loading, delayed release, one decisive impact, broad follow-through, and controlled recovery. The support contacts and prop grip must remain coherent while the attack arc becomes wider than a basic attack. hair and clothing follow-through must lag the body motion without replacing the primary action",
     "PHASES: Frames 1-1: ready. Frames 2-2: load weight. Frames 3-3: deep charge. Frames 4-4: release begins. Frames 5-5: heavy impact. Frames 6-6: follow-through. Frames 7-7: recover weight. Frames 8-8: ready end.",
   ],
@@ -1021,7 +1021,7 @@ exports[`versioned Motion Recipes > validates and snapshots charge-heavy-attack 
     ],
     "recipe": {
       "bodyTopology": "biped",
-      "compilerVersion": "1.1.0",
+      "compilerVersion": "1.2.0",
       "experimental": true,
       "frameCount": 8,
       "id": "charge-heavy-attack",
@@ -1085,7 +1085,7 @@ exports[`versioned Motion Recipes > validates and snapshots combo-attack 1`] = `
     "ready end",
   ],
   "promptHead": [
-    "HARD: Motion Recipe: combo-attack v1; compiler 1.1.0. Create exactly 8 source frames for each requested direction. Use fixed 256px by 256px cells and keep every frame isolated inside its own cell.",
+    "HARD: Motion Recipe: combo-attack v1; compiler 1.2.0. Create exactly 8 source frames for each requested direction. Use fixed 256px by 256px cells and keep every frame isolated inside its own cell.",
     "MOTION: Two or three clearly linked attacks with alternating silhouettes, one readable finisher, and a full recovery instead of a seamless loop. Preserve handedness, weapon class, grip, and facing through every link; do not duplicate one strike pose. hair and clothing follow-through must lag the body motion without replacing the primary action",
     "PHASES: Frames 1-1: ready. Frames 2-2: first wind-up. Frames 3-3: first strike. Frames 4-4: link. Frames 5-5: second strike. Frames 6-6: finisher. Frames 7-7: follow-through. Frames 8-8: ready end.",
   ],
@@ -1152,7 +1152,7 @@ exports[`versioned Motion Recipes > validates and snapshots combo-attack 1`] = `
     ],
     "recipe": {
       "bodyTopology": "biped",
-      "compilerVersion": "1.1.0",
+      "compilerVersion": "1.2.0",
       "experimental": true,
       "frameCount": 8,
       "id": "combo-attack",
@@ -1216,7 +1216,7 @@ exports[`versioned Motion Recipes > validates and snapshots dash 1`] = `
     "ready end",
   ],
   "promptHead": [
-    "HARD: Motion Recipe: dash v1; compiler 1.1.0. Create exactly 8 source frames for each requested direction. Use fixed 256px by 256px cells and keep every frame isolated inside its own cell.",
+    "HARD: Motion Recipe: dash v1; compiler 1.2.0. Create exactly 8 source frames for each requested direction. Use fixed 256px by 256px cells and keep every frame isolated inside its own cell.",
     "MOTION: Explosive game dash with compression, strong launch silhouette, controlled travel, braking contact, and a readable recovery. Travel must stay within the cell and the final frame must not be mistaken for a looping run pose. hair and clothing follow-through must lag the body motion without replacing the primary action",
     "PHASES: Frames 1-1: ready. Frames 2-2: compression. Frames 3-3: launch. Frames 4-4: acceleration. Frames 5-5: peak travel. Frames 6-6: brake. Frames 7-7: replant. Frames 8-8: ready end.",
   ],
@@ -1283,7 +1283,7 @@ exports[`versioned Motion Recipes > validates and snapshots dash 1`] = `
     ],
     "recipe": {
       "bodyTopology": "biped",
-      "compilerVersion": "1.1.0",
+      "compilerVersion": "1.2.0",
       "experimental": true,
       "frameCount": 8,
       "id": "dash",
@@ -1345,7 +1345,7 @@ exports[`versioned Motion Recipes > validates and snapshots death-downed 1`] = `
     "final hold",
   ],
   "promptHead": [
-    "HARD: Motion Recipe: death-downed v1; compiler 1.1.0. Create exactly 8 source frames for each requested direction. Use fixed 256px by 256px cells and keep every frame isolated inside its own cell.",
+    "HARD: Motion Recipe: death-downed v1; compiler 1.2.0. Create exactly 8 source frames for each requested direction. Use fixed 256px by 256px cells and keep every frame isolated inside its own cell.",
     "MOTION: Game-style non-gory defeat that collapses or kneels into a compact, readable, mostly still downed pose. Prefer kneeling, slumped, seated, or compact fallen poses over a full sideways corpse. hair and clothing follow-through must lag the body motion without replacing the primary action",
     "PHASES: Frames 1-1: lose balance. Frames 2-2: collapse begins. Frames 3-3: fall or kneel. Frames 4-4: ground contact. Frames 5-5: downed pose. Frames 6-6: settle. Frames 7-7: final still. Frames 8-8: final hold.",
   ],
@@ -1412,7 +1412,7 @@ exports[`versioned Motion Recipes > validates and snapshots death-downed 1`] = `
     ],
     "recipe": {
       "bodyTopology": "biped",
-      "compilerVersion": "1.1.0",
+      "compilerVersion": "1.2.0",
       "frameCount": 8,
       "id": "death-downed",
       "modifiers": {
@@ -1473,7 +1473,7 @@ exports[`versioned Motion Recipes > validates and snapshots dodge-roll 1`] = `
     "ready end",
   ],
   "promptHead": [
-    "HARD: Motion Recipe: dodge-roll v1; compiler 1.1.0. Create exactly 8 source frames for each requested direction. Use fixed 256px by 256px cells and keep every frame isolated inside its own cell.",
+    "HARD: Motion Recipe: dodge-roll v1; compiler 1.2.0. Create exactly 8 source frames for each requested direction. Use fixed 256px by 256px cells and keep every frame isolated inside its own cell.",
     "MOTION: Compact evasive roll or backstep chosen to fit the source topology, followed by a clean replant and ready stance. Do not force a humanoid somersault onto a topology that should sidestep, coil, hop, or hover-shift instead. hair and clothing follow-through must lag the body motion without replacing the primary action",
     "PHASES: Frames 1-1: ready. Frames 2-2: evade anticipation. Frames 3-3: leave line. Frames 4-4: compact transit. Frames 5-5: clear threat. Frames 6-6: replant. Frames 7-7: turn back. Frames 8-8: ready end.",
   ],
@@ -1540,7 +1540,7 @@ exports[`versioned Motion Recipes > validates and snapshots dodge-roll 1`] = `
     ],
     "recipe": {
       "bodyTopology": "biped",
-      "compilerVersion": "1.1.0",
+      "compilerVersion": "1.2.0",
       "experimental": true,
       "frameCount": 8,
       "id": "dodge-roll",
@@ -1602,7 +1602,7 @@ exports[`versioned Motion Recipes > validates and snapshots get-up 1`] = `
     "ready end",
   ],
   "promptHead": [
-    "HARD: Motion Recipe: get-up v1; compiler 1.1.0. Create exactly 8 source frames for each requested direction. Use fixed 256px by 256px cells and keep every frame isolated inside its own cell.",
+    "HARD: Motion Recipe: get-up v1; compiler 1.2.0. Create exactly 8 source frames for each requested direction. Use fixed 256px by 256px cells and keep every frame isolated inside its own cell.",
     "MOTION: Topology-aware recovery from a compact downed pose into the source ready stance with clear support regain and no scale popping. Bipeds push or kneel, quadrupeds regain paws, body-contact creatures uncoil, and multi-leg creatures restore their support cluster. hair and clothing follow-through must lag the body motion without replacing the primary action",
     "PHASES: Frames 1-1: downed hold. Frames 2-2: find support. Frames 3-3: lift begins. Frames 4-4: mid recovery. Frames 5-5: support returns. Frames 6-6: rise or uncoil. Frames 7-7: settle. Frames 8-8: ready end.",
   ],
@@ -1669,7 +1669,7 @@ exports[`versioned Motion Recipes > validates and snapshots get-up 1`] = `
     ],
     "recipe": {
       "bodyTopology": "biped",
-      "compilerVersion": "1.1.0",
+      "compilerVersion": "1.2.0",
       "experimental": true,
       "frameCount": 8,
       "id": "get-up",
@@ -1731,7 +1731,7 @@ exports[`versioned Motion Recipes > validates and snapshots guard-block 1`] = `
     "guard end",
   ],
   "promptHead": [
-    "HARD: Motion Recipe: guard-block v1; compiler 1.1.0. Create exactly 8 source frames for each requested direction. Use fixed 256px by 256px cells and keep every frame isolated inside its own cell.",
+    "HARD: Motion Recipe: guard-block v1; compiler 1.2.0. Create exactly 8 source frames for each requested direction. Use fixed 256px by 256px cells and keep every frame isolated inside its own cell.",
     "MOTION: Readable defensive brace using arms, weapon, staff, shield, or body stance without hiding the character. It must read as defense even without a shield. hair and clothing follow-through must lag the body motion without replacing the primary action",
     "PHASES: Frames 1-1: ready. Frames 2-2: raise guard. Frames 3-3: brace. Frames 4-4: hold. Frames 5-5: absorb. Frames 6-6: recoil. Frames 7-7: recover. Frames 8-8: guard end.",
   ],
@@ -1798,7 +1798,7 @@ exports[`versioned Motion Recipes > validates and snapshots guard-block 1`] = `
     ],
     "recipe": {
       "bodyTopology": "biped",
-      "compilerVersion": "1.1.0",
+      "compilerVersion": "1.2.0",
       "frameCount": 8,
       "id": "guard-block",
       "modifiers": {
@@ -1859,7 +1859,7 @@ exports[`versioned Motion Recipes > validates and snapshots hurt-reaction 1`] = 
     "ready end",
   ],
   "promptHead": [
-    "HARD: Motion Recipe: hurt-reaction v1; compiler 1.1.0. Create exactly 8 source frames for each requested direction. Use fixed 256px by 256px cells and keep every frame isolated inside its own cell.",
+    "HARD: Motion Recipe: hurt-reaction v1; compiler 1.2.0. Create exactly 8 source frames for each requested direction. Use fixed 256px by 256px cells and keep every frame isolated inside its own cell.",
     "MOTION: Brief non-gory hit reaction using torso angle, head jolt, shoulder lift, and a bracing foot without collapsing. Make the recoil distinct from attack, jump, and downed animations. hair and clothing follow-through must lag the body motion without replacing the primary action",
     "PHASES: Frames 1-1: ready. Frames 2-2: hit start. Frames 3-3: recoil. Frames 4-4: recoil peak. Frames 5-5: brace. Frames 6-6: regain balance. Frames 7-7: settle. Frames 8-8: ready end.",
   ],
@@ -1926,7 +1926,7 @@ exports[`versioned Motion Recipes > validates and snapshots hurt-reaction 1`] = 
     ],
     "recipe": {
       "bodyTopology": "biped",
-      "compilerVersion": "1.1.0",
+      "compilerVersion": "1.2.0",
       "frameCount": 8,
       "id": "hurt-reaction",
       "modifiers": {
@@ -1987,7 +1987,7 @@ exports[`versioned Motion Recipes > validates and snapshots idle-breathing 1`] =
     "loop bridge",
   ],
   "promptHead": [
-    "HARD: Motion Recipe: idle-breathing v1; compiler 1.1.0. Create exactly 8 source frames for each requested direction. Use fixed 256px by 256px cells and keep every frame isolated inside its own cell.",
+    "HARD: Motion Recipe: idle-breathing v1; compiler 1.2.0. Create exactly 8 source frames for each requested direction. Use fixed 256px by 256px cells and keep every frame isolated inside its own cell.",
     "MOTION: Idle breathing ready stance with planted feet, a visible 2-4px shoulder and chest rise, controlled inhale/exhale, and a stable center. Feet remain planted on the exact baseline; no stepping, walking, hopping, or nearly identical frames. hair, hood, clothing, and backpack follow the breath with a small delay",
     "PHASES: Frames 1-1: neutral. Frames 2-2: inhale. Frames 3-3: secondary rise. Frames 4-4: top of breath. Frames 5-5: exhale. Frames 6-6: secondary settle. Frames 7-7: return. Frames 8-8: loop bridge.",
   ],
@@ -2054,7 +2054,7 @@ exports[`versioned Motion Recipes > validates and snapshots idle-breathing 1`] =
     ],
     "recipe": {
       "bodyTopology": "biped",
-      "compilerVersion": "1.1.0",
+      "compilerVersion": "1.2.0",
       "frameCount": 8,
       "id": "idle-breathing",
       "modifiers": {
@@ -2115,7 +2115,7 @@ exports[`versioned Motion Recipes > validates and snapshots interact-pickup 1`] 
     "ready end",
   ],
   "promptHead": [
-    "HARD: Motion Recipe: interact-pickup v1; compiler 1.1.0. Create exactly 8 source frames for each requested direction. Use fixed 256px by 256px cells and keep every frame isolated inside its own cell.",
+    "HARD: Motion Recipe: interact-pickup v1; compiler 1.2.0. Create exactly 8 source frames for each requested direction. Use fixed 256px by 256px cells and keep every frame isolated inside its own cell.",
     "MOTION: Generic interact, inspect, or pickup action with readable hands and a compact upper-body bend. Any item remains small; avoid a crouch that crushes the silhouette. hair and clothing follow-through must lag the body motion without replacing the primary action",
     "PHASES: Frames 1-1: ready. Frames 2-2: look. Frames 3-3: reach. Frames 4-4: bend or pickup. Frames 5-5: inspect. Frames 6-6: return upward. Frames 7-7: settle. Frames 8-8: ready end.",
   ],
@@ -2182,7 +2182,7 @@ exports[`versioned Motion Recipes > validates and snapshots interact-pickup 1`] 
     ],
     "recipe": {
       "bodyTopology": "biped",
-      "compilerVersion": "1.1.0",
+      "compilerVersion": "1.2.0",
       "frameCount": 8,
       "id": "interact-pickup",
       "modifiers": {
@@ -2245,7 +2245,7 @@ exports[`versioned Motion Recipes > validates and snapshots item-use 1`] = `
     "ready end",
   ],
   "promptHead": [
-    "HARD: Motion Recipe: item-use v1; compiler 1.1.0. Create exactly 8 source frames for each requested direction. Use fixed 256px by 256px cells and keep every frame isolated inside its own cell.",
+    "HARD: Motion Recipe: item-use v1; compiler 1.2.0. Create exactly 8 source frames for each requested direction. Use fixed 256px by 256px cells and keep every frame isolated inside its own cell.",
     "MOTION: Upright hand-focused item use with a compact potion, scroll, bottle, charm, ration, card, device, or tool. Keep the item near the body and do not bend toward the floor. hair and clothing follow-through must lag the body motion without replacing the primary action",
     "PHASES: Frames 1-1: ready. Frames 2-2: draw item. Frames 3-3: present item. Frames 4-4: use item. Frames 5-5: tiny read beat. Frames 6-6: put away. Frames 7-7: settle. Frames 8-8: ready end.",
   ],
@@ -2312,7 +2312,7 @@ exports[`versioned Motion Recipes > validates and snapshots item-use 1`] = `
     ],
     "recipe": {
       "bodyTopology": "biped",
-      "compilerVersion": "1.1.0",
+      "compilerVersion": "1.2.0",
       "frameCount": 8,
       "id": "item-use",
       "modifiers": {
@@ -2375,7 +2375,7 @@ exports[`versioned Motion Recipes > validates and snapshots jump-hop 1`] = `
     "settle",
   ],
   "promptHead": [
-    "HARD: Motion Recipe: jump-hop v1; compiler 1.1.0. Create exactly 8 source frames for each requested direction. Use fixed 256px by 256px cells and keep every frame isolated inside its own cell.",
+    "HARD: Motion Recipe: jump-hop v1; compiler 1.2.0. Create exactly 8 source frames for each requested direction. Use fixed 256px by 256px cells and keep every frame isolated inside its own cell.",
     "MOTION: Small in-place jump with crouch, push-off, apex, fall, landing squash, and a return to the original center and baseline. Leave generous top padding for hair, hats, ears, staff, and weapons. hair and clothing follow-through must lag the body motion without replacing the primary action",
     "PHASES: Frames 1-1: ready. Frames 2-2: crouch. Frames 3-3: push-off. Frames 4-4: rising. Frames 5-5: apex. Frames 6-6: falling. Frames 7-7: landing squash. Frames 8-8: settle.",
   ],
@@ -2442,7 +2442,7 @@ exports[`versioned Motion Recipes > validates and snapshots jump-hop 1`] = `
     ],
     "recipe": {
       "bodyTopology": "biped",
-      "compilerVersion": "1.1.0",
+      "compilerVersion": "1.2.0",
       "frameCount": 8,
       "id": "jump-hop",
       "modifiers": {
@@ -2503,7 +2503,7 @@ exports[`versioned Motion Recipes > validates and snapshots knockback 1`] = `
     "ready end",
   ],
   "promptHead": [
-    "HARD: Motion Recipe: knockback v1; compiler 1.1.0. Create exactly 8 source frames for each requested direction. Use fixed 256px by 256px cells and keep every frame isolated inside its own cell.",
+    "HARD: Motion Recipe: knockback v1; compiler 1.2.0. Create exactly 8 source frames for each requested direction. Use fixed 256px by 256px cells and keep every frame isolated inside its own cell.",
     "MOTION: Strong non-gory knockback with torso recoil, compact backward slide, bracing foot, stumble, and full recovery. Stronger than Hurt Reaction but never becomes a defeated/downed pose. hair and clothing follow-through must lag the body motion without replacing the primary action",
     "PHASES: Frames 1-1: ready. Frames 2-2: impact. Frames 3-3: lean back. Frames 4-4: recoil peak. Frames 5-5: stumble. Frames 6-6: regain footing. Frames 7-7: settle. Frames 8-8: ready end.",
   ],
@@ -2570,7 +2570,7 @@ exports[`versioned Motion Recipes > validates and snapshots knockback 1`] = `
     ],
     "recipe": {
       "bodyTopology": "biped",
-      "compilerVersion": "1.1.0",
+      "compilerVersion": "1.2.0",
       "frameCount": 8,
       "id": "knockback",
       "modifiers": {
@@ -2631,7 +2631,7 @@ exports[`versioned Motion Recipes > validates and snapshots ranged-attack 1`] = 
     "ready end",
   ],
   "promptHead": [
-    "HARD: Motion Recipe: ranged-attack v1; compiler 1.1.0. Create exactly 8 source frames for each requested direction. Use fixed 256px by 256px cells and keep every frame isolated inside its own cell.",
+    "HARD: Motion Recipe: ranged-attack v1; compiler 1.2.0. Create exactly 8 source frames for each requested direction. Use fixed 256px by 256px cells and keep every frame isolated inside its own cell.",
     "MOTION: Generic ranged action for bows, throws, staffs, or light shots with a compact forward release. Use one consistent tiny projectile no larger than about 20x20px near the hand or weapon tip. hair and clothing follow-through must lag the body motion without replacing the primary action",
     "PHASES: Frames 1-1: ready. Frames 2-2: aim. Frames 3-3: draw or charge. Frames 4-4: release. Frames 5-5: tiny shot. Frames 6-6: follow-through. Frames 7-7: recover. Frames 8-8: ready end.",
   ],
@@ -2698,7 +2698,7 @@ exports[`versioned Motion Recipes > validates and snapshots ranged-attack 1`] = 
     ],
     "recipe": {
       "bodyTopology": "biped",
-      "compilerVersion": "1.1.0",
+      "compilerVersion": "1.2.0",
       "frameCount": 8,
       "id": "ranged-attack",
       "modifiers": {
@@ -2761,7 +2761,7 @@ exports[`versioned Motion Recipes > validates and snapshots run-cycle 1`] = `
     "left-lead endpoint",
   ],
   "promptHead": [
-    "HARD: Motion Recipe: run-cycle v1; compiler 1.1.0. Create exactly 8 source frames for each requested direction. Use fixed 256px by 256px cells and keep every frame isolated inside its own cell.",
+    "HARD: Motion Recipe: run-cycle v1; compiler 1.2.0. Create exactly 8 source frames for each requested direction. Use fixed 256px by 256px cells and keep every frame isolated inside its own cell.",
     "MOTION: Generate one run half-cycle: the right-leading stride crosses through mandatory feet-together passing poses into the left-leading stride. Playback appends the reverse order for a 16-frame ping-pong cycle; do not squeeze both full halves into the source frames. forward torso lean, strong opposite arm drive, hair and clothing lag",
     "PHASES: Frames 1-1: right-lead stride. Frames 2-2: stride narrows. Frames 3-3: feet together. Frames 4-4: crossover. Frames 5-5: left lead begins. Frames 6-6: left reach. Frames 7-7: airborne stride. Frames 8-8: left-lead endpoint.",
   ],
@@ -2828,7 +2828,7 @@ exports[`versioned Motion Recipes > validates and snapshots run-cycle 1`] = `
     ],
     "recipe": {
       "bodyTopology": "biped",
-      "compilerVersion": "1.1.0",
+      "compilerVersion": "1.2.0",
       "frameCount": 8,
       "id": "run-cycle",
       "modifiers": {
@@ -2889,7 +2889,7 @@ exports[`versioned Motion Recipes > validates and snapshots skill-release 1`] = 
     "ready end",
   ],
   "promptHead": [
-    "HARD: Motion Recipe: skill-release v1; compiler 1.1.0. Create exactly 8 source frames for each requested direction. Use fixed 256px by 256px cells and keep every frame isolated inside its own cell.",
+    "HARD: Motion Recipe: skill-release v1; compiler 1.2.0. Create exactly 8 source frames for each requested direction. Use fixed 256px by 256px cells and keep every frame isolated inside its own cell.",
     "MOTION: Compact skill activation emphasizing frames 4-5, with energy attached to hand, chest, weapon, or feet while the silhouette stays visible. This is the release moment, not a long cast or detached ranged weapon attack. hair and clothing follow-through must lag the body motion without replacing the primary action",
     "PHASES: Frames 1-1: ready. Frames 2-2: focus. Frames 3-3: compress energy. Frames 4-4: release. Frames 5-5: peak effect. Frames 6-6: recoil. Frames 7-7: settle. Frames 8-8: ready end.",
   ],
@@ -2956,7 +2956,7 @@ exports[`versioned Motion Recipes > validates and snapshots skill-release 1`] = 
     ],
     "recipe": {
       "bodyTopology": "biped",
-      "compilerVersion": "1.1.0",
+      "compilerVersion": "1.2.0",
       "frameCount": 8,
       "id": "skill-release",
       "modifiers": {
@@ -3017,7 +3017,7 @@ exports[`versioned Motion Recipes > validates and snapshots spell-cast 1`] = `
     "ready end",
   ],
   "promptHead": [
-    "HARD: Motion Recipe: spell-cast v1; compiler 1.1.0. Create exactly 8 source frames for each requested direction. Use fixed 256px by 256px cells and keep every frame isolated inside its own cell.",
+    "HARD: Motion Recipe: spell-cast v1; compiler 1.2.0. Create exactly 8 source frames for each requested direction. Use fixed 256px by 256px cells and keep every frame isolated inside its own cell.",
     "MOTION: Grounded spell cast with planted feet or anchored robe hem and a compact charge/release at the hand, staff, book, or focus. Use one consistent effect color, size, and attachment point across directions. hair and clothing follow-through must lag the body motion without replacing the primary action",
     "PHASES: Frames 1-1: ready. Frames 2-2: raise focus. Frames 3-3: charge. Frames 4-4: bright charge. Frames 5-5: release. Frames 6-6: follow-through. Frames 7-7: settle. Frames 8-8: ready end.",
   ],
@@ -3084,7 +3084,7 @@ exports[`versioned Motion Recipes > validates and snapshots spell-cast 1`] = `
     ],
     "recipe": {
       "bodyTopology": "biped",
-      "compilerVersion": "1.1.0",
+      "compilerVersion": "1.2.0",
       "frameCount": 8,
       "id": "spell-cast",
       "modifiers": {
@@ -3147,7 +3147,7 @@ exports[`versioned Motion Recipes > validates and snapshots stun 1`] = `
     "ready end",
   ],
   "promptHead": [
-    "HARD: Motion Recipe: stun v1; compiler 1.1.0. Create exactly 8 source frames for each requested direction. Use fixed 256px by 256px cells and keep every frame isolated inside its own cell.",
+    "HARD: Motion Recipe: stun v1; compiler 1.2.0. Create exactly 8 source frames for each requested direction. Use fixed 256px by 256px cells and keep every frame isolated inside its own cell.",
     "MOTION: Non-gory stun reaction with an immediate control break, a readable unstable hold, and a partial recovery without becoming downed. Use topology-appropriate support loss: foot stagger, paw brace, body wobble, hover disruption, wing hitch, or leg-cluster instability. hair and clothing follow-through must lag the body motion without replacing the primary action",
     "PHASES: Frames 1-1: ready. Frames 2-2: stun impact. Frames 3-3: balance breaks. Frames 4-4: unstable peak. Frames 5-5: stunned hold. Frames 6-6: regain control. Frames 7-7: settle. Frames 8-8: ready end.",
   ],
@@ -3214,7 +3214,7 @@ exports[`versioned Motion Recipes > validates and snapshots stun 1`] = `
     ],
     "recipe": {
       "bodyTopology": "biped",
-      "compilerVersion": "1.1.0",
+      "compilerVersion": "1.2.0",
       "experimental": true,
       "frameCount": 8,
       "id": "stun",
@@ -3276,7 +3276,7 @@ exports[`versioned Motion Recipes > validates and snapshots talk 1`] = `
     "loop bridge",
   ],
   "promptHead": [
-    "HARD: Motion Recipe: talk v1; compiler 1.1.0. Create exactly 8 source frames for each requested direction. Use fixed 256px by 256px cells and keep every frame isolated inside its own cell.",
+    "HARD: Motion Recipe: talk v1; compiler 1.2.0. Create exactly 8 source frames for each requested direction. Use fixed 256px by 256px cells and keep every frame isolated inside its own cell.",
     "MOTION: Restrained NPC conversation loop using small hand gestures, nods, shoulders, blink, and a clean bridge. Keep feet planted; conversation must remain readable even when pixel-art mouth motion is tiny. small shoulder and clothing follow-through supports the restrained gestures",
     "PHASES: Frames 1-1: neutral. Frames 2-2: gesture begins. Frames 3-3: small nod. Frames 4-4: gesture peak. Frames 5-5: blink or settle. Frames 6-6: second gesture. Frames 7-7: return. Frames 8-8: loop bridge.",
   ],
@@ -3343,7 +3343,7 @@ exports[`versioned Motion Recipes > validates and snapshots talk 1`] = `
     ],
     "recipe": {
       "bodyTopology": "biped",
-      "compilerVersion": "1.1.0",
+      "compilerVersion": "1.2.0",
       "frameCount": 8,
       "id": "talk",
       "modifiers": {
@@ -3404,7 +3404,7 @@ exports[`versioned Motion Recipes > validates and snapshots victory-cheer 1`] = 
     "loop bridge",
   ],
   "promptHead": [
-    "HARD: Motion Recipe: victory-cheer v1; compiler 1.1.0. Create exactly 8 source frames for each requested direction. Use fixed 256px by 256px cells and keep every frame isolated inside its own cell.",
+    "HARD: Motion Recipe: victory-cheer v1; compiler 1.2.0. Create exactly 8 source frames for each requested direction. Use fixed 256px by 256px cells and keep every frame isolated inside its own cell.",
     "MOTION: Expressive victory cheer or wave using arms, head, clothing, and only a small celebratory bounce. Keep it distinct from jump by preserving a stable landing baseline. hair and clothing follow-through must lag the body motion without replacing the primary action",
     "PHASES: Frames 1-1: ready. Frames 2-2: arm rises. Frames 3-3: cheer peak. Frames 4-4: small bounce. Frames 5-5: wave or hold. Frames 6-6: settle. Frames 7-7: proud pose. Frames 8-8: loop bridge.",
   ],
@@ -3471,7 +3471,7 @@ exports[`versioned Motion Recipes > validates and snapshots victory-cheer 1`] = 
     ],
     "recipe": {
       "bodyTopology": "biped",
-      "compilerVersion": "1.1.0",
+      "compilerVersion": "1.2.0",
       "frameCount": 8,
       "id": "victory-cheer",
       "modifiers": {
@@ -3532,7 +3532,7 @@ exports[`versioned Motion Recipes > validates and snapshots walk-cycle 1`] = `
     "left reach bridge",
   ],
   "promptHead": [
-    "HARD: Motion Recipe: walk-cycle v1; compiler 1.1.0. Create exactly 8 source frames for each requested direction. Use fixed 256px by 256px cells and keep every frame isolated inside its own cell.",
+    "HARD: Motion Recipe: walk-cycle v1; compiler 1.2.0. Create exactly 8 source frames for each requested direction. Use fixed 256px by 256px cells and keep every frame isolated inside its own cell.",
     "MOTION: Alternating walk cycle with clear contact, passing, opposite arm swing, modest stride, knee bend, toe contact, and no airborne frame. At least one foot stays near the ground; frame 1 and frame 5 must show clearly different contact silhouettes. subtle torso bob and hair or clothing follow-through support visible leg motion",
     "PHASES: Frames 1-1: left contact. Frames 2-2: left down. Frames 3-3: left passing. Frames 4-4: right reach. Frames 5-5: right contact. Frames 6-6: right down. Frames 7-7: right passing. Frames 8-8: left reach bridge.",
   ],
@@ -3599,7 +3599,7 @@ exports[`versioned Motion Recipes > validates and snapshots walk-cycle 1`] = `
     ],
     "recipe": {
       "bodyTopology": "biped",
-      "compilerVersion": "1.1.0",
+      "compilerVersion": "1.2.0",
       "frameCount": 8,
       "id": "walk-cycle",
       "modifiers": {

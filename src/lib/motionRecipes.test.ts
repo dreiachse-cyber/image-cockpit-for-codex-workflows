@@ -4,6 +4,8 @@ import {
   compileMotionRecipe,
   compileMotionRecipeQaContract,
   DEFAULT_MOTION_VARIANT,
+  EXPERIMENTAL_MOTION_FRAME_COUNTS,
+  isExperimentalMotionFrameCount,
   LEGACY_MOTION_RECIPE_IDS,
   motionFrameGrid,
   MOTION_RECIPES,
@@ -38,6 +40,14 @@ describe("versioned Motion Recipes", () => {
     const experimental = MOTION_RECIPES.filter((recipe) => recipe.experimental);
     expect(experimental.map((recipe) => recipe.id)).toEqual(["dash", "dodge-roll", "charge-heavy-attack", "combo-attack", "stun", "get-up"]);
     expect(MOTION_RECIPES.filter((recipe) => LEGACY_MOTION_RECIPE_IDS.includes(recipe.id)).every((recipe) => !recipe.experimental)).toBe(true);
+  });
+
+  it("keeps 8f as the stable default and marks only 16f/20f as experimental budgets", () => {
+    expect(MOTION_FRAME_COUNTS).toEqual([4, 6, 8, 12, 16, 20]);
+    expect(EXPERIMENTAL_MOTION_FRAME_COUNTS).toEqual([16, 20]);
+    expect(MOTION_FRAME_COUNTS.filter(isExperimentalMotionFrameCount)).toEqual([16, 20]);
+    expect(MOTION_RECIPES.every((recipe) => recipe.frameCount === 8 && recipe.allowedFrameCounts.join(",") === "4,6,8,12,16,20")).toBe(true);
+    expect(MOTION_RECIPE_COMPILER_VERSION).toBe("1.2.0");
   });
 
   it.each(MOTION_RECIPES.map((recipe) => [recipe.id, recipe] as const))("validates and snapshots %s", (_id, recipe) => {

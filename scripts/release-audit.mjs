@@ -38,6 +38,7 @@ const requiredFiles = [
   "docs/qa/completed-codex-job-import-storage-quota.md",
   "docs/qa/local-state-oom-safe-mode-retention.md",
   "docs/qa/v0.1.6-release-prep.md",
+  "docs/qa/experimental-16-20-frame-animation.md",
   "docs/qa/v0.1.5-release-prep.md",
   "docs/qa/v0.1.4-release-prep.md",
   "docs/qa/v0.1.3-release-prep.md",
@@ -473,6 +474,9 @@ function checkWorkflowIds() {
   const uiSmokeText = readText("scripts/ui-smoke.mjs");
   const exportersText = readText("src/lib/exporters.ts");
   const animationPackText = readText("src/lib/animationPack.ts");
+  const motionRecipesText = readText("src/lib/motionRecipes.ts");
+  const appTestText = readText("src/App.test.ts");
+  const extendedFrameQaText = readText("docs/qa/experimental-16-20-frame-animation.md");
   const animationTournamentText = readText("src/lib/animationTournament.ts");
   const animationReviewText = readText("src/lib/animationReview.ts");
   const animationReviewUiText = readText("src/AnimationReviewCockpit.tsx");
@@ -487,7 +491,7 @@ function checkWorkflowIds() {
   const finalReviewIndexText = readText("docs/qa/animation-uplift-review-index.md");
   const realCodexSmokeText = readText("scripts/real-codex-runner-smoke.mjs");
   const imageEditFullBodyQaText = readText("docs/qa/image-edit-full-body-fit.md");
-  if (!appText || !stylesText || !smokeText || !uiSmokeText || !realCodexSmokeText || !animationTournamentText || !animationReviewText || !animationReviewUiText || !serverText || !animationReviewQaText || !vfxCompositeText || !vfxCompositeUiText || !effectQualityText || !vfxCompositeQaText || !motionPilotText || !finalBenchmarkText || !finalReviewIndexText) return;
+  if (!appText || !stylesText || !smokeText || !uiSmokeText || !realCodexSmokeText || !animationTournamentText || !animationReviewText || !animationReviewUiText || !serverText || !animationReviewQaText || !vfxCompositeText || !vfxCompositeUiText || !effectQualityText || !vfxCompositeQaText || !motionPilotText || !finalBenchmarkText || !finalReviewIndexText || !motionRecipesText || !appTestText || !extendedFrameQaText) return;
 
   requiredWorkflowIds.forEach((workflowId) => {
     if (!appText.includes(workflowId)) {
@@ -1030,11 +1034,37 @@ function checkWorkflowIds() {
     [uiSmokeText, '"1 direction"'],
     [uiSmokeText, 'oneTitle === "side"'],
     [uiSmokeText, "IMAGE_COCKPIT_UI_SMOKE_ONLY_SINGLE_DIRECTION"],
-    [uiSmokeText, 'sidePreset.gridColumns === "8" && sidePreset.gridRows === "1"']
+    [uiSmokeText, 'sidePreset.gridColumns === "20" && sidePreset.gridRows === "1"']
   ].forEach(([text, marker]) => {
     if (!text.includes(marker)) {
       failures.push("Animation Generation should keep the side-only 1-direction contract: " + marker);
     }
+  });
+  [
+    [motionRecipesText, "export type MotionFrameCount = 4 | 6 | 8 | 12 | 16 | 20"],
+    [motionRecipesText, "MOTION_FRAME_COUNTS: readonly MotionFrameCount[] = [4, 6, 8, 12, 16, 20]"],
+    [motionRecipesText, "EXPERIMENTAL_MOTION_FRAME_COUNTS = [16, 20]"],
+    [motionRecipesText, 'MOTION_RECIPE_COMPILER_VERSION = "1.2.0"'],
+    [appText, "data-frame-count={frameCount}"],
+    [appText, "16f / 20f are experimental"],
+    [appText, "motion-frame-experimental-note"],
+    [stylesText, ".app-shell .motion-frame-buttons { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }"],
+    [serverText, "16 frames use 4x4, and 20 frames use 4x5"],
+    [animationPackText, "4, 6, 8, 12, 16, or 20"],
+    [animationPackText, "animationLibraryHistoryMetadata"],
+    [appText, "historyAnimationFrameCount(selected)"],
+    [smokeText, "side-only candidate should keep a 20x1 / 20-frame final sheet contract"],
+    [uiSmokeText, "Side-only 20f final sheet should be 5120x256"],
+    [uiSmokeText, "Five-direction 20f final sheet should be 5120x1280"],
+    [uiSmokeText, "Japanese frame buttons should keep localized accessible names"],
+    [uiSmokeText, "five-direction 20f Animation Pack download"],
+    [uiSmokeText, "Every side-only browser manifest should preserve a 4x5 raw direction grid"],
+    [appTestText, "[20, { columns: 4, rows: 5, gutter: 0 }]"],
+    [extendedFrameQaText, "20f side-only"],
+    [extendedFrameQaText, "5120x256"],
+    [extendedFrameQaText, "5120x1280"]
+  ].forEach(([text, marker]) => {
+    if (!text.includes(marker)) failures.push(`Animation Generation should preserve Experimental 16f/20f coverage: ${marker}`);
   });
   [
     "AnimationUtilityModal",

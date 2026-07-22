@@ -22,7 +22,7 @@ import {
 } from "./animationPackV2";
 
 describe("Animation Pack v2 timeline", () => {
-  it.each([4, 6, 8, 12])("keeps %i-frame duration, duplicate, reverse, and ping-pong edits metadata-only", (frameCount) => {
+  it.each([4, 6, 8, 12, 16, 20])("keeps %i-frame duration, duplicate, reverse, and ping-pong edits metadata-only", (frameCount) => {
     const original = makePack(frameCount);
     const held = holdAnimationFrame(original, 1, 80);
     const duplicated = duplicateAnimationFrame(held, 1);
@@ -167,7 +167,7 @@ function makePack(frameCount = 8, directionCount = 5): AnimationPackV2 {
       version: 2,
       compilerVersion: "1.1.0",
       qualityProfile: "grounded-strict",
-      frameCount: frameCount as 4 | 6 | 8 | 12
+      frameCount: frameCount as 4 | 6 | 8 | 12 | 16 | 20
     },
     sourceFingerprint: "sha256-test",
     generationProfile: "best",

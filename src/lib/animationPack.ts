@@ -1,11 +1,36 @@
 import JSZip from "jszip";
-import type { AnimationLibraryItem, AnimationPackManifest } from "../types";
+import type { AnimationLibraryItem, AnimationPackManifest, HistoryItem, MotionRecipeMetadata } from "../types";
 import { createId } from "./image";
 import { ANIMATION_PACK_V2_SCHEMA, migrateAnimationPackV1, packV2ToLegacyManifest, validateAnimationPackV2 } from "./animationPackV2";
 
 export const ANIMATION_PACK_SCHEMA = "image-cockpit.animation.v1";
 const MAX_PACK_SIZE_BYTES = 30 * 1024 * 1024;
 const MAX_EMBEDDED_FILE_SIZE_BYTES = 12 * 1024 * 1024;
+
+export function animationLibraryHistoryMetadata(
+  item: Pick<AnimationLibraryItem, "manifest" | "packV2">
+): Pick<HistoryItem, "animationDirections" | "motionRecipe" | "animationPackV2"> {
+  const frameCount = supportedMotionFrameCount(item.manifest.framesPerDirection)
+    ?? supportedMotionFrameCount(item.manifest.motionRecipe?.frameCount);
+  const baseMotionRecipe: MotionRecipeMetadata | undefined = item.manifest.motionRecipe ?? (item.packV2
+    ? {
+        id: item.packV2.recipeId,
+        version: item.packV2.recipeVersion,
+        compilerVersion: item.packV2.compilerVersion,
+        qualityProfile: "grounded-soft"
+      }
+    : undefined);
+  return {
+    animationDirections: [...item.manifest.directions],
+    motionRecipe: baseMotionRecipe && frameCount ? { ...baseMotionRecipe, frameCount } : baseMotionRecipe,
+    animationPackV2: item.packV2 ? validateAnimationPackV2(item.packV2) : undefined
+  };
+}
+
+function supportedMotionFrameCount(value: unknown): 4 | 6 | 8 | 12 | 16 | 20 | undefined {
+  const parsed = Number(value);
+  return parsed === 4 || parsed === 6 || parsed === 8 || parsed === 12 || parsed === 16 || parsed === 20 ? parsed : undefined;
+}
 
 export async function importAnimationPackBlob(blob: Blob, fileName = "animation-pack.zip"): Promise<AnimationLibraryItem> {
   if (blob.size > MAX_PACK_SIZE_BYTES) {
@@ -213,10 +238,10 @@ function readMotionRecipeMetadata(value: unknown): AnimationPackManifest["motion
   };
 }
 
-function readSupportedMotionFrameCount(value: unknown): 4 | 6 | 8 | 12 {
+function readSupportedMotionFrameCount(value: unknown): 4 | 6 | 8 | 12 | 16 | 20 {
   const frameCount = readPositiveInteger(value, "motionRecipe.frameCount");
-  if (frameCount !== 4 && frameCount !== 6 && frameCount !== 8 && frameCount !== 12) {
-    throw new Error("Animation pack motionRecipe.frameCount must be 4, 6, 8, or 12.");
+  if (frameCount !== 4 && frameCount !== 6 && frameCount !== 8 && frameCount !== 12 && frameCount !== 16 && frameCount !== 20) {
+    throw new Error("Animation pack motionRecipe.frameCount must be 4, 6, 8, 12, 16, or 20.");
   }
   return frameCount;
 }

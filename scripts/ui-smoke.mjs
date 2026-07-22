@@ -637,6 +637,76 @@ async function assertSingleDirectionAnimationWorkflow() {
   }))()`);
   assert(fastPilot.disabled && fastPilot.text.includes("select Best to enable"), "Fast profile should explain that Best enables Motion Pilot");
   assert(!fastPilot.text.includes("side-only"), "Five-direction Fast should not claim side-only is the reason Motion Pilot is unavailable");
+  const frameOptions = await evaluate(`(() => {
+    const container = document.querySelector(".motion-frame-buttons");
+    const buttons = [...(container?.querySelectorAll("button") || [])];
+    return {
+      counts: buttons.map((button) => button.dataset.frameCount || ""),
+      experimental: buttons.filter((button) => button.dataset.experimental === "true").map((button) => button.dataset.frameCount || ""),
+      active: container?.querySelector("button.active")?.dataset.frameCount || "",
+      columns: getComputedStyle(container).gridTemplateColumns.trim().split(/\\s+/).filter(Boolean).length,
+      minHeight: Math.min(...buttons.map((button) => button.getBoundingClientRect().height)),
+      experimentalFontSize: Math.min(...buttons.filter((button) => button.dataset.experimental === "true").map((button) => Number.parseFloat(getComputedStyle(button.querySelector("small")).fontSize))),
+      note: document.querySelector(".motion-frame-experimental-note")?.textContent.trim() || ""
+    };
+  })()`);
+  assert(frameOptions.counts.join(",") === "4,6,8,12,16,20", `Frame budget should expose 4/6/8/12/16/20 in order, got ${JSON.stringify(frameOptions)}`);
+  assert(frameOptions.experimental.join(",") === "16,20" && frameOptions.active === "8", `Only 16f/20f should be Experimental and 8f should remain default, got ${JSON.stringify(frameOptions)}`);
+  assert(frameOptions.columns === 3 && frameOptions.minHeight >= 48, `Frame budget should use a 3x2 control with 48px targets, got ${JSON.stringify(frameOptions)}`);
+  assert(frameOptions.experimentalFontSize >= 11, `Experimental labels should remain readable at 11px or larger, got ${JSON.stringify(frameOptions)}`);
+  assert(frameOptions.note.includes("16f / 20f are experimental"), `Extended frame warning should be visible, got ${JSON.stringify(frameOptions.note)}`);
+
+  await evaluate(`(() => {
+    const select = document.querySelector(".language-control select");
+    select.value = "ja";
+    select.dispatchEvent(new Event("change", { bubbles: true }));
+  })()`);
+  await waitForEval(() => `document.querySelector('.motion-frame-buttons button[data-frame-count="16"]')?.getAttribute("aria-label") === "16フレーム、実験"`, "Japanese experimental frame accessible name");
+  const japaneseFrameNames = await evaluate(`[...document.querySelectorAll(".motion-frame-buttons button")].map((button) => button.getAttribute("aria-label"))`);
+  assert(japaneseFrameNames.join(",") === "4フレーム,6フレーム,8フレーム,12フレーム,16フレーム、実験,20フレーム、実験", `Japanese frame buttons should keep localized accessible names, got ${JSON.stringify(japaneseFrameNames)}`);
+  await evaluate(`(() => {
+    const select = document.querySelector(".language-control select");
+    select.value = "en";
+    select.dispatchEvent(new Event("change", { bubbles: true }));
+  })()`);
+  await waitForEval(() => `document.querySelector('.motion-frame-buttons button[data-frame-count="16"]')?.getAttribute("aria-label") === "16 frames, Experimental"`, "English experimental frame accessible name restored");
+
+  await clickSelector(".motion-frame-buttons button:nth-child(5)");
+  const sixteenFrameGrid = await evaluate(`(() => ({
+    active: document.querySelector(".motion-frame-buttons button.active")?.dataset.frameCount || "",
+    columns: document.querySelector("canvas")?.dataset.gridColumns || "",
+    rows: document.querySelector("canvas")?.dataset.gridRows || ""
+  }))()`);
+  assert(sixteenFrameGrid.active === "16" && sixteenFrameGrid.columns === "16" && sixteenFrameGrid.rows === "5", `16f should synchronize the five-direction canvas to 16x5, got ${JSON.stringify(sixteenFrameGrid)}`);
+
+  await clickSelector(".motion-frame-buttons button:nth-child(6)");
+  const twentyFrameGrid = await evaluate(`(() => ({
+    active: document.querySelector(".motion-frame-buttons button.active")?.dataset.frameCount || "",
+    columns: document.querySelector("canvas")?.dataset.gridColumns || "",
+    rows: document.querySelector("canvas")?.dataset.gridRows || "",
+    summary: document.querySelector(".animation-selected-meta")?.textContent.replace(/\\s+/g, " ").trim() || ""
+  }))()`);
+  assert(twentyFrameGrid.active === "20" && twentyFrameGrid.columns === "20" && twentyFrameGrid.rows === "5", `20f should synchronize the five-direction canvas to 20x5, got ${JSON.stringify(twentyFrameGrid)}`);
+  assert(twentyFrameGrid.summary.includes("20f · Experimental"), `Selected animation summary should mark 20f Experimental, got ${JSON.stringify(twentyFrameGrid.summary)}`);
+
+  await cdp.send("Emulation.setDeviceMetricsOverride", { width: 390, height: 844, deviceScaleFactor: 1, mobile: false });
+  await waitForEval(() => `window.innerWidth === 390`, "experimental frame mobile viewport");
+  const mobileFrameLayout = await evaluate(`(() => {
+    const container = document.querySelector(".motion-frame-buttons");
+    const buttons = [...(container?.querySelectorAll("button") || [])];
+    const rowTops = [...new Set(buttons.map((button) => Math.round(button.getBoundingClientRect().top)))];
+    return {
+      columns: getComputedStyle(container).gridTemplateColumns.trim().split(/\\s+/).filter(Boolean).length,
+      rows: rowTops.length,
+      minHeight: Math.min(...buttons.map((button) => button.getBoundingClientRect().height)),
+      scrollWidth: document.documentElement.scrollWidth,
+      clientWidth: document.documentElement.clientWidth
+    };
+  })()`);
+  assert(mobileFrameLayout.columns === 3 && mobileFrameLayout.rows === 2 && mobileFrameLayout.minHeight >= 48, `390px frame selector should remain 3x2 with 48px targets, got ${JSON.stringify(mobileFrameLayout)}`);
+  assert(mobileFrameLayout.scrollWidth <= mobileFrameLayout.clientWidth, `390px frame selector should not overflow horizontally, got ${JSON.stringify(mobileFrameLayout)}`);
+  await cdp.send("Emulation.setDeviceMetricsOverride", { width: 1280, height: 720, deviceScaleFactor: 1, mobile: false });
+  await waitForEval(() => `window.innerWidth === 1280`, "experimental frame desktop viewport restored");
   await clickSelector(".animation-utility-heading .icon-button");
   await waitForEval(() => `!document.querySelector(".animation-utility-modal")`, "single-direction advanced settings closed");
 
@@ -650,7 +720,7 @@ async function assertSingleDirectionAnimationWorkflow() {
   }))()`);
   assert(sidePreset.active === "1 direction" && sidePreset.title === "side", "One direction should select side only");
   assert(sidePreset.note.includes("side profile only"), "One direction should keep the side-only meaning visible");
-  assert(sidePreset.gridColumns === "8" && sidePreset.gridRows === "1", `One direction should synchronize the canvas to 8x1, got ${JSON.stringify(sidePreset)}`);
+  assert(sidePreset.gridColumns === "20" && sidePreset.gridRows === "1", `One direction should synchronize the canvas to 20x1, got ${JSON.stringify(sidePreset)}`);
 
   await clickButtonByText("Open advanced settings");
   await waitForEval(() => `Boolean(document.querySelector(".animation-utility-modal"))`, "side-only advanced settings");
@@ -667,9 +737,9 @@ async function assertSingleDirectionAnimationWorkflow() {
   const beforeJobs = new Set((await beforeJobsResponse.json()).jobs || []);
   await waitForButtonEnabled("Generate Animation");
   await clickButtonByText("Generate Animation");
-  await waitForEval(() => `document.body.innerText.includes("Animation generated")`, "side-only animation generated", 45000);
-  await waitForEval(() => `document.querySelectorAll(".direction-preview-row").length === 1`, "side-only direction preview", 15000);
-  await waitForEval(() => `document.querySelectorAll(".codex-job-row").length === 0`, "side-only job completion", 15000);
+  await waitForEval(() => `document.body.innerText.includes("Animation generated")`, "side-only 20f animation generated", 90000);
+  await waitForEval(() => `document.querySelectorAll(".direction-preview-row").length === 1`, "side-only 20f direction preview", 30000);
+  await waitForEval(() => `document.querySelectorAll(".codex-job-row").length === 0`, "side-only 20f job completion", 30000);
   const result = await evaluate(`(() => ({
     previewImages: document.querySelectorAll(".animation-preview img").length,
     directionRows: document.querySelectorAll(".direction-preview-row").length,
@@ -680,14 +750,59 @@ async function assertSingleDirectionAnimationWorkflow() {
   }))()`);
   assert(result.previewImages === 2 && result.directionRows === 1, `Side-only result should render one direction preview plus one sheet, got ${JSON.stringify(result)}`);
   assert(result.directionLabels.join(",") === "side", `Side-only result should label only side, got ${JSON.stringify(result.directionLabels)}`);
-  assert(result.width === 2048 && result.height === 256 && result.gridRows === "1", `Side-only final sheet should be 2048x256 with one row, got ${JSON.stringify(result)}`);
+  assert(result.width === 5120 && result.height === 256 && result.gridRows === "1", `Side-only 20f final sheet should be 5120x256 with one row, got ${JSON.stringify(result)}`);
 
   const afterJobsResponse = await fetch(`http://127.0.0.1:${apiPort}/api/codex/jobs`);
   const createdJobNames = ((await afterJobsResponse.json()).jobs || []).filter((name) => !beforeJobs.has(name));
   const createdJobs = await Promise.all(createdJobNames.map(async (name) => JSON.parse(await readFile(join(handoffDir, "inbox", name), "utf8"))));
   assert(createdJobs.length === 1, `Fast side-only generation should create one job, got ${createdJobs.length}`);
   assert(createdJobs.every((job) => job.spriteContext?.directions?.join(",") === "side"), "Every side-only browser job should request exactly side");
-  assert(createdJobs.every((job) => job.spriteContext?.grid?.columns === 8 && job.spriteContext?.grid?.rows === 1 && job.spriteContext?.frames === 8), "Every side-only browser job should keep an 8x1 / 8-frame contract");
+  assert(createdJobs.every((job) => job.spriteContext?.grid?.columns === 20 && job.spriteContext?.grid?.rows === 1 && job.spriteContext?.frames === 20), "Every side-only browser job should keep a 20x1 / 20-frame contract");
+  assert(createdJobs.every((job) => job.spriteContext?.framesPerDirection === 20 && job.spriteContext?.motionRecipe?.frameCount === 20), "Every side-only browser job should preserve 20f Motion Recipe metadata");
+  const createdManifests = await Promise.all(createdJobs.map(async (job) => JSON.parse(await readFile(join(job.returnTo.outboxDir, `${job.id}-manifest.json`), "utf8"))));
+  assert(createdManifests.every((manifest) => manifest.framesPerDirection === 20), "Every side-only browser manifest should preserve 20 frames per direction");
+  assert(createdManifests.every((manifest) => manifest.grid?.columns === 4 && manifest.grid?.rows === 5), "Every side-only browser manifest should preserve a 4x5 raw direction grid");
+
+  const beforeFiveDirectionJobsResponse = await fetch(`http://127.0.0.1:${apiPort}/api/codex/jobs`);
+  const beforeFiveDirectionJobs = new Set((await beforeFiveDirectionJobsResponse.json()).jobs || []);
+  const beforeFiveDirectionHistoryCount = await evaluate(`document.querySelectorAll(".history-item").length`);
+  await clickButtonByText("5 directions");
+  await waitForEval(() => `document.querySelector("canvas")?.dataset.gridColumns === "20" && document.querySelector("canvas")?.dataset.gridRows === "5"`, "five-direction 20f canvas contract");
+  await waitForButtonEnabled("Generate Animation");
+  await clickButtonByText("Generate Animation");
+  await waitForEval(
+    () => `document.querySelectorAll(".history-item").length > ${beforeFiveDirectionHistoryCount}`,
+    "five-direction 20f animation generated",
+    180000
+  );
+  await waitForEval(() => `document.querySelectorAll(".direction-preview-row").length === 5`, "five-direction 20f previews", 60000);
+  await waitForEval(() => `document.querySelectorAll(".codex-job-row").length === 0`, "five-direction 20f job completion", 60000);
+  const fiveDirectionResult = await evaluate(`(() => ({
+    previewImages: document.querySelectorAll(".animation-preview img").length,
+    directionRows: document.querySelectorAll(".direction-preview-row").length,
+    width: document.querySelector(".sprite-sheet-preview-card .result-preview-image")?.naturalWidth || 0,
+    height: document.querySelector(".sprite-sheet-preview-card .result-preview-image")?.naturalHeight || 0,
+    gridRows: getComputedStyle(document.querySelector(".sprite-sheet-grid-preview")).getPropertyValue("--sprite-grid-rows").trim()
+  }))()`);
+  assert(fiveDirectionResult.previewImages === 6 && fiveDirectionResult.directionRows === 5, `Five-direction 20f should render five direction previews plus one sheet, got ${JSON.stringify(fiveDirectionResult)}`);
+  assert(fiveDirectionResult.width === 5120 && fiveDirectionResult.height === 1280 && fiveDirectionResult.gridRows === "5", `Five-direction 20f final sheet should be 5120x1280 with five rows, got ${JSON.stringify(fiveDirectionResult)}`);
+
+  const afterFiveDirectionJobsResponse = await fetch(`http://127.0.0.1:${apiPort}/api/codex/jobs`);
+  const fiveDirectionJobNames = ((await afterFiveDirectionJobsResponse.json()).jobs || []).filter((name) => !beforeFiveDirectionJobs.has(name));
+  const fiveDirectionJobs = await Promise.all(fiveDirectionJobNames.map(async (name) => JSON.parse(await readFile(join(handoffDir, "inbox", name), "utf8"))));
+  assert(fiveDirectionJobs.length === 1, `Fast five-direction 20f generation should create one job, got ${fiveDirectionJobs.length}`);
+  assert(fiveDirectionJobs[0].spriteContext?.directions?.length === 5, "Five-direction 20f browser job should request all five directions");
+  assert(fiveDirectionJobs[0].spriteContext?.grid?.columns === 20 && fiveDirectionJobs[0].spriteContext?.grid?.rows === 5 && fiveDirectionJobs[0].spriteContext?.frames === 100, "Five-direction 20f browser job should keep a 20x5 / 100-frame final sheet contract");
+  const fiveDirectionManifest = JSON.parse(await readFile(join(fiveDirectionJobs[0].returnTo.outboxDir, `${fiveDirectionJobs[0].id}-manifest.json`), "utf8"));
+  assert(fiveDirectionManifest.framesPerDirection === 20 && fiveDirectionManifest.grid?.columns === 4 && fiveDirectionManifest.grid?.rows === 5, "Five-direction 20f browser manifest should preserve the 4x5 raw direction contract");
+
+  await installDownloadSpy();
+  await openDownloadModal();
+  await clickDownloadModalButtonByText("Export Animation Pack");
+  await waitForEval(() => `document.querySelector(".animation-pack-export-modal")?.innerText.includes("Export Animation Pack")`, "five-direction 20f Animation Pack modal");
+  await clickButtonByText("Export");
+  await waitForEval(() => `(window.__uiSmokeDownloads || []).some((item) => item.type === "application/zip")`, "five-direction 20f Animation Pack download", 180000);
+  await waitForEval(() => `document.body.innerText.includes("Animation pack exported")`, "five-direction 20f Animation Pack export status", 30000);
   await assertNoBrowserErrors("single-direction Animation Generation");
 }
 
@@ -814,8 +929,10 @@ async function assertAnimationPresetExamples() {
   assert(snapshot.text.includes("Pick an animated sample"), "Choose Animation intro should be visible");
   assert(snapshot.buttons.includes("Select Animation"), "Choose Animation should expose select buttons");
   assert(snapshot.text.includes("Category") && snapshot.text.includes("Status"), "Motion Browser should expose Category and Status filters");
-  const initialFilterFocus = await evaluate(`document.activeElement?.closest(".motion-preset-search") !== null`);
-  assert(initialFilterFocus, "Motion Browser should place initial focus in search");
+  await waitForEval(
+    () => `document.activeElement?.closest(".motion-preset-search") !== null`,
+    "Motion Browser initial search focus"
+  );
   const expectedAnimationPresetSamples = [
     { title: "Idle Breathing", className: "sample-idle-sheet", sheet: "idle-breathing-sheet.png", direction: "normal", playback: "normal loop", includeMessage: "Choose Animation should include the Idle Breathing animation card" },
     { title: "Walk Cycle", className: "sample-walk-sheet", sheet: "walk-cycle-sheet.png", direction: "normal", playback: "normal loop", includeMessage: "Choose Animation should include the Walk Cycle animation card" },
@@ -3405,11 +3522,11 @@ const cellWidth = Number(job.spriteContext?.cell?.width || 256);
 const cellHeight = Number(job.spriteContext?.cell?.height || 256);
 const chroma = job.spriteContext?.chromaKey === "magenta" ? [255, 0, 255, 255] : [0, 255, 0, 255];
 if (job.spriteContext?.variant === "standard") {
-  const framesPerDirection = [4, 6, 8, 12].includes(Number(job.spriteContext?.framesPerDirection))
+  const framesPerDirection = [4, 6, 8, 12, 16, 20].includes(Number(job.spriteContext?.framesPerDirection))
     ? Number(job.spriteContext.framesPerDirection)
     : 8;
   const directionColumns = framesPerDirection === 6 ? 3 : 4;
-  const directionRows = framesPerDirection === 4 ? 1 : framesPerDirection === 12 ? 3 : 2;
+  const directionRows = Math.ceil(framesPerDirection / directionColumns);
   const canonicalDirectionNames = ["front", "front three-quarter", "side", "back three-quarter", "back"];
   const directionNames = Array.isArray(job.spriteContext?.directions) && job.spriteContext.directions.length > 0
     ? job.spriteContext.directions.map((direction) => String(direction))
@@ -3604,9 +3721,9 @@ function makeSpriteSheetPng(width, height, columns, rows, cellWidth, cellHeight,
       const leftLeg = Math.abs(localX - (centerX - 30 + poseSwing * 0.35)) < 15 && localY >= centerY + 40 && localY <= centerY + 98;
       const rightLeg = Math.abs(localX - (centerX + 30 - poseSwing * 0.35)) < 15 && localY >= centerY + 40 && localY <= centerY + 98;
       if (body || head || feet || leftArm || rightArm || leftLeg || rightLeg) {
-        raw[offset] = 32 + row * 28 + directionIndex * 18 + column * 18;
-        raw[offset + 1] = 44 + column * 26;
-        raw[offset + 2] = 74 + row * 18 + column * 12;
+        raw[offset] = 150 + ((row * 17 + directionIndex * 11 + column * 13) % 80);
+        raw[offset + 1] = 45 + ((column * 19 + directionIndex * 7) % 70);
+        raw[offset + 2] = 20 + ((row * 11 + column * 7) % 60);
         raw[offset + 3] = 255;
       }
     }

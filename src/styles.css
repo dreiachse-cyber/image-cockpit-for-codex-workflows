@@ -1903,8 +1903,33 @@ button {
   font-size: 11px;
 }
 
-.motion-frame-buttons { grid-template-columns: repeat(4, minmax(0, 1fr)); }
-.motion-frame-buttons button { min-height: 28px; padding: 3px; }
+.app-shell .motion-frame-buttons { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.app-shell .motion-frame-buttons button {
+  min-height: 48px;
+  padding: 4px 3px;
+  display: grid;
+  place-items: center;
+  gap: 1px;
+  line-height: 1.05;
+  white-space: normal;
+}
+.app-shell .motion-frame-buttons button small {
+  font-size: 11px;
+  font-style: normal;
+  letter-spacing: 0.02em;
+}
+.app-shell .motion-frame-buttons button.experimental:not(.active) small { color: #8a5a13; }
+.motion-frame-experimental-note {
+  display: block;
+  margin-top: 6px;
+  color: #69726d;
+  font-size: 10px;
+  line-height: 1.4;
+}
+.motion-frame-experimental-note.active {
+  color: #7b4a08;
+  font-weight: 700;
+}
 
 .motion-modifier-grid {
   display: grid;

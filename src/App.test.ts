@@ -15,6 +15,7 @@ import {
   fingerprintOutboxResults,
   getNextHistoryRenderLimit,
   getVisibleHistoryCount,
+  historyAnimationFrameCount,
   HISTORY_RENDER_BATCH_SIZE,
   imageDisplayRectForCanvas,
   animationSheetGridForDirections,
@@ -46,6 +47,7 @@ import {
   summarizeCodexImportFailureReason,
   SUPPORTED_LANGUAGE_IDS
 } from "./App";
+import { createAnimationPackV2 } from "./lib/animationPackV2";
 import {
   applyFrameRetention,
   applyHistoryRetention,
@@ -1097,11 +1099,37 @@ function makeComponent(
 }
 
 describe("motion frame-budget presentation", () => {
+  it("keeps imported Pack v2 frame counts when Motion Recipe metadata is missing", () => {
+    const pack = createAnimationPackV2({
+      title: "20f side",
+      actionId: "idle",
+      directions: ["side"],
+      framesPerDirection: 20,
+      defaultFps: 12,
+      loopMode: "loop",
+      grid: { columns: 20, rows: 1, gutter: 0 },
+      cell: { width: 256, height: 256 }
+    });
+    expect(historyAnimationFrameCount({ animationPackV2: pack })).toBe(20);
+    expect(historyAnimationFrameCount({
+      motionRecipe: {
+        id: "idle-breathing",
+        version: 1,
+        compilerVersion: "1.2.0",
+        qualityProfile: "subtle-loop",
+        frameCount: 16
+      }
+    })).toBe(16);
+    expect(historyAnimationFrameCount({})).toBe(8);
+  });
+
   it.each([
     [4, { columns: 4, rows: 1, gutter: 0 }],
     [6, { columns: 3, rows: 2, gutter: 0 }],
     [8, { columns: 4, rows: 2, gutter: 0 }],
-    [12, { columns: 4, rows: 3, gutter: 0 }]
+    [12, { columns: 4, rows: 3, gutter: 0 }],
+    [16, { columns: 4, rows: 4, gutter: 0 }],
+    [20, { columns: 4, rows: 5, gutter: 0 }]
   ] as const)("uses the expected direction-image grid for %i frames", (frameCount, expected) => {
     expect(directionSplitAnimationGrid(frameCount)).toEqual(expected);
     expect(animationSheetGridForDirections(["front", "side", "back"], frameCount)).toEqual({
@@ -1111,7 +1139,7 @@ describe("motion frame-budget presentation", () => {
     });
   });
 
-  it.each([4, 6, 8, 12] as const)("slices %i-frame manifests into complete direction previews", (frameCount) => {
+  it.each([4, 6, 8, 12, 16, 20] as const)("slices %i-frame manifests into complete direction previews", (frameCount) => {
     const directions = ["front", "front three-quarter", "side", "back three-quarter", "back"];
     const manifest: AnimationPackManifest = {
       schema: "image-cockpit.animation.v1",

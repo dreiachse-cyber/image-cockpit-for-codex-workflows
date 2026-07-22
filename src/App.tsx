@@ -58,7 +58,7 @@ import {
   exportMetadata,
   exportSpriteSheet
 } from "./lib/exporters";
-import { importAnimationPackBlob } from "./lib/animationPack";
+import { animationLibraryHistoryMetadata, importAnimationPackBlob } from "./lib/animationPack";
 import {
   addPackPoint,
   addPackRect,
@@ -84,6 +84,7 @@ import {
   compileMotionRecipe,
   DEFAULT_MOTION_VARIANT,
   getBodyTopologyProfile,
+  isExperimentalMotionFrameCount,
   MOTION_RECIPES,
   MOTION_FRAME_COUNTS,
   MOTION_RECIPE_COMPILER_VERSION,
@@ -244,6 +245,11 @@ export function directionSplitAnimationGrid(frameCount: MotionFrameCount = ANIMA
 function resolveMotionFrameCount(value: unknown): MotionFrameCount {
   const parsed = Number(value);
   return MOTION_FRAME_COUNTS.includes(parsed as MotionFrameCount) ? parsed as MotionFrameCount : ANIMATION_FRAME_COUNT;
+}
+
+export function historyAnimationFrameCount(item?: Pick<HistoryItem, "motionRecipe" | "animationPackV2">): MotionFrameCount {
+  const packFrameCount = item?.animationPackV2 ? new Set(item.animationPackV2.frameOrder).size : undefined;
+  return resolveMotionFrameCount(packFrameCount ?? item?.motionRecipe?.frameCount);
 }
 const DIRECTION_SPLIT_DETACHED_WARN_DISTANCE = 80;
 const DIRECTION_SPLIT_DETACHED_FAIL_DISTANCE = 250;
@@ -4583,7 +4589,7 @@ function App() {
   }, [activeAction, selected, selectedAnimationFrames]);
 
   const selectedAnimationVariant = inferAnimationGenerationMode(selectedAnimationFrames);
-  const selectedAnimationFramesPerDirection = selected?.motionRecipe?.frameCount ?? ANIMATION_FRAME_COUNT;
+  const selectedAnimationFramesPerDirection = historyAnimationFrameCount(selected);
   const selectedAnimationSheetGrid = useMemo(
     () => inferAnimationSheetGrid(selectedAnimationFrames, selectedAnimationVariant, selectedAnimationFramesPerDirection),
     [selectedAnimationFrames, selectedAnimationVariant, selectedAnimationFramesPerDirection]
@@ -7277,6 +7283,7 @@ function App() {
 
     const animationAction = normalizeAnimationAction(activeAction);
     const animationGrid = { columns: animationFrameCount, rows: 1, gutter: 0 };
+    const localAnimationDirections = ANIMATION_DIRECTION_PRESETS[animationDirectionPreset] ?? ANIMATION_DIRECTIONS;
     const sheetDataUrl = await renderAnimationSheet(source.dataUrl, animationAction.cell, animationAction.name, animationFrameCount);
     const sheetName = `${source.name.replace(/\.[^.]+$/, "")}_${animationAction.name}_animation_sheet.png`;
     const item: HistoryItem = {
@@ -7291,7 +7298,9 @@ function App() {
       adopted: false,
       source: "generate",
       derivedFromId: source.id,
-      derivedFromName: source.name
+      derivedFromName: source.name,
+      animationDirections: [localAnimationDirections[0] ?? "front"],
+      motionRecipe: selectedMotionRecipeCompilation.metadata
     };
     const newFrames = await splitImageIntoFrames(sheetDataUrl, sheetName.replace(/\.[^.]+$/, ""), animationGrid, item.id, animationAction.cell, {
       normalizeOpaqueBounds: true
@@ -8798,7 +8807,8 @@ function App() {
         createdAt: new Date().toISOString(),
         adopted: false,
         source: "generate",
-        derivedFromName: item.kind === "official" ? copy.officialAnimations : copy.userAnimations
+        derivedFromName: item.kind === "official" ? copy.officialAnimations : copy.userAnimations,
+        ...animationLibraryHistoryMetadata(item)
       };
       const newFrames = await splitImageIntoFrames(
         sheetDataUrl,
@@ -9314,7 +9324,7 @@ function App() {
                   <span>{localizedText(selectedAnimationPreset.summary, language)}</span>
                   <div className="animation-selected-meta" aria-label={language === "ja" ? "現在の詳細設定" : "Current advanced settings"}>
                     <em>{localizedText(selectedAnimationPreset.category, language)}</em>
-                    <em>{animationFrameCount}f</em>
+                    <em>{animationFrameCount}f{isExperimentalMotionFrameCount(animationFrameCount) ? " · Experimental" : ""}</em>
                     <em>{animationGenerationProfileDefinition(animationGenerationProfile).label}</em>
                   </div>
                 </div>
@@ -9381,7 +9391,7 @@ function App() {
                       <div><dt>{language === "ja" ? "ループ" : "Loop"}</dt><dd>{selectedMotionRecipe.loopMode}</dd></div>
                       <div><dt>FPS / Frames</dt><dd>{selectedMotionRecipeCompilation.qaContract.fps} / {animationFrameCount}</dd></div>
                       <div><dt>{language === "ja" ? "体型 / QA" : "Topology / QA"}</dt><dd>{animationBodyTopology} / {selectedBodyTopologyProfile.contactQaDimension}</dd></div>
-                      <div><dt>{language === "ja" ? "状態" : "Status"}</dt><dd>{selectedMotionRecipe.experimental ? "Experimental" : "Verified"}</dd></div>
+                      <div><dt>{language === "ja" ? "Recipe状態" : "Recipe status"}</dt><dd>{selectedMotionRecipe.experimental ? "Experimental" : "Verified"}</dd></div>
                     </dl>
                     <div className="motion-variant-controls">
                       <label>
@@ -9396,19 +9406,34 @@ function App() {
                       <div className="motion-frame-budget">
                         <span>Frame budget</span>
                         <div className="segmented-control motion-frame-buttons">
-                          {MOTION_FRAME_COUNTS.map((frameCount) => (
-                            <button
-                              type="button"
-                              key={frameCount}
-                              className={animationFrameCount === frameCount ? "active" : ""}
-                              aria-pressed={animationFrameCount === frameCount}
-                              disabled={!selectedMotionRecipe.allowedFrameCounts.includes(frameCount)}
-                              onClick={() => selectAnimationFrameCount(frameCount)}
-                            >
-                              {frameCount}f
-                            </button>
-                          ))}
+                          {MOTION_FRAME_COUNTS.map((frameCount) => {
+                            const experimental = isExperimentalMotionFrameCount(frameCount);
+                            return (
+                              <button
+                                type="button"
+                                key={frameCount}
+                                data-frame-count={frameCount}
+                                data-experimental={experimental ? "true" : "false"}
+                                className={`${animationFrameCount === frameCount ? "active" : ""} ${experimental ? "experimental" : ""}`.trim()}
+                                aria-label={language === "ja"
+                                  ? `${frameCount}フレーム${experimental ? "、実験" : ""}`
+                                  : `${frameCount} frames${experimental ? ", Experimental" : ""}`}
+                                aria-pressed={animationFrameCount === frameCount}
+                                title={experimental ? (language === "ja" ? `${frameCount}f 実験枠` : `${frameCount}f Experimental`) : `${frameCount}f`}
+                                disabled={!selectedMotionRecipe.allowedFrameCounts.includes(frameCount)}
+                                onClick={() => selectAnimationFrameCount(frameCount)}
+                              >
+                                <span>{frameCount}f</span>
+                                {experimental && <small>{language === "ja" ? "実験" : "Experimental"}</small>}
+                              </button>
+                            );
+                          })}
                         </div>
+                        <small className={`motion-frame-experimental-note ${isExperimentalMotionFrameCount(animationFrameCount) ? "active" : ""}`.trim()} role="note">
+                          {language === "ja"
+                            ? "16f / 20f は実験枠です。生成時間と出力サイズが増え、一部engineのtexture上限を超える場合があります。"
+                            : "16f / 20f are experimental. They take longer, create larger outputs, and may exceed some engine texture limits."}
+                        </small>
                       </div>
                       <div className="motion-modifier-grid">
                         {selectedMotionRecipe.allowedModifiers
@@ -14016,7 +14041,7 @@ function AnimationPresetExamplesModal({
           <label>
             <span>Frames</span>
             <select value={frameFilter} onChange={(event) => setFrameFilter(event.target.value as typeof frameFilter)}>
-              <option value="all">All</option>{MOTION_FRAME_COUNTS.map((count) => <option key={count} value={count}>{count}</option>)}
+              <option value="all">All</option>{MOTION_FRAME_COUNTS.map((count) => <option key={count} value={count}>{count}f{isExperimentalMotionFrameCount(count) ? " · Experimental" : ""}</option>)}
             </select>
           </label>
           <label>
@@ -14048,7 +14073,7 @@ function AnimationPresetExamplesModal({
               </div>
               <h2>{localizedText(example.title, language)}</h2>
               <small className="prompt-card-note">{localizedText(example.summary, language)}</small>
-              <small className="prompt-card-note">{example.supportedTopologies.join(" / ")} · {example.allowedFrameCounts.join("/")}f</small>
+              <small className="prompt-card-note">{example.supportedTopologies.join(" / ")} · {example.allowedFrameCounts.filter((count) => !isExperimentalMotionFrameCount(count)).join("/")}f{example.allowedFrameCounts.some(isExperimentalMotionFrameCount) ? ` · ${example.allowedFrameCounts.filter(isExperimentalMotionFrameCount).join("/")}f Experimental` : ""}</small>
               <div className="prompt-actions single-action">
                 <button className="primary-button" onClick={() => onUse(example)}>
                   <CheckCircle2 size={15} aria-hidden="true" />

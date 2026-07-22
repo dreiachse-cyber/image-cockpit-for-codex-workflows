@@ -31,7 +31,7 @@ export interface MotionRecipeMetadata {
   compilerVersion: string;
   qualityProfile: AnimationActionQualityProfile;
   bodyTopology?: "biped" | "quadruped" | "serpentine-or-body-contact" | "floating" | "winged-flying" | "multi-leg";
-  frameCount?: 4 | 6 | 8 | 12;
+  frameCount?: 4 | 6 | 8 | 12 | 16 | 20;
   modifiers?: {
     intensity: "subtle" | "normal" | "strong";
     tempo: "slow" | "normal" | "fast";

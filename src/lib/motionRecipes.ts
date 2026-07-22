@@ -2,13 +2,18 @@ import type { AnimationActionQualityProfile } from "../types";
 
 export const MOTION_RECIPE_SCHEMA = "image-cockpit.motion-recipe.v1" as const;
 export const MOTION_RECIPE_VERSION = 1 as const;
-export const MOTION_RECIPE_COMPILER_VERSION = "1.1.0" as const;
+export const MOTION_RECIPE_COMPILER_VERSION = "1.2.0" as const;
 
 export type MotionRecipeLoopMode = "loop" | "one-shot" | "ping-pong";
 export type MotionRecipeGroundingProfile = "grounded" | "airborne" | "downed" | "exempt";
 export type MotionRecipeIntensity = "subtle" | "moderate" | "high";
-export type MotionFrameCount = 4 | 6 | 8 | 12;
-export const MOTION_FRAME_COUNTS: readonly MotionFrameCount[] = [4, 6, 8, 12];
+export type MotionFrameCount = 4 | 6 | 8 | 12 | 16 | 20;
+export const MOTION_FRAME_COUNTS: readonly MotionFrameCount[] = [4, 6, 8, 12, 16, 20];
+export const EXPERIMENTAL_MOTION_FRAME_COUNTS = [16, 20] as const;
+
+export function isExperimentalMotionFrameCount(value: number): boolean {
+  return EXPERIMENTAL_MOTION_FRAME_COUNTS.some((frameCount) => frameCount === value);
+}
 
 export type BodyTopologyId =
   | "biped"

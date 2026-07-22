@@ -2,7 +2,7 @@ import JSZip from "jszip";
 import { describe, expect, it } from "vitest";
 import type { AnimationPackManifest } from "../types";
 import { createAnimationPackZip } from "./exporters";
-import { importAnimationPackBlob, isSafeAnimationPackPath, validateAnimationPackManifest } from "./animationPack";
+import { animationLibraryHistoryMetadata, importAnimationPackBlob, isSafeAnimationPackPath, validateAnimationPackManifest } from "./animationPack";
 import { createAnimationPackV2, createAnimationPackV2Zip } from "./animationPackV2";
 
 describe("animation pack validation", () => {
@@ -39,7 +39,7 @@ describe("animation pack validation", () => {
     expect(validateAnimationPackManifest(manifest).motionRecipe).toEqual(manifest.motionRecipe);
   });
 
-  it.each([4, 6, 8, 12] as const)("imports a %i-frame animation pack without changing its frame budget", async (frameCount) => {
+  it.each([4, 6, 8, 12, 16, 20] as const)("imports a %i-frame animation pack without changing its frame budget", async (frameCount) => {
     const manifest = makeManifest(frameCount);
     const zip = new JSZip();
     zip.file("manifest.json", JSON.stringify(manifest));
@@ -52,6 +52,10 @@ describe("animation pack validation", () => {
     expect(imported.manifest.grid).toEqual({ columns: frameCount, rows: 5, gutter: 0 });
     expect(imported.packV2?.frameDurations).toEqual(Array(frameCount).fill(Math.round(1000 / 12)));
     expect(imported.sheetDataUrl).toMatch(/^data:image\/png;base64,/);
+    const historyMetadata = animationLibraryHistoryMetadata(imported);
+    expect(historyMetadata.animationDirections).toEqual(manifest.directions);
+    expect(historyMetadata.motionRecipe?.frameCount).toBe(frameCount);
+    expect(new Set(historyMetadata.animationPackV2?.frameOrder).size).toBe(frameCount);
   });
 
   it("imports a v2 pack and preserves its editable timeline exactly", async () => {
@@ -59,10 +63,10 @@ describe("animation pack validation", () => {
       title: "白猫 walk",
       actionId: "walk",
       directions: ["front", "side", "back"],
-      framesPerDirection: 6,
+      framesPerDirection: 20,
       defaultFps: 10,
       loopMode: "loop",
-      grid: { columns: 6, rows: 3, gutter: 0 },
+      grid: { columns: 20, rows: 3, gutter: 0 },
       cell: { width: 128, height: 128 },
       sourceFingerprint: "sha256-roundtrip"
     });
@@ -71,11 +75,15 @@ describe("animation pack validation", () => {
     const imported = await importAnimationPackBlob(blob, "白猫.zip");
 
     expect(imported.packV2).toEqual(pack);
-    expect(imported.manifest.framesPerDirection).toBe(6);
+    expect(imported.manifest.framesPerDirection).toBe(20);
     expect(imported.sheetDataUrl).toMatch(/^data:image\/png;base64,/);
+    const historyMetadata = animationLibraryHistoryMetadata(imported);
+    expect(historyMetadata.animationDirections).toEqual(["front", "side", "back"]);
+    expect(historyMetadata.motionRecipe?.frameCount).toBe(20);
+    expect(historyMetadata.animationPackV2).toEqual(pack);
   });
 
-  it.each([4, 6, 8, 12] as const)("exports a %i-frame animation pack without changing its frame budget", async (frameCount) => {
+  it.each([4, 6, 8, 12, 16, 20] as const)("exports a %i-frame animation pack without changing its frame budget", async (frameCount) => {
     const manifest = makeManifest(frameCount);
     const blob = await createAnimationPackZip({
       manifest,
@@ -161,7 +169,7 @@ describe("animation pack validation", () => {
   });
 });
 
-function makeManifest(frameCount: 4 | 6 | 8 | 12 = 8): AnimationPackManifest {
+function makeManifest(frameCount: 4 | 6 | 8 | 12 | 16 | 20 = 8): AnimationPackManifest {
   return {
     schema: "image-cockpit.animation.v1",
     title: "Run Cycle",
