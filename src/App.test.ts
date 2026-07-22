@@ -1,8 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
   annotationImageCoordinates,
+  animationScaleReferenceLabel,
   buildOutboxImportKey,
   buildAnimationManifestPreviewActions,
+  canUseMotionPilot,
+  motionPilotAvailabilityText,
   buildImageCockpitEnvironmentReport,
   codexJobProgressPhase,
   directionSplitJobIdFromOutboxResultName,
@@ -103,6 +106,19 @@ describe("Codex runner wait state", () => {
     expect(reason).toContain("local file");
     expect(reason).not.toContain("D:\\codex");
     expect(reason).not.toContain("stack line");
+  });
+});
+
+describe("single horizontal direction preset", () => {
+  it("uses side as the single-direction scale reference and keeps Motion Pilot unavailable", () => {
+    expect(animationScaleReferenceLabel(["side"])).toBe("side ready stance");
+    expect(animationScaleReferenceLabel(["front", "side", "back"])).toBe("front ready stance");
+    expect(canUseMotionPilot("best", ["side"])).toBe(false);
+    expect(canUseMotionPilot("best", ["front", "side", "back"])).toBe(true);
+    expect(canUseMotionPilot("balanced", ["front", "side", "back"])).toBe(false);
+    expect(motionPilotAvailabilityText("best", ["side"])).toContain("side-only");
+    expect(motionPilotAvailabilityText("fast", ["front", "side", "back"])).toContain("select Best");
+    expect(motionPilotAvailabilityText("best", ["front", "side", "back"])).toContain("9→5");
   });
 });
 
@@ -766,19 +782,20 @@ describe("Codex outbox job result matching", () => {
     ]);
 
     const oneDirectionSelection = selectDirectionSplitAnimationResults(
-      [makeOutboxResult(`${jobId}-manifest.json`, "application/json"), makeOutboxResult(`${jobId}-front.png`)],
+      [makeOutboxResult(`${jobId}-manifest.json`, "application/json"), makeOutboxResult(`${jobId}-side.png`)],
       jobId,
       {
         schema: "image-cockpit.direction-split-animation.v1",
-        directions: ["front"],
-        files: { front: `${jobId}-front.png` }
+        directions: ["side"],
+        files: { side: `${jobId}-side.png` }
       },
-      ["front"]
+      ["side"]
     );
 
-    expect(normalizeAnimationDirections(["front"])).toEqual(["front"]);
+    expect(normalizeAnimationDirections(["side"])).toEqual(["side"]);
+    expect(animationSheetGridForDirections(["side"], 8)).toEqual({ columns: 8, rows: 1, gutter: 0 });
     expect(oneDirectionSelection.ready).toBe(true);
-    expect(oneDirectionSelection.directions).toEqual(["front"]);
+    expect(oneDirectionSelection.directions).toEqual(["side"]);
     expect(oneDirectionSelection.missingDirections).toEqual([]);
   });
 

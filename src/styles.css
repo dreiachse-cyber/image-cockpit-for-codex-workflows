@@ -1937,7 +1937,17 @@ button {
 }
 
 .direction-preset-buttons {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.segmented-control.direction-preset-buttons button {
+  min-height: 48px;
+  padding: 4px;
+  white-space: normal;
+}
+
+.direction-preset-note {
+  color: var(--text-muted);
 }
 
 .generation-profile-control {

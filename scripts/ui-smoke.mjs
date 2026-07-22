@@ -67,6 +67,7 @@ const appUrl = `http://127.0.0.1:${vitePort}/`;
 const screenshotDir = process.env.IMAGE_COCKPIT_UI_SMOKE_SCREENSHOT_DIR;
 const onlyEffectSmoke = process.env.IMAGE_COCKPIT_UI_SMOKE_ONLY_EFFECT === "1";
 const onlyVfxCompositeSmoke = process.env.IMAGE_COCKPIT_UI_SMOKE_ONLY_VFX_COMPOSITE === "1";
+const onlySingleDirectionSmoke = process.env.IMAGE_COCKPIT_UI_SMOKE_ONLY_SINGLE_DIRECTION === "1";
 
 let apiServer;
 let viteServer;
@@ -170,7 +171,10 @@ try {
     "initial Pixel Art Generation workspace"
   );
 
-  if (onlyVfxCompositeSmoke) {
+  if (onlySingleDirectionSmoke) {
+    await assertSingleDirectionAnimationWorkflow();
+    console.log("UI smoke single-direction passed.");
+  } else if (onlyVfxCompositeSmoke) {
     await prepareVfxCompositeSmokeResults();
     await assertVfxCompositeStage();
     console.log("UI smoke VFX Composite-only passed.");
@@ -220,7 +224,7 @@ try {
     buttons: ["Choose Animation", "Open advanced settings", "Generate Animation", "Download"],
     hiddenButtons: ["Import Latest", "Import File", "PNG", "Animated GIF", "Animated WebP", "Animated APNG", "Official Animations", "User Animations", "Import Animation", "Export Sample", "Use", "5-Direction Sheet", "hatch-pet", "5-Direction hatch-pet"],
     hiddenText: ["Animation Library", "Official Animations", "User Animations", "No user animations yet", "Sprite Actions", "Export Sprite", "Generation Method", "Hop Bounce"],
-    requiredText: ["1. Upload Pixel Art", "2. Choose Motion", "3. Generate", "4. Download", "Selected animation", "Choose Animation", "Directions", "5 directions", "3 directions"],
+    requiredText: ["1. Upload Pixel Art", "2. Choose Motion", "3. Generate", "4. Download", "Selected animation", "Choose Animation", "Directions", "5 directions", "3 directions", "1 direction"],
     exerciseButton: "Generate Animation",
     expectedAfterExercise: "Animation generated",
     expectedAfterExerciseText: ["Animation frames ready", "Generated from", "Directional Previews", "GIF Preview", "Sprite Sheet Preview"],
@@ -612,6 +616,81 @@ async function assertPromptExamples() {
   await selectWorkflowTab("Pixel Art Generation");
 }
 
+async function assertSingleDirectionAnimationWorkflow() {
+  await selectWorkflowTab("Animation Generation");
+  await waitForEval(() => `document.body.innerText.includes("Animation Generation")`, "single-direction Animation Generation");
+  await setFileInputFiles('input[accept="image/*"]', [mockFullBodySourcePath]);
+  await waitForEval(() => `document.body.innerText.includes("mock-full-body-source.png")`, "single-direction source upload");
+  const initialPreset = await evaluate(`(() => ({
+    labels: [...document.querySelectorAll(".direction-preset-buttons button")].map((button) => button.textContent.trim()),
+    active: document.querySelector(".direction-preset-buttons button.active")?.textContent.trim() || ""
+  }))()`);
+  assert(initialPreset.labels.join("|") === "5 directions|3 directions|1 direction", "Single-direction smoke should expose all three presets");
+  assert(initialPreset.active === "5 directions", "Five directions should remain the initial preset");
+
+  await clickButtonByText("Open advanced settings");
+  await waitForEval(() => `Boolean(document.querySelector(".animation-utility-modal"))`, "single-direction advanced settings");
+  await clickSelector(".generation-profile-buttons button:nth-child(1)");
+  const fastPilot = await evaluate(`(() => ({
+    disabled: document.querySelector(".motion-pilot-toggle input")?.disabled === true,
+    text: document.querySelector(".motion-pilot-toggle")?.innerText || ""
+  }))()`);
+  assert(fastPilot.disabled && fastPilot.text.includes("select Best to enable"), "Fast profile should explain that Best enables Motion Pilot");
+  assert(!fastPilot.text.includes("side-only"), "Five-direction Fast should not claim side-only is the reason Motion Pilot is unavailable");
+  await clickSelector(".animation-utility-heading .icon-button");
+  await waitForEval(() => `!document.querySelector(".animation-utility-modal")`, "single-direction advanced settings closed");
+
+  await clickButtonByText("1 direction");
+  const sidePreset = await evaluate(`(() => ({
+    active: document.querySelector(".direction-preset-buttons button.active")?.textContent.trim() || "",
+    title: document.querySelector(".direction-preset-buttons button.active")?.getAttribute("title") || "",
+    note: document.querySelector(".direction-preset-note")?.textContent.trim() || "",
+    gridColumns: document.querySelector("canvas")?.dataset.gridColumns || "",
+    gridRows: document.querySelector("canvas")?.dataset.gridRows || ""
+  }))()`);
+  assert(sidePreset.active === "1 direction" && sidePreset.title === "side", "One direction should select side only");
+  assert(sidePreset.note.includes("side profile only"), "One direction should keep the side-only meaning visible");
+  assert(sidePreset.gridColumns === "8" && sidePreset.gridRows === "1", `One direction should synchronize the canvas to 8x1, got ${JSON.stringify(sidePreset)}`);
+
+  await clickButtonByText("Open advanced settings");
+  await waitForEval(() => `Boolean(document.querySelector(".animation-utility-modal"))`, "side-only advanced settings");
+  const sidePilot = await evaluate(`(() => ({
+    disabled: document.querySelector(".motion-pilot-toggle input")?.disabled === true,
+    checked: document.querySelector(".motion-pilot-toggle input")?.checked === true,
+    text: document.querySelector(".motion-pilot-toggle")?.innerText || ""
+  }))()`);
+  assert(sidePilot.disabled && !sidePilot.checked && sidePilot.text.includes("unavailable for side-only generation"), "Side-only generation should disable Motion Pilot with the correct reason");
+  await clickSelector(".animation-utility-heading .icon-button");
+  await waitForEval(() => `!document.querySelector(".animation-utility-modal")`, "side-only advanced settings closed");
+
+  const beforeJobsResponse = await fetch(`http://127.0.0.1:${apiPort}/api/codex/jobs`);
+  const beforeJobs = new Set((await beforeJobsResponse.json()).jobs || []);
+  await waitForButtonEnabled("Generate Animation");
+  await clickButtonByText("Generate Animation");
+  await waitForEval(() => `document.body.innerText.includes("Animation generated")`, "side-only animation generated", 45000);
+  await waitForEval(() => `document.querySelectorAll(".direction-preview-row").length === 1`, "side-only direction preview", 15000);
+  await waitForEval(() => `document.querySelectorAll(".codex-job-row").length === 0`, "side-only job completion", 15000);
+  const result = await evaluate(`(() => ({
+    previewImages: document.querySelectorAll(".animation-preview img").length,
+    directionRows: document.querySelectorAll(".direction-preview-row").length,
+    directionLabels: [...document.querySelectorAll(".direction-preview-row > span")].map((node) => node.textContent.trim().toLowerCase()),
+    width: document.querySelector(".sprite-sheet-preview-card .result-preview-image")?.naturalWidth || 0,
+    height: document.querySelector(".sprite-sheet-preview-card .result-preview-image")?.naturalHeight || 0,
+    gridRows: getComputedStyle(document.querySelector(".sprite-sheet-grid-preview")).getPropertyValue("--sprite-grid-rows").trim()
+  }))()`);
+  assert(result.previewImages === 2 && result.directionRows === 1, `Side-only result should render one direction preview plus one sheet, got ${JSON.stringify(result)}`);
+  assert(result.directionLabels.join(",") === "side", `Side-only result should label only side, got ${JSON.stringify(result.directionLabels)}`);
+  assert(result.width === 2048 && result.height === 256 && result.gridRows === "1", `Side-only final sheet should be 2048x256 with one row, got ${JSON.stringify(result)}`);
+
+  const afterJobsResponse = await fetch(`http://127.0.0.1:${apiPort}/api/codex/jobs`);
+  const createdJobNames = ((await afterJobsResponse.json()).jobs || []).filter((name) => !beforeJobs.has(name));
+  const createdJobs = await Promise.all(createdJobNames.map(async (name) => JSON.parse(await readFile(join(handoffDir, "inbox", name), "utf8"))));
+  assert(createdJobs.length === 1, `Fast side-only generation should create one job, got ${createdJobs.length}`);
+  assert(createdJobs.every((job) => job.spriteContext?.directions?.join(",") === "side"), "Every side-only browser job should request exactly side");
+  assert(createdJobs.every((job) => job.spriteContext?.grid?.columns === 8 && job.spriteContext?.grid?.rows === 1 && job.spriteContext?.frames === 8), "Every side-only browser job should keep an 8x1 / 8-frame contract");
+  await assertNoBrowserErrors("single-direction Animation Generation");
+}
+
 async function assertAnimationPresetExamples() {
   await selectWorkflowTab("Animation Generation");
   await waitForEval(() => `document.body.innerText.includes("Animation Generation")`, "Animation Generation for preset examples");
@@ -682,6 +761,52 @@ async function assertAnimationPresetExamples() {
     () => `document.activeElement?.classList.contains("animation-advanced-settings-trigger") || false`,
     "Animation advanced settings should return focus to its trigger"
   );
+
+  const directionPresetDefault = await evaluate(`(() => {
+    const control = document.querySelector(".direction-preset-buttons");
+    const buttons = [...(control?.querySelectorAll("button") || [])];
+    const controlRect = control?.getBoundingClientRect();
+    return {
+      count: buttons.length,
+      labels: buttons.map((button) => button.textContent.trim()),
+      active: control?.querySelector("button.active")?.textContent.trim() || "",
+      columns: getComputedStyle(control).gridTemplateColumns.split(" ").filter(Boolean).length,
+      oneTitle: buttons.find((button) => button.textContent.trim() === "1 direction")?.getAttribute("title") || "",
+      oneAria: buttons.find((button) => button.textContent.trim() === "1 direction")?.getAttribute("aria-label") || "",
+      buttonHeights: buttons.map((button) => Math.round(button.getBoundingClientRect().height)),
+      fits: Boolean(controlRect && buttons.every((button) => {
+        const rect = button.getBoundingClientRect();
+        return rect.left >= controlRect.left - 1 && rect.right <= controlRect.right + 1 && button.scrollWidth <= button.clientWidth + 1;
+      }))
+    };
+  })()`);
+  assert(directionPresetDefault.count === 3, "Direction preset should expose 5, 3, and 1 direction options");
+  assert(directionPresetDefault.labels.join("|") === "5 directions|3 directions|1 direction", "Direction preset order should stay 5, 3, then 1");
+  assert(directionPresetDefault.active === "5 directions", "Five directions should remain the default");
+  assert(directionPresetDefault.columns === 3 && directionPresetDefault.fits, "Direction preset should render as a balanced three-column control");
+  assert(directionPresetDefault.buttonHeights.every((height) => height >= 48), "Direction preset buttons should remain easy to press");
+  assert(directionPresetDefault.oneTitle === "side" && directionPresetDefault.oneAria.includes("side only"), "One direction should explicitly mean the side profile");
+
+  await clickButtonByText("1 direction");
+  const sideOnlyPreset = await evaluate(`(() => ({
+    active: document.querySelector(".direction-preset-buttons button.active")?.textContent.trim() || "",
+    title: document.querySelector(".direction-preset-buttons button.active")?.getAttribute("title") || "",
+    note: document.querySelector(".direction-preset-note")?.textContent.trim() || ""
+  }))()`);
+  assert(sideOnlyPreset.active === "1 direction" && sideOnlyPreset.title === "side", "One direction should select only side");
+  assert(sideOnlyPreset.note.includes("side profile only"), "Side-only selection should stay visible without relying on a tooltip");
+
+  await clickButtonByText("Open advanced settings");
+  await waitForEval(() => 'Boolean(document.querySelector(".animation-utility-modal"))', "Side-only advanced settings modal");
+  const sideOnlyPilot = await evaluate(`(() => ({
+    disabled: document.querySelector(".motion-pilot-toggle input")?.disabled === true,
+    checked: document.querySelector(".motion-pilot-toggle input")?.checked === true,
+    text: document.querySelector(".motion-pilot-toggle")?.innerText || ""
+  }))()`);
+  assert(sideOnlyPilot.disabled && !sideOnlyPilot.checked, "Motion Pilot should stay OFF and disabled for side-only generation");
+  assert(sideOnlyPilot.text.includes("unavailable for side-only generation"), "Motion Pilot should explain why side-only generation cannot use expansion");
+  await clickSelector(".animation-utility-heading .icon-button");
+  await waitForEval(() => '!document.querySelector(".animation-utility-modal")', "Side-only advanced settings closed");
 
   await clickButtonByText("Choose Animation");
   await waitForEval(() => `document.querySelector(".animation-preset-modal")?.innerText.includes("Idle Breathing")`, "Choose Animation modal");
@@ -787,17 +912,30 @@ async function assertAnimationPresetExamples() {
     const workspace = rect(".workspace");
     const history = rect(".history-panel");
     const workflowButtons = [...document.querySelectorAll(".source-panel > .workflow-tabs button")];
+    const directionControl = document.querySelector(".direction-preset-buttons");
+    const directionButtons = [...(directionControl?.querySelectorAll("button") || [])];
+    const directionRect = directionControl?.getBoundingClientRect();
     return {
       stacked: Boolean(source && workspace && history && workspace.top >= source.bottom - 1 && history.top >= workspace.bottom - 1),
       documentFits: document.documentElement.scrollWidth <= window.innerWidth + 1,
       buttonHeights: workflowButtons.map((button) => Math.round(button.getBoundingClientRect().height)),
-      buttonFonts: workflowButtons.map((button) => Number.parseFloat(getComputedStyle(button).fontSize))
+      buttonFonts: workflowButtons.map((button) => Number.parseFloat(getComputedStyle(button).fontSize)),
+      directionPresetFits: Boolean(directionRect && directionButtons.length === 3 && directionButtons.every((button) => {
+        const buttonRect = button.getBoundingClientRect();
+        return buttonRect.left >= directionRect.left - 1 && buttonRect.right <= directionRect.right + 1;
+      })),
+      directionButtonHeights: directionButtons.map((button) => Math.round(button.getBoundingClientRect().height))
     };
   })()`);
   assert(mobileWorkflowLayout.stacked, "Responsive workflow panels should stack instead of covering the primary workflow buttons");
   assert(mobileWorkflowLayout.documentFits, "Responsive workflow layout should avoid horizontal document overflow");
   assert(mobileWorkflowLayout.buttonHeights.every((height) => height >= 48), `Responsive workflow buttons should remain easy to press: ${JSON.stringify(mobileWorkflowLayout.buttonHeights)}`);
   assert(mobileWorkflowLayout.buttonFonts.every((size) => size >= 16), `Responsive workflow buttons should retain readable text: ${JSON.stringify(mobileWorkflowLayout.buttonFonts)}`);
+  assert(mobileWorkflowLayout.directionPresetFits, "Responsive direction preset should keep all three options inside the control");
+  assert(mobileWorkflowLayout.directionButtonHeights.every((height) => height >= 48), "Responsive direction preset buttons should keep 48px targets");
+  await clickButtonByText("5 directions");
+  const restoredFiveDirections = await evaluate('document.querySelector(".direction-preset-buttons button.active")?.textContent.trim() === "5 directions"');
+  assert(restoredFiveDirections, "Direction preset should return to the five-direction default after side-only UI coverage");
   await cdp.send("Emulation.setDeviceMetricsOverride", { width: 1280, height: 720, deviceScaleFactor: 1, mobile: false });
   await delay(200);
 
@@ -3272,8 +3410,12 @@ if (job.spriteContext?.variant === "standard") {
     : 8;
   const directionColumns = framesPerDirection === 6 ? 3 : 4;
   const directionRows = framesPerDirection === 4 ? 1 : framesPerDirection === 12 ? 3 : 2;
-  const directionSlugs = ["front", "front-three-quarter", "side", "back-three-quarter", "back"];
-  const directionNames = ["front", "front three-quarter", "side", "back three-quarter", "back"];
+  const canonicalDirectionNames = ["front", "front three-quarter", "side", "back three-quarter", "back"];
+  const directionNames = Array.isArray(job.spriteContext?.directions) && job.spriteContext.directions.length > 0
+    ? job.spriteContext.directions.map((direction) => String(direction))
+    : canonicalDirectionNames;
+  const directionSlugs = directionNames.map((direction) => direction.trim().toLowerCase().split(" ").filter(Boolean).join("-").replaceAll("_", "-"));
+
   if (existsSync(${JSON.stringify(mockManifestFirstDirectionSplitMarkerPath)})) {
     await rm(${JSON.stringify(mockManifestFirstDirectionSplitMarkerPath)}, { force: true });
     for (const [index, slug] of directionSlugs.entries()) {

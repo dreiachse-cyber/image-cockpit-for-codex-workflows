@@ -48,7 +48,7 @@ describe("Animation Pack v2 timeline", () => {
     expect(animationPlaybackSequence(pack)).toEqual([0, 1, 2, 3, 2, 1]);
   });
 
-  it.each([3, 5])("synchronizes %i directions by default and warns on explicit exceptions", (directionCount) => {
+  it.each([1, 3, 5])("synchronizes %i directions by default and warns on explicit exceptions", (directionCount) => {
     const pack = makePack(6, directionCount);
     expect(pack.directions).toHaveLength(directionCount);
     expect(animationDirectionSyncWarnings(pack)).toEqual([]);
@@ -147,7 +147,12 @@ describe("Animation Pack v2 compatibility and engine handoff", () => {
 });
 
 function makePack(frameCount = 8, directionCount = 5): AnimationPackV2 {
-  const directions = ["front", "front-three-quarter", "side", "back-three-quarter", "back"].slice(0, directionCount);
+  const directionSets: Record<number, string[]> = {
+    1: ["side"],
+    3: ["front", "side", "back"],
+    5: ["front", "front-three-quarter", "side", "back-three-quarter", "back"]
+  };
+  const directions = directionSets[directionCount] ?? directionSets[5];
   return createAnimationPackV2({
     title: "Run Cycle",
     actionId: "run",

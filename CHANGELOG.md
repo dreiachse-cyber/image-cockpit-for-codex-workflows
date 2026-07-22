@@ -2,7 +2,10 @@
 
 ## Unreleased
 
-No unreleased changes yet.
+### Added
+
+- Added a 1 direction Animation Generation preset that produces only the canonical side profile while keeping the existing 5- and 3-direction modes.
+- Added side-only tournament, manifest, one-row sheet, Animation Pack v2, responsive selector, and Motion Pilot guard coverage.
 
 ## v0.1.6 - 2026-07-16
 

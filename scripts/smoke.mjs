@@ -329,6 +329,100 @@ async function runManualHandoffSmoke() {
         directions: ["front", "side", "back"]
       }
     };
+    const sideOnlyTournamentId = "smoke-side-only-tournament";
+    const sideOnlyRegistration = {
+      ...tournamentRegistration,
+      tournamentId: sideOnlyTournamentId,
+      idempotencyKey: "smoke:side-only:v1",
+      generationProfile: "fast",
+      requestedDirections: ["side"],
+      maximumCandidateCount: 1,
+      initialCandidateCount: 1,
+      clientContext: { ...tournamentRegistration.clientContext, label: "Smoke side-only tournament" },
+      jobTemplate: {
+        ...tournamentRegistration.jobTemplate,
+        prompt: "Smoke test side-only tournament",
+        grid: { columns: 8, rows: 1, gutter: 0 },
+        frames: 8,
+        framesPerDirection: 8,
+        directions: ["side"]
+      }
+    };
+    const sideOnlyRegistered = await postJson(port, "/api/codex/tournaments", sideOnlyRegistration);
+    assert(sideOnlyRegistered.tournament.requestedDirections.join(",") === "side", "side-only tournament should persist exactly the side direction");
+    assert(sideOnlyRegistered.tournament.pilotMode === false, "side-only tournament should use the standard non-Pilot path");
+    const sideOnlyCandidate = await postJson(port, "/api/codex/tournaments/" + sideOnlyTournamentId + "/candidates", { candidateIndex: 0 });
+    const sideOnlyJobJson = JSON.parse(await readFile(sideOnlyCandidate.job.path, "utf8"));
+    assert(sideOnlyJobJson.spriteContext.directions.join(",") === "side", "side-only candidate should request only the side profile");
+    assert(sideOnlyJobJson.spriteContext.grid.rows === 1 && sideOnlyJobJson.spriteContext.frames === 8, "side-only candidate should keep an 8x1 final sheet contract");
+    assert(sideOnlyJobJson.notes.some((note) => note.includes("complete requested direction set")), "runner notes should describe the requested set instead of forcing five directions");
+    await writeFile(join(sideOnlyCandidate.job.outboxPath, sideOnlyCandidate.job.id + "-side.png"), tinyPngBytes);
+    await writeFile(join(sideOnlyCandidate.job.outboxPath, sideOnlyCandidate.job.id + "-manifest.json"), JSON.stringify({
+      schema: "image-cockpit.direction-split-animation.v1",
+      jobId: sideOnlyCandidate.job.id,
+      action: "walk",
+      directions: ["side"],
+      framesPerDirection: 8,
+      grid: { columns: 4, rows: 2, gutter: 0 },
+      cell: { width: 256, height: 256 },
+      files: { side: sideOnlyCandidate.job.id + "-side.png" },
+      qualityGate: {
+        classification: "usable-final",
+        reason: "server verified",
+        historyAllowed: true,
+        downloadAllowed: true,
+        retryable: false
+      },
+      animationQuality: animationQualityReport
+    }, null, 2), "utf8");
+    await getJson(port, "/api/codex/jobs/" + sideOnlyCandidate.job.id + "/results");
+    await postJson(port, "/api/codex/tournaments/" + sideOnlyTournamentId + "/evaluation", {
+      jobId: sideOnlyCandidate.job.id,
+      ready: true,
+      score: 3300,
+      warningCount: 0,
+      qualityReportRef: sideOnlyCandidate.job.id + "-manifest.json#animationQuality"
+    });
+    const acceptedSideOnly = await postJson(port, "/api/codex/tournaments/" + sideOnlyTournamentId + "/winner", { jobId: sideOnlyCandidate.job.id });
+    assert(acceptedSideOnly.tournament.state === "accepted", "side-only winner should reach the accepted state");
+    const publishedSideOnlyManifest = JSON.parse(await readFile(join(handoffDir, "outbox", sideOnlyCandidate.job.id + "-manifest.json"), "utf8"));
+    assert(publishedSideOnlyManifest.directions.join(",") === "side", "published side-only manifest should contain only side");
+    assert(Object.keys(publishedSideOnlyManifest.files).join(",") === "side", "published side-only manifest should expose only the side file");
+
+    const rejectedSideOnlyPilot = await fetch("http://127.0.0.1:" + port + "/api/codex/tournaments", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        ...sideOnlyRegistration,
+        tournamentId: "smoke-side-only-pilot-rejected",
+        idempotencyKey: "smoke:side-only:pilot-rejected:v1",
+        pilotMode: true,
+        pilotDirection: "side"
+      })
+    });
+    const rejectedSideOnlyPilotText = await rejectedSideOnlyPilot.text();
+    assert(
+      rejectedSideOnlyPilot.status === 500 && rejectedSideOnlyPilotText.includes("Motion Pilot requires more than one requested direction"),
+      "server should reject Motion Pilot for a side-only tournament"
+    );
+
+    const rejectedFrontOnly = await fetch("http://127.0.0.1:" + port + "/api/codex/tournaments", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        ...sideOnlyRegistration,
+        tournamentId: "smoke-front-only-rejected",
+        idempotencyKey: "smoke:front-only:rejected:v1",
+        requestedDirections: ["front"],
+        jobTemplate: { ...sideOnlyRegistration.jobTemplate, directions: ["front"] }
+      })
+    });
+    const rejectedFrontOnlyText = await rejectedFrontOnly.text();
+    assert(
+      rejectedFrontOnly.status === 500 && rejectedFrontOnlyText.includes("Single-direction animation tournaments require the side direction"),
+      "server should reject front-only tournaments because one direction means side only"
+    );
+
     const registeredTournament = await postJson(port, "/api/codex/tournaments", tournamentRegistration);
     assert(registeredTournament.created === true, "first tournament registration should create the persistent manifest");
     assert(registeredTournament.tournament.generationProfile === "balanced", "tournament manifest should persist the generation profile");

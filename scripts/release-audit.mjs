@@ -809,10 +809,10 @@ function checkWorkflowIds() {
     'shouldStartBalancedAdditionalCandidate',
     'batchMatrixRunId',
     'batchMatrixCellKey',
-    'const ANIMATION_DIRECTION_PRESET_IDS: AnimationDirectionPresetId[] = ["five", "three"];'
+    'const ANIMATION_DIRECTION_PRESET_IDS: AnimationDirectionPresetId[] = ["five", "three", "one"];'
   ].forEach((marker) => {
     if (!`${appText}\n${animationTournamentText}`.includes(marker)) {
-      failures.push(`App should keep Best on the 3-candidate fallback, support adaptive Balanced, and keep 3/5 direction presets: ${marker}`);
+      failures.push(`App should keep Best on the 3-candidate fallback, support adaptive Balanced, and keep 1/3/5 direction presets: ${marker}`);
     }
   });
 
@@ -1007,25 +1007,35 @@ function checkWorkflowIds() {
     if (!finalReviewIndexText.includes(marker)) failures.push(`Animation Uplift review index is missing: ${marker}`);
   });
 
-  [
-    ".direction-preset-buttons",
-    "grid-template-columns: repeat(2, minmax(0, 1fr));"
-  ].forEach((marker) => {
-    if (!stylesText.includes(marker)) {
-      failures.push(`Direction preset control should render as a balanced 2-option segmented control: ${marker}`);
-    }
-  });
+  const directionPresetLayoutPattern = /\.direction-preset-buttons\s*\{[^}]*grid-template-columns:\s*repeat\(3,\s*minmax\(0,\s*1fr\)\);[^}]*\}/s;
+  if (!directionPresetLayoutPattern.test(stylesText)) {
+    failures.push("Direction preset control should render as a balanced 3-option segmented control.");
+  }
 
   [
-    [appText, "animationDirectionOne"],
-    [appText, 'ANIMATION_DIRECTION_PRESET_IDS: AnimationDirectionPresetId[] = ["five", "three", "one"]'],
-    [uiSmokeText, '"1 direction"']
+    [appText, 'one: ["side"]'],
+    [appText, 'animationDirectionOne: "1 direction"'],
+    [appText, 'animationDirectionOne: "1方向"'],
+    [appText, "canUseMotionPilot"],
+    [appText, "motionPilotAvailabilityText"],
+    [appText, "select Best to enable"],
+    [appText, "setGrid(animationSheetGridForDirections(nextDirections, animationFrameCount))"],
+    [appText, "unavailable for side-only generation"],
+    [serverText, "![1, 3, 5].includes(requestedDirections.length)"],
+    [serverText, "Single-direction animation tournaments require the side direction."],
+    [serverText, "Motion Pilot requires more than one requested direction."],
+    [serverText, "complete requested direction set"],
+    [smokeText, "smoke-side-only-tournament"],
+    [smokeText, "smoke-front-only-rejected"],
+    [uiSmokeText, '"1 direction"'],
+    [uiSmokeText, 'oneTitle === "side"'],
+    [uiSmokeText, "IMAGE_COCKPIT_UI_SMOKE_ONLY_SINGLE_DIRECTION"],
+    [uiSmokeText, 'sidePreset.gridColumns === "8" && sidePreset.gridRows === "1"']
   ].forEach(([text, marker]) => {
-    if (text.includes(marker)) {
-      failures.push(`Animation Generation should not expose the removed 1-direction preset: ${marker}`);
+    if (!text.includes(marker)) {
+      failures.push("Animation Generation should keep the side-only 1-direction contract: " + marker);
     }
   });
-
   [
     "AnimationUtilityModal",
     "animation-advanced-settings-trigger",

@@ -929,8 +929,14 @@ async function registerAnimationTournament(registration: AnimationTournamentRegi
   const maximumCandidateCount = normalizeBoundedInteger(registration.maximumCandidateCount, profilePlan.maximumCandidates, 1, 3);
   const initialCandidateCount = normalizeBoundedInteger(registration.initialCandidateCount, profilePlan.initialCandidates, 1, maximumCandidateCount);
   const requestedDirections = normalizeDirectionNames(registration.requestedDirections);
-  if (requestedDirections.length !== 3 && requestedDirections.length !== 5) throw new Error("Animation tournaments require 3 or 5 directions.");
+  if (![1, 3, 5].includes(requestedDirections.length)) throw new Error("Animation tournaments require 1, 3, or 5 directions.");
+  if (requestedDirections.length === 1 && requestedDirections[0] !== "side") {
+    throw new Error("Single-direction animation tournaments require the side direction.");
+  }
   const pilotMode = registration.pilotMode === true;
+  if (pilotMode && requestedDirections.length === 1) {
+    throw new Error("Motion Pilot requires more than one requested direction.");
+  }
   const requestedPilotDirection = normalizeDirectionNames([registration.pilotDirection])[0];
   const pilotDirection = pilotMode
     ? requestedDirections.includes(requestedPilotDirection) ? requestedPilotDirection : requestedDirections.includes("side") ? "side" : requestedDirections[0]
@@ -1905,7 +1911,7 @@ function workflowNotes(mode: CodexWorkflowMode) {
       "Before publishing standard animation output, compare neighboring frames in each direction. If the frame-to-frame motion is nearly identical, regenerate that direction with clearer pose, limb, cloth, hair, equipment, or breathing changes while keeping the same character and grounded baseline.",
       "Reject and retry the sprite sheet if any cell has a cropped head, missing feet, multiple heads, a head below the feet, inconsistent scale, body fragments, or a different character.",
       "Use the requested chroma-key background color as a flat simple background in every cell so Image Cockpit can remove it after import.",
-      "For standard direction-split output, keep every intermediate, source, QA, and candidate file under outbox/.staging/<job-id>/ or another non-root work folder while work is still in progress. Do not write, copy, or manifest any root outbox <job-id>-*.png or <job-id>-manifest.json until all five directions are normalized, self-checked, and no further regeneration is planned. The final step must publish only the five final direction PNG/WebP files plus the final manifest into the root outbox, with the manifest written last. Keep *-qa.json, work files, temporary files, contact sheets, comparison sheets, and debug images outside the root.",
+      "For standard direction-split output, keep every intermediate, source, QA, and candidate file under outbox/.staging/<job-id>/ or another non-root work folder while work is still in progress. Do not write, copy, or manifest any root outbox <job-id>-*.png or <job-id>-manifest.json until the complete requested direction set is normalized, self-checked, and no further regeneration is planned. The final step must publish only the requested final direction PNG/WebP files plus the final manifest into the root outbox, with the manifest written last. Keep *-qa.json, work files, temporary files, contact sheets, comparison sheets, and debug images outside the root.",
       "Avoid readable text, logos, watermarks, labels, UI words, numbers, scenery, and complex backgrounds.",
       blockerSidecarNote
     ];

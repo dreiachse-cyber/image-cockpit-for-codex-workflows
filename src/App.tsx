@@ -202,12 +202,23 @@ const DIRECTION_SPLIT_ANIMATION_GRID: GridSettings = motionFrameGrid(ANIMATION_F
 const DIRECTION_SPLIT_ANIMATION_FILE_SLUGS = ["front", "front-three-quarter", "side", "back-three-quarter", "back"];
 const DIRECTION_SPLIT_ANIMATION_RESULT_COUNT = ANIMATION_DIRECTION_COUNT;
 
-type AnimationDirectionPresetId = "five" | "three";
-const ANIMATION_DIRECTION_PRESET_IDS: AnimationDirectionPresetId[] = ["five", "three"];
+type AnimationDirectionPresetId = "five" | "three" | "one";
+const ANIMATION_DIRECTION_PRESET_IDS: AnimationDirectionPresetId[] = ["five", "three", "one"];
 const ANIMATION_DIRECTION_PRESETS: Record<AnimationDirectionPresetId, string[]> = {
   five: ANIMATION_DIRECTIONS,
-  three: ["front", "side", "back"]
+  three: ["front", "side", "back"],
+  one: ["side"]
 };
+
+export function canUseMotionPilot(profile: AnimationGenerationProfile, directions: readonly string[]) {
+  return profile === "best" && directions.length > 1;
+}
+
+export function motionPilotAvailabilityText(profile: AnimationGenerationProfile, directions: readonly string[]) {
+  if (directions.length === 1) return "Experimental · Best only · unavailable for side-only generation";
+  if (profile !== "best") return "Experimental · Best only · select Best to enable";
+  return `Experimental · Best only · default OFF · ${directions.length * 3}→${directions.length + 2} theoretical direction outputs`;
+}
 
 export function animationDirectionSlug(direction: string) {
   return direction.trim().toLowerCase().replace(/[_\s]+/g, "-");
@@ -1130,6 +1141,7 @@ const baseUiCopy = {
     animationDirectionCount: "Directions",
     animationDirectionFive: "5 directions",
     animationDirectionThree: "3 directions",
+    animationDirectionOne: "1 direction",
     animationStepGenerateTitle: "3. Generate",
     animationStepGenerateBody: "Send the uploaded source to Codex and generate chroma-key direction frames.",
     hatchPetGenerateBody: "Send the uploaded source to Codex and try the hatch-pet workflow for a Codex pet atlas.",
@@ -1369,6 +1381,7 @@ const baseUiCopy = {
     animationDirectionCount: "方向数",
     animationDirectionFive: "5方向",
     animationDirectionThree: "3方向",
+    animationDirectionOne: "1方向",
     animationStepGenerateTitle: "3. 生成する",
     animationStepGenerateBody: "アップロード画像からanimation sheetとtimeline framesを生成します。",
     hatchPetGenerateBody: "アップロード画像をCodexに渡し、hatch-pet工程でCodex pet atlasを試作します。",
@@ -1395,7 +1408,7 @@ const baseUiCopy = {
     animatedWebP: "アニメWebP",
     animatedApng: "アニメAPNG",
     spriteSheetDownload: "スプライトシート",
-    directionalPreviews: "5方向プレビュー",
+    directionalPreviews: "方向別プレビュー",
     previewFront: "正面",
     previewBack: "背面",
     previewBackThreeQuarter: "斜め後ろ",
@@ -2649,12 +2662,20 @@ const animationPresetExamples: AnimationPresetExample[] = MOTION_RECIPES
     tags: recipe.tags
   }));
 
-const ANIMATION_SCALE_CONSISTENCY_CONTRACT_LINES = [
-  "Scale consistency contract: use the front ready stance as the reference character scale for every direction and frame.",
-  "Across all directions and frames, keep the same real character scale, head size, torso width, limb thickness, pixel density, and costume detail size. Do not auto-fit each direction or pose to fill the cell.",
-  "For crouch, sit, kneel, downed, cast, attack, hurt, or other lower poses, the character may become lower because of the pose, but must not be enlarged. A seated, crouched, kneeling, or downed pose should occupy less vertical height, not a larger body scale.",
-  "Keep head size and clothing-detail size consistent with the ready stance even when the pose is lower, turned away, or partly hidden by a robe, cape, weapon, or effect."
-];
+export function animationScaleReferenceLabel(directions: readonly string[]) {
+  const referenceDirection = directions.includes("front") ? "front" : directions[0];
+  return referenceDirection ? referenceDirection + " ready stance" : "source image ready stance";
+}
+
+function animationScaleConsistencyContractLines(directions: readonly string[]) {
+  const scaleReference = animationScaleReferenceLabel(directions);
+  return [
+    "Scale consistency contract: use the " + scaleReference + " as the reference character scale for every direction and frame.",
+    "Across all directions and frames, keep the same real character scale, head size, torso width, limb thickness, pixel density, and costume detail size. Do not auto-fit each direction or pose to fill the cell.",
+    "For crouch, sit, kneel, downed, cast, attack, hurt, or other lower poses, the character may become lower because of the pose, but must not be enlarged. A seated, crouched, kneeling, or downed pose should occupy less vertical height, not a larger body scale.",
+    "Keep head size and clothing-detail size consistent with the ready stance even when the pose is lower, turned away, or partly hidden by a robe, cape, weapon, or effect."
+  ];
+}
 
 function getAnimationPresetById(id: string): AnimationPresetExample {
   return animationPresetExamples.find((example) => example.id === id)
@@ -3798,6 +3819,7 @@ function tournamentCandidateLabel(index: number, count: number) {
 }
 
 function animationDirectionPresetLabel(id: AnimationDirectionPresetId, copy: UiCopy) {
+  if (id === "one") return copy.animationDirectionOne;
   if (id === "three") return copy.animationDirectionThree;
   return copy.animationDirectionFive;
 }
@@ -6418,17 +6440,18 @@ function App() {
     const tournamentId = tournamentDrafts[0]?.tournamentId ?? "";
     const profile = draft.generationProfile ?? "best";
     const profileDefinition = animationGenerationProfileDefinition(profile);
+    const effectiveMotionPilot = motionPilotEnabled && canUseMotionPilot(profile, draft.resultDirections ?? draft.directions);
     const manifest = await registerCodexAnimationTournament(
       tournamentId,
       draft,
       profileDefinition.initialCandidates,
       profileDefinition.maximumCandidates,
       {},
-      motionPilotEnabled
+      effectiveMotionPilot
     );
     updateAnimationTournamentMonitor(manifest);
     setStatus(
-      motionPilotEnabled
+      effectiveMotionPilot
         ? `Experimental Motion Pilot registered: ${profileDefinition.initialCandidates} ${manifest.pilotDirection ?? "side"}-only candidates. Human review is required before expansion.`
         : profile === "balanced"
         ? `Animation tournament registered: 2 initial candidates; candidate C is adaptive. Open runner slots will start automatically.`
@@ -9093,6 +9116,7 @@ function App() {
   const showAnnotationToolbar = isImageEditWorkflow && !selectedIsAnimationResult && !selectedIsEffectResult;
   const showSpriteActionsPanel = SHOW_SPRITE_ACTIONS_PANEL;
   const selectedAnimationDirections = ANIMATION_DIRECTION_PRESETS[animationDirectionPreset] ?? ANIMATION_DIRECTIONS;
+  const motionPilotAvailable = canUseMotionPilot(animationGenerationProfile, selectedAnimationDirections);
   const selectedAnimationSheetSize = {
     width: STANDARD_ANIMATION_CELL.width * animationFrameCount,
     height: STANDARD_ANIMATION_CELL.height * selectedAnimationDirections.length
@@ -9307,13 +9331,26 @@ function App() {
                         type="button"
                         className={animationDirectionPreset === presetId ? "active" : ""}
                         aria-pressed={animationDirectionPreset === presetId}
+                        aria-label={presetId === "one"
+                          ? (language === "ja" ? "1方向（横だけ）" : "1 direction (side only)")
+                          : animationDirectionPresetLabel(presetId, copy)}
                         title={ANIMATION_DIRECTION_PRESETS[presetId].join(" / ")}
-                        onClick={() => setAnimationDirectionPreset(presetId)}
+                        onClick={() => {
+                          const nextDirections = ANIMATION_DIRECTION_PRESETS[presetId];
+                          setAnimationDirectionPreset(presetId);
+                          setGrid(animationSheetGridForDirections(nextDirections, animationFrameCount));
+                          if (presetId === "one") setMotionPilotEnabled(false);
+                        }}
                       >
                         {animationDirectionPresetLabel(presetId, copy)}
                       </button>
                     ))}
                   </div>
+                  {animationDirectionPreset === "one" && (
+                    <small className="direction-preset-note">
+                      {language === "ja" ? "横向き（side）だけを生成します。" : "Generates the side profile only."}
+                    </small>
+                  )}
                 </div>
                 <button
                   type="button"
@@ -9434,16 +9471,18 @@ function App() {
                     <label className="motion-pilot-toggle">
                       <input
                         type="checkbox"
-                        checked={motionPilotEnabled}
-                        disabled={animationGenerationProfile !== "best"}
+                        checked={motionPilotEnabled && motionPilotAvailable}
+                        disabled={!motionPilotAvailable}
                         onChange={(event) => setMotionPilotEnabled(event.target.checked)}
                       />
                       <span>
                         <strong>Motion Pilot Tournament</strong>
-                        <small>Experimental · Best only · default OFF · {selectedAnimationDirections.length === 5 ? "15→7" : "9→5"} theoretical direction outputs</small>
+                        <small>
+                          {motionPilotAvailabilityText(animationGenerationProfile, selectedAnimationDirections)}
+                        </small>
                       </span>
                     </label>
-                    {motionPilotEnabled && (
+                    {motionPilotEnabled && motionPilotAvailable && (
                       <div className="motion-pilot-experiment-note" role="note">
                         <strong>Human review gate</strong>
                         <span>Generate A/B/C in side only, choose a pilot winner, then expand the remaining {Math.max(0, selectedAnimationDirections.length - 1)} directions. Fallback stays available.</span>
@@ -10408,6 +10447,8 @@ function App() {
                 height={CANVAS_HEIGHT}
                 data-preview-mode={previewMode}
                 data-preview-name={selected?.name ?? ""}
+                data-grid-columns={grid.columns}
+                data-grid-rows={grid.rows}
                 onPointerDown={handlePointerDown}
                 onPointerMove={handlePointerMove}
                 onPointerUp={handlePointerUp}
@@ -12345,7 +12386,7 @@ function buildAnimationCodexPrompt({
     "Use consistent character scale, baseline, foot contact point, silhouette size, palette, outfit, and pixel density across all direction images.",
     "Hard consistency requirement across all requested direction images: keep the same chibi body proportions, same head-to-body ratio, same head size, same limb thickness, same outfit colors, same clothing layers, and same prop design. Do not redesign any direction or make one direction older, younger, more realistic, differently dressed, or scaled differently than the others.",
     ...(bodyTopology === "biped"
-      ? ANIMATION_SCALE_CONSISTENCY_CONTRACT_LINES
+      ? animationScaleConsistencyContractLines(directions)
       : ["Topology scale consistency contract: preserve the same head, torso, body length, limb or support-part thickness, tail or wing scale, palette, pixel density, and prop size across all directions and poses; never auto-fit a lower or wider pose to fill the cell."]),
     `Prefer a transparent background in every cell. If true transparency is not available during generation, use a flat ${chromaKey.label} background (${chromaKey.hex}) in every cell; do not use black, white, gradients, scenery, shadows, UI, text, logos, watermarks, letters, or numbers.`,
     `If you add a temporary guide grid, use a temporary 1-pixel pure cyan #00FFFF guide grid only on the exact ${directionImageGrid.columns}x${directionImageGrid.rows} cell boundaries for each direction image; no labels, numbers, text, UI, or decorative borders.`,
@@ -12377,6 +12418,7 @@ function buildAnimationCodexNotes({
   bodyTopology?: BodyTopologyId;
 }) {
   const topologyProfile = getBodyTopologyProfile(bodyTopology);
+  const scaleReference = animationScaleReferenceLabel(directions);
   return [
     userNotes.trim(),
     `Animation sprite workflow: generate ${directions.length} source-image-driven direction image${directions.length === 1 ? "" : "s"} through Codex imagegen / built-in image_gen, then Image Cockpit will remove the ${chromaKey.label} background and compose the final sheet.`,
@@ -12387,9 +12429,9 @@ function buildAnimationCodexNotes({
     `Manifest schema: ${DIRECTION_SPLIT_ANIMATION_SCHEMA}; include directions, files, grid, cell, and framesPerDirection=${frameCount}.`,
     `Body topology contract: ${bodyTopology}; contact QA=${topologyProfile.contactQaDimension}; footlineApplicable=${topologyProfile.footlineApplicable ? "yes" : "no"}.`,
     "Cell QA is mandatory: one complete character per cell, consistent root, topology-appropriate contact or hover measure, stable scale, at least 24px inner padding, no cropping, no duplicated anatomy, and no parts or effects crossing cell borders.",
-    "Scale consistency QA is mandatory: compare every direction and frame against the front ready stance, and reject any result where a direction or lower pose was auto-enlarged to fill the cell.",
+    "Scale consistency QA is mandatory: compare every direction and frame against the " + scaleReference + ", and reject any result where a direction or lower pose was auto-enlarged to fill the cell.",
     ...(bodyTopology === "biped"
-      ? ANIMATION_SCALE_CONSISTENCY_CONTRACT_LINES
+      ? animationScaleConsistencyContractLines(directions)
       : ["Topology scale QA is mandatory: compare head, torso, body length, support-part thickness, tail or wing scale, and prop size against the source; lower or wider poses must not be auto-enlarged."]),
     "The generated sheet should keep the chroma key background simple and flat so the app can remove it reliably.",
     `Temporary guide grid: pure cyan #00FFFF on exact ${directionImageGrid.columns}x${directionImageGrid.rows} direction-image cell boundaries only. Image Cockpit removes those guide pixels before slicing/export.`
