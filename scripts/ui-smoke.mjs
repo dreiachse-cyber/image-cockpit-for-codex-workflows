@@ -68,6 +68,7 @@ const screenshotDir = process.env.IMAGE_COCKPIT_UI_SMOKE_SCREENSHOT_DIR;
 const onlyEffectSmoke = process.env.IMAGE_COCKPIT_UI_SMOKE_ONLY_EFFECT === "1";
 const onlyVfxCompositeSmoke = process.env.IMAGE_COCKPIT_UI_SMOKE_ONLY_VFX_COMPOSITE === "1";
 const onlySingleDirectionSmoke = process.env.IMAGE_COCKPIT_UI_SMOKE_ONLY_SINGLE_DIRECTION === "1";
+const onlyAnimationAdmissionSmoke = process.env.IMAGE_COCKPIT_UI_SMOKE_ONLY_ANIMATION_ADMISSION === "1";
 
 let apiServer;
 let viteServer;
@@ -171,7 +172,10 @@ try {
     "initial Pixel Art Generation workspace"
   );
 
-  if (onlySingleDirectionSmoke) {
+  if (onlyAnimationAdmissionSmoke) {
+    await assertAnimationAdmissionOnly();
+    console.log("UI smoke animation-admission passed.");
+  } else if (onlySingleDirectionSmoke) {
     await assertSingleDirectionAnimationWorkflow();
     console.log("UI smoke single-direction passed.");
   } else if (onlyVfxCompositeSmoke) {
@@ -255,7 +259,7 @@ try {
   await stopProcess(browserProcess);
   await stopProcess(viteServer);
   await stopProcess(apiServer);
-  await rm(tempRoot, { recursive: true, force: true });
+  await rm(tempRoot, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
 }
 
 async function assertInitialWorkspace() {
@@ -1471,12 +1475,14 @@ async function assertAnimationTimelinePackV2() {
 async function assertCodexQueue() {
   await selectWorkflowTab("Pixel Art Generation");
   await waitForEval(() => `document.body.innerText.includes("Pixel Art Generation")`, "Pixel Art Generation for Codex queue");
-  await evaluate(`document.querySelector("textarea").value = "queue smoke pixel hero"; document.querySelector("textarea").dispatchEvent(new Event("input", { bubbles: true }))`);
+  await setPromptValue("animation admission blocker ui smoke");
 
   await clickButtonByText("Generate Pixel Art");
   await waitForEval(() => `document.body.innerText.includes("Codex Jobs") && document.body.innerText.includes("Active 1/3")`, "first Codex job running");
   await assertCodexProgressIndicators();
   await assertCodexLogFullscreen();
+  await assertAnimationAdmissionWhileJobRunning();
+  await setPromptValue("queue smoke pixel hero");
   await waitForButtonEnabled("Generate Pixel Art");
 
   await clickButtonByText("Generate Pixel Art");
@@ -1485,6 +1491,17 @@ async function assertCodexQueue() {
 
   await clickButtonByText("Generate Pixel Art");
   await waitForEval(() => `document.body.innerText.includes("Active 3/3")`, "three Codex jobs running");
+  await evaluate(`(() => {
+    window.__uiSmokeQueueStatusObserved = document.body.innerText.includes("Codex job queued");
+    window.__uiSmokeQueueStatusObserver?.disconnect();
+    window.__uiSmokeQueueStatusObserver = new MutationObserver(() => {
+      if (!document.body.innerText.includes("Codex job queued")) return;
+      window.__uiSmokeQueueStatusObserved = true;
+      window.__uiSmokeQueueStatusObserver?.disconnect();
+    });
+    window.__uiSmokeQueueStatusObserver.observe(document.body, { childList: true, subtree: true, characterData: true });
+    return true;
+  })()`);
   await waitForEval(() => `(() => {
     const button = Array.from(document.querySelectorAll("button")).find((item) => item.innerText.replace(/\\s+/g, " ").trim() === "Queue Codex Job" && !item.disabled);
     if (!button) return false;
@@ -1509,7 +1526,11 @@ async function assertCodexQueue() {
     return queued;
   })()`, "fourth Codex job queued");
   const queueEvidence = await evaluate(`window.__uiSmokeQueueEvidence || { text: "", rows: 0, queuedRows: 0 }`);
-  assert(queueEvidence.text.includes("Codex job queued"), "Codex queue should report that the fourth job was queued");
+  const queuedStatusObserved = await evaluate(`(() => {
+    window.__uiSmokeQueueStatusObserver?.disconnect();
+    return window.__uiSmokeQueueStatusObserved === true;
+  })()`);
+  assert(queuedStatusObserved, "Codex queue should report that the fourth job was queued");
   assert(queueEvidence.queuedRows >= 1, "Codex queue should render the fourth job in a queued state");
   assert(
     queueEvidence.rows >= 3 && queueEvidence.rows <= 4,
@@ -1535,6 +1556,110 @@ async function assertCodexQueue() {
     `Codex log panel should retain exactly ${expectedCodexLogHistoryLimit} completed log cards after four jobs, got ${drainedLogCardCount}`
   );
   await assertNoBrowserErrors("Codex queue");
+  await selectWorkflowTab("Pixel Art Generation");
+}
+
+async function assertAnimationAdmissionOnly() {
+  await selectWorkflowTab("Pixel Art Generation");
+  await setPromptValue("animation admission blocker ui smoke");
+  await clickButtonByText("Generate Pixel Art");
+  await waitForEval(
+    () => `document.body.innerText.includes("Codex Jobs") && document.body.innerText.includes("Active 1/3")`,
+    "animation admission blocker running"
+  );
+  await assertAnimationAdmissionWhileJobRunning();
+  await waitForEval(
+    () => `document.querySelectorAll(".codex-job-row").length === 0`,
+    "animation admission blocker completion",
+    22000
+  );
+  await selectWorkflowTab("Animation Generation");
+  await waitForEval(
+    () => `(() => {
+      const button = document.querySelector(".animation-generate-step .primary-button");
+      return Boolean(button && !button.disabled && !document.querySelector(".animation-runner-admission-status"));
+    })()`,
+    "animation action re-enabled after the blocker finishes",
+    5000
+  );
+  await assertNoBrowserErrors("Animation admission only");
+}
+
+async function assertAnimationAdmissionWhileJobRunning() {
+  const countsBefore = await evaluate(`Promise.all([
+    fetch("/api/codex/tournaments").then((response) => response.json()),
+    fetch("/api/codex/jobs").then((response) => response.json())
+  ]).then(([tournaments, jobs]) => ({
+    tournaments: tournaments.tournaments?.length || 0,
+    jobs: jobs.jobs?.length || 0
+  }))`);
+
+  await selectWorkflowTab("Animation Generation");
+  await setFileInputFiles('input[accept="image/*"]', [mockFullBodySourcePath]);
+  await waitForEval(() => `document.body.innerText.includes("mock-full-body-source.png")`, "animation admission source upload");
+  await waitForEval(() => `(() => {
+    const button = document.querySelector(".animation-generate-step .primary-button");
+    const status = document.querySelector(".animation-runner-admission-status");
+    return Boolean(
+      button?.disabled &&
+      button.textContent.replace(/\\s+/g, " ").trim() === "Generate Animation" &&
+      status?.textContent.includes("1/3 slots are currently in use")
+    );
+  })()`, "animation disabled while one runner slot is occupied");
+
+  const admission = await evaluate(`(() => {
+    const button = document.querySelector(".animation-generate-step .primary-button");
+    const describedBy = button?.getAttribute("aria-describedby") || "";
+    const status = describedBy ? document.getElementById(describedBy) : null;
+    return {
+      disabled: button?.disabled === true,
+      label: button?.textContent.replace(/\\s+/g, " ").trim() || "",
+      describedBy,
+      statusExists: Boolean(status),
+      statusRole: status?.getAttribute("role") || "",
+      statusLive: status?.getAttribute("aria-live") || "",
+      queueActionVisible: document.body.innerText.includes("Queue Codex Job")
+    };
+  })()`);
+  assert(admission.disabled, "Animation Generation should be disabled while one Codex job is running");
+  assert(admission.label === "Generate Animation", `Blocked animation should retain its Generate label, got ${JSON.stringify(admission)}`);
+  assert(admission.describedBy && admission.statusExists, `Blocked animation should expose a real aria-describedby target, got ${JSON.stringify(admission)}`);
+  assert(admission.statusRole === "status" && admission.statusLive === "polite", `Blocked animation reason should be announced accessibly, got ${JSON.stringify(admission)}`);
+  assert(!admission.queueActionVisible, "Blocked animation should not offer Queue Codex Job");
+
+  await evaluate(`document.querySelector(".animation-generate-step .primary-button").click()`);
+  await delay(250);
+  const countsAfterDisabledClick = await evaluate(`Promise.all([
+    fetch("/api/codex/tournaments").then((response) => response.json()),
+    fetch("/api/codex/jobs").then((response) => response.json())
+  ]).then(([tournaments, jobs]) => ({
+    tournaments: tournaments.tournaments?.length || 0,
+    jobs: jobs.jobs?.length || 0
+  }))`);
+  assert(
+    countsAfterDisabledClick.tournaments === countsBefore.tournaments &&
+      countsAfterDisabledClick.jobs === countsBefore.jobs,
+    `Disabled animation action must not register a tournament or job, before=${JSON.stringify(countsBefore)} after=${JSON.stringify(countsAfterDisabledClick)}`
+  );
+
+  await evaluate(`(() => {
+    const select = document.querySelector(".language-control select");
+    select.value = "ja";
+    select.dispatchEvent(new Event("change", { bubbles: true }));
+  })()`);
+  await waitForEval(
+    () => `document.querySelector(".animation-runner-admission-status")?.textContent.includes("現在 1/3 枠を使用中です")`,
+    "Japanese animation admission reason"
+  );
+  await evaluate(`(() => {
+    const select = document.querySelector(".language-control select");
+    select.value = "en";
+    select.dispatchEvent(new Event("change", { bubbles: true }));
+  })()`);
+  await waitForEval(
+    () => `document.querySelector(".animation-runner-admission-status")?.textContent.includes("1/3 slots are currently in use")`,
+    "English animation admission reason restored"
+  );
   await selectWorkflowTab("Pixel Art Generation");
 }
 
@@ -3571,7 +3696,10 @@ for (let index = 1; index <= 28; index += 1) {
   console.log(\`mock runner progress \${jobId} \${String(index).padStart(2, "0")}/28\`);
 }
 console.log(\`mock runner tail marker \${jobId}\`);
-const delayMs = Number(process.env.IMAGE_COCKPIT_MOCK_RUNNER_DELAY_MS || 0);
+const configuredDelayMs = Number(process.env.IMAGE_COCKPIT_MOCK_RUNNER_DELAY_MS || 0);
+const delayMs = job.prompt.includes("animation admission blocker ui smoke")
+  ? Math.max(configuredDelayMs, 15000)
+  : configuredDelayMs;
 if (delayMs > 0) {
   await new Promise((resolve) => setTimeout(resolve, delayMs));
 }

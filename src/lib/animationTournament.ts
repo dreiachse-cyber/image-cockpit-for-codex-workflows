@@ -40,6 +40,21 @@ export interface AdaptiveCandidateDecision {
   reason: string;
 }
 
+export interface AnimationInitialCandidateAdmissionInput {
+  initialCandidateCount: number;
+  activeRunnerCount: number;
+  reservedRunnerCount?: number;
+  maxActiveRunnerCount?: number;
+}
+
+export interface AnimationInitialCandidateAdmissionPlan {
+  allowed: boolean;
+  requiredSlots: number;
+  occupiedSlots: number;
+  availableSlots: number;
+  candidateIndices: number[];
+}
+
 export const ANIMATION_GENERATION_PROFILES: Record<AnimationGenerationProfile, AnimationGenerationProfileDefinition> = {
   fast: {
     id: "fast",
@@ -77,6 +92,26 @@ const BEST_SMART_RACE_CANDIDATE_COUNT = 3;
 
 export function animationGenerationProfileDefinition(profile: AnimationGenerationProfile) {
   return ANIMATION_GENERATION_PROFILES[profile];
+}
+
+export function planAnimationInitialCandidateAdmission(
+  input: AnimationInitialCandidateAdmissionInput
+): AnimationInitialCandidateAdmissionPlan {
+  const maxActiveRunnerCount = Math.max(1, Math.floor(input.maxActiveRunnerCount ?? 3));
+  const requiredSlots = Math.min(maxActiveRunnerCount, Math.max(1, Math.floor(input.initialCandidateCount)));
+  const occupiedSlots = Math.min(
+    maxActiveRunnerCount,
+    Math.max(0, Math.floor(input.activeRunnerCount)) + Math.max(0, Math.floor(input.reservedRunnerCount ?? 0))
+  );
+  const availableSlots = Math.max(0, maxActiveRunnerCount - occupiedSlots);
+  const allowed = occupiedSlots === 0 && requiredSlots <= availableSlots;
+  return {
+    allowed,
+    requiredSlots,
+    occupiedSlots,
+    availableSlots,
+    candidateIndices: allowed ? Array.from({ length: requiredSlots }, (_, index) => index) : []
+  };
 }
 
 export function rankAnimationTournamentEvaluations<T extends RankedAnimationTournamentEvaluation>(

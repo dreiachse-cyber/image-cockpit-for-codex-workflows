@@ -5707,6 +5707,42 @@ button:disabled {
   line-height: 1.35;
 }
 
+.animation-runner-admission-status,
+.tournament-initial-bundle-warning {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin: 0;
+  border: 1px solid #e5bd66;
+  border-radius: 6px;
+  background: var(--amber-soft);
+  padding: 7px;
+  color: #75500f;
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+.animation-runner-admission-status svg {
+  flex: 0 0 auto;
+}
+
+.tournament-initial-bundle-actions {
+  display: grid;
+  gap: 5px;
+}
+
+.tournament-initial-bundle-actions > button {
+  width: 100%;
+  justify-content: center;
+}
+
+.tournament-initial-bundle-actions > p {
+  margin: 0;
+  color: #75500f;
+  font-size: 9px;
+  line-height: 1.35;
+}
+
 .animation-active-job-count {
   color: var(--text-muted);
   font-size: 10px;

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   animationGenerationProfileDefinition,
   decideBestSmartRace,
+  planAnimationInitialCandidateAdmission,
   rankAnimationTournamentEvaluations,
   shouldStartBalancedAdditionalCandidate,
   tournamentNeedsAllStartedCandidates,
@@ -44,6 +45,48 @@ describe("animation tournament profiles", () => {
     expect(animationGenerationProfileDefinition("fast")).toMatchObject({ initialCandidates: 1, maximumCandidates: 1 });
     expect(animationGenerationProfileDefinition("balanced")).toMatchObject({ initialCandidates: 2, maximumCandidates: 3 });
     expect(animationGenerationProfileDefinition("best")).toMatchObject({ initialCandidates: 3, maximumCandidates: 3 });
+  });
+
+  it("admits an initial candidate wave only while the runner pool is completely idle", () => {
+    expect(planAnimationInitialCandidateAdmission({
+      initialCandidateCount: 3,
+      activeRunnerCount: 0
+    })).toEqual({
+      allowed: true,
+      requiredSlots: 3,
+      occupiedSlots: 0,
+      availableSlots: 3,
+      candidateIndices: [0, 1, 2]
+    });
+
+    for (const activeRunnerCount of [1, 2, 3]) {
+      expect(planAnimationInitialCandidateAdmission({
+        initialCandidateCount: 3,
+        activeRunnerCount
+      })).toMatchObject({
+        allowed: false,
+        requiredSlots: 3,
+        occupiedSlots: activeRunnerCount,
+        availableSlots: 3 - activeRunnerCount,
+        candidateIndices: []
+      });
+    }
+  });
+
+  it("treats a pending local reservation as occupied and keeps smaller profile waves exclusive", () => {
+    expect(planAnimationInitialCandidateAdmission({
+      initialCandidateCount: 3,
+      activeRunnerCount: 0,
+      reservedRunnerCount: 1
+    }).allowed).toBe(false);
+    expect(planAnimationInitialCandidateAdmission({
+      initialCandidateCount: 2,
+      activeRunnerCount: 1
+    }).candidateIndices).toEqual([]);
+    expect(planAnimationInitialCandidateAdmission({
+      initialCandidateCount: 1,
+      activeRunnerCount: 0
+    }).candidateIndices).toEqual([0]);
   });
 
   it("keeps Balanced at two clean candidates when the score gap is clear", () => {

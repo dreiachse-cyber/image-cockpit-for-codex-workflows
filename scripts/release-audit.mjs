@@ -834,6 +834,37 @@ function checkWorkflowIds() {
   });
 
   [
+    [animationTournamentText, "planAnimationInitialCandidateAdmission"],
+    [appText, "animationInitialAdmissionMessage"],
+    [appText, "startPersistedTournamentInitialCandidatesFromUi"],
+    [appText, "serverActiveCodexRunnerCount"],
+    [stylesText, "animation-runner-admission-status"],
+    [serverText, "startInitialCandidates"],
+    [serverText, "withCodexRunnerAdmissionLock"],
+    [serverText, "/api/codex/capacity"],
+    [serverText, "tournament_job_endpoint_required"],
+    [serverText, "animation_tournament_endpoint_required"],
+    [serverText, "adaptive_candidate_initial_wave_required"],
+    [serverText, "animation_profile_candidate_count_mismatch"],
+    [serverText, "registerAnimationTournamentUnlocked"],
+    [serverText, "insufficient_runner_slots"],
+    [serverText, "initial_batch_admission_required"],
+    [smokeText, "rejected Best admission should not leave a tournament manifest"],
+    [smokeText, "all three admitted Best candidates should be running in one response"],
+    [smokeText, "concurrent generic and animation admission should have exactly one winner"],
+    [smokeText, "standard animation jobs should reject the generic job endpoint"],
+    [smokeText, "variant casing should not bypass the standard animation endpoint guard"],
+    [smokeText, "queued Balanced candidate C should not start before its initial wave"],
+    [smokeText, "Best registration should reject a two-candidate initial wave"],
+    [smokeText, "profile validation should allow persisted Direction Repair candidates beyond the fixed initial plan"],
+    [smokeText, "capacity-blocked Direction Repair should not consume a retry"],
+    [uiSmokeText, "Animation Generation should be disabled while one Codex job is running"],
+    [uiSmokeText, "Disabled animation action must not register a tournament or job"]
+  ].forEach(([text, marker]) => {
+    if (!text.includes(marker)) failures.push(`Animation runner admission contract is missing: ${marker}`);
+  });
+
+  [
     "animationReviewDimensionScores",
     "animationReviewQcMatrix",
     "normalizeAnimationHumanReview",

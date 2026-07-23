@@ -51,6 +51,7 @@ const runnerProcesses = new Map<string, ReturnType<typeof spawn>>();
 const resumingRunnerJobs = new Map<string, Promise<CodexRunnerStatus>>();
 const cancellingRunnerJobIds = new Set<string>();
 const animationTournamentLocks = new Map<string, Promise<void>>();
+let codexRunnerAdmissionTail: Promise<void> = Promise.resolve();
 let cachedRunnerCapacityBlock: RunnerCapacityBlock | null = null;
 
 type CodexJobRequest = {
@@ -233,17 +234,22 @@ type AnimationTournamentRegistrationRequest = {
   initialCandidateCount?: unknown;
   pilotMode?: unknown;
   pilotDirection?: unknown;
+  startInitialCandidates?: unknown;
   jobTemplate?: unknown;
   clientContext?: unknown;
 };
 
 class HttpError extends Error {
   statusCode: number;
+  code?: string;
+  details: Record<string, unknown>;
 
-  constructor(statusCode: number, message: string) {
+  constructor(statusCode: number, message: string, code?: string, details: Record<string, unknown> = {}) {
     super(message);
     this.name = "HttpError";
     this.statusCode = statusCode;
+    this.code = code;
+    this.details = details;
   }
 }
 
@@ -496,6 +502,18 @@ const server = createServer(async (request, response) => {
       return;
     }
 
+    if (request.method === "GET" && pathname === "/api/codex/capacity") {
+      const active = await activeCodexRunnerCount();
+      sendJson(response, 200, {
+        capacity: {
+          limit: maxActiveCodexJobs,
+          active,
+          available: Math.max(0, maxActiveCodexJobs - active)
+        }
+      });
+      return;
+    }
+
     if (request.method === "GET" && pathname === "/api/codex/jobs") {
       const files = await readdir(inboxDir);
       sendJson(response, 200, {
@@ -654,7 +672,9 @@ const server = createServer(async (request, response) => {
 
     if (request.method === "POST" && pathname === "/api/codex/tournaments") {
       const registration = (await readJson(request)) as AnimationTournamentRegistrationRequest;
-      const result = await registerAnimationTournament(registration);
+      const result = registration.startInitialCandidates === true
+        ? await registerAndStartAnimationTournament(registration)
+        : await registerAnimationTournament(registration);
       sendJson(response, result.created ? 201 : 200, result);
       return;
     }
@@ -672,6 +692,18 @@ const server = createServer(async (request, response) => {
         return;
       }
       sendJson(response, 200, { tournament: manifest });
+      return;
+    }
+
+    const tournamentInitialCandidatesMatch = pathname.match(/^\/api\/codex\/tournaments\/([^/]+)\/initial-candidates$/);
+    if (request.method === "POST" && tournamentInitialCandidatesMatch) {
+      const tournamentId = decodeURIComponent(tournamentInitialCandidatesMatch[1]);
+      if (!isSafeTournamentId(tournamentId)) {
+        sendJson(response, 400, { error: "Unsupported or unsafe tournament initial-candidate request" });
+        return;
+      }
+      const result = await startAnimationTournamentInitialCandidateBundle(tournamentId);
+      sendJson(response, result.reused ? 200 : 201, result);
       return;
     }
 
@@ -806,6 +838,26 @@ const server = createServer(async (request, response) => {
         sendJson(response, 400, { error: "Prompt is required for a Codex handoff job" });
         return;
       }
+      if (hasTournamentScopedJobFields(body)) {
+        throw new HttpError(
+          409,
+          "Tournament-scoped jobs must start through the animation tournament endpoints.",
+          "tournament_job_endpoint_required",
+          { retryable: false }
+        );
+      }
+      if (
+        normalizeWorkflowMode(body.workflowMode) === "sprite-generate" &&
+        body.spriteVariant !== "hatch-pet" &&
+        body.spriteVariant !== "directional-hatch-pet"
+      ) {
+        throw new HttpError(
+          409,
+          "Standard animation generation must start through the animation tournament endpoint.",
+          "animation_tournament_endpoint_required",
+          { retryable: false }
+        );
+      }
 
       const result = await createCodexJob(body);
       sendJson(response, result.reused ? 200 : 201, result);
@@ -817,7 +869,11 @@ const server = createServer(async (request, response) => {
     sendJson(
       response,
       error instanceof HttpError ? error.statusCode : 500,
-      { error: error instanceof Error ? error.message : "Internal server error" }
+      {
+        error: error instanceof Error ? error.message : "Internal server error",
+        ...(error instanceof HttpError && error.code ? { code: error.code } : {}),
+        ...(error instanceof HttpError ? error.details : {})
+      }
     );
   }
 });
@@ -846,7 +902,18 @@ async function isDirectoryReadable(path: string) {
   }
 }
 
-async function createCodexJob(body: CodexJobRequest) {
+type CreateCodexJobOptions = {
+  admissionLockHeld?: boolean;
+  skipSlotCheck?: boolean;
+  onJobCreated?: (jobId: string) => void;
+};
+
+async function createCodexJob(body: CodexJobRequest, options: CreateCodexJobOptions = {}) {
+  if (options.admissionLockHeld) return createCodexJobUnlocked(body, options);
+  return withCodexRunnerAdmissionLock(() => createCodexJobUnlocked(body, options));
+}
+
+async function createCodexJobUnlocked(body: CodexJobRequest, options: CreateCodexJobOptions = {}) {
   const workflowMode = normalizeWorkflowMode(body.workflowMode);
   const tournamentId = resolveTournamentIdForJobRequest(workflowMode, body);
   if (tournamentId && body.idempotencyKey) {
@@ -854,6 +921,7 @@ async function createCodexJob(body: CodexJobRequest) {
     const existing = manifest?.candidates.find((candidate) => candidate.idempotencyKey === body.idempotencyKey && candidate.jobId);
     if (existing?.jobId) return codexJobResponse(existing.jobId, true);
   }
+  if (!options.skipSlotCheck) await assertCodexRunnerSlotAvailable();
 
   const createdAt = new Date().toISOString();
   const id = createCodexJobId(createdAt);
@@ -941,6 +1009,7 @@ async function createCodexJob(body: CodexJobRequest) {
   const path = join(inboxDir, `${id}.json`);
   await writeFile(path, JSON.stringify(job, null, 2), "utf8");
   const runner = await startCodexRunner({ id, createdAt, path, outboxDir: jobOutboxDir });
+  options.onJobCreated?.(id);
   if (tournamentId) {
     await attachJobToAnimationTournament(tournamentId, normalizeCandidateIndex(body.tournamentCandidateIndex), id, createdAt, runner, repairDirections);
   }
@@ -974,7 +1043,211 @@ function animationTournamentTemplatePath(tournamentId: string) {
   return join(animationTournamentDir(tournamentId), "template.json");
 }
 
+async function registerAndStartAnimationTournament(registration: AnimationTournamentRegistrationRequest) {
+  const tournamentId = typeof registration.tournamentId === "string" ? registration.tournamentId : "";
+  const idempotencyKey = typeof registration.idempotencyKey === "string" ? registration.idempotencyKey.trim() : "";
+  if (!isSafeTournamentId(tournamentId) || !isSafeIdempotencyKey(idempotencyKey)) {
+    throw new Error("Tournament id and idempotency key are required and must be safe.");
+  }
+
+  return withAnimationTournamentLock(tournamentId, async () => {
+    const existing = await readAnimationTournamentManifest(tournamentId);
+    if (existing && existing.idempotencyKey !== idempotencyKey) {
+      throw new Error("Tournament id already exists with a different idempotency key.");
+    }
+    if (existing) {
+      const initialCandidates = existing.candidates.slice(0, existing.initialCandidateCount);
+      const startedCandidates = initialCandidates.filter((candidate) => Boolean(candidate.jobId));
+      if (startedCandidates.length === initialCandidates.length) {
+        const refreshed = await refreshAnimationTournamentManifestUnlocked(tournamentId) ?? existing;
+        assertAnimationInitialBundleReusable(refreshed);
+        return {
+          created: false,
+          reused: true,
+          jobs: await Promise.all(startedCandidates.map((candidate) => codexJobResponse(candidate.jobId as string, true))),
+          tournament: refreshed
+        };
+      }
+      if (startedCandidates.length > 0) throw initialAnimationBundlePartialError(existing.initialCandidateCount, startedCandidates.length);
+      if (existing.state !== "queued") {
+        throw new HttpError(409, "Only a queued animation tournament can start its initial candidate bundle.", "animation_tournament_not_queued", {
+          retryable: false
+        });
+      }
+    }
+
+    return withCodexRunnerAdmissionLock(async () => {
+      const profile = normalizeAnimationGenerationProfile(registration.generationProfile);
+      const profilePlan = animationGenerationProfilePlan(profile);
+      assertAnimationGenerationProfileRequestCounts(registration, profile, profilePlan);
+      if (existing) assertAnimationGenerationProfileManifestCounts(existing);
+      const initialCandidateCount = existing?.initialCandidateCount ?? profilePlan.initialCandidates;
+      await assertAnimationInitialBundleAdmissionAvailable(initialCandidateCount);
+
+      const registered = existing
+        ? { created: false, tournament: existing }
+        : await registerAnimationTournamentUnlocked(registration);
+      const bundle = await startAnimationTournamentInitialCandidateBundleUnlocked(tournamentId);
+      return {
+        created: registered.created,
+        reused: bundle.reused,
+        jobs: bundle.jobs,
+        tournament: bundle.tournament
+      };
+    });
+  });
+}
+
+async function startAnimationTournamentInitialCandidateBundle(tournamentId: string) {
+  return withAnimationTournamentLock(tournamentId, () =>
+    withCodexRunnerAdmissionLock(() => startAnimationTournamentInitialCandidateBundleUnlocked(tournamentId))
+  );
+}
+
+async function startAnimationTournamentInitialCandidateBundleUnlocked(tournamentId: string) {
+  const manifest = await readAnimationTournamentManifestRequired(tournamentId);
+  assertAnimationGenerationProfileManifestCounts(manifest);
+  const initialCandidates = manifest.candidates.slice(0, manifest.initialCandidateCount);
+  const startedCandidates = initialCandidates.filter((candidate) => Boolean(candidate.jobId));
+  if (startedCandidates.length === initialCandidates.length) {
+    const refreshed = await refreshAnimationTournamentManifestUnlocked(tournamentId) ?? manifest;
+    assertAnimationInitialBundleReusable(refreshed);
+    return {
+      reused: true,
+      jobs: await Promise.all(startedCandidates.map((candidate) => codexJobResponse(candidate.jobId as string, true))),
+      tournament: refreshed
+    };
+  }
+  if (startedCandidates.length > 0) throw initialAnimationBundlePartialError(initialCandidates.length, startedCandidates.length);
+  if (manifest.state !== "queued") {
+    throw new HttpError(409, "Only a queued animation tournament can start its initial candidate bundle.", "animation_tournament_not_queued", {
+      retryable: false
+    });
+  }
+
+  await assertAnimationInitialBundleAdmissionAvailable(initialCandidates.length);
+  const jobs: Awaited<ReturnType<typeof createCodexJob>>[] = [];
+  const createdJobIds = new Set<string>();
+  try {
+    for (const candidate of initialCandidates) {
+      const result = await startAnimationTournamentCandidateUnlocked(
+        tournamentId,
+        candidate.index,
+        undefined,
+        {
+          allowInitialCandidate: true,
+          admissionLockHeld: true,
+          skipSlotCheck: true,
+          onJobCreated: (jobId) => createdJobIds.add(jobId)
+        }
+      );
+      if (!["running", "completed", "disabled"].includes(result.job.runner?.state ?? "unknown")) {
+        throw new HttpError(
+          409,
+          `Initial animation candidate ${candidate.index + 1} did not enter the running state.`,
+          "initial_candidate_runner_not_started",
+          {
+            jobId: result.job.id,
+            runnerState: result.job.runner?.state ?? "unknown",
+            retryable: true
+          }
+        );
+      }
+      jobs.push(result.job);
+    }
+  } catch (error) {
+    await rollbackAnimationInitialCandidateBundle(tournamentId, [...createdJobIds]);
+    throw error;
+  }
+
+  return {
+    reused: false,
+    jobs,
+    tournament: await refreshAnimationTournamentManifestUnlocked(tournamentId)
+  };
+}
+
+function initialAnimationBundlePartialError(requiredSlots: number, startedSlots: number) {
+  return new HttpError(
+    409,
+    "The initial animation candidate wave is partial and cannot be resumed one candidate at a time. Cancel it and start a new tournament when all runner slots are free.",
+    "partial_initial_candidate_bundle",
+    { requiredSlots, startedSlots, retryable: false }
+  );
+}
+
+function assertAnimationInitialBundleReusable(manifest: AnimationTournamentManifest) {
+  if (manifest.state === "accepted") return;
+  const initialCandidates = manifest.candidates.slice(0, manifest.initialCandidateCount);
+  const invalidCandidate = initialCandidates.find((candidate) =>
+    candidate.state === "failed" ||
+    candidate.state === "cancelled" ||
+    candidate.reason?.startsWith("Initial candidate bundle failed") ||
+    candidate.reason?.startsWith("Initial candidate bundle rolled back")
+  );
+  if (manifest.state === "failed" || manifest.state === "cancelled" || invalidCandidate) {
+    throw new HttpError(
+      409,
+      "The existing initial animation candidate wave is failed or cancelled and cannot be reused.",
+      "initial_candidate_bundle_not_reusable",
+      { retryable: false }
+    );
+  }
+}
+
+async function rollbackAnimationInitialCandidateBundle(
+  tournamentId: string,
+  jobIds: string[]
+) {
+  const cancellationResults = await Promise.all(jobIds.map(async (jobId) => {
+    const status = await getRunnerStatus(jobId).catch(() => null);
+    if (!status || (status.state !== "running" && !status.cancellationPending)) {
+      return { ok: true, jobId, status };
+    }
+    return cancelCodexRunner(jobId).catch((error) => ({
+      ok: false,
+      jobId,
+      status,
+      message: error instanceof Error ? error.message : "Runner cancellation failed."
+    }));
+  }));
+  const manifest = await readAnimationTournamentManifestRequired(tournamentId);
+  const rolledBackJobIds = new Set(jobIds);
+  const unconfirmedJobIds = new Set(
+    cancellationResults
+      .filter((result) => !result.ok && (result.status?.state === "running" || result.status?.cancellationPending))
+      .map((result) => result.jobId)
+  );
+  manifest.candidates.slice(0, manifest.initialCandidateCount).forEach((candidate) => {
+    if (!candidate.jobId || !rolledBackJobIds.has(candidate.jobId)) return;
+    candidate.state = unconfirmedJobIds.has(candidate.jobId) ? "running" : "cancelled";
+    candidate.reason = unconfirmedJobIds.has(candidate.jobId)
+      ? "Initial candidate bundle failed and runner cancellation remains unconfirmed."
+      : "Initial candidate bundle rolled back after one candidate failed to start.";
+    candidate.updatedAt = new Date().toISOString();
+  });
+  manifest.state = "failed";
+  await writeAnimationTournamentManifest(manifest);
+  if (unconfirmedJobIds.size > 0) {
+    throw new HttpError(
+      409,
+      `Initial candidate rollback could not confirm cancellation for: ${[...unconfirmedJobIds].join(", ")}.`,
+      "initial_bundle_rollback_unconfirmed",
+      { jobIds: [...unconfirmedJobIds], retryable: true }
+    );
+  }
+}
+
 async function registerAnimationTournament(registration: AnimationTournamentRegistrationRequest) {
+  const tournamentId = typeof registration.tournamentId === "string" ? registration.tournamentId : "";
+  const idempotencyKey = typeof registration.idempotencyKey === "string" ? registration.idempotencyKey.trim() : "";
+  if (!isSafeTournamentId(tournamentId) || !isSafeIdempotencyKey(idempotencyKey)) {
+    throw new Error("Tournament id and idempotency key are required and must be safe.");
+  }
+  return withAnimationTournamentLock(tournamentId, () => registerAnimationTournamentUnlocked(registration));
+}
+
+async function registerAnimationTournamentUnlocked(registration: AnimationTournamentRegistrationRequest) {
   const tournamentId = typeof registration.tournamentId === "string" ? registration.tournamentId : "";
   const idempotencyKey = typeof registration.idempotencyKey === "string" ? registration.idempotencyKey.trim() : "";
   if (!isSafeTournamentId(tournamentId) || !isSafeIdempotencyKey(idempotencyKey)) {
@@ -983,13 +1256,14 @@ async function registerAnimationTournament(registration: AnimationTournamentRegi
   const existing = await readAnimationTournamentManifest(tournamentId);
   if (existing) {
     if (existing.idempotencyKey !== idempotencyKey) throw new Error("Tournament id already exists with a different idempotency key.");
-    return { created: false, tournament: await refreshAnimationTournamentManifest(tournamentId) };
+    return { created: false, tournament: await refreshAnimationTournamentManifestUnlocked(tournamentId) };
   }
 
   const profile = normalizeAnimationGenerationProfile(registration.generationProfile);
   const profilePlan = animationGenerationProfilePlan(profile);
-  const maximumCandidateCount = normalizeBoundedInteger(registration.maximumCandidateCount, profilePlan.maximumCandidates, 1, 3);
-  const initialCandidateCount = normalizeBoundedInteger(registration.initialCandidateCount, profilePlan.initialCandidates, 1, maximumCandidateCount);
+  assertAnimationGenerationProfileRequestCounts(registration, profile, profilePlan);
+  const maximumCandidateCount = profilePlan.maximumCandidates;
+  const initialCandidateCount = profilePlan.initialCandidates;
   const requestedDirections = normalizeDirectionNames(registration.requestedDirections);
   if (![1, 3, 5].includes(requestedDirections.length)) throw new Error("Animation tournaments require 1, 3, or 5 directions.");
   const pilotMode = registration.pilotMode === true;
@@ -1065,16 +1339,93 @@ async function registerAnimationTournament(registration: AnimationTournamentRegi
   return { created: true, tournament: manifest };
 }
 
+type StartAnimationTournamentCandidateOptions = {
+  allowInitialCandidate?: boolean;
+  admissionLockHeld?: boolean;
+  skipSlotCheck?: boolean;
+  onJobCreated?: (jobId: string) => void;
+};
+
 async function startAnimationTournamentCandidate(tournamentId: string, candidateIndex: number, reason?: string) {
-  return withAnimationTournamentLock(tournamentId, () => startAnimationTournamentCandidateUnlocked(tournamentId, candidateIndex, reason));
+  return withAnimationTournamentLock(tournamentId, () =>
+    withCodexRunnerAdmissionLock(() =>
+      startAnimationTournamentCandidateUnlocked(
+        tournamentId,
+        candidateIndex,
+        reason,
+        { allowInitialCandidate: false, admissionLockHeld: true, skipSlotCheck: false }
+      )
+    )
+  );
 }
 
-async function startAnimationTournamentCandidateUnlocked(tournamentId: string, candidateIndex: number, reason?: string) {
+async function startAnimationTournamentCandidateUnlocked(
+  tournamentId: string,
+  candidateIndex: number,
+  reason?: string,
+  options: StartAnimationTournamentCandidateOptions = {}
+) {
   const manifest = await readAnimationTournamentManifestRequired(tournamentId);
+  assertAnimationGenerationProfileManifestCounts(manifest);
   const candidate = manifest.candidates[candidateIndex];
   if (!candidate) throw new Error("Tournament candidate index is outside the registered plan.");
   if (candidate.jobId) return { reused: true, job: await codexJobResponse(candidate.jobId, true), tournament: await refreshAnimationTournamentManifestUnlocked(tournamentId) };
-  await assertCodexRunnerSlotAvailable();
+  if (candidateIndex < manifest.initialCandidateCount && !options.allowInitialCandidate) {
+    throw new HttpError(
+      409,
+      "Initial animation candidates must start together through the initial-candidates bundle endpoint.",
+      "initial_batch_admission_required",
+      { requiredSlots: manifest.initialCandidateCount, retryable: true }
+    );
+  }
+  const normalizedReason = normalizeShortText(reason);
+  if (candidateIndex >= manifest.initialCandidateCount) {
+    if (
+      manifest.pilotMode ||
+      manifest.generationProfile !== "balanced" ||
+      candidateIndex !== manifest.initialCandidateCount ||
+      manifest.maximumCandidateCount !== manifest.initialCandidateCount + 1
+    ) {
+      throw new HttpError(
+        409,
+        "This animation generation profile does not have an adaptive candidate slot.",
+        "adaptive_candidate_not_available",
+        { retryable: false }
+      );
+    }
+    const initialCandidates = manifest.candidates.slice(0, manifest.initialCandidateCount);
+    const startedCandidates = initialCandidates.filter((initialCandidate) => Boolean(initialCandidate.jobId));
+    const terminalCandidates = initialCandidates.filter(
+      (initialCandidate) => initialCandidate.state === "quality-evaluated" || initialCandidate.state === "failed"
+    );
+    if (
+      manifest.state === "accepted" ||
+      manifest.state === "cancelled" ||
+      startedCandidates.length !== initialCandidates.length ||
+      terminalCandidates.length !== initialCandidates.length
+    ) {
+      throw new HttpError(
+        409,
+        "The adaptive animation candidate can start only after the complete initial wave has finished Quality Gate evaluation.",
+        "adaptive_candidate_initial_wave_required",
+        {
+          requiredCandidates: initialCandidates.length,
+          startedCandidates: startedCandidates.length,
+          terminalCandidates: terminalCandidates.length,
+          retryable: true
+        }
+      );
+    }
+    if (!normalizedReason) {
+      throw new HttpError(
+        409,
+        "The adaptive animation candidate requires a persisted reason.",
+        "adaptive_candidate_reason_required",
+        { retryable: false }
+      );
+    }
+    await assertAnimationInitialBundleAdmissionAvailable(1);
+  }
   const template = parseJsonText<CodexJobRequest>(await readFile(animationTournamentTemplatePath(tournamentId), "utf8"));
   const candidateLabel = `candidate ${candidateIndex + 1}/${manifest.maximumCandidateCount}`;
   const pilotDirections = manifest.pilotMode && manifest.pilotDirection ? [manifest.pilotDirection] : undefined;
@@ -1093,7 +1444,7 @@ async function startAnimationTournamentCandidateUnlocked(tournamentId: string, c
       manifest.pilotMode
         ? `Motion Pilot experimental candidate. Generate only representative direction ${manifest.pilotDirection}. Preserve the full Recipe phase contract so the accepted pilot can expand to ${manifest.expansionDirectionIds?.join(", ")}.`
         : "",
-      reason ? `Adaptive candidate reason: ${reason}.` : ""
+      normalizedReason ? `Adaptive candidate reason: ${normalizedReason}.` : ""
     ].filter(Boolean).join("\n"),
     tournamentId,
     tournamentCandidateIndex: candidateIndex,
@@ -1102,11 +1453,15 @@ async function startAnimationTournamentCandidateUnlocked(tournamentId: string, c
     idempotencyKey: candidate.idempotencyKey,
     sourceFingerprint: manifest.sourceFingerprint
   };
-  if (candidateIndex >= manifest.initialCandidateCount && reason) manifest.thirdCandidateReason = reason;
-  candidate.reason = reason;
+  if (candidateIndex >= manifest.initialCandidateCount && normalizedReason) manifest.thirdCandidateReason = normalizedReason;
+  candidate.reason = normalizedReason;
   candidate.updatedAt = new Date().toISOString();
   await writeAnimationTournamentManifest(manifest);
-  const job = await createCodexJob(body);
+  const job = await createCodexJob(body, {
+    admissionLockHeld: options.admissionLockHeld,
+    skipSlotCheck: options.skipSlotCheck,
+    onJobCreated: options.onJobCreated
+  });
   return { reused: false, job, tournament: await refreshAnimationTournamentManifestUnlocked(tournamentId) };
 }
 
@@ -1437,7 +1792,9 @@ async function cancelAnimationTournamentUnlocked(tournamentId: string) {
 }
 
 async function startMotionPilotExpansion(tournamentId: string, winnerJobId: string) {
-  return withAnimationTournamentLock(tournamentId, () => startMotionPilotExpansionUnlocked(tournamentId, winnerJobId));
+  return withAnimationTournamentLock(tournamentId, () =>
+    withCodexRunnerAdmissionLock(() => startMotionPilotExpansionUnlocked(tournamentId, winnerJobId))
+  );
 }
 
 async function startMotionPilotExpansionUnlocked(tournamentId: string, winnerJobId: string) {
@@ -1515,7 +1872,7 @@ async function startMotionPilotExpansionUnlocked(tournamentId: string, winnerJob
       "Do not regenerate the accepted pilot direction. Preserve the full Motion Recipe phase contract across every expansion direction."
     ].filter(Boolean).join("\n")
   };
-  const job = await createCodexJob(body);
+  const job = await createCodexJob(body, { admissionLockHeld: true, skipSlotCheck: true });
   const updated = await readAnimationTournamentManifestRequired(tournamentId);
   updated.expansionJobId = job.id;
   updated.directionOutputCount = updated.pilotCandidateIds?.length ?? updated.initialCandidateCount;
@@ -1570,7 +1927,9 @@ async function fallbackMotionPilotTournament(tournamentId: string, reason: strin
 }
 
 async function startAnimationDirectionRepair(tournamentId: string, requestedDirections: unknown) {
-  return withAnimationTournamentLock(tournamentId, () => startAnimationDirectionRepairUnlocked(tournamentId, requestedDirections));
+  return withAnimationTournamentLock(tournamentId, () =>
+    withCodexRunnerAdmissionLock(() => startAnimationDirectionRepairUnlocked(tournamentId, requestedDirections))
+  );
 }
 
 async function startAnimationDirectionRepairUnlocked(tournamentId: string, requestedDirections: unknown) {
@@ -1587,6 +1946,7 @@ async function startAnimationDirectionRepairUnlocked(tournamentId: string, reque
   if (existing?.jobId) {
     return { reused: true, job: await codexJobResponse(existing.jobId, true), tournament: await refreshAnimationTournamentManifestUnlocked(tournamentId) };
   }
+  await assertCodexRunnerSlotAvailable();
 
   const template = parseJsonText<CodexJobRequest>(await readFile(animationTournamentTemplatePath(tournamentId), "utf8"));
   const repairFrameCount = normalizeMotionFrameCount(template.framesPerDirection) ?? 8;
@@ -1630,7 +1990,7 @@ async function startAnimationDirectionRepairUnlocked(tournamentId: string, reque
       `Use the same source fingerprint, motion recipe or preset, ${repairFrameCount}-frame contract, cell size, chroma key, adjacent direction pose language, timing, palette, silhouette, and topology-specific contact line.`
     ].filter(Boolean).join("\n")
   };
-  const job = await createCodexJob(body);
+  const job = await createCodexJob(body, { admissionLockHeld: true, skipSlotCheck: true });
   return { reused: false, job, tournament: await refreshAnimationTournamentManifestUnlocked(tournamentId) };
 }
 
@@ -1901,6 +2261,21 @@ async function withAnimationTournamentLock<T>(tournamentId: string, action: () =
   }
 }
 
+async function withCodexRunnerAdmissionLock<T>(action: () => Promise<T>) {
+  const previous = codexRunnerAdmissionTail;
+  let release = () => {};
+  const current = new Promise<void>((resolveLock) => {
+    release = resolveLock;
+  });
+  codexRunnerAdmissionTail = previous.then(() => current);
+  await previous;
+  try {
+    return await action();
+  } finally {
+    release();
+  }
+}
+
 function normalizeAnimationGenerationProfile(value: unknown): AnimationGenerationProfile {
   return value === "fast" || value === "balanced" || value === "best" ? value : "best";
 }
@@ -1909,6 +2284,53 @@ function animationGenerationProfilePlan(profile: AnimationGenerationProfile) {
   if (profile === "fast") return { initialCandidates: 1, maximumCandidates: 1 };
   if (profile === "balanced") return { initialCandidates: 2, maximumCandidates: 3 };
   return { initialCandidates: 3, maximumCandidates: 3 };
+}
+
+function assertAnimationGenerationProfileRequestCounts(
+  registration: AnimationTournamentRegistrationRequest,
+  profile: AnimationGenerationProfile,
+  profilePlan = animationGenerationProfilePlan(profile)
+) {
+  if (
+    (registration.maximumCandidateCount !== undefined && registration.maximumCandidateCount !== profilePlan.maximumCandidates) ||
+    (registration.initialCandidateCount !== undefined && registration.initialCandidateCount !== profilePlan.initialCandidates)
+  ) {
+    throw new HttpError(
+      400,
+      `${profile} animation tournaments require exactly ${profilePlan.initialCandidates} initial and ${profilePlan.maximumCandidates} maximum candidates.`,
+      "animation_profile_candidate_count_mismatch",
+      {
+        generationProfile: profile,
+        requiredInitialCandidateCount: profilePlan.initialCandidates,
+        requiredMaximumCandidateCount: profilePlan.maximumCandidates,
+        retryable: false
+      }
+    );
+  }
+}
+
+function assertAnimationGenerationProfileManifestCounts(manifest: AnimationTournamentManifest) {
+  const profilePlan = animationGenerationProfilePlan(manifest.generationProfile);
+  const extraCandidates = manifest.candidates.slice(profilePlan.maximumCandidates);
+  const hasUnexpectedExtraCandidate = extraCandidates.some((candidate) => !candidate.repairDirections?.length);
+  if (
+    manifest.initialCandidateCount !== profilePlan.initialCandidates ||
+    manifest.maximumCandidateCount !== profilePlan.maximumCandidates ||
+    manifest.candidates.length < profilePlan.maximumCandidates ||
+    hasUnexpectedExtraCandidate
+  ) {
+    throw new HttpError(
+      409,
+      "The saved animation tournament candidate plan does not match its generation profile.",
+      "animation_profile_candidate_count_mismatch",
+      {
+        generationProfile: manifest.generationProfile,
+        requiredInitialCandidateCount: profilePlan.initialCandidates,
+        requiredMaximumCandidateCount: profilePlan.maximumCandidates,
+        retryable: false
+      }
+    );
+  }
 }
 
 function normalizeDirectionNames(value: unknown) {
@@ -2764,37 +3186,110 @@ async function cancelCodexRunner(jobId: string) {
   const cancelledStatus: CodexRunnerStatus = {
     ...currentStatus,
     state: "failed",
+    cancellationPending: true,
     message: "Codex runner cancelled after an animation tournament winner was chosen.",
     finishedAt,
     exitCode: null,
     signal: "SIGTERM"
   };
   await writeRunnerStatus(cancelledStatus);
+  const closeConfirmation = new Promise<boolean>((resolveClose) => {
+    if (child.exitCode !== null || child.signalCode !== null) {
+      resolveClose(true);
+      return;
+    }
+    let settled = false;
+    const finish = (confirmed: boolean) => {
+      if (settled) return;
+      settled = true;
+      resolveClose(confirmed);
+    };
+    child.once("close", () => finish(true));
+    setTimeout(() => finish(false), 5500);
+  });
   child.kill("SIGTERM");
   setTimeout(() => {
     if (runnerProcesses.get(jobId) === child) child.kill("SIGKILL");
   }, 5000);
+  const stopped = await closeConfirmation;
+  const terminalStatus = await getRunnerStatus(jobId).catch(() => cancelledStatus);
   return {
-    ok: true,
+    ok: stopped,
     jobId,
-    status: cancelledStatus
+    status: terminalStatus,
+    ...(!stopped ? { message: "Runner termination is still unconfirmed after SIGTERM and SIGKILL requests." } : {})
   };
 }
 
 async function activeCodexRunnerCount() {
   const statusNames = await readdir(statusDir).catch(() => [] as string[]);
-  const jobIds = statusNames
-    .filter((name) => name.endsWith(".json"))
-    .map((name) => name.slice(0, -5))
-    .filter(isSafeJobId);
-  const statuses = await Promise.all(jobIds.map((jobId) => getRunnerStatus(jobId).catch(() => null)));
-  return statuses.filter((status) => status?.state === "running" || status?.cancellationPending).length;
+  const persistedActiveJobIds = (
+    await Promise.all(
+      statusNames
+        .filter((name) => name.endsWith(".json"))
+        .map(async (name) => {
+          const jobId = name.slice(0, -5);
+          if (!isSafeJobId(jobId)) return null;
+          try {
+            const status = parseJsonText<CodexRunnerStatus>(await readFile(join(statusDir, name), "utf8"));
+            return status.state === "running" || status.cancellationPending ? jobId : null;
+          } catch {
+            return null;
+          }
+        })
+    )
+  ).filter((jobId): jobId is string => Boolean(jobId));
+  const statuses = await Promise.all(persistedActiveJobIds.map((jobId) => getRunnerStatus(jobId).catch(() => null)));
+  const activeJobIds = new Set(
+    statuses
+      .filter((status) => status?.state === "running" || status?.cancellationPending)
+      .map((status) => status?.jobId)
+      .filter((jobId): jobId is string => Boolean(jobId))
+  );
+  runnerProcesses.forEach((_child, jobId) => activeJobIds.add(jobId));
+  resumingRunnerJobs.forEach((_resume, jobId) => activeJobIds.add(jobId));
+  cancellingRunnerJobIds.forEach((jobId) => activeJobIds.add(jobId));
+  return activeJobIds.size;
 }
 
 async function assertCodexRunnerSlotAvailable() {
   const activeCount = await activeCodexRunnerCount();
   if (activeCount >= maxActiveCodexJobs) {
-    throw new Error(`Codex runner slots are full (${activeCount}/${maxActiveCodexJobs}). Wait for a job to finish before starting another.`);
+    throw new HttpError(
+      409,
+      `Codex runner slots are full (${activeCount}/${maxActiveCodexJobs}). Wait for a job to finish before starting another.`,
+      "runner_slots_full",
+      {
+        requiredSlots: 1,
+        capacity: {
+          limit: maxActiveCodexJobs,
+          active: activeCount,
+          available: Math.max(0, maxActiveCodexJobs - activeCount)
+        },
+        retryable: true
+      }
+    );
+  }
+}
+
+async function assertAnimationInitialBundleAdmissionAvailable(requiredSlots: number) {
+  const activeCount = await activeCodexRunnerCount();
+  const availableSlots = Math.max(0, maxActiveCodexJobs - activeCount);
+  if (activeCount > 0 || requiredSlots > availableSlots) {
+    throw new HttpError(
+      409,
+      `Animation generation requires an idle ${maxActiveCodexJobs}-slot runner pool before its ${requiredSlots} initial candidate${requiredSlots === 1 ? "" : "s"} can start.`,
+      "insufficient_runner_slots",
+      {
+        requiredSlots,
+        capacity: {
+          limit: maxActiveCodexJobs,
+          active: activeCount,
+          available: availableSlots
+        },
+        retryable: true
+      }
+    );
   }
 }
 
@@ -4434,6 +4929,16 @@ function resolveTournamentIdForJobRequest(workflowMode: CodexWorkflowMode, body:
   return workflowMode === "sprite-generate" && spriteVariant === "standard" && isSafeTournamentId(body.tournamentId)
     ? body.tournamentId
     : "";
+}
+
+function hasTournamentScopedJobFields(body: CodexJobRequest) {
+  return (
+    body.tournamentId !== undefined ||
+    body.tournamentCandidateIndex !== undefined ||
+    body.tournamentCandidateCount !== undefined ||
+    body.repairDirections !== undefined ||
+    body.repairOfJobId !== undefined
+  );
 }
 
 function normalizeCandidateIndex(value: unknown) {
