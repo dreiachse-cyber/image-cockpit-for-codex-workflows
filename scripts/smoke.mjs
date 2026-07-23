@@ -98,6 +98,31 @@ async function runManualHandoffSmoke() {
     await writeFile(join(handoffDir, "outbox", `${artifactJobId}-manifest.json`), JSON.stringify({
       schema: "image-cockpit.direction-split-animation.v1",
       jobId: artifactJobId,
+      directionAttempts: {
+        front: [{
+          attempt: 1,
+          status: "accepted",
+          startedAt: "2026-07-24T00:00:00.000Z",
+          finishedAt: "2026-07-24T00:01:00.000Z",
+          artifactPath: `.staging/${artifactJobId}/front/attempt-1/result.png`,
+          failureKind: "imagegen_failed"
+        }],
+        side: [{
+          attempt: 1,
+          status: "capacity",
+          startedAt: "2026-07-24T00:00:00.000Z",
+          finishedAt: "2026-07-24T00:00:05.000Z",
+          failureKind: "imagegen_capacity",
+          artifactPath: `.staging/${artifactJobId}/side/attempt-1/result.png`
+        }, {
+          attempt: 2,
+          status: "accepted",
+          startedAt: "2026-07-24T00:01:05.000Z",
+          finishedAt: "2026-07-24T00:02:00.000Z",
+          artifactPath: `.staging/${artifactJobId}/side/attempt-2/result.png`
+        }],
+        unexpected: [{ attempt: 1, status: "accepted", artifactPath: ".staging/unexpected/result.png" }]
+      },
       files: {
         front: `${artifactJobId}-front.png`,
         "front-three-quarter": `${artifactJobId}-front-three-quarter.png`,
@@ -125,6 +150,62 @@ async function runManualHandoffSmoke() {
     const verifiedManifestText = Buffer.from(verifiedManifest.dataUrl.split(",")[1], "base64").toString("utf8");
     assert(verifiedManifestText.includes('"serverVerified": true'), "server should rewrite the final direction split manifest");
     assert(verifiedManifestText.includes('"classification": "usable-final"'), "server manifest should include the quality gate classification");
+    const verifiedManifestObject = JSON.parse(verifiedManifestText);
+    assert(verifiedManifestObject.directionAttempts.front[0].artifactPath.includes("/front/attempt-1/"), "server manifest should preserve direction-bound attempt metadata");
+    assert(!verifiedManifestObject.directionAttempts.front[0].failureKind, "accepted attempts should retain only artifactPath");
+    assert(verifiedManifestObject.directionAttempts.side[0].status === "capacity" && verifiedManifestObject.directionAttempts.side[1].status === "accepted", "server manifest should preserve targeted retry history");
+    assert(!verifiedManifestObject.directionAttempts.side[0].artifactPath, "failed attempts should retain only failureKind");
+    assert(!verifiedManifestObject.directionAttempts.unexpected, "server manifest should discard attempt metadata for unrequested directions");
+    await writeFile(join(handoffDir, "outbox", `${artifactJobId}-manifest.json`), JSON.stringify({
+      ...verifiedManifestObject,
+      serverVerified: true,
+      directionAttempts: {
+        front: [
+          {
+            attempt: 2,
+            status: "accepted",
+            startedAt: "2026-07-24T00:00:00.000Z",
+            finishedAt: "2026-07-24T00:00:01.000Z",
+            artifactPath: "file:///C:/private/front/result.png"
+          },
+          {
+            attempt: 3,
+            status: "accepted",
+            startedAt: "2026-07-24T00:00:00.000Z",
+            finishedAt: "2026-07-24T00:00:01.000Z",
+            artifactPath: `.staging/codex-job-other/front/attempt-3/result.png`
+          },
+          {
+            attempt: 4,
+            status: "accepted",
+            startedAt: "2026-07-24T00:00:00.000Z",
+            finishedAt: "2026-07-24T00:00:01.000Z",
+            artifactPath: `.staging/${artifactJobId}/front/attempt-4/file:///C:/private.png`
+          },
+          {
+            attempt: 5,
+            status: "accepted",
+            startedAt: "2026-07-24T00:00:00.000Z",
+            finishedAt: "2026-07-24T00:00:01.000Z",
+            artifactPath: `.staging/${artifactJobId}/front/attempt-999/result.png`
+          },
+          {
+            attempt: 6,
+            status: "failed",
+            startedAt: "2026-07-24T00:00:00.000Z",
+            finishedAt: "2026-07-24T00:00:01.000Z",
+            failureKind: "C:\\Users\\private\\failure.txt"
+          }
+        ]
+      }
+    }, null, 2), "utf8");
+    await getJson(port, "/api/codex/results");
+    const resanitizedManifest = await getJson(port, `/api/codex/results/${artifactJobId}-manifest.json`);
+    const resanitizedManifestText = Buffer.from(resanitizedManifest.dataUrl.split(",")[1], "base64").toString("utf8");
+    assert(!resanitizedManifestText.includes("file:///"), "serverVerified manifests should not bypass absolute URI sanitization");
+    assert(!resanitizedManifestText.includes("codex-job-other"), "serverVerified manifests should not retain another job's staging path");
+    assert(!resanitizedManifestText.includes("attempt-999"), "attempt artifact paths should match their recorded attempt number");
+    assert(!resanitizedManifestText.includes("Users"), "failureKind should not expose a local path");
     const animationQualityReport = {
       metricVersion: "image-cockpit.animation-quality.v2",
       policyVersion: "shadow-v1",
@@ -658,6 +739,14 @@ async function runManualHandoffSmoke() {
     assert(transientRegression.tournament.candidates[0].warningCount === 2, "transient reread should preserve the evaluated warning count");
     const acceptedWinner = await postJson(port, `/api/codex/tournaments/${persistentTournamentId}/winner`, { jobId: candidateA.job.id });
     assert(acceptedWinner.tournament.state === "accepted", "verified candidate should become the persistent tournament winner");
+    const repeatedAcceptedWinner = await postJson(port, `/api/codex/tournaments/${persistentTournamentId}/winner`, { jobId: candidateA.job.id });
+    assert(repeatedAcceptedWinner.reused === true, "same accepted winner should be idempotent");
+    const rejectedDifferentWinner = await fetch(`http://127.0.0.1:${port}/api/codex/tournaments/${persistentTournamentId}/winner`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ jobId: candidateC.job.id })
+    });
+    assert(rejectedDifferentWinner.status === 409, "different winner should require an explicit saved manual override");
     const lateWinnerEvaluation = await postJson(port, `/api/codex/tournaments/${persistentTournamentId}/evaluation`, {
       jobId: candidateA.job.id,
       ready: true,
@@ -707,6 +796,37 @@ async function runManualHandoffSmoke() {
     assert(acceptedRepair.beforeHashes.back === acceptedRepair.afterHashes.back, "Direction Repair should preserve the back hash");
     assert(acceptedRepair.tournament.directionStates.side.jobId === repair.job.id, "accepted Direction Repair should attribute the repaired direction to the repair job");
     assert(acceptedRepair.tournament.directionStates.front.jobId === candidateA.job.id, "accepted Direction Repair should attribute untargeted directions to the preserved winner");
+    for (const slug of ["front", "side", "back"]) {
+      await writeFile(join(candidateC.job.outboxPath, `${candidateC.job.id}-${slug}.png`), tinyPngBytes);
+    }
+    await writeFile(join(candidateC.job.outboxPath, `${candidateC.job.id}-manifest.json`), JSON.stringify({
+      schema: "image-cockpit.direction-split-animation.v1",
+      jobId: candidateC.job.id,
+      action: "walk",
+      directions: ["front", "side", "back"],
+      files: {
+        front: `${candidateC.job.id}-front.png`,
+        side: `${candidateC.job.id}-side.png`,
+        back: `${candidateC.job.id}-back.png`
+      },
+      chromaKey: { name: "green" }
+    }, null, 2), "utf8");
+    await getJson(port, `/api/codex/jobs/${candidateC.job.id}/results`);
+    await postJson(port, `/api/codex/tournaments/${persistentTournamentId}/review`, {
+      review: {
+        manualWinnerJobId: candidateC.job.id,
+        decisions: [
+          { jobId: candidateA.job.id, decision: "reject", reasonTags: ["manual-override"], note: "replaced after review" },
+          { jobId: candidateC.job.id, decision: "winner", reasonTags: ["manual-override"], note: "explicit replacement" }
+        ]
+      }
+    });
+    const manualWinnerOverride = await postJson(
+      port,
+      `/api/codex/tournaments/${persistentTournamentId}/winner`,
+      { jobId: candidateC.job.id }
+    );
+    assert(manualWinnerOverride.tournament.winnerCandidateId === candidateC.job.id, "saved human review should still allow an explicit manual winner override");
     const cancelledTournament = await postJson(port, `/api/codex/tournaments/${persistentTournamentId}/cancel`, {});
     assert(cancelledTournament.tournament.state === "cancelled", "tournament cancel should persist a terminal cancelled state");
 
@@ -845,6 +965,30 @@ async function runManualHandoffSmoke() {
       spriteGenerateJobJson.notes.some((note) => note.includes("built-in image_gen")),
       "sprite generation job should instruct Codex to use built-in image generation"
     );
+    const duplicateDirectionJob = await postJson(port, "/api/codex/jobs", {
+      workflowMode: "sprite-generate",
+      prompt: "Smoke test canonical direction normalization",
+      spriteVariant: "standard",
+      framesPerDirection: 8,
+      directions: [...Array(20).fill("front"), "unknown-direction"]
+    });
+    const duplicateDirectionJobJson = JSON.parse(await readFile(duplicateDirectionJob.path, "utf8"));
+    assert(
+      duplicateDirectionJobJson.spriteContext.directions.join(",") === "front",
+      "standard sprite jobs should canonicalize and deduplicate directions before the runner sees them"
+    );
+    const invalidDirectionCountResponse = await fetch(`http://127.0.0.1:${port}/api/codex/jobs`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        workflowMode: "sprite-generate",
+        prompt: "Smoke test invalid two-direction initial request",
+        spriteVariant: "standard",
+        framesPerDirection: 8,
+        directions: ["front", "side"]
+      })
+    });
+    assert(invalidDirectionCountResponse.status === 400, "normal standard sprite jobs should reject a two-direction initial request");
 
     const effectAnimationJob = await postJson(port, "/api/codex/jobs", {
       workflowMode: "effect-animation",
@@ -1083,6 +1227,7 @@ async function runMockAutorunSmoke() {
     handoffDir,
     env: autorunEnv
   });
+  let simulatedOrphanRunner = null;
 
   try {
     await waitForServer(server, port);
@@ -1153,6 +1298,217 @@ async function runMockAutorunSmoke() {
     const capacityText = await capacityResponse.text();
     assert(capacityResponse.status === 500 && capacityText.includes("runner slots are full (3/3)"), `fourth tournament runner should be rejected before manifest mutation: ${capacityResponse.status} ${capacityText}`);
     await Promise.all(capacityJobs.map((item) => waitForJobState(port, item.id, "completed")));
+
+    const smartRaceTournamentId = "smoke-smart-race-cancellation";
+    const smartRaceRegistration = await postJson(port, "/api/codex/tournaments", {
+      tournamentId: smartRaceTournamentId,
+      idempotencyKey: "smoke:smart-race:cancellation:v1",
+      sourceFingerprint: "smoke-smart-race-source",
+      motionRecipeId: "walk-cycle",
+      motionRecipeVersion: 1,
+      motionRecipeCompilerVersion: "1.2.0",
+      presetId: "walk-cycle",
+      generationProfile: "best",
+      requestedDirections: ["front", "side", "back"],
+      maximumCandidateCount: 3,
+      initialCandidateCount: 3,
+      jobTemplate: {
+        workflowMode: "sprite-generate",
+        prompt: "Smart Race cancellation fixture",
+        negativePrompt: "text",
+        jobNotes: "Candidate A stays active while B and C finish.",
+        selectedImageName: "tiny.png",
+        selectedImageSize: "1x1",
+        selectedImageSource: "import",
+        selectedImageDataUrl: tinyPng,
+        grid: { columns: 8, rows: 3, gutter: 0 },
+        action: "walk",
+        frames: 24,
+        framesPerDirection: 8,
+        cell: { width: 256, height: 256 },
+        chromaKey: "green",
+        spriteVariant: "standard",
+        directions: ["front", "side", "back"]
+      }
+    });
+    assert(smartRaceRegistration.tournament.selectionPolicy === "smart-race", "new non-Pilot Best tournaments should persist Smart Race");
+    const smartRaceCandidates = [];
+    for (let index = 0; index < 3; index += 1) {
+      smartRaceCandidates.push(await postJson(port, `/api/codex/tournaments/${smartRaceTournamentId}/candidates`, { candidateIndex: index }));
+    }
+    const smartRaceA = smartRaceCandidates[0];
+    const smartRaceB = smartRaceCandidates[1];
+    const smartRaceC = smartRaceCandidates[2];
+    for (const slug of ["front", "side", "back"]) {
+      await writeFile(join(smartRaceC.job.outboxPath, `${smartRaceC.job.id}-${slug}.png`), tinyPngBytes);
+    }
+    await writeFile(join(smartRaceC.job.outboxPath, `${smartRaceC.job.id}-manifest.json`), JSON.stringify({
+      schema: "image-cockpit.direction-split-animation.v1",
+      jobId: smartRaceC.job.id,
+      action: "walk",
+      directions: ["front", "side", "back"],
+      framesPerDirection: 8,
+      files: {
+        front: `${smartRaceC.job.id}-front.png`,
+        side: `${smartRaceC.job.id}-side.png`,
+        back: `${smartRaceC.job.id}-back.png`
+      },
+      chromaKey: { name: "green" }
+    }, null, 2), "utf8");
+    await Promise.all([
+      waitForJobState(port, smartRaceB.job.id, "completed"),
+      waitForJobState(port, smartRaceC.job.id, "completed")
+    ]);
+    const smartRaceAStatus = await getJson(port, `/api/codex/jobs/${smartRaceA.job.id}/status`);
+    assert(smartRaceAStatus.status.state === "running", "Smart Race fixture should keep candidate A active");
+    await postJson(port, `/api/codex/tournaments/${smartRaceTournamentId}/evaluation`, {
+      jobId: smartRaceB.job.id,
+      ready: true,
+      score: 3275,
+      warningCount: 5,
+      identityScore: 82.04,
+      shadowWouldBlock: true,
+      reason: "measured B fixture"
+    });
+    await postJson(port, `/api/codex/tournaments/${smartRaceTournamentId}/evaluation`, {
+      jobId: smartRaceC.job.id,
+      ready: true,
+      score: 3325,
+      warningCount: 3,
+      identityScore: 83.96,
+      shadowWouldBlock: false,
+      reason: "measured C fixture"
+    });
+    const smartRaceWinnerRequest = {
+      jobId: smartRaceC.job.id,
+      decision: {
+        mode: "early-accept",
+        reason: "two ready Best candidates have a clear Smart Race winner",
+        comparedJobIds: [smartRaceB.job.id, smartRaceC.job.id],
+        scoreGap: 50
+      }
+    };
+    const acceptedSmartRace = await postJson(
+      port,
+      `/api/codex/tournaments/${smartRaceTournamentId}/winner`,
+      smartRaceWinnerRequest
+    );
+    assert(acceptedSmartRace.tournament.state === "accepted", "Smart Race winner should be durably accepted");
+    assert(acceptedSmartRace.tournament.smartRaceDecision.winnerJobId === smartRaceC.job.id, "Smart Race decision should persist candidate C");
+    assert(acceptedSmartRace.tournament.smartRaceDecision.scoreGap === 50, "Smart Race should persist the server-calculated score gap");
+    assert(acceptedSmartRace.tournament.candidates[0].state === "cancelled", "unfinished candidate A should be marked cancelled");
+    assert(
+      acceptedSmartRace.cancellationResults.some((result) => result.jobId === smartRaceA.job.id && result.ok),
+      "winner response should include the server-side candidate A cancellation"
+    );
+    const cancelledSmartRaceA = await getJson(port, `/api/codex/jobs/${smartRaceA.job.id}/status`);
+    assert(cancelledSmartRaceA.status.state === "failed" && cancelledSmartRaceA.status.message.includes("cancelled"), "candidate A runner should stop inside winner acceptance");
+    const completedSmartRaceB = await getJson(port, `/api/codex/jobs/${smartRaceB.job.id}/status`);
+    assert(completedSmartRaceB.status.state === "completed", "candidate B should be terminal before crash-window simulation");
+    const firstDecisionTimestamp = acceptedSmartRace.tournament.smartRaceDecision.decidedAt;
+    const repeatedSmartRaceWinner = await postJson(
+      port,
+      `/api/codex/tournaments/${smartRaceTournamentId}/winner`,
+      smartRaceWinnerRequest
+    );
+    assert(repeatedSmartRaceWinner.reused === true, "same Smart Race winner POST should reuse the published result");
+    assert(repeatedSmartRaceWinner.tournament.smartRaceDecision.decidedAt === firstDecisionTimestamp, "same winner POST should preserve the first decision");
+    const rejectedDifferentSmartRaceWinner = await fetch(
+      `http://127.0.0.1:${port}/api/codex/tournaments/${smartRaceTournamentId}/winner`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...smartRaceWinnerRequest, jobId: smartRaceB.job.id })
+      }
+    );
+    assert(rejectedDifferentSmartRaceWinner.status === 409, "a different automatic winner should be rejected after acceptance");
+    await stopServer(server);
+    const simulatedOrphanStartedAt = new Date().toISOString();
+    simulatedOrphanRunner = spawn(nodeCommand, ["-e", "setTimeout(() => {}, 60000)"], {
+      stdio: "ignore",
+      windowsHide: true
+    });
+    const simulatedOrphanPid = simulatedOrphanRunner.pid;
+    assert(typeof simulatedOrphanPid === "number", "crash-window fixture should start a simulated orphan runner");
+    await Promise.all([
+      writeFile(cancelledSmartRaceA.status.statusPath, JSON.stringify({
+        ...cancelledSmartRaceA.status,
+        state: "running",
+        message: "Simulate API crash after accepted manifest persistence but before loser cancellation.",
+        command: nodeCommand,
+        processId: simulatedOrphanPid,
+        startedAt: "2000-01-01T00:00:00.000Z",
+        finishedAt: undefined,
+        exitCode: undefined,
+        signal: undefined,
+        diagnostic: undefined
+      }, null, 2), "utf8"),
+      writeFile(completedSmartRaceB.status.statusPath, JSON.stringify({
+        ...completedSmartRaceB.status,
+        state: "running",
+        message: "Simulate stale terminal candidate status after accepted manifest persistence.",
+        finishedAt: undefined,
+        exitCode: undefined,
+        signal: undefined,
+        diagnostic: undefined
+      }, null, 2), "utf8")
+    ]);
+    server = startServer({ port, handoffDir, env: autorunEnv });
+    await waitForServer(server, port);
+    const restoredSmartRace = await getJson(port, `/api/codex/tournaments/${smartRaceTournamentId}`);
+    assert(restoredSmartRace.tournament.selectionPolicy === "smart-race", "Smart Race policy should survive API restart");
+    assert(restoredSmartRace.tournament.candidates[1].identityScore === 82.04, "runner-up identity should survive API restart");
+    assert(restoredSmartRace.tournament.candidates[1].shadowWouldBlock === true, "runner-up shadow result should survive API restart");
+    assert(restoredSmartRace.tournament.candidates[2].identityScore === 83.96, "winner identity should survive API restart");
+    assert(restoredSmartRace.tournament.candidates[2].shadowWouldBlock === false, "winner shadow result should survive API restart");
+    assert(restoredSmartRace.tournament.smartRaceDecision.decidedAt === firstDecisionTimestamp, "Smart Race decision should survive API restart");
+    const restoredSmartRaceBStatus = await getJson(port, `/api/codex/jobs/${smartRaceB.job.id}/status`);
+    assert(restoredSmartRaceBStatus.status.state === "failed", "accepted terminal loser should be recovered as cancelled instead of resuming");
+    assert(
+      restoredSmartRaceBStatus.status.message.includes("recovered"),
+      `accepted loser guard should explain recovered cancellation: ${restoredSmartRaceBStatus.status.message}`
+    );
+    assert((restoredSmartRaceBStatus.status.resumeCount ?? 0) === (completedSmartRaceB.status.resumeCount ?? 0), "accepted terminal loser resume count should remain unchanged");
+    const unconfirmedSmartRaceWinner = await postJson(
+      port,
+      `/api/codex/tournaments/${smartRaceTournamentId}/winner`,
+      { jobId: smartRaceC.job.id }
+    );
+    assert(
+      unconfirmedSmartRaceWinner.cancellationResults.some((result) => result.jobId === smartRaceA.job.id && !result.ok),
+      `mismatched orphan identity should remain unconfirmed: ${JSON.stringify(unconfirmedSmartRaceWinner.cancellationResults)}`
+    );
+    const pendingSmartRaceAStatus = await getJson(port, `/api/codex/jobs/${smartRaceA.job.id}/status`);
+    assert(pendingSmartRaceAStatus.status.cancellationPending === true, "unconfirmed orphan cancellation should remain idempotently retryable");
+    assert(!(await waitForProcessExit(simulatedOrphanPid, 250)), "identity mismatch must not terminate the simulated orphan runner");
+    await stopServer(server);
+    await writeFile(pendingSmartRaceAStatus.status.statusPath, JSON.stringify({
+      ...pendingSmartRaceAStatus.status,
+      command: nodeCommand,
+      processId: simulatedOrphanPid,
+      startedAt: simulatedOrphanStartedAt,
+      cancellationPending: true,
+      finishedAt: undefined,
+      exitCode: undefined,
+      signal: undefined,
+      diagnostic: undefined
+    }, null, 2), "utf8");
+    server = startServer({ port, handoffDir, env: autorunEnv });
+    await waitForServer(server, port);
+    const reconciledSmartRaceWinner = await postJson(
+      port,
+      `/api/codex/tournaments/${smartRaceTournamentId}/winner`,
+      { jobId: smartRaceC.job.id }
+    );
+    assert(
+      reconciledSmartRaceWinner.cancellationResults.some((result) => result.jobId === smartRaceA.job.id && result.ok),
+      `same-winner recovery retry should reconcile a verified orphan: ${JSON.stringify(reconciledSmartRaceWinner.cancellationResults)}`
+    );
+    assert(await waitForProcessExit(simulatedOrphanPid), "same-winner recovery POST should terminate the verified orphan runner process tree");
+    const restoredSmartRaceAStatus = await getJson(port, `/api/codex/jobs/${smartRaceA.job.id}/status`);
+    assert(restoredSmartRaceAStatus.status.state === "failed", "accepted loser should not resume after API restart");
+    assert(!restoredSmartRaceAStatus.status.cancellationPending, "confirmed orphan cancellation should clear the pending retry flag");
+    assert((restoredSmartRaceAStatus.status.resumeCount ?? 0) === (cancelledSmartRaceA.status.resumeCount ?? 0), "accepted loser resume count should remain unchanged");
 
     const job = await postJson(port, "/api/codex/jobs", {
       workflowMode: "image-generate",
@@ -1262,6 +1618,7 @@ async function runMockAutorunSmoke() {
     assert(noImageStatus.status.diagnostic?.kind === "no_image_returned", "no-image job should return no_image_returned diagnostic");
   } finally {
     await stopServer(server);
+    if (simulatedOrphanRunner?.exitCode === null) simulatedOrphanRunner.kill("SIGTERM");
     await rm(handoffDir, { recursive: true, force: true });
   }
 }
@@ -1299,6 +1656,19 @@ async function stopServer(server) {
       resolve();
     });
   });
+}
+
+async function waitForProcessExit(processId, timeoutMs = 3000) {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    try {
+      process.kill(processId, 0);
+    } catch {
+      return true;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 50));
+  }
+  return false;
 }
 
 async function waitForServer(server, apiPort) {
@@ -1390,6 +1760,24 @@ if (!stdin.includes("built-in imagegen / image_gen") || !stdin.includes("procedu
   process.exit(5);
 }
 
+const standardDirectionContract = [
+  "five requested directions means five concurrent image_gen calls inside this one candidate",
+  "Capture the exact path returned by that call and bind it one-to-one to that direction",
+  "directionAttempts keyed by canonical direction slug",
+  "Never submit image_gen for it again",
+  "regenerating the complete requested direction set because one direction failed is prohibited",
+  "Direction Repair or Motion Pilot expansion may request any 1-5 direction subset",
+  "Track a concurrency ceiling separately from the actual wave size",
+  "each actual wave size is min(concurrency ceiling, pending direction count)",
+  "reduce ceiling 5 or 4 to 3",
+  "must not create more Codex jobs",
+  "Do not create direction child-job UI, partial direction previews, or cross-job generation caches"
+];
+if (!standardDirectionContract.every((marker) => stdin.includes(marker))) {
+  console.error("missing standard direction parallel runner contract");
+  process.exit(6);
+}
+
 const jobId = process.env.IMAGE_COCKPIT_JOB_ID;
 const jobPath = process.env.IMAGE_COCKPIT_JOB_PATH;
 const outboxDir = process.env.IMAGE_COCKPIT_OUTBOX_DIR;
@@ -1410,6 +1798,10 @@ if (job.prompt.includes("API restart resume")) {
 
 if (job.prompt.includes("capacity hold")) {
   await new Promise((resolve) => setTimeout(resolve, 1800));
+}
+
+if (job.prompt.includes("Smart Race cancellation fixture")) {
+  await new Promise((resolve) => setTimeout(resolve, job.tournament?.candidateIndex === 0 ? 6000 : 250));
 }
 
 if (job.prompt.includes("policy blocked sidecar")) {

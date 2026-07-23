@@ -104,6 +104,8 @@ import type {
 import {
   ANIMATION_GENERATION_PROFILES,
   animationGenerationProfileDefinition,
+  decideBestSmartRace,
+  rankAnimationTournamentEvaluations,
   shouldStartBalancedAdditionalCandidate,
   tournamentNeedsAllStartedCandidates
 } from "./lib/animationTournament";
@@ -992,6 +994,7 @@ interface AnimationTournamentManifestClient {
   motionRecipeCompilerVersion?: string;
   presetId?: string;
   generationProfile: AnimationGenerationProfile;
+  selectionPolicy?: "exhaustive" | "smart-race";
   requestedDirections: string[];
   maximumCandidateCount: number;
   initialCandidateCount: number;
@@ -1004,6 +1007,8 @@ interface AnimationTournamentManifestClient {
     updatedAt: string;
     score?: number;
     warningCount?: number;
+    identityScore?: number;
+    shadowWouldBlock?: boolean;
     reason?: string;
     repairDirections?: string[];
   }>;
@@ -1027,6 +1032,15 @@ interface AnimationTournamentManifestClient {
   totalCandidateJobs?: number;
   elapsedTime?: number;
   repairCount?: number;
+  smartRaceDecision?: {
+    mode: "early-accept" | "full-compare";
+    decidedAt: string;
+    comparedJobIds: string[];
+    winnerJobId: string;
+    scoreGap?: number;
+    reason: string;
+    cancellationResults?: Array<{ jobId: string; ok: boolean; message?: string }>;
+  };
   state: "queued" | "running" | "pilot-review" | "pilot-expanding" | "accepted" | "failed" | "cancelled";
   clientContext?: Record<string, unknown>;
   createdAt: string;
@@ -1036,6 +1050,13 @@ interface AnimationTournamentManifestClient {
 interface AnimationTournamentMonitorEntry {
   manifest: AnimationTournamentManifestClient;
   restoredAt: string;
+}
+
+interface AnimationTournamentWinnerDecision {
+  mode: "early-accept" | "full-compare";
+  reason: string;
+  comparedJobIds: string[];
+  scoreGap?: number;
 }
 
 interface CodexFailureNotice {
@@ -4331,6 +4352,7 @@ function App() {
   const startingPersistedTournamentCandidatesRef = useRef<Set<string>>(new Set());
   const pollingAnimationTournamentIdsRef = useRef<Set<string>>(new Set());
   const serverTournamentRestoreStartedRef = useRef(false);
+  const recoveredAcceptedTournamentIdsRef = useRef<Set<string>>(new Set());
   const batchMatrixInitializedRef = useRef(false);
   const retryingFailureJobIdsRef = useRef<Set<string>>(new Set());
   const lastPointerEventAtRef = useRef(0);
@@ -4919,6 +4941,45 @@ function App() {
       if (restored.length > 0 && !cancelled) {
         setCodexJobs((current) => [...current, ...restored.filter((job) => !current.some((item) => item.id === job.id))]);
       }
+      const acceptedSmartRaceManifests = manifests.filter(
+        (manifest) =>
+          manifest.state === "accepted" &&
+          manifest.selectionPolicy === "smart-race" &&
+          Boolean(manifest.winnerCandidateId) &&
+          !recoveredAcceptedTournamentIdsRef.current.has(manifest.tournamentId)
+      ).slice(0, 12);
+      for (const manifest of acceptedSmartRaceManifests) {
+        if (cancelled || !manifest.winnerCandidateId) return;
+        recoveredAcceptedTournamentIdsRef.current.add(manifest.tournamentId);
+        try {
+          const reconciled = await publishCodexTournamentWinner(
+            manifest.tournamentId,
+            manifest.winnerCandidateId,
+            undefined,
+            false
+          );
+          const unconfirmedCancellations = (reconciled.cancellationResults ?? []).filter((result) => !result.ok);
+          if (unconfirmedCancellations.length > 0) {
+            throw new Error(
+              `Winner is accepted, but loser runner cancellation is still unconfirmed: ${unconfirmedCancellations.map((result) => result.jobId).join(", ")}`
+            );
+          }
+          const alreadyImported = historyRef.current.some(
+            (item) =>
+              item.outboxImportKey?.includes(manifest.winnerCandidateId!) &&
+              item.name.includes("direction-split-animation-sheet")
+          );
+          if (!alreadyImported) await refreshAcceptedTournamentArtifact(reconciled.tournament);
+          if (!cancelled) setStatus(`Recovered accepted Smart Race winner after reload: ${manifest.winnerCandidateId}.`);
+        } catch (error) {
+          recoveredAcceptedTournamentIdsRef.current.delete(manifest.tournamentId);
+          if (!cancelled) {
+            setStatus(error instanceof Error
+              ? `Accepted Smart Race winner recovery failed: ${error.message}`
+              : "Accepted Smart Race winner recovery failed.");
+          }
+        }
+      }
 
     };
 
@@ -5432,6 +5493,46 @@ function App() {
       }
     }
 
+    if (profile === "best" && manifest.selectionPolicy === "smart-race") {
+      const rankedReadyEvaluations = rankAnimationTournamentEvaluations(
+        readyEvaluations.map((evaluation) => ({
+          ...evaluation,
+          candidateIndex: evaluation.job.tournamentCandidateIndex ?? 0
+        }))
+      );
+      const decision = decideBestSmartRace({
+        terminalEvaluations: evaluations.map((evaluation) => ({
+          ...evaluation,
+          candidateIndex: evaluation.job.tournamentCandidateIndex ?? 0
+        })),
+        remainingCandidateActive: activeCandidate,
+        expectedCandidateCount: expectedCount
+      });
+      if (decision.action === "wait") return "pending";
+      const winner = decision.action === "early-accept"
+        ? rankedReadyEvaluations.find((evaluation) => evaluation.candidateIndex === decision.winnerCandidateIndex)
+        : rankedReadyEvaluations[0];
+      if (!winner) {
+        return failCodexAnimationTournament(tournamentId, statuses, evaluations, expectedCount);
+      }
+      const runnerUp = rankedReadyEvaluations.find(
+        (evaluation) => evaluation.candidateIndex !== winner.candidateIndex
+      );
+      return finalizeCodexAnimationTournamentWinner(
+        tournamentId,
+        winner,
+        statuses,
+        rankedReadyEvaluations,
+        expectedCount,
+        {
+          mode: decision.action === "early-accept" ? "early-accept" : "full-compare",
+          reason: decision.reason,
+          comparedJobIds: evaluations.map((evaluation) => evaluation.job.id),
+          scoreGap: runnerUp ? winner.score - runnerUp.score : undefined
+        }
+      );
+    }
+
     const startedCandidateCount = manifest.candidates.filter((candidate) => candidate.jobId).length;
     if (tournamentNeedsAllStartedCandidates(profile, startedCandidateCount, terminalStatuses.length) || activeCandidate) return "pending";
 
@@ -5732,6 +5833,8 @@ function App() {
         ready: evaluation.ready,
         score: evaluation.score,
         warningCount: evaluation.ready ? evaluation.warningCount : undefined,
+        identityScore: evaluation.animationQuality?.identityScore,
+        shadowWouldBlock: evaluation.animationQuality?.shadowDecision.wouldBlock,
         qualityReportRef: evaluation.animationQuality ? `${evaluation.job.id}-manifest.json#animationQuality` : undefined,
         reason: evaluation.error
       })
@@ -5970,21 +6073,42 @@ function App() {
     winner: DirectionSplitTournamentCandidateEvaluation,
     statuses: AnimationTournamentStatusEntry[],
     comparedEvaluations: DirectionSplitTournamentCandidateEvaluation[],
-    expectedCount: number
+    expectedCount: number,
+    decision?: AnimationTournamentWinnerDecision
   ) {
-    await publishCodexTournamentWinner(tournamentId, winner.job.id);
+    let publishedWinner = await publishCodexTournamentWinner(tournamentId, winner.job.id, decision);
+    if ((publishedWinner.cancellationResults ?? []).some((result) => !result.ok)) {
+      publishedWinner = await publishCodexTournamentWinner(tournamentId, winner.job.id, decision);
+      const unconfirmedCancellations = (publishedWinner.cancellationResults ?? []).filter((result) => !result.ok);
+      if (unconfirmedCancellations.length > 0) {
+        throw new Error(
+          `Winner is accepted, but loser runner cancellation is still unconfirmed: ${unconfirmedCancellations.map((result) => result.jobId).join(", ")}`
+        );
+      }
+    }
     await importDirectionSplitAnimationResults(
       winner.importedResults,
       winner.manifest,
       winner.job,
       winner.manifestResult?.name
     );
-    const cancellationResults = await Promise.all(
+    const serverCancellationResults = publishedWinner.cancellationResults ?? [];
+    const serverStoppedJobIds = new Set(
+      serverCancellationResults.filter((result) => result.ok).map((result) => result.jobId)
+    );
+    const fallbackCancellationResults = await Promise.all(
       statuses
-        .filter(({ job }) => job.id !== winner.job.id)
+        .filter(({ job }) => job.id !== winner.job.id && !serverStoppedJobIds.has(job.id))
         .filter(({ status }) => shouldWaitForCodexRunner(status ?? undefined))
         .map(({ job }) => cancelCodexJob(job.id).catch(() => null))
     );
+    const cancellationResultsByJob = new Map(
+      serverCancellationResults.map((result) => [result.jobId, result] as const)
+    );
+    fallbackCancellationResults.forEach((result) => {
+      if (result) cancellationResultsByJob.set(result.jobId, result);
+    });
+    const cancellationResults = [...cancellationResultsByJob.values()];
     statuses.forEach(({ job, status }) => {
       clearCodexFailureNotice(job.id);
       const cancelled = cancellationResults.some((result) => result?.jobId === job.id && result.ok);
@@ -6481,7 +6605,7 @@ function App() {
           ? "Generate one efficient candidate. Image Cockpit will not start an automatic fallback candidate."
           : profile === "balanced"
             ? "Generate independently. Candidate C starts only if the first two candidates are failed, warned, low identity, low scoring, or too close to call."
-            : "Generate independently. Image Cockpit waits for all three started candidates before selecting the best result."
+            : "Generate independently. Smart Race may accept a clear safe winner after two candidates finish; otherwise Image Cockpit compares all three."
       ].filter(Boolean).join("\n"),
       tournamentId,
       tournamentCandidateIndex: index,
@@ -6511,6 +6635,8 @@ function App() {
         ? `Experimental Motion Pilot registered: ${profileDefinition.initialCandidates} ${manifest.pilotDirection ?? "side"}-only candidates. Human review is required before expansion.`
         : profile === "balanced"
         ? `Animation tournament registered: 2 initial candidates; candidate C is adaptive. Open runner slots will start automatically.`
+        : profile === "best"
+          ? `Animation tournament registered: 3 candidates (${profile}) with Smart Race. Open runner slots will start automatically.`
         : `Animation tournament registered: ${profileDefinition.initialCandidates}/${tournamentDrafts.length} candidates (${profile}). Open runner slots will start automatically.`
     );
   }
@@ -6535,6 +6661,7 @@ function App() {
         motionRecipeCompilerVersion: draft.motionRecipe?.compilerVersion,
         presetId: draft.presetId ?? selectedAnimationPresetId,
         generationProfile: draft.generationProfile ?? "best",
+        selectionPolicy: !pilotMode && (draft.generationProfile ?? "best") === "best" ? "smart-race" : "exhaustive",
         requestedDirections: draft.resultDirections ?? draft.directions,
         maximumCandidateCount,
         initialCandidateCount,
@@ -7561,11 +7688,16 @@ function App() {
     return (await response.json()) as CodexOutboxImportResponse;
   }
 
-  async function publishCodexTournamentWinner(tournamentId: string, jobId: string) {
+  async function publishCodexTournamentWinner(
+    tournamentId: string,
+    jobId: string,
+    decision?: AnimationTournamentWinnerDecision,
+    updateMonitor = true
+  ) {
     const response = await fetch(`/api/codex/tournaments/${encodeURIComponent(tournamentId)}/winner`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ jobId })
+      body: JSON.stringify({ jobId, decision })
     });
     if (!response.ok) throw new Error(await response.text());
     const payload = (await response.json()) as {
@@ -7575,8 +7707,9 @@ function App() {
       outboxPath: string;
       results: CodexOutboxResult[];
       tournament: AnimationTournamentManifestClient;
+      cancellationResults?: Array<{ jobId: string; ok: boolean; message?: string }>;
     };
-    updateAnimationTournamentMonitor(payload.tournament);
+    if (updateMonitor) updateAnimationTournamentMonitor(payload.tournament);
     return payload;
   }
 
