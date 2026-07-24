@@ -4,6 +4,22 @@
 
 No unreleased changes yet.
 
+## v0.1.7bugfix - 2026-07-24
+
+Maintenance update for the v0.1.7 code line. Package, App, and API versions remain `0.1.7`.
+
+### Fixed
+
+- Prevented restored jobless Animation Generation tournaments from starting initial candidates or Balanced candidate C without an explicit current-session Generate or confirmed Batch Matrix action.
+- Added a synchronous Generate in-flight guard to stop repeated clicks from registering duplicate tournaments before the busy state renders.
+- Added server-side semantic deduplication and a process-wide registration lock so concurrent equivalent requests with different random tournament IDs return one canonical unfinished tournament.
+- Refreshed stale running manifests before semantic reuse and preserved canonical Motion Pilot fallback IDs.
+
+### Verification
+
+- Passed typecheck, all 205 Vitest tests, production build, API smoke, local doctor, release audit, full browser UI smoke, and Git diff checks.
+- API smoke verified eight concurrent equivalent registrations create one canonical tournament, meaningful frame-contract changes remain separate, and cancellation permits a later equivalent run.
+
 ## v0.1.7 - 2026-07-23
 
 Selectable single-direction animation generation and Experimental extended frame budgets after v0.1.6.

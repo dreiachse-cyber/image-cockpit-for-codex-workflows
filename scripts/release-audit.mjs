@@ -94,6 +94,7 @@ const requiredFiles = [
   "docs/release/v0.1.0-checklist.md",
   "docs/release/v0.1.0-runbook.md",
   "docs/release/v0.1.0-release-notes.md",
+  "docs/release/v0.1.7bugfix-release-notes.md",
   "docs/release/v0.1.7-release-notes.md",
   "docs/release/v0.1.6-release-notes.md",
   "docs/release/v0.1.5-release-notes.md",
@@ -219,6 +220,7 @@ const requiredVerifyCommands = [
 const requiredReviewLocalCommands = ["npm run verify", "npm run ui:smoke", "npm run codex:smoke"];
 const requiredReadmeLinks = [
   "CHANGELOG.md",
+  "docs/release/v0.1.7bugfix-release-notes.md",
   "docs/release/v0.1.7-release-notes.md",
   "docs/qa/v0.1.7-release-prep.md",
   "docs/release/v0.1.6-release-notes.md",
@@ -2078,6 +2080,7 @@ function checkReleaseDocs() {
   const checklist = readText("docs/release/v0.1.0-checklist.md");
   const runbook = readText("docs/release/v0.1.0-runbook.md");
   const releaseNotes = readText("docs/release/v0.1.0-release-notes.md");
+  const releaseNotes017Bugfix = readText("docs/release/v0.1.7bugfix-release-notes.md");
   const releaseNotes017 = readText("docs/release/v0.1.7-release-notes.md");
   const releaseNotes016 = readText("docs/release/v0.1.6-release-notes.md");
   const releaseNotes015 = readText("docs/release/v0.1.5-release-notes.md");
@@ -2097,7 +2100,7 @@ function checkReleaseDocs() {
   const acceptanceEvidence = readText("docs/release/v0.1.0-acceptance-evidence.md");
   const ownerDecision = readText("docs/release/v0.1.0-owner-decision.md");
   const manualHandoff = readText("docs/usage/manual-handoff.md");
-  if (!readme || !checklist || !runbook || !releaseNotes || !releaseNotes017 || !releaseNotes016 || !releaseNotes015 || !releaseNotes014 || !releaseNotes013 || !releaseNotes012 || !releaseNotes011 || !releasePrepQa017 || !releasePrepQa016 || !releasePrepQa015 || !releasePrepQa014 || !releasePrepQa013 || !releasePrepQa012 || !releasePrepQa || !ownerReview || !finalAudit || !acceptanceEvidence || !ownerDecision || !manualHandoff) return;
+  if (!readme || !checklist || !runbook || !releaseNotes || !releaseNotes017Bugfix || !releaseNotes017 || !releaseNotes016 || !releaseNotes015 || !releaseNotes014 || !releaseNotes013 || !releaseNotes012 || !releaseNotes011 || !releasePrepQa017 || !releasePrepQa016 || !releasePrepQa015 || !releasePrepQa014 || !releasePrepQa013 || !releasePrepQa012 || !releasePrepQa || !ownerReview || !finalAudit || !acceptanceEvidence || !ownerDecision || !manualHandoff) return;
 
   requiredReadmeLinks.forEach((link) => {
     if (!readme.includes(link)) {
@@ -2121,6 +2124,26 @@ function checkReleaseDocs() {
   ].forEach((line) => {
     if (!runbook.includes(line)) {
       failures.push(`Release runbook is missing safety line: ${line}`);
+    }
+  });
+
+  [
+    "v0.1.7bugfix",
+    "Package, App, and API version: `0.1.7`",
+    "Restored tournament auto-start",
+    "current UI session",
+    "Balanced tournament",
+    "synchronous in-flight guard",
+    "stable semantic key",
+    "process-wide registration lock",
+    "one canonical tournament",
+    "stale manifest",
+    "Motion Pilot fallback",
+    "eight concurrent equivalent registrations",
+    "Full browser UI smoke"
+  ].forEach((line) => {
+    if (!releaseNotes017Bugfix.includes(line)) {
+      failures.push(`v0.1.7bugfix release notes are missing expected content: ${line}`);
     }
   });
 

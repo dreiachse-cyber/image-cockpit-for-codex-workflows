@@ -1114,7 +1114,7 @@ async function findUnfinishedAnimationTournamentBySemanticKey(semanticKey: strin
     if (!manifest || !animationTournamentStateIsUnfinished(manifest.state)) continue;
     const existingSemanticKey = await animationTournamentSemanticKeyFromManifest(manifest).catch(() => "");
     if (existingSemanticKey !== semanticKey) continue;
-    const refreshed = await refreshAnimationTournamentManifest(manifest.tournamentId).catch(() => manifest);
+    const refreshed = (await refreshAnimationTournamentManifest(manifest.tournamentId).catch(() => manifest)) ?? manifest;
     if (animationTournamentStateIsUnfinished(refreshed.state)) return refreshed;
   }
   return null;
@@ -1510,6 +1510,7 @@ async function fallbackMotionPilotTournament(tournamentId: string, reason: strin
       jobTemplate: template,
       clientContext: { ...(manifest.clientContext ?? {}), motionPilotFallbackFrom: tournamentId, fallbackReason: reason }
     });
+    if (!fallback.tournament) throw new Error("Motion Pilot fallback registration did not return a canonical tournament.");
     manifest.pilotState = "fallback";
     manifest.fallbackReason = reason;
     manifest.fallbackTournamentId = fallback.tournament.tournamentId;
