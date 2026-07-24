@@ -1035,7 +1035,7 @@ interface AnimationTournamentManifestClient {
   elapsedTime?: number;
   repairCount?: number;
   smartRaceDecision?: {
-    mode: "early-accept" | "full-compare";
+    mode: "first-qualified" | "early-accept" | "full-compare";
     decidedAt: string;
     comparedJobIds: string[];
     winnerJobId: string;
@@ -1098,7 +1098,7 @@ export function findSessionAllowedAnimationTournamentInitialCandidates<
 }
 
 interface AnimationTournamentWinnerDecision {
-  mode: "early-accept" | "full-compare";
+  mode: "first-qualified" | "early-accept" | "full-compare";
   reason: string;
   comparedJobIds: string[];
   scoreGap?: number;
@@ -4481,7 +4481,7 @@ function App() {
     const selectedMime = selected?.dataUrl.match(/^data:([^;,]+)/)?.[1];
     const storageEstimate = storageScreen.preflight?.estimate;
     return buildImageCockpitEnvironmentReport({
-      appVersion: "0.1.7",
+      appVersion: "0.1.8",
       appUrl: window.location.origin,
       route: `${window.location.pathname}${window.location.search}`,
       userAgent: navigator.userAgent,
@@ -5584,7 +5584,10 @@ function App() {
     }
 
     const readyEvaluations = evaluations.filter((evaluation) => evaluation.ready);
-    const activeCandidate = statuses.some(({ job, status }) => job.state === "queued" || shouldWaitForCodexRunner(status ?? undefined));
+    const activeCandidateCount = statuses.filter(
+      ({ job, status }) => job.state === "queued" || shouldWaitForCodexRunner(status ?? undefined)
+    ).length;
+    const activeCandidate = activeCandidateCount > 0;
 
     if (profile === "fast") {
       if (activeCandidate) return "pending";
@@ -5632,10 +5635,11 @@ function App() {
           candidateIndex: evaluation.job.tournamentCandidateIndex ?? 0
         })),
         remainingCandidateActive: activeCandidate,
+        activeCandidateCount,
         expectedCandidateCount: expectedCount
       });
       if (decision.action === "wait") return "pending";
-      const winner = decision.action === "early-accept"
+      const winner = decision.action === "first-qualified" || decision.action === "early-accept"
         ? rankedReadyEvaluations.find((evaluation) => evaluation.candidateIndex === decision.winnerCandidateIndex)
         : rankedReadyEvaluations[0];
       if (!winner) {
@@ -5651,7 +5655,7 @@ function App() {
         rankedReadyEvaluations,
         expectedCount,
         {
-          mode: decision.action === "early-accept" ? "early-accept" : "full-compare",
+          mode: decision.action,
           reason: decision.reason,
           comparedJobIds: evaluations.map((evaluation) => evaluation.job.id),
           scoreGap: runnerUp ? winner.score - runnerUp.score : undefined
@@ -6876,7 +6880,7 @@ function App() {
           ? "Generate one efficient candidate. Image Cockpit will not start an automatic fallback candidate."
           : profile === "balanced"
             ? "Generate independently. Candidate C starts only if the first two candidates are failed, warned, low identity, low scoring, or too close to call."
-            : "Generate independently. Smart Race may accept a clear safe winner after two candidates finish; otherwise Image Cockpit compares all three."
+            : "Generate independently. The first completed candidate wins only if it passes the strict solo gate; otherwise Smart Race compares two, then all three if needed."
       ].filter(Boolean).join("\n"),
       tournamentId,
       tournamentCandidateIndex: index,
@@ -6911,7 +6915,7 @@ function App() {
         : profile === "balanced"
         ? `Animation tournament started 2 initial candidates together; candidate C remains adaptive.`
         : profile === "best"
-          ? `Animation tournament started A/B/C together (${profile}) with Smart Race.`
+          ? `Animation tournament started A/B/C together (${profile}) with First Qualified Wins and Smart Race fallback.`
         : `Animation tournament started ${profileDefinition.initialCandidates}/${tournamentDrafts.length} candidates together (${profile}).`
     );
   }
@@ -9737,7 +9741,7 @@ function App() {
           <Grid3X3 size={18} aria-hidden="true" />
           <strong>Image Cockpit for Codex Workflows</strong>
           <span>{activeWorkflowCopy.label}</span>
-          <small>v0.1.7</small>
+          <small>v0.1.8</small>
         </div>
         <div className="project-strip">
           <LanguageSelect language={language} label={copy.language} onChange={setLanguage} />
@@ -11693,7 +11697,7 @@ function SettingsModal({
           <div className="settings-section">
             <article className="settings-card">
               <small>Image Cockpit</small>
-              <strong>v0.1.7</strong>
+              <strong>v0.1.8</strong>
               <span>{isJa ? "ChatGPTの画像生成可否と、ローカルCodex runner内でimagegenを使えるかは別の状態です。" : "ChatGPT image generation availability and local Codex runner imagegen availability are separate states."}</span>
             </article>
             <article className="settings-card">
@@ -11871,7 +11875,7 @@ function LocalStateRecoveryScreen({
           <Grid3X3 size={18} aria-hidden="true" />
           <strong>Image Cockpit for Codex Workflows</strong>
           <span>Storage recovery</span>
-          <small>v0.1.7</small>
+          <small>v0.1.8</small>
         </div>
       </header>
 

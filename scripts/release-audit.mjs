@@ -5,7 +5,7 @@ import { extname, join } from "node:path";
 const root = process.cwd();
 const failures = [];
 const privacyTextExtensions = new Set(["", ".css", ".html", ".js", ".json", ".md", ".mjs", ".ts", ".tsx", ".txt", ".yaml", ".yml"]);
-const expectedPackageVersion = "0.1.7";
+const expectedPackageVersion = "0.1.8";
 
 function slugPromptExampleTitle(value) {
   return value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
@@ -37,6 +37,7 @@ const requiredFiles = [
   "scripts/capture-readme-screenshots.mjs",
   "docs/qa/completed-codex-job-import-storage-quota.md",
   "docs/qa/local-state-oom-safe-mode-retention.md",
+  "docs/qa/v0.1.8-release-prep.md",
   "docs/qa/v0.1.7-release-prep.md",
   "docs/qa/v0.1.6-release-prep.md",
   "docs/qa/single-horizontal-direction.md",
@@ -94,6 +95,7 @@ const requiredFiles = [
   "docs/release/v0.1.0-checklist.md",
   "docs/release/v0.1.0-runbook.md",
   "docs/release/v0.1.0-release-notes.md",
+  "docs/release/v0.1.8-release-notes.md",
   "docs/release/v0.1.7-release-notes.md",
   "docs/release/v0.1.6-release-notes.md",
   "docs/release/v0.1.5-release-notes.md",
@@ -219,6 +221,8 @@ const requiredVerifyCommands = [
 const requiredReviewLocalCommands = ["npm run verify", "npm run ui:smoke", "npm run codex:smoke"];
 const requiredReadmeLinks = [
   "CHANGELOG.md",
+  "docs/release/v0.1.8-release-notes.md",
+  "docs/qa/v0.1.8-release-prep.md",
   "docs/release/v0.1.7-release-notes.md",
   "docs/qa/v0.1.7-release-prep.md",
   "docs/release/v0.1.6-release-notes.md",
@@ -849,6 +853,10 @@ function checkWorkflowIds() {
     [serverText, "registerAnimationTournamentUnlocked"],
     [serverText, "insufficient_runner_slots"],
     [serverText, "initial_batch_admission_required"],
+    [animationTournamentText, "evaluateBestFirstQualifiedCandidate"],
+    [animationTournamentText, "BEST_FIRST_QUALIFIED_MIN_IDENTITY_SCORE"],
+    [serverText, '"first-qualified"'],
+    [smokeText, "First Qualified acceptance should cancel both remaining candidates"],
     [smokeText, "rejected Best admission should not leave a tournament manifest"],
     [smokeText, "all three admitted Best candidates should be running in one response"],
     [smokeText, "concurrent generic and animation admission should have exactly one winner"],
@@ -2109,6 +2117,7 @@ function checkReleaseDocs() {
   const checklist = readText("docs/release/v0.1.0-checklist.md");
   const runbook = readText("docs/release/v0.1.0-runbook.md");
   const releaseNotes = readText("docs/release/v0.1.0-release-notes.md");
+  const releaseNotes018 = readText("docs/release/v0.1.8-release-notes.md");
   const releaseNotes017 = readText("docs/release/v0.1.7-release-notes.md");
   const releaseNotes016 = readText("docs/release/v0.1.6-release-notes.md");
   const releaseNotes015 = readText("docs/release/v0.1.5-release-notes.md");
@@ -2116,6 +2125,7 @@ function checkReleaseDocs() {
   const releaseNotes013 = readText("docs/release/v0.1.3-release-notes.md");
   const releaseNotes012 = readText("docs/release/v0.1.2-release-notes.md");
   const releaseNotes011 = readText("docs/release/v0.1.1-release-notes.md");
+  const releasePrepQa018 = readText("docs/qa/v0.1.8-release-prep.md");
   const releasePrepQa017 = readText("docs/qa/v0.1.7-release-prep.md");
   const releasePrepQa016 = readText("docs/qa/v0.1.6-release-prep.md");
   const releasePrepQa015 = readText("docs/qa/v0.1.5-release-prep.md");
@@ -2128,7 +2138,7 @@ function checkReleaseDocs() {
   const acceptanceEvidence = readText("docs/release/v0.1.0-acceptance-evidence.md");
   const ownerDecision = readText("docs/release/v0.1.0-owner-decision.md");
   const manualHandoff = readText("docs/usage/manual-handoff.md");
-  if (!readme || !checklist || !runbook || !releaseNotes || !releaseNotes017 || !releaseNotes016 || !releaseNotes015 || !releaseNotes014 || !releaseNotes013 || !releaseNotes012 || !releaseNotes011 || !releasePrepQa017 || !releasePrepQa016 || !releasePrepQa015 || !releasePrepQa014 || !releasePrepQa013 || !releasePrepQa012 || !releasePrepQa || !ownerReview || !finalAudit || !acceptanceEvidence || !ownerDecision || !manualHandoff) return;
+  if (!readme || !checklist || !runbook || !releaseNotes || !releaseNotes018 || !releaseNotes017 || !releaseNotes016 || !releaseNotes015 || !releaseNotes014 || !releaseNotes013 || !releaseNotes012 || !releaseNotes011 || !releasePrepQa018 || !releasePrepQa017 || !releasePrepQa016 || !releasePrepQa015 || !releasePrepQa014 || !releasePrepQa013 || !releasePrepQa012 || !releasePrepQa || !ownerReview || !finalAudit || !acceptanceEvidence || !ownerDecision || !manualHandoff) return;
 
   requiredReadmeLinks.forEach((link) => {
     if (!readme.includes(link)) {
@@ -2152,6 +2162,52 @@ function checkReleaseDocs() {
   ].forEach((line) => {
     if (!runbook.includes(line)) {
       failures.push(`Release runbook is missing safety line: ${line}`);
+    }
+  });
+
+  [
+    "v0.1.8",
+    "First Qualified Wins",
+    "zero quality warnings",
+    "score of at least 3300",
+    "identity score of at least 85",
+    "`shadowWouldBlock: false`",
+    "Restored queued tournaments",
+    "semantic duplicates",
+    "global three-runner pool",
+    "The app still does not call OpenAI APIs directly",
+    "No model weights, API keys, tokens",
+    "npm run verify",
+    "npm run ui:smoke"
+  ].forEach((line) => {
+    if (!releaseNotes018.includes(line)) {
+      failures.push(`v0.1.8 release notes are missing expected content: ${line}`);
+    }
+  });
+
+  [
+    "v0.1.8 Release Prep QA",
+    "Source branch: `codex/v0.1.8-first-qualified-wins`",
+    "package.json version: `0.1.8`",
+    "package-lock.json root version: `0.1.8`",
+    "docs/release/v0.1.8-release-notes.md",
+    "bugfix commit `4c6fa1e`",
+    "score `>= 3300`",
+    "identity score `>= 85`",
+    "`shadowWouldBlock: false`",
+    "first-qualified",
+    "Main merge, tag push, and GitHub Release remain blocked",
+    "npm run doctor",
+    "npm run typecheck",
+    "npm test",
+    "npm run build",
+    "npm run smoke",
+    "npm run release:audit",
+    "npm run ui:smoke",
+    "git diff --check"
+  ].forEach((line) => {
+    if (!releasePrepQa018.includes(line)) {
+      failures.push(`v0.1.8 release prep QA is missing expected content: ${line}`);
     }
   });
 

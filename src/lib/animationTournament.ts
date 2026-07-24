@@ -1,4 +1,14 @@
 import type { AnimationQualityReportV2 } from "../types";
+import { evaluateBestFirstQualifiedCandidate } from "./animationTournamentGate";
+export {
+  BEST_FIRST_QUALIFIED_MIN_IDENTITY_SCORE,
+  BEST_FIRST_QUALIFIED_MIN_SCORE,
+  evaluateBestFirstQualifiedCandidate
+} from "./animationTournamentGate";
+export type {
+  BestFirstQualifiedCandidateSummary,
+  BestFirstQualifiedDecision
+} from "./animationTournamentGate";
 
 export type AnimationGenerationProfile = "fast" | "balanced" | "best";
 
@@ -26,11 +36,12 @@ export interface RankedAnimationTournamentEvaluation extends AnimationTournament
 export interface BestSmartRaceInput {
   terminalEvaluations: readonly RankedAnimationTournamentEvaluation[];
   remainingCandidateActive: boolean;
+  activeCandidateCount?: number;
   expectedCandidateCount?: number;
 }
 
 export interface BestSmartRaceDecision {
-  action: "wait" | "early-accept" | "full-compare";
+  action: "wait" | "first-qualified" | "early-accept" | "full-compare";
   reason: string;
   winnerCandidateIndex?: number;
 }
@@ -78,7 +89,7 @@ export const ANIMATION_GENERATION_PROFILES: Record<AnimationGenerationProfile, A
     initialCandidates: 3,
     maximumCandidates: 3,
     qualityPriority: "quality",
-    description: "Start 3 candidates; accept a clear safe winner after 2 finish, otherwise compare all 3."
+    description: "Start 3 candidates; accept the first strict-gate pass, otherwise use Smart Race after 2 or compare all 3."
   }
 };
 
@@ -139,11 +150,37 @@ export function decideBestSmartRace(input: BestSmartRaceInput): BestSmartRaceDec
     return { action: "full-compare", reason: "all Best candidates are terminal" };
   }
 
-  if (input.terminalEvaluations.length < 2) {
-    return { action: "wait", reason: "waiting for two terminal Best candidates" };
+  const expectedActiveCandidateCount = Math.max(0, expectedCandidateCount - input.terminalEvaluations.length);
+  const activeCandidateCount = input.activeCandidateCount ??
+    (input.remainingCandidateActive ? expectedActiveCandidateCount : 0);
+
+  if (input.terminalEvaluations.length === 1) {
+    if (activeCandidateCount !== expectedActiveCandidateCount) {
+      return { action: "wait", reason: "not every remaining Best candidate is still active" };
+    }
+    const candidate = input.terminalEvaluations[0];
+    const soloDecision = evaluateBestFirstQualifiedCandidate({
+      ready: candidate.ready,
+      score: candidate.score,
+      warningCount: candidate.warningCount,
+      identityScore: candidate.animationQuality?.identityScore,
+      shadowWouldBlock: candidate.animationQuality?.shadowDecision.wouldBlock
+    });
+    if (!soloDecision.qualified) {
+      return { action: "wait", reason: soloDecision.reason };
+    }
+    return {
+      action: "first-qualified",
+      reason: soloDecision.reason,
+      winnerCandidateIndex: candidate.candidateIndex
+    };
   }
 
-  if (!input.remainingCandidateActive) {
+  if (input.terminalEvaluations.length < 2) {
+    return { action: "wait", reason: "waiting for the first terminal Best candidate" };
+  }
+
+  if (!input.remainingCandidateActive || activeCandidateCount !== expectedActiveCandidateCount) {
     return { action: "wait", reason: "the remaining Best candidate is not active" };
   }
 

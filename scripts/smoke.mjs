@@ -1730,6 +1730,126 @@ async function runMockAutorunSmoke() {
     assert(registrationRaceJobIds.length === 3, "registration lock race should leave exactly one attached A/B/C wave");
     await Promise.all(registrationRaceJobIds.map((jobId) => waitForJobState(port, jobId, "completed")));
 
+    const firstQualifiedTournamentId = "smoke-first-qualified-cancellation";
+    const firstQualifiedRegistration = await postJson(port, "/api/codex/tournaments", {
+      tournamentId: firstQualifiedTournamentId,
+      idempotencyKey: "smoke:first-qualified:cancellation:v1",
+      sourceFingerprint: "smoke-first-qualified-source",
+      motionRecipeId: "walk-cycle",
+      motionRecipeVersion: 1,
+      motionRecipeCompilerVersion: "1.2.0",
+      presetId: "walk-cycle",
+      generationProfile: "best",
+      startInitialCandidates: true,
+      requestedDirections: ["front", "side", "back"],
+      maximumCandidateCount: 3,
+      initialCandidateCount: 3,
+      jobTemplate: {
+        workflowMode: "sprite-generate",
+        prompt: "First Qualified cancellation fixture",
+        negativePrompt: "text",
+        jobNotes: "Candidate A finishes first while B and C remain active.",
+        selectedImageName: "tiny.png",
+        selectedImageSize: "1x1",
+        selectedImageSource: "import",
+        selectedImageDataUrl: tinyPng,
+        grid: { columns: 8, rows: 3, gutter: 0 },
+        action: "walk",
+        frames: 24,
+        framesPerDirection: 8,
+        cell: { width: 256, height: 256 },
+        chromaKey: "green",
+        spriteVariant: "standard",
+        directions: ["front", "side", "back"]
+      }
+    });
+    const firstQualifiedA = firstQualifiedRegistration.jobs[0];
+    const firstQualifiedB = firstQualifiedRegistration.jobs[1];
+    const firstQualifiedC = firstQualifiedRegistration.jobs[2];
+    for (const slug of ["front", "side", "back"]) {
+      await writeFile(join(firstQualifiedA.outboxPath, `${firstQualifiedA.id}-${slug}.png`), tinyPngBytes);
+    }
+    await writeFile(join(firstQualifiedA.outboxPath, `${firstQualifiedA.id}-manifest.json`), JSON.stringify({
+      schema: "image-cockpit.direction-split-animation.v1",
+      jobId: firstQualifiedA.id,
+      action: "walk",
+      directions: ["front", "side", "back"],
+      framesPerDirection: 8,
+      files: {
+        front: `${firstQualifiedA.id}-front.png`,
+        side: `${firstQualifiedA.id}-side.png`,
+        back: `${firstQualifiedA.id}-back.png`
+      },
+      chromaKey: { name: "green" }
+    }, null, 2), "utf8");
+    await waitForJobState(port, firstQualifiedA.id, "completed");
+    for (const activeJob of [firstQualifiedB, firstQualifiedC]) {
+      const activeStatus = await getJson(port, `/api/codex/jobs/${activeJob.id}/status`);
+      assert(activeStatus.status.state === "running", "First Qualified fixture should keep both remaining candidates active");
+    }
+    await postJson(port, `/api/codex/tournaments/${firstQualifiedTournamentId}/evaluation`, {
+      jobId: firstQualifiedA.id,
+      ready: true,
+      score: 3400,
+      warningCount: 1,
+      identityScore: 90,
+      shadowWouldBlock: false,
+      reason: "warning rejection fixture"
+    });
+    const rejectedWarnedFirstQualified = await fetch(
+      `http://127.0.0.1:${port}/api/codex/tournaments/${firstQualifiedTournamentId}/winner`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          jobId: firstQualifiedA.id,
+          decision: {
+            mode: "first-qualified",
+            reason: "first completed Best candidate passed the strict solo gate",
+            comparedJobIds: [firstQualifiedA.id]
+          }
+        })
+      }
+    );
+    assert(rejectedWarnedFirstQualified.status === 409, "First Qualified should reject a candidate with any quality warning");
+    await postJson(port, `/api/codex/tournaments/${firstQualifiedTournamentId}/evaluation`, {
+      jobId: firstQualifiedA.id,
+      ready: true,
+      score: 3400,
+      warningCount: 0,
+      identityScore: 90,
+      shadowWouldBlock: false,
+      reason: "strict solo gate fixture"
+    });
+    const acceptedFirstQualified = await postJson(
+      port,
+      `/api/codex/tournaments/${firstQualifiedTournamentId}/winner`,
+      {
+        jobId: firstQualifiedA.id,
+        decision: {
+          mode: "first-qualified",
+          reason: "first completed Best candidate passed the strict solo gate",
+          comparedJobIds: [firstQualifiedA.id]
+        }
+      }
+    );
+    assert(acceptedFirstQualified.tournament.state === "accepted", "First Qualified winner should be durably accepted");
+    assert(
+      acceptedFirstQualified.tournament.smartRaceDecision.mode === "first-qualified",
+      "First Qualified decision should persist its distinct mode"
+    );
+    assert(
+      acceptedFirstQualified.cancellationResults.filter((result) => result.ok).length === 2,
+      "First Qualified acceptance should cancel both remaining candidates"
+    );
+    for (const cancelledJob of [firstQualifiedB, firstQualifiedC]) {
+      const cancelledStatus = await getJson(port, `/api/codex/jobs/${cancelledJob.id}/status`);
+      assert(
+        cancelledStatus.status.state === "failed" && cancelledStatus.status.message.includes("cancelled"),
+        "First Qualified loser runners should stop inside winner acceptance"
+      );
+    }
+
     const smartRaceTournamentId = "smoke-smart-race-cancellation";
     const smartRaceRegistration = await postJson(port, "/api/codex/tournaments", {
       tournamentId: smartRaceTournamentId,
@@ -2278,6 +2398,10 @@ if (job.prompt.includes("admission race hold")) {
 
 if (job.prompt.includes("Smart Race cancellation fixture")) {
   await new Promise((resolve) => setTimeout(resolve, job.tournament?.candidateIndex === 0 ? 6000 : 250));
+}
+
+if (job.prompt.includes("First Qualified cancellation fixture")) {
+  await new Promise((resolve) => setTimeout(resolve, job.tournament?.candidateIndex === 0 ? 250 : 6000));
 }
 
 if (job.prompt.includes("policy blocked sidecar")) {

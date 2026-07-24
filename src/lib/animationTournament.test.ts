@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
   animationGenerationProfileDefinition,
+  BEST_FIRST_QUALIFIED_MIN_IDENTITY_SCORE,
+  BEST_FIRST_QUALIFIED_MIN_SCORE,
   decideBestSmartRace,
+  evaluateBestFirstQualifiedCandidate,
   planAnimationInitialCandidateAdmission,
   rankAnimationTournamentEvaluations,
   shouldStartBalancedAdditionalCandidate,
@@ -106,6 +109,82 @@ describe("animation tournament profiles", () => {
     expect(tournamentNeedsAllStartedCandidates("best", 3, 2)).toBe(true);
     expect(tournamentNeedsAllStartedCandidates("balanced", 3, 2)).toBe(false);
     expect(tournamentNeedsAllStartedCandidates("best", 3, 3)).toBe(false);
+  });
+
+  it("accepts the first completed Best candidate only through the strict solo gate", () => {
+    expect(decideBestSmartRace({
+      terminalEvaluations: [
+        rankedEvaluation(1, {
+          score: BEST_FIRST_QUALIFIED_MIN_SCORE,
+          warningCount: 0,
+          animationQuality: quality(BEST_FIRST_QUALIFIED_MIN_IDENTITY_SCORE, false)
+        })
+      ],
+      remainingCandidateActive: true,
+      activeCandidateCount: 2
+    })).toEqual({
+      action: "first-qualified",
+      reason: "first completed Best candidate passed the strict solo gate",
+      winnerCandidateIndex: 1
+    });
+  });
+
+  it.each([
+    {
+      name: "not every requested direction passed",
+      evaluation: rankedEvaluation(0, { ready: false })
+    },
+    {
+      name: "a warning remains",
+      evaluation: rankedEvaluation(0, { score: 3400, warningCount: 1, animationQuality: quality(90, false) })
+    },
+    {
+      name: "the score is below the strict threshold",
+      evaluation: rankedEvaluation(0, { score: BEST_FIRST_QUALIFIED_MIN_SCORE - 1, animationQuality: quality(90, false) })
+    },
+    {
+      name: "identity is below the strict threshold",
+      evaluation: rankedEvaluation(0, {
+        score: 3400,
+        animationQuality: quality(BEST_FIRST_QUALIFIED_MIN_IDENTITY_SCORE - 0.01, false)
+      })
+    },
+    {
+      name: "a shadow block remains",
+      evaluation: rankedEvaluation(0, { score: 3400, animationQuality: quality(90, true) })
+    }
+  ])("waits for the second candidate when $name", ({ evaluation }) => {
+    expect(decideBestSmartRace({
+      terminalEvaluations: [evaluation],
+      remainingCandidateActive: true,
+      activeCandidateCount: 2
+    }).action).toBe("wait");
+  });
+
+  it("does not solo-accept when one of the two remaining candidates is no longer active", () => {
+    expect(decideBestSmartRace({
+      terminalEvaluations: [
+        rankedEvaluation(0, { score: 3400, animationQuality: quality(90, false) })
+      ],
+      remainingCandidateActive: true,
+      activeCandidateCount: 1
+    })).toEqual({
+      action: "wait",
+      reason: "not every remaining Best candidate is still active"
+    });
+  });
+
+  it("exposes the strict solo gate reasons independently of tournament timing", () => {
+    expect(evaluateBestFirstQualifiedCandidate({
+      ready: true,
+      score: 3400,
+      warningCount: 0,
+      identityScore: 90,
+      shadowWouldBlock: false
+    })).toEqual({
+      qualified: true,
+      reason: "first completed Best candidate passed the strict solo gate"
+    });
   });
 
   it("early-accepts a clear Best winner after two ready candidates finish", () => {

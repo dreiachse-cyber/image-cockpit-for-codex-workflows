@@ -4,6 +4,7 @@ import { closeSync, createWriteStream, existsSync, openSync, readFileSync, readS
 import { copyFile, mkdir, readFile, readdir, rename, stat, writeFile } from "node:fs/promises";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { basename, delimiter, extname, join, resolve, sep } from "node:path";
+import { evaluateBestFirstQualifiedCandidate } from "../src/lib/animationTournamentGate.js";
 import { generateLocalImages, type LocalGenerationRequest } from "./local-generator.js";
 
 loadDotEnv(resolve(".env"));
@@ -119,7 +120,7 @@ type AnimationTournamentCancellationResult = {
 };
 
 type AnimationTournamentSmartRaceDecision = {
-  mode: "early-accept" | "full-compare";
+  mode: "first-qualified" | "early-accept" | "full-compare";
   decidedAt: string;
   comparedJobIds: string[];
   winnerJobId: string;
@@ -421,7 +422,7 @@ const server = createServer(async (request, response) => {
       const runner = await checkCodexRunnerPreflight();
       sendJson(response, 200, {
         app: "image-cockpit",
-        version: "0.1.7",
+        version: "0.1.8",
         role: "api",
         port,
         handoffRoot,
@@ -1052,44 +1053,86 @@ async function registerAndStartAnimationTournament(registration: AnimationTourna
     throw new Error("Tournament id and idempotency key are required and must be safe.");
   }
 
-  return withAnimationTournamentLock(tournamentId, async () => {
-    const existing = await readAnimationTournamentManifest(tournamentId);
-    if (existing && existing.idempotencyKey !== idempotencyKey) {
-      throw new Error("Tournament id already exists with a different idempotency key.");
-    }
-    if (existing) {
-      const initialCandidates = existing.candidates.slice(0, existing.initialCandidateCount);
-      const startedCandidates = initialCandidates.filter((candidate) => Boolean(candidate.jobId));
-      if (startedCandidates.length === initialCandidates.length) {
-        const refreshed = await refreshAnimationTournamentManifestUnlocked(tournamentId) ?? existing;
-        assertAnimationInitialBundleReusable(refreshed);
+  const registrationOutcome = await withAnimationTournamentRegistrationLock(() =>
+    withAnimationTournamentLock(tournamentId, async () => {
+      const existing = await readAnimationTournamentManifest(tournamentId);
+      if (existing) {
+        if (existing.idempotencyKey !== idempotencyKey) {
+          throw new Error("Tournament id already exists with a different idempotency key.");
+        }
         return {
-          created: false,
-          reused: true,
-          jobs: await Promise.all(startedCandidates.map((candidate) => codexJobResponse(candidate.jobId as string, true))),
-          tournament: refreshed
+          started: false as const,
+          registered: {
+            created: false,
+            tournament: await refreshAnimationTournamentManifestUnlocked(tournamentId) ?? existing
+          }
         };
       }
-      if (startedCandidates.length > 0) throw initialAnimationBundlePartialError(existing.initialCandidateCount, startedCandidates.length);
-      if (existing.state !== "queued") {
-        throw new HttpError(409, "Only a queued animation tournament can start its initial candidate bundle.", "animation_tournament_not_queued", {
-          retryable: false
-        });
+
+      const prepared = await prepareAnimationTournamentRegistration(registration, tournamentId);
+      const semanticMatch = await findUnfinishedAnimationTournamentBySemanticKey(prepared.semanticKey, tournamentId);
+      if (semanticMatch) {
+        return {
+          started: false as const,
+          registered: {
+            created: false,
+            deduplicated: true,
+            tournament: await refreshAnimationTournamentManifest(semanticMatch.tournamentId) ?? semanticMatch
+          }
+        };
       }
+
+      return withCodexRunnerAdmissionLock(async () => {
+        await assertAnimationInitialBundleAdmissionAvailable(prepared.initialCandidateCount);
+        const registered = await createPreparedAnimationTournament(registration, tournamentId, idempotencyKey, prepared);
+        const bundle = await startAnimationTournamentInitialCandidateBundleUnlocked(tournamentId);
+        return {
+          started: true as const,
+          response: {
+            created: registered.created,
+            reused: bundle.reused,
+            jobs: bundle.jobs,
+            tournament: bundle.tournament
+          }
+        };
+      });
+    })
+  );
+  if (registrationOutcome.started) return registrationOutcome.response;
+  const registered = registrationOutcome.registered;
+  const canonicalTournamentId = registered.tournament.tournamentId;
+
+  return withAnimationTournamentLock(canonicalTournamentId, async () => {
+    const manifest = await readAnimationTournamentManifestRequired(canonicalTournamentId);
+    const initialCandidates = manifest.candidates.slice(0, manifest.initialCandidateCount);
+    const startedCandidates = initialCandidates.filter((candidate) => Boolean(candidate.jobId));
+    if (startedCandidates.length === initialCandidates.length) {
+      const refreshed = await refreshAnimationTournamentManifestUnlocked(canonicalTournamentId) ?? manifest;
+      assertAnimationInitialBundleReusable(refreshed);
+      return {
+        created: registered.created,
+        reused: true,
+        jobs: await Promise.all(startedCandidates.map((candidate) => codexJobResponse(candidate.jobId as string, true))),
+        tournament: refreshed
+      };
+    }
+    if (startedCandidates.length > 0) {
+      throw initialAnimationBundlePartialError(manifest.initialCandidateCount, startedCandidates.length);
+    }
+    if (manifest.state !== "queued") {
+      throw new HttpError(409, "Only a queued animation tournament can start its initial candidate bundle.", "animation_tournament_not_queued", {
+        retryable: false
+      });
     }
 
     return withCodexRunnerAdmissionLock(async () => {
-      const profile = normalizeAnimationGenerationProfile(registration.generationProfile);
+      const profile = normalizeAnimationGenerationProfile(manifest.generationProfile);
       const profilePlan = animationGenerationProfilePlan(profile);
       assertAnimationGenerationProfileRequestCounts(registration, profile, profilePlan);
-      if (existing) assertAnimationGenerationProfileManifestCounts(existing);
-      const initialCandidateCount = existing?.initialCandidateCount ?? profilePlan.initialCandidates;
-      await assertAnimationInitialBundleAdmissionAvailable(initialCandidateCount);
+      assertAnimationGenerationProfileManifestCounts(manifest);
+      await assertAnimationInitialBundleAdmissionAvailable(manifest.initialCandidateCount);
 
-      const registered = existing
-        ? { created: false, tournament: existing }
-        : await registerAnimationTournamentUnlocked(registration);
-      const bundle = await startAnimationTournamentInitialCandidateBundleUnlocked(tournamentId);
+      const bundle = await startAnimationTournamentInitialCandidateBundleUnlocked(canonicalTournamentId);
       return {
         created: registered.created,
         reused: bundle.reused,
@@ -1261,9 +1304,25 @@ async function registerAnimationTournamentUnlocked(
   const existing = await readAnimationTournamentManifest(tournamentId);
   if (existing) {
     if (existing.idempotencyKey !== idempotencyKey) throw new Error("Tournament id already exists with a different idempotency key.");
-    return { created: false, tournament: await refreshAnimationTournamentManifestUnlocked(tournamentId) };
+    return { created: false, tournament: await refreshAnimationTournamentManifestUnlocked(tournamentId) ?? existing };
   }
 
+  const prepared = await prepareAnimationTournamentRegistration(registration, tournamentId);
+  const semanticMatch = await findUnfinishedAnimationTournamentBySemanticKey(prepared.semanticKey, tournamentId);
+  if (semanticMatch) {
+    return {
+      created: false,
+      deduplicated: true,
+      tournament: await refreshAnimationTournamentManifest(semanticMatch.tournamentId) ?? semanticMatch
+    };
+  }
+  return createPreparedAnimationTournament(registration, tournamentId, idempotencyKey, prepared);
+}
+
+async function prepareAnimationTournamentRegistration(
+  registration: AnimationTournamentRegistrationRequest,
+  tournamentId: string
+) {
   const profile = normalizeAnimationGenerationProfile(registration.generationProfile);
   const profilePlan = animationGenerationProfilePlan(profile);
   assertAnimationGenerationProfileRequestCounts(registration, profile, profilePlan);
@@ -1313,14 +1372,48 @@ async function registerAnimationTournamentUnlocked(
     pilotDirection,
     jobTemplate
   });
-  const semanticMatch = await findUnfinishedAnimationTournamentBySemanticKey(semanticKey, tournamentId);
-  if (semanticMatch) {
-    return {
-      created: false,
-      deduplicated: true,
-      tournament: await refreshAnimationTournamentManifest(semanticMatch.tournamentId)
-    };
-  }
+  return {
+    profile,
+    selectionPolicy,
+    requestedDirections,
+    maximumCandidateCount,
+    initialCandidateCount,
+    pilotMode,
+    pilotDirection,
+    jobTemplate,
+    selectedImageAsset,
+    sourceFingerprint,
+    motionRecipeId,
+    motionRecipeVersion,
+    motionRecipeCompilerVersion,
+    presetId,
+    semanticKey
+  };
+}
+
+async function createPreparedAnimationTournament(
+  registration: AnimationTournamentRegistrationRequest,
+  tournamentId: string,
+  idempotencyKey: string,
+  prepared: Awaited<ReturnType<typeof prepareAnimationTournamentRegistration>>
+) {
+  const {
+    profile,
+    selectionPolicy,
+    requestedDirections,
+    maximumCandidateCount,
+    initialCandidateCount,
+    pilotMode,
+    pilotDirection,
+    jobTemplate,
+    selectedImageAsset,
+    sourceFingerprint,
+    motionRecipeId,
+    motionRecipeVersion,
+    motionRecipeCompilerVersion,
+    presetId,
+    semanticKey
+  } = prepared;
   const now = new Date().toISOString();
   const manifest: AnimationTournamentManifest = {
     schema: "image-cockpit.animation-tournament.v1",
@@ -1448,7 +1541,7 @@ async function findUnfinishedAnimationTournamentBySemanticKey(semanticKey: strin
     const existingSemanticKey = await animationTournamentSemanticKeyFromManifest(manifest).catch(() => "");
     if (existingSemanticKey !== semanticKey) continue;
     const refreshed = await refreshAnimationTournamentManifest(manifest.tournamentId).catch(() => manifest);
-    if (animationTournamentStateIsUnfinished(refreshed.state)) return refreshed;
+    if (refreshed && animationTournamentStateIsUnfinished(refreshed.state)) return refreshed;
   }
   return null;
 }
@@ -1792,7 +1885,9 @@ async function normalizeAnimationTournamentWinnerDecision(
   if (manifest.generationProfile !== "best" || manifest.selectionPolicy !== "smart-race" || manifest.pilotMode) {
     throw new HttpError(409, "Smart Race decisions are only valid for new non-Pilot Best tournaments.");
   }
-  const mode = value.mode === "early-accept" || value.mode === "full-compare" ? value.mode : undefined;
+  const mode = value.mode === "first-qualified" || value.mode === "early-accept" || value.mode === "full-compare"
+    ? value.mode
+    : undefined;
   if (!mode) throw new HttpError(400, "Smart Race winner decision mode is invalid.");
   const registeredJobIds = new Set(manifest.candidates.flatMap((candidate) => candidate.jobId ? [candidate.jobId] : []));
   const comparedJobIds = Array.isArray(value.comparedJobIds)
@@ -1816,7 +1911,34 @@ async function normalizeAnimationTournamentWinnerDecision(
     ? winner.score - runnerUp.score
     : undefined;
 
-  if (mode === "early-accept") {
+  if (mode === "first-qualified") {
+    const strictDecision = evaluateBestFirstQualifiedCandidate({
+      ready: winner.state === "quality-evaluated",
+      score: winner.score ?? Number.NEGATIVE_INFINITY,
+      warningCount: winner.warningCount ?? Number.MAX_SAFE_INTEGER,
+      identityScore: winner.identityScore,
+      shadowWouldBlock: winner.shadowWouldBlock
+    });
+    if (
+      comparedCandidates.length !== 1 ||
+      rankedUsable.length !== 1 ||
+      !strictDecision.qualified
+    ) {
+      throw new HttpError(409, "Persisted candidate metrics do not satisfy the strict First Qualified gate.");
+    }
+    const remainingCandidates = manifest.candidates.filter(
+      (candidate) => candidate.jobId && !candidate.repairDirections?.length && !comparedJobIds.includes(candidate.jobId)
+    );
+    if (remainingCandidates.length !== manifest.maximumCandidateCount - 1) {
+      throw new HttpError(409, "First Qualified acceptance requires every other Best candidate to remain active.");
+    }
+    const remainingStatuses = await Promise.all(
+      remainingCandidates.map((candidate) => readRunnerStatusSnapshot(candidate.jobId as string))
+    );
+    if (remainingStatuses.some((status) => status.state !== "running")) {
+      throw new HttpError(409, "Another Best candidate is already terminal; continue with Smart Race comparison.");
+    }
+  } else if (mode === "early-accept") {
     if (
       comparedCandidates.length !== 2 ||
       rankedUsable.length !== 2 ||
@@ -1860,6 +1982,8 @@ async function normalizeAnimationTournamentWinnerDecision(
       ? value.reason.trim().slice(0, 400)
       : mode === "early-accept"
         ? "two ready Best candidates have a clear Smart Race winner"
+        : mode === "first-qualified"
+          ? "first completed Best candidate passed the strict solo gate"
         : "all Best candidates were compared"
   };
 }

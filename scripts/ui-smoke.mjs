@@ -3376,7 +3376,7 @@ async function pageSnapshot() {
     annotationComments: Array.from(document.querySelectorAll(".annotation-comment-field")).map((field) => field.value),
     editCompareVisible: Boolean(document.querySelector(".image-edit-compare")),
     editCompareImages: document.querySelectorAll(".edit-compare-grid img").length,
-    historyItems: document.querySelectorAll(".history-item").length,
+    historyItems: document.querySelectorAll(".history-list > .history-item").length,
     historyVisibleCount: document.querySelector(".history-list")?.dataset.visibleCount || "",
     historyTotalCount: document.querySelector(".history-list")?.dataset.totalCount || "",
     codexFailureCards: document.querySelectorAll(".codex-failure-card").length,
