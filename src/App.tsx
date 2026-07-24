@@ -1054,6 +1054,49 @@ interface AnimationTournamentMonitorEntry {
   restoredAt: string;
 }
 
+export interface SessionAnimationTournamentCandidate {
+  index: number;
+  state: string;
+  jobId?: string;
+}
+
+export interface SessionAnimationTournamentManifest {
+  tournamentId: string;
+  state: string;
+  initialCandidateCount: number;
+  candidates: readonly SessionAnimationTournamentCandidate[];
+}
+
+export function allowAnimationTournamentForSession(
+  allowedTournamentIds: Set<string>,
+  manifest: Pick<SessionAnimationTournamentManifest, "tournamentId">
+) {
+  allowedTournamentIds.add(manifest.tournamentId);
+}
+
+export function isAnimationTournamentAllowedForSession(
+  allowedTournamentIds: ReadonlySet<string>,
+  tournamentId: string
+) {
+  return allowedTournamentIds.has(tournamentId);
+}
+
+export function findSessionAllowedAnimationTournamentInitialCandidates<
+  T extends SessionAnimationTournamentManifest
+>(
+  manifests: readonly T[],
+  allowedTournamentIds: ReadonlySet<string>
+): Array<{ manifest: T; candidateIndex: number }> {
+  return manifests
+    .filter((manifest) => isAnimationTournamentAllowedForSession(allowedTournamentIds, manifest.tournamentId))
+    .filter((manifest) => manifest.state === "queued" || manifest.state === "running")
+    .flatMap((manifest) => manifest.candidates
+      .slice(0, manifest.initialCandidateCount)
+      .filter((candidate) => !candidate.jobId && candidate.state === "queued")
+      .map((candidate) => ({ manifest, candidateIndex: candidate.index }))
+    );
+}
+
 interface AnimationTournamentWinnerDecision {
   mode: "early-accept" | "full-compare";
   reason: string;
@@ -4397,6 +4440,8 @@ function App() {
   const pollingAnimationTournamentIdsRef = useRef<Set<string>>(new Set());
   const serverTournamentRestoreStartedRef = useRef(false);
   const recoveredAcceptedTournamentIdsRef = useRef<Set<string>>(new Set());
+  const sessionAllowedAnimationTournamentIdsRef = useRef<Set<string>>(new Set());
+  const handleGenerateInFlightRef = useRef(false);
   const batchMatrixInitializedRef = useRef(false);
   const retryingFailureJobIdsRef = useRef<Set<string>>(new Set());
   const lastPointerEventAtRef = useRef(0);
@@ -5048,6 +5093,10 @@ function App() {
     const manifest = animationTournamentMonitors
       .map((entry) => entry.manifest)
       .find((candidateManifest) => {
+        if (!isAnimationTournamentAllowedForSession(
+          sessionAllowedAnimationTournamentIdsRef.current,
+          candidateManifest.tournamentId
+        )) return false;
         if (candidateManifest.state !== "queued") return false;
         const initialCandidates = candidateManifest.candidates.slice(0, candidateManifest.initialCandidateCount);
         return initialCandidates.length > 0 && initialCandidates.every((candidate) => !candidate.jobId && candidate.state === "queued");
@@ -5554,7 +5603,12 @@ function App() {
       if (initialEvaluations.length < manifest.initialCandidateCount || initialActive) return "pending";
       const decision = shouldStartBalancedAdditionalCandidate(initialEvaluations);
       const adaptiveCandidate = manifest.candidates[manifest.initialCandidateCount];
-      if (decision.startAdditionalCandidate && adaptiveCandidate && !adaptiveCandidate.jobId) {
+      if (
+        decision.startAdditionalCandidate &&
+        adaptiveCandidate &&
+        !adaptiveCandidate.jobId &&
+        isAnimationTournamentAllowedForSession(sessionAllowedAnimationTournamentIdsRef.current, tournamentId)
+      ) {
         await startPersistedTournamentCandidate(manifest, adaptiveCandidate.index, decision.reason);
         setStatus(`Balanced tournament added candidate C: ${decision.reason}.`);
         return "pending";
@@ -6190,6 +6244,7 @@ function App() {
               batchMatrixCellKey: `${source.id}:${preset.id}`
             }
           );
+          allowAnimationTournamentForSession(sessionAllowedAnimationTournamentIdsRef.current, manifest);
           updateAnimationTournamentMonitor(manifest);
           queuedCandidates += definition.initialCandidates;
         }
@@ -6502,76 +6557,83 @@ function App() {
   }
 
   async function handleGenerate() {
-    if (cockpitHealth.state === "broken" && providerId !== "local-file") {
-      setStatus(`${cockpitHealth.message} Run diagnostics or repair Cockpit before starting API-backed work.`);
-      return;
-    }
-    if (providerId === "local-file") {
-      setStatus(`${providerLabel(providerId, language)} ${copy.statusUsesImport}`);
-      fileInputRef.current?.click();
-      return;
-    }
-    if (providerId === "local-inbox") {
-      await importLatestOutboxResult();
-      return;
-    }
-    if (providerId === "local-generator") {
-      await generateLocally();
-      return;
-    }
+    if (handleGenerateInFlightRef.current) return;
+    handleGenerateInFlightRef.current = true;
 
     let animationAdmissionReservationKey = "";
-    if (providerId === "codex-handoff" && workflowMode === "sprite-generate") {
-      const profileDefinition = animationGenerationProfileDefinition(animationGenerationProfile);
-      const activeRunnerCount = effectiveCodexRunnerCount(
-        codexJobs,
-        startingQueuedJobIdsRef.current,
-        serverActiveCodexRunnerCount
-      );
-      const reservedRunnerCount = reservedAnimationInitialCandidateSlots(startingPersistedTournamentCandidatesRef.current);
-      const admission = planAnimationInitialCandidateAdmission({
-        initialCandidateCount: profileDefinition.initialCandidates,
-        activeRunnerCount,
-        reservedRunnerCount,
-        maxActiveRunnerCount: MAX_ACTIVE_CODEX_JOBS
-      });
-      if (!admission.allowed) {
-        setStatus(animationInitialAdmissionMessage(language, admission.occupiedSlots));
-        return;
-      }
-      animationAdmissionReservationKey = createId("animation-admission");
-      startingPersistedTournamentCandidatesRef.current.set(animationAdmissionReservationKey, admission.requiredSlots);
-    }
-
-    setIsBusy(true);
     try {
-      const draft = await buildCodexJobDraft();
-      if (!draft) return;
-
-      if (isStandardDirectionSplitDraft(draft)) {
-        await submitOrQueueCodexAnimationTournament(draft);
+      if (cockpitHealth.state === "broken" && providerId !== "local-file") {
+        setStatus(`${cockpitHealth.message} Run diagnostics or repair Cockpit before starting API-backed work.`);
+        return;
+      }
+      if (providerId === "local-file") {
+        setStatus(`${providerLabel(providerId, language)} ${copy.statusUsesImport}`);
+        fileInputRef.current?.click();
+        return;
+      }
+      if (providerId === "local-inbox") {
+        await importLatestOutboxResult();
+        return;
+      }
+      if (providerId === "local-generator") {
+        await generateLocally();
         return;
       }
 
-      if (!canStartCodexJobDraft(
-        draft,
-        codexJobs,
-        startingQueuedJobIdsRef.current,
-        0,
-        serverActiveCodexRunnerCount
-      )) {
-        enqueueCodexJobDraft(draft);
-        return;
+      if (providerId === "codex-handoff" && workflowMode === "sprite-generate") {
+        const profileDefinition = animationGenerationProfileDefinition(animationGenerationProfile);
+        const activeRunnerCount = effectiveCodexRunnerCount(
+          codexJobs,
+          startingQueuedJobIdsRef.current,
+          serverActiveCodexRunnerCount
+        );
+        const reservedRunnerCount = reservedAnimationInitialCandidateSlots(startingPersistedTournamentCandidatesRef.current);
+        const admission = planAnimationInitialCandidateAdmission({
+          initialCandidateCount: profileDefinition.initialCandidates,
+          activeRunnerCount,
+          reservedRunnerCount,
+          maxActiveRunnerCount: MAX_ACTIVE_CODEX_JOBS
+        });
+        if (!admission.allowed) {
+          setStatus(animationInitialAdmissionMessage(language, admission.occupiedSlots));
+          return;
+        }
+        animationAdmissionReservationKey = createId("animation-admission");
+        startingPersistedTournamentCandidatesRef.current.set(animationAdmissionReservationKey, admission.requiredSlots);
       }
 
-      await submitCodexJobDraft(draft);
-    } catch (error) {
-      setStatus(error instanceof Error ? error.message : copy.statusCodexJobError);
+      setIsBusy(true);
+      try {
+        const draft = await buildCodexJobDraft();
+        if (!draft) return;
+
+        if (isStandardDirectionSplitDraft(draft)) {
+          await submitOrQueueCodexAnimationTournament(draft);
+          return;
+        }
+
+        if (!canStartCodexJobDraft(
+          draft,
+          codexJobs,
+          startingQueuedJobIdsRef.current,
+          0,
+          serverActiveCodexRunnerCount
+        )) {
+          enqueueCodexJobDraft(draft);
+          return;
+        }
+
+        await submitCodexJobDraft(draft);
+      } catch (error) {
+        setStatus(error instanceof Error ? error.message : copy.statusCodexJobError);
+      } finally {
+        setIsBusy(false);
+      }
     } finally {
       if (animationAdmissionReservationKey) {
         startingPersistedTournamentCandidatesRef.current.delete(animationAdmissionReservationKey);
       }
-      setIsBusy(false);
+      handleGenerateInFlightRef.current = false;
     }
   }
 
@@ -6840,6 +6902,7 @@ function App() {
       true
     );
     const manifest = registration.tournament;
+    allowAnimationTournamentForSession(sessionAllowedAnimationTournamentIdsRef.current, manifest);
     updateAnimationTournamentMonitor(manifest);
     trackAnimationTournamentJobs(manifest, registration.jobs);
     setStatus(

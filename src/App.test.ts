@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  allowAnimationTournamentForSession,
   annotationImageCoordinates,
   animationDirectionSelectionForDirections,
   animationDirectionsForPreset,
@@ -14,9 +15,11 @@ import {
   estimateCodexJobProgress,
   findLatestReadyDirectionSplitArtifact,
   findReadyDirectionSplitArtifacts,
+  findSessionAllowedAnimationTournamentInitialCandidates,
   fingerprintOutboxResults,
   getNextHistoryRenderLimit,
   getVisibleHistoryCount,
+  isAnimationTournamentAllowedForSession,
   historyAnimationFrameCount,
   HISTORY_RENDER_BATCH_SIZE,
   imageDisplayRectForCanvas,
@@ -110,6 +113,61 @@ describe("Codex runner wait state", () => {
     expect(reason).toContain("local file");
     expect(reason).not.toContain("D:\\codex");
     expect(reason).not.toContain("stack line");
+  });
+});
+
+describe("animation tournament session auto-start permission", () => {
+  function makeQueuedTournament(tournamentId: string) {
+    return {
+      tournamentId,
+      state: "queued",
+      initialCandidateCount: 3,
+      candidates: Array.from({ length: 3 }, (_, index) => ({
+        index,
+        state: "queued"
+      }))
+    };
+  }
+
+  it("keeps restored jobId-less queued tournaments display-only after reload across repeated polls", () => {
+    const restoredTournaments = [
+      makeQueuedTournament("restored-old-a"),
+      makeQueuedTournament("restored-old-b")
+    ];
+    const previousSessionAllowList = new Set<string>();
+    allowAnimationTournamentForSession(previousSessionAllowList, restoredTournaments[0]);
+    expect(
+      findSessionAllowedAnimationTournamentInitialCandidates(restoredTournaments, previousSessionAllowList)
+    ).toHaveLength(3);
+
+    const reloadedSessionAllowList = new Set<string>();
+    expect(isAnimationTournamentAllowedForSession(reloadedSessionAllowList, restoredTournaments[0].tournamentId)).toBe(false);
+    let candidatePostCount = 0;
+    for (let pollIndex = 0; pollIndex < 4; pollIndex += 1) {
+      candidatePostCount += findSessionAllowedAnimationTournamentInitialCandidates(
+        restoredTournaments,
+        reloadedSessionAllowList
+      ).length;
+    }
+
+    expect(candidatePostCount).toBe(0);
+  });
+
+  it("authorizes a server-returned queued manifest when explicit registration is deduplicated", () => {
+    const existingQueuedManifest = makeQueuedTournament("server-existing");
+    const sessionAllowList = new Set<string>();
+
+    expect(
+      findSessionAllowedAnimationTournamentInitialCandidates([existingQueuedManifest], sessionAllowList)
+    ).toEqual([]);
+
+    allowAnimationTournamentForSession(sessionAllowList, existingQueuedManifest);
+    expect(isAnimationTournamentAllowedForSession(sessionAllowList, existingQueuedManifest.tournamentId)).toBe(true);
+
+    expect(
+      findSessionAllowedAnimationTournamentInitialCandidates([existingQueuedManifest], sessionAllowList)
+        .map(({ candidateIndex }) => candidateIndex)
+    ).toEqual([0, 1, 2]);
   });
 });
 
