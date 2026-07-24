@@ -329,6 +329,110 @@ async function runManualHandoffSmoke() {
         directions: ["front", "side", "back"]
       }
     };
+    const semanticDedupeRegistration = {
+      tournamentId: "smoke-semantic-dedupe-placeholder",
+      idempotencyKey: "smoke:semantic-dedupe:placeholder:v1",
+      sourceFingerprint: "smoke-semantic-dedupe-source-v1",
+      motionRecipeId: "combo",
+      motionRecipeVersion: 1,
+      motionRecipeCompilerVersion: "smoke-v1",
+      presetId: "combo-best",
+      generationProfile: "best",
+      requestedDirections: ["front", "front three-quarter", "side", "back three-quarter", "back"],
+      maximumCandidateCount: 3,
+      initialCandidateCount: 3,
+      clientContext: {
+        label: "Smoke semantic dedupe tournament",
+        workflowMode: "sprite-generate",
+        actionName: "combo",
+        sourceImageId: "hist-smoke-semantic-dedupe",
+        sourceImageName: "tiny.png"
+      },
+      jobTemplate: {
+        workflowMode: "sprite-generate",
+        prompt: "Smoke test semantic tournament deduplication",
+        negativePrompt: "text, watermark",
+        selectedImageName: "tiny.png",
+        selectedImageSize: "1x1",
+        selectedImageSource: "import",
+        selectedImageDataUrl: tinyPng,
+        grid: { columns: 8, rows: 5, gutter: 0 },
+        action: "combo",
+        frames: 40,
+        framesPerDirection: 8,
+        cell: { width: 256, height: 256 },
+        chromaKey: "green",
+        spriteVariant: "standard",
+        directions: ["front", "front three-quarter", "side", "back three-quarter", "back"],
+        motionRecipe: {
+          id: "combo",
+          version: 1,
+          compilerVersion: "smoke-v1",
+          qualityProfile: "best",
+          bodyTopology: "biped",
+          frameCount: 8
+        }
+      }
+    };
+    const semanticDedupeResponses = await Promise.all(Array.from({ length: 8 }, (_, index) =>
+      postJson(port, "/api/codex/tournaments", {
+        ...semanticDedupeRegistration,
+        tournamentId: `smoke-semantic-dedupe-${index + 1}`,
+        idempotencyKey: `smoke:semantic-dedupe:${index + 1}:v1`,
+        clientContext: {
+          ...semanticDedupeRegistration.clientContext,
+          label: `Smoke semantic dedupe tournament ${index + 1}`
+        }
+      })
+    ));
+    assert(
+      semanticDedupeResponses.filter((response) => response.created === true).length === 1,
+      "concurrent semantic duplicate registrations should create exactly one tournament"
+    );
+    const semanticCanonicalTournamentIds = new Set(
+      semanticDedupeResponses.map((response) => response.tournament.tournamentId)
+    );
+    assert(
+      semanticCanonicalTournamentIds.size === 1,
+      "concurrent semantic duplicate registrations should all return one canonical tournament id"
+    );
+    const semanticCanonicalTournamentId = semanticDedupeResponses[0].tournament.tournamentId;
+    const semanticNearMatchId = "smoke-semantic-near-match";
+    const semanticNearMatch = await postJson(port, "/api/codex/tournaments", {
+      ...semanticDedupeRegistration,
+      tournamentId: semanticNearMatchId,
+      idempotencyKey: "smoke:semantic-near-match:v1",
+      jobTemplate: {
+        ...semanticDedupeRegistration.jobTemplate,
+        grid: { columns: 12, rows: 5, gutter: 0 },
+        frames: 60,
+        framesPerDirection: 12,
+        motionRecipe: {
+          ...semanticDedupeRegistration.jobTemplate.motionRecipe,
+          frameCount: 12
+        }
+      }
+    });
+    assert(semanticNearMatch.created === true, "a near-match with a different frame contract should create a separate tournament");
+    assert(semanticNearMatch.tournament.tournamentId === semanticNearMatchId, "near-match registration should keep its requested tournament id");
+    await postJson(port, `/api/codex/tournaments/${semanticNearMatchId}/cancel`, {});
+
+    const cancelledSemanticCanonical = await postJson(
+      port,
+      `/api/codex/tournaments/${semanticCanonicalTournamentId}/cancel`,
+      {}
+    );
+    assert(cancelledSemanticCanonical.tournament.state === "cancelled", "semantic dedupe canonical tournament should become terminal after cancel");
+    const semanticReplacementId = "smoke-semantic-dedupe-after-cancel";
+    const semanticReplacement = await postJson(port, "/api/codex/tournaments", {
+      ...semanticDedupeRegistration,
+      tournamentId: semanticReplacementId,
+      idempotencyKey: "smoke:semantic-dedupe:after-cancel:v1"
+    });
+    assert(semanticReplacement.created === true, "a terminal semantic match should not block a later tournament registration");
+    assert(semanticReplacement.tournament.tournamentId === semanticReplacementId, "post-cancel semantic registration should create the requested new tournament");
+    await postJson(port, `/api/codex/tournaments/${semanticReplacementId}/cancel`, {});
+
     const canonicalSingleDirections = ["front", "front three-quarter", "side", "back three-quarter", "back"];
     const singleDirection = "back three-quarter";
     const singleDirectionSlug = "back-three-quarter";

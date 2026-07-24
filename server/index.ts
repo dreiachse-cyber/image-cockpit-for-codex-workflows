@@ -51,6 +51,7 @@ const runnerProcesses = new Map<string, ReturnType<typeof spawn>>();
 const resumingRunnerJobs = new Map<string, Promise<CodexRunnerStatus>>();
 const cancellingRunnerJobIds = new Set<string>();
 const animationTournamentLocks = new Map<string, Promise<void>>();
+let animationTournamentRegistrationTail: Promise<void> = Promise.resolve();
 let cachedRunnerCapacityBlock: RunnerCapacityBlock | null = null;
 
 type CodexJobRequest = {
@@ -141,6 +142,7 @@ type AnimationTournamentManifest = {
   schemaVersion: 1;
   tournamentId: string;
   idempotencyKey: string;
+  semanticKey?: string;
   sourceFingerprint: string;
   sourceAssetRef?: string;
   motionRecipeId?: string;
@@ -918,6 +920,16 @@ async function registerAnimationTournament(registration: AnimationTournamentRegi
   if (!isSafeTournamentId(tournamentId) || !isSafeIdempotencyKey(idempotencyKey)) {
     throw new Error("Tournament id and idempotency key are required and must be safe.");
   }
+  return withAnimationTournamentRegistrationLock(() =>
+    registerAnimationTournamentUnlocked(registration, tournamentId, idempotencyKey)
+  );
+}
+
+async function registerAnimationTournamentUnlocked(
+  registration: AnimationTournamentRegistrationRequest,
+  tournamentId: string,
+  idempotencyKey: string
+) {
   const existing = await readAnimationTournamentManifest(tournamentId);
   if (existing) {
     if (existing.idempotencyKey !== idempotencyKey) throw new Error("Tournament id already exists with a different idempotency key.");
@@ -946,23 +958,50 @@ async function registerAnimationTournament(registration: AnimationTournamentRegi
     ? registration.sourceFingerprint.trim()
     : selectedImageAsset?.fingerprint ?? "";
   if (!sourceFingerprint) throw new Error("Tournament source fingerprint is required.");
+  const motionRecipeId = normalizeShortText(registration.motionRecipeId);
+  const motionRecipeVersion = normalizePositiveInteger(registration.motionRecipeVersion);
+  const motionRecipeCompilerVersion = normalizeShortText(registration.motionRecipeCompilerVersion);
+  const presetId = normalizeShortText(registration.presetId);
   jobTemplate.selectedImageDataUrl = "";
   jobTemplate.selectedImageAssetPath = selectedImageAsset?.path;
   jobTemplate.sourceFingerprint = sourceFingerprint;
   jobTemplate.generationProfile = profile;
   jobTemplate.directions = requestedDirections;
+  const semanticKey = animationTournamentSemanticKey({
+    sourceFingerprint,
+    motionRecipeId,
+    motionRecipeVersion,
+    motionRecipeCompilerVersion,
+    presetId,
+    generationProfile: profile,
+    requestedDirections,
+    maximumCandidateCount,
+    initialCandidateCount,
+    pilotMode,
+    pilotDirection,
+    jobTemplate
+  });
+  const semanticMatch = await findUnfinishedAnimationTournamentBySemanticKey(semanticKey, tournamentId);
+  if (semanticMatch) {
+    return {
+      created: false,
+      deduplicated: true,
+      tournament: await refreshAnimationTournamentManifest(semanticMatch.tournamentId)
+    };
+  }
   const now = new Date().toISOString();
   const manifest: AnimationTournamentManifest = {
     schema: "image-cockpit.animation-tournament.v1",
     schemaVersion: 1,
     tournamentId,
     idempotencyKey,
+    semanticKey,
     sourceFingerprint,
     sourceAssetRef: selectedImageAsset?.path ? basename(selectedImageAsset.path) : undefined,
-    motionRecipeId: normalizeShortText(registration.motionRecipeId),
-    motionRecipeVersion: normalizePositiveInteger(registration.motionRecipeVersion),
-    motionRecipeCompilerVersion: normalizeShortText(registration.motionRecipeCompilerVersion),
-    presetId: normalizeShortText(registration.presetId),
+    motionRecipeId,
+    motionRecipeVersion,
+    motionRecipeCompilerVersion,
+    presetId,
     generationProfile: profile,
     requestedDirections,
     maximumCandidateCount,
@@ -997,6 +1036,108 @@ async function registerAnimationTournament(registration: AnimationTournamentRegi
   await writeJsonAtomic(animationTournamentTemplatePath(tournamentId), jobTemplate);
   await writeAnimationTournamentManifest(manifest);
   return { created: true, tournament: manifest };
+}
+
+type AnimationTournamentSemanticInput = {
+  sourceFingerprint: string;
+  motionRecipeId?: string;
+  motionRecipeVersion?: number;
+  motionRecipeCompilerVersion?: string;
+  presetId?: string;
+  generationProfile: AnimationGenerationProfile;
+  requestedDirections: string[];
+  maximumCandidateCount: number;
+  initialCandidateCount: number;
+  pilotMode: boolean;
+  pilotDirection?: string;
+  jobTemplate: CodexJobRequest;
+};
+
+function animationTournamentSemanticKey(input: AnimationTournamentSemanticInput) {
+  const semanticTemplate = JSON.parse(JSON.stringify(input.jobTemplate)) as Record<string, unknown>;
+  [
+    "idempotencyKey",
+    "selectedImageAssetPath",
+    "selectedImageDataUrl",
+    "selectedImageName",
+    "selectedImageSize",
+    "selectedImageSource",
+    "sourceFingerprint",
+    "tournamentCandidateCount",
+    "tournamentCandidateIndex",
+    "tournamentId"
+  ].forEach((key) => delete semanticTemplate[key]);
+  return createHash("sha256")
+    .update(stableJsonStringify({
+      sourceFingerprint: input.sourceFingerprint,
+      motionRecipeId: input.motionRecipeId,
+      motionRecipeVersion: input.motionRecipeVersion,
+      motionRecipeCompilerVersion: input.motionRecipeCompilerVersion,
+      presetId: input.presetId,
+      generationProfile: input.generationProfile,
+      requestedDirections: input.requestedDirections,
+      maximumCandidateCount: input.maximumCandidateCount,
+      initialCandidateCount: input.initialCandidateCount,
+      pilotMode: input.pilotMode,
+      pilotDirection: input.pilotDirection,
+      jobTemplate: semanticTemplate
+    }))
+    .digest("hex");
+}
+
+async function animationTournamentSemanticKeyFromManifest(manifest: AnimationTournamentManifest) {
+  if (manifest.semanticKey) return manifest.semanticKey;
+  const jobTemplate = parseJsonText<CodexJobRequest>(
+    await readFile(animationTournamentTemplatePath(manifest.tournamentId), "utf8")
+  );
+  return animationTournamentSemanticKey({
+    sourceFingerprint: manifest.sourceFingerprint,
+    motionRecipeId: manifest.motionRecipeId,
+    motionRecipeVersion: manifest.motionRecipeVersion,
+    motionRecipeCompilerVersion: manifest.motionRecipeCompilerVersion,
+    presetId: manifest.presetId,
+    generationProfile: manifest.generationProfile,
+    requestedDirections: manifest.requestedDirections,
+    maximumCandidateCount: manifest.maximumCandidateCount,
+    initialCandidateCount: manifest.initialCandidateCount,
+    pilotMode: manifest.pilotMode === true,
+    pilotDirection: manifest.pilotDirection,
+    jobTemplate
+  });
+}
+
+async function findUnfinishedAnimationTournamentBySemanticKey(semanticKey: string, excludedTournamentId: string) {
+  const entries = await readdir(tournamentWorkRootDir, { withFileTypes: true });
+  for (const entry of entries) {
+    if (!entry.isDirectory() || entry.name === excludedTournamentId || !isSafeTournamentId(entry.name)) continue;
+    const manifest = await readAnimationTournamentManifest(entry.name);
+    if (!manifest || !animationTournamentStateIsUnfinished(manifest.state)) continue;
+    const existingSemanticKey = await animationTournamentSemanticKeyFromManifest(manifest).catch(() => "");
+    if (existingSemanticKey !== semanticKey) continue;
+    const refreshed = await refreshAnimationTournamentManifest(manifest.tournamentId).catch(() => manifest);
+    if (animationTournamentStateIsUnfinished(refreshed.state)) return refreshed;
+  }
+  return null;
+}
+
+function animationTournamentStateIsUnfinished(state: AnimationTournamentManifest["state"]) {
+  return state === "queued" || state === "running" || state === "pilot-review" || state === "pilot-expanding";
+}
+
+function stableJsonStringify(value: unknown) {
+  return JSON.stringify(stableJsonValue(value));
+}
+
+function stableJsonValue(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(stableJsonValue);
+  if (!value || typeof value !== "object") return value;
+  return Object.keys(value as Record<string, unknown>)
+    .sort()
+    .reduce<Record<string, unknown>>((result, key) => {
+      const normalized = stableJsonValue((value as Record<string, unknown>)[key]);
+      if (normalized !== undefined) result[key] = normalized;
+      return result;
+    }, {});
 }
 
 async function startAnimationTournamentCandidate(tournamentId: string, candidateIndex: number, reason?: string) {
@@ -1371,7 +1512,7 @@ async function fallbackMotionPilotTournament(tournamentId: string, reason: strin
     });
     manifest.pilotState = "fallback";
     manifest.fallbackReason = reason;
-    manifest.fallbackTournamentId = fallbackTournamentId;
+    manifest.fallbackTournamentId = fallback.tournament.tournamentId;
     manifest.state = "cancelled";
     manifest.elapsedTime = Math.max(0, Date.now() - Date.parse(manifest.createdAt));
     manifest.directionOutputCount = manifest.candidates
@@ -1698,6 +1839,25 @@ async function writeJsonAtomic(path: string, value: unknown) {
   const temporaryPath = `${path}.${process.pid}.${Date.now()}.tmp`;
   await writeFile(temporaryPath, JSON.stringify(value, null, 2), "utf8");
   await rename(temporaryPath, path);
+}
+
+async function withAnimationTournamentRegistrationLock<T>(action: () => Promise<T>) {
+  const previous = animationTournamentRegistrationTail;
+  let release = () => {};
+  const current = new Promise<void>((resolveLock) => {
+    release = resolveLock;
+  });
+  const queued = previous.then(() => current);
+  animationTournamentRegistrationTail = queued;
+  await previous;
+  try {
+    return await action();
+  } finally {
+    release();
+    if (animationTournamentRegistrationTail === queued) {
+      animationTournamentRegistrationTail = Promise.resolve();
+    }
+  }
 }
 
 async function withAnimationTournamentLock<T>(tournamentId: string, action: () => Promise<T>) {
