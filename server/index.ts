@@ -1,9 +1,10 @@
 import { spawn } from "node:child_process";
 import { createHash } from "node:crypto";
-import { closeSync, createWriteStream, existsSync, openSync, readFileSync, readSync, readdirSync } from "node:fs";
+import { closeSync, createWriteStream, existsSync, openSync, readFileSync, readSync, readdirSync, writeFileSync } from "node:fs";
 import { copyFile, mkdir, readFile, readdir, rename, stat, writeFile } from "node:fs/promises";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { basename, delimiter, extname, join, resolve, sep } from "node:path";
+import { evaluateBestFirstQualifiedCandidate } from "../src/lib/animationTournamentGate.js";
 import { generateLocalImages, type LocalGenerationRequest } from "./local-generator.js";
 
 loadDotEnv(resolve(".env"));
@@ -51,6 +52,7 @@ const runnerProcesses = new Map<string, ReturnType<typeof spawn>>();
 const resumingRunnerJobs = new Map<string, Promise<CodexRunnerStatus>>();
 const cancellingRunnerJobIds = new Set<string>();
 const animationTournamentLocks = new Map<string, Promise<void>>();
+let codexRunnerAdmissionTail: Promise<void> = Promise.resolve();
 let animationTournamentRegistrationTail: Promise<void> = Promise.resolve();
 let cachedRunnerCapacityBlock: RunnerCapacityBlock | null = null;
 
@@ -106,9 +108,44 @@ type MotionRecipeContext = {
 };
 
 type AnimationGenerationProfile = "fast" | "balanced" | "best";
+type AnimationTournamentSelectionPolicy = "exhaustive" | "smart-race";
 type AnimationTournamentCandidateState = "queued" | "running" | "artifact-ready" | "quality-evaluated" | "accepted" | "repairing" | "failed" | "cancelled";
 type AnimationTournamentDirectionState = AnimationTournamentCandidateState;
 type MotionPilotState = "piloting" | "review" | "expanding" | "completed" | "fallback" | "failed";
+
+type AnimationTournamentCancellationResult = {
+  jobId: string;
+  ok: boolean;
+  message?: string;
+};
+
+type AnimationTournamentSmartRaceDecision = {
+  mode: "first-qualified" | "early-accept" | "full-compare";
+  decidedAt: string;
+  comparedJobIds: string[];
+  winnerJobId: string;
+  scoreGap?: number;
+  reason: string;
+  cancellationResults?: AnimationTournamentCancellationResult[];
+};
+
+type AnimationTournamentWinnerDecisionRequest = {
+  mode?: unknown;
+  reason?: unknown;
+  comparedJobIds?: unknown;
+  scoreGap?: unknown;
+};
+
+type AnimationTournamentEvaluationRequest = {
+  jobId?: unknown;
+  ready?: unknown;
+  score?: unknown;
+  warningCount?: unknown;
+  identityScore?: unknown;
+  shadowWouldBlock?: unknown;
+  qualityReportRef?: unknown;
+  reason?: unknown;
+};
 
 type AnimationTournamentCandidate = {
   index: number;
@@ -120,6 +157,8 @@ type AnimationTournamentCandidate = {
   qualityReportRef?: string;
   score?: number;
   warningCount?: number;
+  identityScore?: number;
+  shadowWouldBlock?: boolean;
   reason?: string;
   repairDirections?: string[];
 };
@@ -150,6 +189,7 @@ type AnimationTournamentManifest = {
   motionRecipeCompilerVersion?: string;
   presetId?: string;
   generationProfile: AnimationGenerationProfile;
+  selectionPolicy?: AnimationTournamentSelectionPolicy;
   requestedDirections: string[];
   maximumCandidateCount: number;
   initialCandidateCount: number;
@@ -174,6 +214,7 @@ type AnimationTournamentManifest = {
   totalCandidateJobs?: number;
   elapsedTime?: number;
   repairCount?: number;
+  smartRaceDecision?: AnimationTournamentSmartRaceDecision;
   state: "queued" | "running" | "pilot-review" | "pilot-expanding" | "accepted" | "failed" | "cancelled";
   templateRef: string;
   clientContext?: Record<string, unknown>;
@@ -190,14 +231,30 @@ type AnimationTournamentRegistrationRequest = {
   motionRecipeCompilerVersion?: unknown;
   presetId?: unknown;
   generationProfile?: unknown;
+  selectionPolicy?: unknown;
   requestedDirections?: unknown;
   maximumCandidateCount?: unknown;
   initialCandidateCount?: unknown;
   pilotMode?: unknown;
   pilotDirection?: unknown;
+  startInitialCandidates?: unknown;
   jobTemplate?: unknown;
   clientContext?: unknown;
 };
+
+class HttpError extends Error {
+  statusCode: number;
+  code?: string;
+  details: Record<string, unknown>;
+
+  constructor(statusCode: number, message: string, code?: string, details: Record<string, unknown> = {}) {
+    super(message);
+    this.name = "HttpError";
+    this.statusCode = statusCode;
+    this.code = code;
+    this.details = details;
+  }
+}
 
 type CodexWorkflowMode = "image-generate" | "image-edit" | "sprite-generate" | "sprite-edit" | "effect-animation";
 type CodexRunnerState = "running" | "completed" | "failed" | "unavailable" | "disabled" | "unknown";
@@ -230,6 +287,8 @@ type CodexRunnerStatus = {
   initialStartedAt?: string;
   resumedAt?: string;
   resumeCount?: number;
+  processId?: number;
+  cancellationPending?: boolean;
   finishedAt?: string;
   exitCode?: number | null;
   signal?: NodeJS.Signals | null;
@@ -363,7 +422,7 @@ const server = createServer(async (request, response) => {
       const runner = await checkCodexRunnerPreflight();
       sendJson(response, 200, {
         app: "image-cockpit",
-        version: "0.1.7",
+        version: "0.1.8",
         role: "api",
         port,
         handoffRoot,
@@ -443,6 +502,18 @@ const server = createServer(async (request, response) => {
 
     if (request.method === "GET" && pathname === "/api/codex/runner") {
       sendJson(response, 200, { runner: await checkCodexRunnerPreflight() });
+      return;
+    }
+
+    if (request.method === "GET" && pathname === "/api/codex/capacity") {
+      const active = await activeCodexRunnerCount();
+      sendJson(response, 200, {
+        capacity: {
+          limit: maxActiveCodexJobs,
+          active,
+          available: Math.max(0, maxActiveCodexJobs - active)
+        }
+      });
       return;
     }
 
@@ -604,7 +675,9 @@ const server = createServer(async (request, response) => {
 
     if (request.method === "POST" && pathname === "/api/codex/tournaments") {
       const registration = (await readJson(request)) as AnimationTournamentRegistrationRequest;
-      const result = await registerAnimationTournament(registration);
+      const result = registration.startInitialCandidates === true
+        ? await registerAndStartAnimationTournament(registration)
+        : await registerAnimationTournament(registration);
       sendJson(response, result.created ? 201 : 200, result);
       return;
     }
@@ -622,6 +695,18 @@ const server = createServer(async (request, response) => {
         return;
       }
       sendJson(response, 200, { tournament: manifest });
+      return;
+    }
+
+    const tournamentInitialCandidatesMatch = pathname.match(/^\/api\/codex\/tournaments\/([^/]+)\/initial-candidates$/);
+    if (request.method === "POST" && tournamentInitialCandidatesMatch) {
+      const tournamentId = decodeURIComponent(tournamentInitialCandidatesMatch[1]);
+      if (!isSafeTournamentId(tournamentId)) {
+        sendJson(response, 400, { error: "Unsupported or unsafe tournament initial-candidate request" });
+        return;
+      }
+      const result = await startAnimationTournamentInitialCandidateBundle(tournamentId);
+      sendJson(response, result.reused ? 200 : 201, result);
       return;
     }
 
@@ -650,14 +735,7 @@ const server = createServer(async (request, response) => {
         sendJson(response, 400, { error: "Unsupported or unsafe tournament evaluation request" });
         return;
       }
-      const body = (await readJson(request)) as {
-        jobId?: unknown;
-        ready?: unknown;
-        score?: unknown;
-        warningCount?: unknown;
-        qualityReportRef?: unknown;
-        reason?: unknown;
-      };
+      const body = (await readJson(request)) as AnimationTournamentEvaluationRequest;
       sendJson(response, 200, {
         tournament: await recordAnimationTournamentEvaluation(tournamentId, body)
       });
@@ -742,14 +820,18 @@ const server = createServer(async (request, response) => {
     const tournamentWinnerMatch = pathname.match(/^\/api\/codex\/tournaments\/([^/]+)\/winner$/);
     if (request.method === "POST" && tournamentWinnerMatch) {
       const tournamentId = decodeURIComponent(tournamentWinnerMatch[1]);
-      const body = (await readJson(request)) as { jobId?: unknown };
+      const body = (await readJson(request)) as { jobId?: unknown; decision?: AnimationTournamentWinnerDecisionRequest };
       const jobId = typeof body.jobId === "string" ? body.jobId : "";
       if (!isSafeTournamentId(tournamentId) || !isSafeJobId(jobId)) {
         sendJson(response, 400, { error: "Unsupported or unsafe tournament winner request" });
         return;
       }
-      const { result, tournament } = await publishAndAcceptTournamentWinner(tournamentId, jobId);
-      sendJson(response, 200, { ...result, tournament });
+      const { result, tournament, cancellationResults } = await publishAndAcceptTournamentWinner(
+        tournamentId,
+        jobId,
+        body.decision
+      );
+      sendJson(response, 200, { ...result, tournament, cancellationResults });
       return;
     }
 
@@ -759,6 +841,26 @@ const server = createServer(async (request, response) => {
         sendJson(response, 400, { error: "Prompt is required for a Codex handoff job" });
         return;
       }
+      if (hasTournamentScopedJobFields(body)) {
+        throw new HttpError(
+          409,
+          "Tournament-scoped jobs must start through the animation tournament endpoints.",
+          "tournament_job_endpoint_required",
+          { retryable: false }
+        );
+      }
+      if (
+        normalizeWorkflowMode(body.workflowMode) === "sprite-generate" &&
+        body.spriteVariant !== "hatch-pet" &&
+        body.spriteVariant !== "directional-hatch-pet"
+      ) {
+        throw new HttpError(
+          409,
+          "Standard animation generation must start through the animation tournament endpoint.",
+          "animation_tournament_endpoint_required",
+          { retryable: false }
+        );
+      }
 
       const result = await createCodexJob(body);
       sendJson(response, result.reused ? 200 : 201, result);
@@ -767,7 +869,15 @@ const server = createServer(async (request, response) => {
 
     sendJson(response, 404, { error: "Not found" });
   } catch (error) {
-    sendJson(response, 500, { error: error instanceof Error ? error.message : "Internal server error" });
+    sendJson(
+      response,
+      error instanceof HttpError ? error.statusCode : 500,
+      {
+        error: error instanceof Error ? error.message : "Internal server error",
+        ...(error instanceof HttpError && error.code ? { code: error.code } : {}),
+        ...(error instanceof HttpError ? error.details : {})
+      }
+    );
   }
 });
 
@@ -795,7 +905,18 @@ async function isDirectoryReadable(path: string) {
   }
 }
 
-async function createCodexJob(body: CodexJobRequest) {
+type CreateCodexJobOptions = {
+  admissionLockHeld?: boolean;
+  skipSlotCheck?: boolean;
+  onJobCreated?: (jobId: string) => void;
+};
+
+async function createCodexJob(body: CodexJobRequest, options: CreateCodexJobOptions = {}) {
+  if (options.admissionLockHeld) return createCodexJobUnlocked(body, options);
+  return withCodexRunnerAdmissionLock(() => createCodexJobUnlocked(body, options));
+}
+
+async function createCodexJobUnlocked(body: CodexJobRequest, options: CreateCodexJobOptions = {}) {
   const workflowMode = normalizeWorkflowMode(body.workflowMode);
   const tournamentId = resolveTournamentIdForJobRequest(workflowMode, body);
   if (tournamentId && body.idempotencyKey) {
@@ -803,6 +924,7 @@ async function createCodexJob(body: CodexJobRequest) {
     const existing = manifest?.candidates.find((candidate) => candidate.idempotencyKey === body.idempotencyKey && candidate.jobId);
     if (existing?.jobId) return codexJobResponse(existing.jobId, true);
   }
+  if (!options.skipSlotCheck) await assertCodexRunnerSlotAvailable();
 
   const createdAt = new Date().toISOString();
   const id = createCodexJobId(createdAt);
@@ -814,6 +936,13 @@ async function createCodexJob(body: CodexJobRequest) {
   const selectedImageAsset = includeSelectedImage ? await writeSelectedImageAsset(id, body) : null;
   const annotations = includeAnnotations && Array.isArray(body.annotations) ? body.annotations : [];
   const repairDirections = normalizeDirectionNames(body.repairDirections);
+  const standardSpriteDirections = normalizeStandardSpriteJobDirections(
+    workflowMode,
+    body.spriteVariant ?? "standard",
+    body.directions,
+    repairDirections,
+    tournamentId
+  );
   const job = {
     id,
     createdAt,
@@ -852,7 +981,9 @@ async function createCodexJob(body: CodexJobRequest) {
       cell: includeSpriteContext ? body.cell ?? null : null,
       chromaKey: includeSpriteContext ? body.chromaKey ?? "" : "",
       variant: includeSpriteContext ? body.spriteVariant ?? "standard" : "",
-      directions: includeSpriteContext && Array.isArray(body.directions) ? body.directions : [],
+      directions: includeSpriteContext
+        ? standardSpriteDirections ?? (Array.isArray(body.directions) ? body.directions : [])
+        : [],
       motionRecipe: includeSpriteContext ? normalizeMotionRecipeContext(body) : undefined
     },
     effectContext: workflowMode === "effect-animation" ? body.effectContext ?? null : null,
@@ -881,6 +1012,7 @@ async function createCodexJob(body: CodexJobRequest) {
   const path = join(inboxDir, `${id}.json`);
   await writeFile(path, JSON.stringify(job, null, 2), "utf8");
   const runner = await startCodexRunner({ id, createdAt, path, outboxDir: jobOutboxDir });
+  options.onJobCreated?.(id);
   if (tournamentId) {
     await attachJobToAnimationTournament(tournamentId, normalizeCandidateIndex(body.tournamentCandidateIndex), id, createdAt, runner, repairDirections);
   }
@@ -914,6 +1046,243 @@ function animationTournamentTemplatePath(tournamentId: string) {
   return join(animationTournamentDir(tournamentId), "template.json");
 }
 
+async function registerAndStartAnimationTournament(registration: AnimationTournamentRegistrationRequest) {
+  const tournamentId = typeof registration.tournamentId === "string" ? registration.tournamentId : "";
+  const idempotencyKey = typeof registration.idempotencyKey === "string" ? registration.idempotencyKey.trim() : "";
+  if (!isSafeTournamentId(tournamentId) || !isSafeIdempotencyKey(idempotencyKey)) {
+    throw new Error("Tournament id and idempotency key are required and must be safe.");
+  }
+
+  const registrationOutcome = await withAnimationTournamentRegistrationLock(() =>
+    withAnimationTournamentLock(tournamentId, async () => {
+      const existing = await readAnimationTournamentManifest(tournamentId);
+      if (existing) {
+        if (existing.idempotencyKey !== idempotencyKey) {
+          throw new Error("Tournament id already exists with a different idempotency key.");
+        }
+        return {
+          started: false as const,
+          registered: {
+            created: false,
+            tournament: await refreshAnimationTournamentManifestUnlocked(tournamentId) ?? existing
+          }
+        };
+      }
+
+      const prepared = await prepareAnimationTournamentRegistration(registration, tournamentId);
+      const semanticMatch = await findUnfinishedAnimationTournamentBySemanticKey(prepared.semanticKey, tournamentId);
+      if (semanticMatch) {
+        return {
+          started: false as const,
+          registered: {
+            created: false,
+            deduplicated: true,
+            tournament: await refreshAnimationTournamentManifest(semanticMatch.tournamentId) ?? semanticMatch
+          }
+        };
+      }
+
+      return withCodexRunnerAdmissionLock(async () => {
+        await assertAnimationInitialBundleAdmissionAvailable(prepared.initialCandidateCount);
+        const registered = await createPreparedAnimationTournament(registration, tournamentId, idempotencyKey, prepared);
+        const bundle = await startAnimationTournamentInitialCandidateBundleUnlocked(tournamentId);
+        return {
+          started: true as const,
+          response: {
+            created: registered.created,
+            reused: bundle.reused,
+            jobs: bundle.jobs,
+            tournament: bundle.tournament
+          }
+        };
+      });
+    })
+  );
+  if (registrationOutcome.started) return registrationOutcome.response;
+  const registered = registrationOutcome.registered;
+  const canonicalTournamentId = registered.tournament.tournamentId;
+
+  return withAnimationTournamentLock(canonicalTournamentId, async () => {
+    const manifest = await readAnimationTournamentManifestRequired(canonicalTournamentId);
+    const initialCandidates = manifest.candidates.slice(0, manifest.initialCandidateCount);
+    const startedCandidates = initialCandidates.filter((candidate) => Boolean(candidate.jobId));
+    if (startedCandidates.length === initialCandidates.length) {
+      const refreshed = await refreshAnimationTournamentManifestUnlocked(canonicalTournamentId) ?? manifest;
+      assertAnimationInitialBundleReusable(refreshed);
+      return {
+        created: registered.created,
+        reused: true,
+        jobs: await Promise.all(startedCandidates.map((candidate) => codexJobResponse(candidate.jobId as string, true))),
+        tournament: refreshed
+      };
+    }
+    if (startedCandidates.length > 0) {
+      throw initialAnimationBundlePartialError(manifest.initialCandidateCount, startedCandidates.length);
+    }
+    if (manifest.state !== "queued") {
+      throw new HttpError(409, "Only a queued animation tournament can start its initial candidate bundle.", "animation_tournament_not_queued", {
+        retryable: false
+      });
+    }
+
+    return withCodexRunnerAdmissionLock(async () => {
+      const profile = normalizeAnimationGenerationProfile(manifest.generationProfile);
+      const profilePlan = animationGenerationProfilePlan(profile);
+      assertAnimationGenerationProfileRequestCounts(registration, profile, profilePlan);
+      assertAnimationGenerationProfileManifestCounts(manifest);
+      await assertAnimationInitialBundleAdmissionAvailable(manifest.initialCandidateCount);
+
+      const bundle = await startAnimationTournamentInitialCandidateBundleUnlocked(canonicalTournamentId);
+      return {
+        created: registered.created,
+        reused: bundle.reused,
+        jobs: bundle.jobs,
+        tournament: bundle.tournament
+      };
+    });
+  });
+}
+
+async function startAnimationTournamentInitialCandidateBundle(tournamentId: string) {
+  return withAnimationTournamentLock(tournamentId, () =>
+    withCodexRunnerAdmissionLock(() => startAnimationTournamentInitialCandidateBundleUnlocked(tournamentId))
+  );
+}
+
+async function startAnimationTournamentInitialCandidateBundleUnlocked(tournamentId: string) {
+  const manifest = await readAnimationTournamentManifestRequired(tournamentId);
+  assertAnimationGenerationProfileManifestCounts(manifest);
+  const initialCandidates = manifest.candidates.slice(0, manifest.initialCandidateCount);
+  const startedCandidates = initialCandidates.filter((candidate) => Boolean(candidate.jobId));
+  if (startedCandidates.length === initialCandidates.length) {
+    const refreshed = await refreshAnimationTournamentManifestUnlocked(tournamentId) ?? manifest;
+    assertAnimationInitialBundleReusable(refreshed);
+    return {
+      reused: true,
+      jobs: await Promise.all(startedCandidates.map((candidate) => codexJobResponse(candidate.jobId as string, true))),
+      tournament: refreshed
+    };
+  }
+  if (startedCandidates.length > 0) throw initialAnimationBundlePartialError(initialCandidates.length, startedCandidates.length);
+  if (manifest.state !== "queued") {
+    throw new HttpError(409, "Only a queued animation tournament can start its initial candidate bundle.", "animation_tournament_not_queued", {
+      retryable: false
+    });
+  }
+
+  await assertAnimationInitialBundleAdmissionAvailable(initialCandidates.length);
+  const jobs: Awaited<ReturnType<typeof createCodexJob>>[] = [];
+  const createdJobIds = new Set<string>();
+  try {
+    for (const candidate of initialCandidates) {
+      const result = await startAnimationTournamentCandidateUnlocked(
+        tournamentId,
+        candidate.index,
+        undefined,
+        {
+          allowInitialCandidate: true,
+          admissionLockHeld: true,
+          skipSlotCheck: true,
+          onJobCreated: (jobId) => createdJobIds.add(jobId)
+        }
+      );
+      if (!["running", "completed", "disabled"].includes(result.job.runner?.state ?? "unknown")) {
+        throw new HttpError(
+          409,
+          `Initial animation candidate ${candidate.index + 1} did not enter the running state.`,
+          "initial_candidate_runner_not_started",
+          {
+            jobId: result.job.id,
+            runnerState: result.job.runner?.state ?? "unknown",
+            retryable: true
+          }
+        );
+      }
+      jobs.push(result.job);
+    }
+  } catch (error) {
+    await rollbackAnimationInitialCandidateBundle(tournamentId, [...createdJobIds]);
+    throw error;
+  }
+
+  return {
+    reused: false,
+    jobs,
+    tournament: await refreshAnimationTournamentManifestUnlocked(tournamentId)
+  };
+}
+
+function initialAnimationBundlePartialError(requiredSlots: number, startedSlots: number) {
+  return new HttpError(
+    409,
+    "The initial animation candidate wave is partial and cannot be resumed one candidate at a time. Cancel it and start a new tournament when all runner slots are free.",
+    "partial_initial_candidate_bundle",
+    { requiredSlots, startedSlots, retryable: false }
+  );
+}
+
+function assertAnimationInitialBundleReusable(manifest: AnimationTournamentManifest) {
+  if (manifest.state === "accepted") return;
+  const initialCandidates = manifest.candidates.slice(0, manifest.initialCandidateCount);
+  const invalidCandidate = initialCandidates.find((candidate) =>
+    candidate.state === "failed" ||
+    candidate.state === "cancelled" ||
+    candidate.reason?.startsWith("Initial candidate bundle failed") ||
+    candidate.reason?.startsWith("Initial candidate bundle rolled back")
+  );
+  if (manifest.state === "failed" || manifest.state === "cancelled" || invalidCandidate) {
+    throw new HttpError(
+      409,
+      "The existing initial animation candidate wave is failed or cancelled and cannot be reused.",
+      "initial_candidate_bundle_not_reusable",
+      { retryable: false }
+    );
+  }
+}
+
+async function rollbackAnimationInitialCandidateBundle(
+  tournamentId: string,
+  jobIds: string[]
+) {
+  const cancellationResults = await Promise.all(jobIds.map(async (jobId) => {
+    const status = await getRunnerStatus(jobId).catch(() => null);
+    if (!status || (status.state !== "running" && !status.cancellationPending)) {
+      return { ok: true, jobId, status };
+    }
+    return cancelCodexRunner(jobId).catch((error) => ({
+      ok: false,
+      jobId,
+      status,
+      message: error instanceof Error ? error.message : "Runner cancellation failed."
+    }));
+  }));
+  const manifest = await readAnimationTournamentManifestRequired(tournamentId);
+  const rolledBackJobIds = new Set(jobIds);
+  const unconfirmedJobIds = new Set(
+    cancellationResults
+      .filter((result) => !result.ok && (result.status?.state === "running" || result.status?.cancellationPending))
+      .map((result) => result.jobId)
+  );
+  manifest.candidates.slice(0, manifest.initialCandidateCount).forEach((candidate) => {
+    if (!candidate.jobId || !rolledBackJobIds.has(candidate.jobId)) return;
+    candidate.state = unconfirmedJobIds.has(candidate.jobId) ? "running" : "cancelled";
+    candidate.reason = unconfirmedJobIds.has(candidate.jobId)
+      ? "Initial candidate bundle failed and runner cancellation remains unconfirmed."
+      : "Initial candidate bundle rolled back after one candidate failed to start.";
+    candidate.updatedAt = new Date().toISOString();
+  });
+  manifest.state = "failed";
+  await writeAnimationTournamentManifest(manifest);
+  if (unconfirmedJobIds.size > 0) {
+    throw new HttpError(
+      409,
+      `Initial candidate rollback could not confirm cancellation for: ${[...unconfirmedJobIds].join(", ")}.`,
+      "initial_bundle_rollback_unconfirmed",
+      { jobIds: [...unconfirmedJobIds], retryable: true }
+    );
+  }
+}
+
 async function registerAnimationTournament(registration: AnimationTournamentRegistrationRequest) {
   const tournamentId = typeof registration.tournamentId === "string" ? registration.tournamentId : "";
   const idempotencyKey = typeof registration.idempotencyKey === "string" ? registration.idempotencyKey.trim() : "";
@@ -921,7 +1290,9 @@ async function registerAnimationTournament(registration: AnimationTournamentRegi
     throw new Error("Tournament id and idempotency key are required and must be safe.");
   }
   return withAnimationTournamentRegistrationLock(() =>
-    registerAnimationTournamentUnlocked(registration, tournamentId, idempotencyKey)
+    withAnimationTournamentLock(tournamentId, () =>
+      registerAnimationTournamentUnlocked(registration, tournamentId, idempotencyKey)
+    )
   );
 }
 
@@ -933,16 +1304,36 @@ async function registerAnimationTournamentUnlocked(
   const existing = await readAnimationTournamentManifest(tournamentId);
   if (existing) {
     if (existing.idempotencyKey !== idempotencyKey) throw new Error("Tournament id already exists with a different idempotency key.");
-    return { created: false, tournament: await refreshAnimationTournamentManifest(tournamentId) };
+    return { created: false, tournament: await refreshAnimationTournamentManifestUnlocked(tournamentId) ?? existing };
   }
 
+  const prepared = await prepareAnimationTournamentRegistration(registration, tournamentId);
+  const semanticMatch = await findUnfinishedAnimationTournamentBySemanticKey(prepared.semanticKey, tournamentId);
+  if (semanticMatch) {
+    return {
+      created: false,
+      deduplicated: true,
+      tournament: await refreshAnimationTournamentManifest(semanticMatch.tournamentId) ?? semanticMatch
+    };
+  }
+  return createPreparedAnimationTournament(registration, tournamentId, idempotencyKey, prepared);
+}
+
+async function prepareAnimationTournamentRegistration(
+  registration: AnimationTournamentRegistrationRequest,
+  tournamentId: string
+) {
   const profile = normalizeAnimationGenerationProfile(registration.generationProfile);
   const profilePlan = animationGenerationProfilePlan(profile);
-  const maximumCandidateCount = normalizeBoundedInteger(registration.maximumCandidateCount, profilePlan.maximumCandidates, 1, 3);
-  const initialCandidateCount = normalizeBoundedInteger(registration.initialCandidateCount, profilePlan.initialCandidates, 1, maximumCandidateCount);
+  assertAnimationGenerationProfileRequestCounts(registration, profile, profilePlan);
+  const maximumCandidateCount = profilePlan.maximumCandidates;
+  const initialCandidateCount = profilePlan.initialCandidates;
   const requestedDirections = normalizeDirectionNames(registration.requestedDirections);
   if (![1, 3, 5].includes(requestedDirections.length)) throw new Error("Animation tournaments require 1, 3, or 5 directions.");
   const pilotMode = registration.pilotMode === true;
+  const selectionPolicy: AnimationTournamentSelectionPolicy = profile === "best" && !pilotMode && registration.selectionPolicy !== "exhaustive"
+    ? "smart-race"
+    : "exhaustive";
   if (pilotMode && requestedDirections.length === 1) {
     throw new Error("Motion Pilot requires more than one requested direction.");
   }
@@ -981,14 +1372,48 @@ async function registerAnimationTournamentUnlocked(
     pilotDirection,
     jobTemplate
   });
-  const semanticMatch = await findUnfinishedAnimationTournamentBySemanticKey(semanticKey, tournamentId);
-  if (semanticMatch) {
-    return {
-      created: false,
-      deduplicated: true,
-      tournament: await refreshAnimationTournamentManifest(semanticMatch.tournamentId)
-    };
-  }
+  return {
+    profile,
+    selectionPolicy,
+    requestedDirections,
+    maximumCandidateCount,
+    initialCandidateCount,
+    pilotMode,
+    pilotDirection,
+    jobTemplate,
+    selectedImageAsset,
+    sourceFingerprint,
+    motionRecipeId,
+    motionRecipeVersion,
+    motionRecipeCompilerVersion,
+    presetId,
+    semanticKey
+  };
+}
+
+async function createPreparedAnimationTournament(
+  registration: AnimationTournamentRegistrationRequest,
+  tournamentId: string,
+  idempotencyKey: string,
+  prepared: Awaited<ReturnType<typeof prepareAnimationTournamentRegistration>>
+) {
+  const {
+    profile,
+    selectionPolicy,
+    requestedDirections,
+    maximumCandidateCount,
+    initialCandidateCount,
+    pilotMode,
+    pilotDirection,
+    jobTemplate,
+    selectedImageAsset,
+    sourceFingerprint,
+    motionRecipeId,
+    motionRecipeVersion,
+    motionRecipeCompilerVersion,
+    presetId,
+    semanticKey
+  } = prepared;
   const now = new Date().toISOString();
   const manifest: AnimationTournamentManifest = {
     schema: "image-cockpit.animation-tournament.v1",
@@ -1003,6 +1428,7 @@ async function registerAnimationTournamentUnlocked(
     motionRecipeCompilerVersion,
     presetId,
     generationProfile: profile,
+    selectionPolicy,
     requestedDirections,
     maximumCandidateCount,
     initialCandidateCount,
@@ -1114,8 +1540,8 @@ async function findUnfinishedAnimationTournamentBySemanticKey(semanticKey: strin
     if (!manifest || !animationTournamentStateIsUnfinished(manifest.state)) continue;
     const existingSemanticKey = await animationTournamentSemanticKeyFromManifest(manifest).catch(() => "");
     if (existingSemanticKey !== semanticKey) continue;
-    const refreshed = (await refreshAnimationTournamentManifest(manifest.tournamentId).catch(() => manifest)) ?? manifest;
-    if (animationTournamentStateIsUnfinished(refreshed.state)) return refreshed;
+    const refreshed = await refreshAnimationTournamentManifest(manifest.tournamentId).catch(() => manifest);
+    if (refreshed && animationTournamentStateIsUnfinished(refreshed.state)) return refreshed;
   }
   return null;
 }
@@ -1140,16 +1566,93 @@ function stableJsonValue(value: unknown): unknown {
     }, {});
 }
 
+type StartAnimationTournamentCandidateOptions = {
+  allowInitialCandidate?: boolean;
+  admissionLockHeld?: boolean;
+  skipSlotCheck?: boolean;
+  onJobCreated?: (jobId: string) => void;
+};
+
 async function startAnimationTournamentCandidate(tournamentId: string, candidateIndex: number, reason?: string) {
-  return withAnimationTournamentLock(tournamentId, () => startAnimationTournamentCandidateUnlocked(tournamentId, candidateIndex, reason));
+  return withAnimationTournamentLock(tournamentId, () =>
+    withCodexRunnerAdmissionLock(() =>
+      startAnimationTournamentCandidateUnlocked(
+        tournamentId,
+        candidateIndex,
+        reason,
+        { allowInitialCandidate: false, admissionLockHeld: true, skipSlotCheck: false }
+      )
+    )
+  );
 }
 
-async function startAnimationTournamentCandidateUnlocked(tournamentId: string, candidateIndex: number, reason?: string) {
+async function startAnimationTournamentCandidateUnlocked(
+  tournamentId: string,
+  candidateIndex: number,
+  reason?: string,
+  options: StartAnimationTournamentCandidateOptions = {}
+) {
   const manifest = await readAnimationTournamentManifestRequired(tournamentId);
+  assertAnimationGenerationProfileManifestCounts(manifest);
   const candidate = manifest.candidates[candidateIndex];
   if (!candidate) throw new Error("Tournament candidate index is outside the registered plan.");
-  if (candidate.jobId) return { reused: true, job: await codexJobResponse(candidate.jobId, true), tournament: await refreshAnimationTournamentManifest(tournamentId) };
-  await assertCodexRunnerSlotAvailable();
+  if (candidate.jobId) return { reused: true, job: await codexJobResponse(candidate.jobId, true), tournament: await refreshAnimationTournamentManifestUnlocked(tournamentId) };
+  if (candidateIndex < manifest.initialCandidateCount && !options.allowInitialCandidate) {
+    throw new HttpError(
+      409,
+      "Initial animation candidates must start together through the initial-candidates bundle endpoint.",
+      "initial_batch_admission_required",
+      { requiredSlots: manifest.initialCandidateCount, retryable: true }
+    );
+  }
+  const normalizedReason = normalizeShortText(reason);
+  if (candidateIndex >= manifest.initialCandidateCount) {
+    if (
+      manifest.pilotMode ||
+      manifest.generationProfile !== "balanced" ||
+      candidateIndex !== manifest.initialCandidateCount ||
+      manifest.maximumCandidateCount !== manifest.initialCandidateCount + 1
+    ) {
+      throw new HttpError(
+        409,
+        "This animation generation profile does not have an adaptive candidate slot.",
+        "adaptive_candidate_not_available",
+        { retryable: false }
+      );
+    }
+    const initialCandidates = manifest.candidates.slice(0, manifest.initialCandidateCount);
+    const startedCandidates = initialCandidates.filter((initialCandidate) => Boolean(initialCandidate.jobId));
+    const terminalCandidates = initialCandidates.filter(
+      (initialCandidate) => initialCandidate.state === "quality-evaluated" || initialCandidate.state === "failed"
+    );
+    if (
+      manifest.state === "accepted" ||
+      manifest.state === "cancelled" ||
+      startedCandidates.length !== initialCandidates.length ||
+      terminalCandidates.length !== initialCandidates.length
+    ) {
+      throw new HttpError(
+        409,
+        "The adaptive animation candidate can start only after the complete initial wave has finished Quality Gate evaluation.",
+        "adaptive_candidate_initial_wave_required",
+        {
+          requiredCandidates: initialCandidates.length,
+          startedCandidates: startedCandidates.length,
+          terminalCandidates: terminalCandidates.length,
+          retryable: true
+        }
+      );
+    }
+    if (!normalizedReason) {
+      throw new HttpError(
+        409,
+        "The adaptive animation candidate requires a persisted reason.",
+        "adaptive_candidate_reason_required",
+        { retryable: false }
+      );
+    }
+    await assertAnimationInitialBundleAdmissionAvailable(1);
+  }
   const template = parseJsonText<CodexJobRequest>(await readFile(animationTournamentTemplatePath(tournamentId), "utf8"));
   const candidateLabel = `candidate ${candidateIndex + 1}/${manifest.maximumCandidateCount}`;
   const pilotDirections = manifest.pilotMode && manifest.pilotDirection ? [manifest.pilotDirection] : undefined;
@@ -1168,7 +1671,7 @@ async function startAnimationTournamentCandidateUnlocked(tournamentId: string, c
       manifest.pilotMode
         ? `Motion Pilot experimental candidate. Generate only representative direction ${manifest.pilotDirection}. Preserve the full Recipe phase contract so the accepted pilot can expand to ${manifest.expansionDirectionIds?.join(", ")}.`
         : "",
-      reason ? `Adaptive candidate reason: ${reason}.` : ""
+      normalizedReason ? `Adaptive candidate reason: ${normalizedReason}.` : ""
     ].filter(Boolean).join("\n"),
     tournamentId,
     tournamentCandidateIndex: candidateIndex,
@@ -1177,12 +1680,16 @@ async function startAnimationTournamentCandidateUnlocked(tournamentId: string, c
     idempotencyKey: candidate.idempotencyKey,
     sourceFingerprint: manifest.sourceFingerprint
   };
-  if (candidateIndex >= manifest.initialCandidateCount && reason) manifest.thirdCandidateReason = reason;
-  candidate.reason = reason;
+  if (candidateIndex >= manifest.initialCandidateCount && normalizedReason) manifest.thirdCandidateReason = normalizedReason;
+  candidate.reason = normalizedReason;
   candidate.updatedAt = new Date().toISOString();
   await writeAnimationTournamentManifest(manifest);
-  const job = await createCodexJob(body);
-  return { reused: false, job, tournament: await refreshAnimationTournamentManifest(tournamentId) };
+  const job = await createCodexJob(body, {
+    admissionLockHeld: options.admissionLockHeld,
+    skipSlotCheck: options.skipSlotCheck,
+    onJobCreated: options.onJobCreated
+  });
+  return { reused: false, job, tournament: await refreshAnimationTournamentManifestUnlocked(tournamentId) };
 }
 
 async function attachJobToAnimationTournament(
@@ -1222,7 +1729,7 @@ async function attachJobToAnimationTournament(
 
 async function recordAnimationTournamentEvaluation(
   tournamentId: string,
-  body: { jobId?: unknown; ready?: unknown; score?: unknown; warningCount?: unknown; qualityReportRef?: unknown; reason?: unknown }
+  body: AnimationTournamentEvaluationRequest
 ) {
   return withAnimationTournamentLock(tournamentId, () => recordAnimationTournamentEvaluationUnlocked(tournamentId, body));
 }
@@ -1269,7 +1776,7 @@ async function recordAnimationHumanReview(tournamentId: string, value: unknown) 
 
 async function recordAnimationTournamentEvaluationUnlocked(
   tournamentId: string,
-  body: { jobId?: unknown; ready?: unknown; score?: unknown; warningCount?: unknown; qualityReportRef?: unknown; reason?: unknown }
+  body: AnimationTournamentEvaluationRequest
 ) {
   const manifest = await readAnimationTournamentManifestRequired(tournamentId);
   const jobId = typeof body.jobId === "string" ? body.jobId : "";
@@ -1293,6 +1800,12 @@ async function recordAnimationTournamentEvaluationUnlocked(
   candidate.warningCount = body.ready === true && typeof body.warningCount === "number" && Number.isFinite(body.warningCount)
     ? Math.min(999, Math.max(0, Math.floor(body.warningCount)))
     : 0;
+  if (body.ready === true && typeof body.identityScore === "number" && Number.isFinite(body.identityScore)) {
+    candidate.identityScore = Math.min(100, Math.max(0, body.identityScore));
+  }
+  if (body.ready === true && typeof body.shadowWouldBlock === "boolean") {
+    candidate.shadowWouldBlock = body.shadowWouldBlock;
+  }
   candidate.reason = typeof body.reason === "string" ? body.reason.slice(0, 400) : candidate.reason;
   candidate.qualityReportRef = typeof body.qualityReportRef === "string" ? body.qualityReportRef.slice(0, 200) : candidate.qualityReportRef;
   if (candidate.qualityReportRef && !manifest.qualityReportRefs.includes(candidate.qualityReportRef)) manifest.qualityReportRefs.push(candidate.qualityReportRef);
@@ -1351,7 +1864,135 @@ async function recordAnimationTournamentEvaluationUnlocked(
   return manifest;
 }
 
-async function acceptAnimationTournamentWinner(tournamentId: string, jobId: string) {
+function rankAnimationTournamentCandidates(candidates: AnimationTournamentCandidate[]) {
+  return candidates.slice().sort((left, right) => {
+    const scoreOrder = (right.score ?? Number.NEGATIVE_INFINITY) - (left.score ?? Number.NEGATIVE_INFINITY);
+    if (scoreOrder !== 0) return scoreOrder;
+    const warningOrder = (left.warningCount ?? Number.MAX_SAFE_INTEGER) - (right.warningCount ?? Number.MAX_SAFE_INTEGER);
+    if (warningOrder !== 0) return warningOrder;
+    const identityOrder = (right.identityScore ?? Number.NEGATIVE_INFINITY) - (left.identityScore ?? Number.NEGATIVE_INFINITY);
+    if (identityOrder !== 0) return identityOrder;
+    return left.index - right.index;
+  });
+}
+
+async function normalizeAnimationTournamentWinnerDecision(
+  value: AnimationTournamentWinnerDecisionRequest | undefined,
+  manifest: AnimationTournamentManifest,
+  winnerJobId: string
+): Promise<AnimationTournamentSmartRaceDecision | undefined> {
+  if (!value) return undefined;
+  if (manifest.generationProfile !== "best" || manifest.selectionPolicy !== "smart-race" || manifest.pilotMode) {
+    throw new HttpError(409, "Smart Race decisions are only valid for new non-Pilot Best tournaments.");
+  }
+  const mode = value.mode === "first-qualified" || value.mode === "early-accept" || value.mode === "full-compare"
+    ? value.mode
+    : undefined;
+  if (!mode) throw new HttpError(400, "Smart Race winner decision mode is invalid.");
+  const registeredJobIds = new Set(manifest.candidates.flatMap((candidate) => candidate.jobId ? [candidate.jobId] : []));
+  const comparedJobIds = Array.isArray(value.comparedJobIds)
+    ? [...new Set(value.comparedJobIds.filter((jobId): jobId is string => typeof jobId === "string" && registeredJobIds.has(jobId)))].slice(0, 3)
+    : [];
+  if (!comparedJobIds.includes(winnerJobId)) {
+    throw new HttpError(409, "Smart Race winner must be included in the compared candidates.");
+  }
+  const comparedCandidates = comparedJobIds
+    .map((jobId) => manifest.candidates.find((candidate) => candidate.jobId === jobId))
+    .filter((candidate): candidate is AnimationTournamentCandidate => Boolean(candidate));
+  const rankedUsable = rankAnimationTournamentCandidates(
+    comparedCandidates.filter((candidate) => candidate.state === "quality-evaluated" && typeof candidate.score === "number")
+  );
+  const winner = rankedUsable[0];
+  if (!winner || winner.jobId !== winnerJobId) {
+    throw new HttpError(409, "Smart Race winner does not match the persisted candidate ranking.");
+  }
+  const runnerUp = rankedUsable[1];
+  const scoreGap = runnerUp && typeof winner.score === "number" && typeof runnerUp.score === "number"
+    ? winner.score - runnerUp.score
+    : undefined;
+
+  if (mode === "first-qualified") {
+    const strictDecision = evaluateBestFirstQualifiedCandidate({
+      ready: winner.state === "quality-evaluated",
+      score: winner.score ?? Number.NEGATIVE_INFINITY,
+      warningCount: winner.warningCount ?? Number.MAX_SAFE_INTEGER,
+      identityScore: winner.identityScore,
+      shadowWouldBlock: winner.shadowWouldBlock
+    });
+    if (
+      comparedCandidates.length !== 1 ||
+      rankedUsable.length !== 1 ||
+      !strictDecision.qualified
+    ) {
+      throw new HttpError(409, "Persisted candidate metrics do not satisfy the strict First Qualified gate.");
+    }
+    const remainingCandidates = manifest.candidates.filter(
+      (candidate) => candidate.jobId && !candidate.repairDirections?.length && !comparedJobIds.includes(candidate.jobId)
+    );
+    if (remainingCandidates.length !== manifest.maximumCandidateCount - 1) {
+      throw new HttpError(409, "First Qualified acceptance requires every other Best candidate to remain active.");
+    }
+    const remainingStatuses = await Promise.all(
+      remainingCandidates.map((candidate) => readRunnerStatusSnapshot(candidate.jobId as string))
+    );
+    if (remainingStatuses.some((status) => status.state !== "running")) {
+      throw new HttpError(409, "Another Best candidate is already terminal; continue with Smart Race comparison.");
+    }
+  } else if (mode === "early-accept") {
+    if (
+      comparedCandidates.length !== 2 ||
+      rankedUsable.length !== 2 ||
+      typeof winner.score !== "number" ||
+      winner.score < 3000 ||
+      typeof scoreGap !== "number" ||
+      scoreGap < 50 ||
+      typeof winner.identityScore !== "number" ||
+      winner.identityScore < 82 ||
+      winner.shadowWouldBlock !== false
+    ) {
+      throw new HttpError(409, "Persisted candidate metrics do not satisfy the Smart Race early-accept thresholds.");
+    }
+    const remainingCandidates = manifest.candidates.filter(
+      (candidate) => candidate.jobId && !candidate.repairDirections?.length && !comparedJobIds.includes(candidate.jobId)
+    );
+    if (remainingCandidates.length !== 1 || !remainingCandidates[0].jobId) {
+      throw new HttpError(409, "Smart Race early acceptance requires exactly one remaining candidate.");
+    }
+    const remainingStatus = await readRunnerStatusSnapshot(remainingCandidates[0].jobId);
+    if (remainingStatus.state !== "running") {
+      throw new HttpError(409, "The remaining Smart Race candidate is already terminal; compare all candidates instead.");
+    }
+  } else {
+    const startedCandidates = manifest.candidates.filter((candidate) => candidate.jobId && !candidate.repairDirections?.length);
+    const allTerminal = startedCandidates.length === manifest.maximumCandidateCount && startedCandidates.every(
+      (candidate) => candidate.state === "quality-evaluated" || candidate.state === "failed"
+    );
+    if (!allTerminal || startedCandidates.some((candidate) => !candidate.jobId || !comparedJobIds.includes(candidate.jobId))) {
+      throw new HttpError(409, "Full comparison requires every started Best candidate to be terminal and recorded.");
+    }
+  }
+
+  return {
+    mode,
+    decidedAt: new Date().toISOString(),
+    comparedJobIds,
+    winnerJobId,
+    scoreGap,
+    reason: typeof value.reason === "string" && value.reason.trim()
+      ? value.reason.trim().slice(0, 400)
+      : mode === "early-accept"
+        ? "two ready Best candidates have a clear Smart Race winner"
+        : mode === "first-qualified"
+          ? "first completed Best candidate passed the strict solo gate"
+        : "all Best candidates were compared"
+  };
+}
+
+async function acceptAnimationTournamentWinner(
+  tournamentId: string,
+  jobId: string,
+  decision?: AnimationTournamentSmartRaceDecision
+) {
   const manifest = await readAnimationTournamentManifestRequired(tournamentId);
   const winner = manifest.candidates.find((candidate) => candidate.jobId === jobId);
   if (!winner) throw new Error("Tournament winner job is not registered in the tournament manifest.");
@@ -1367,6 +2008,7 @@ async function acceptAnimationTournamentWinner(tournamentId: string, jobId: stri
   manifest.acceptedDirectionHashes = hashes;
   manifest.winnerCandidateId = jobId;
   manifest.state = "accepted";
+  if (decision && !manifest.smartRaceDecision) manifest.smartRaceDecision = decision;
   manifest.candidates.forEach((candidate) => {
     candidate.state = candidate.jobId === jobId ? "accepted" : candidate.jobId ? "cancelled" : candidate.state;
     candidate.updatedAt = new Date().toISOString();
@@ -1388,7 +2030,17 @@ async function cancelAnimationTournamentUnlocked(tournamentId: string) {
       continue;
     }
     const status = await getRunnerStatus(candidate.jobId);
-    if (status.state === "running") results.push(await cancelCodexRunner(candidate.jobId));
+    if (status.state === "running" || status.cancellationPending) {
+      if (runnerProcesses.has(candidate.jobId)) {
+        results.push(await cancelCodexRunner(candidate.jobId));
+      } else {
+        results.push(await cancelUntrackedRunnerStatus(
+          status,
+          "Codex runner cancellation persisted after the animation tournament was cancelled.",
+          "Codex runner restart was blocked after the animation tournament was cancelled"
+        ));
+      }
+    }
     candidate.state = "cancelled";
     candidate.updatedAt = new Date().toISOString();
   }
@@ -1398,7 +2050,9 @@ async function cancelAnimationTournamentUnlocked(tournamentId: string) {
 }
 
 async function startMotionPilotExpansion(tournamentId: string, winnerJobId: string) {
-  return withAnimationTournamentLock(tournamentId, () => startMotionPilotExpansionUnlocked(tournamentId, winnerJobId));
+  return withAnimationTournamentLock(tournamentId, () =>
+    withCodexRunnerAdmissionLock(() => startMotionPilotExpansionUnlocked(tournamentId, winnerJobId))
+  );
 }
 
 async function startMotionPilotExpansionUnlocked(tournamentId: string, winnerJobId: string) {
@@ -1412,7 +2066,7 @@ async function startMotionPilotExpansionUnlocked(tournamentId: string, winnerJob
     throw new Error("Motion Pilot winner differs from the saved human review winner.");
   }
   if (manifest.expansionJobId) {
-    return { reused: true, job: await codexJobResponse(manifest.expansionJobId, true), tournament: await refreshAnimationTournamentManifest(tournamentId) };
+    return { reused: true, job: await codexJobResponse(manifest.expansionJobId, true), tournament: await refreshAnimationTournamentManifestUnlocked(tournamentId) };
   }
   await assertCodexRunnerSlotAvailable();
 
@@ -1476,7 +2130,7 @@ async function startMotionPilotExpansionUnlocked(tournamentId: string, winnerJob
       "Do not regenerate the accepted pilot direction. Preserve the full Motion Recipe phase contract across every expansion direction."
     ].filter(Boolean).join("\n")
   };
-  const job = await createCodexJob(body);
+  const job = await createCodexJob(body, { admissionLockHeld: true, skipSlotCheck: true });
   const updated = await readAnimationTournamentManifestRequired(tournamentId);
   updated.expansionJobId = job.id;
   updated.directionOutputCount = updated.pilotCandidateIds?.length ?? updated.initialCandidateCount;
@@ -1532,7 +2186,9 @@ async function fallbackMotionPilotTournament(tournamentId: string, reason: strin
 }
 
 async function startAnimationDirectionRepair(tournamentId: string, requestedDirections: unknown) {
-  return withAnimationTournamentLock(tournamentId, () => startAnimationDirectionRepairUnlocked(tournamentId, requestedDirections));
+  return withAnimationTournamentLock(tournamentId, () =>
+    withCodexRunnerAdmissionLock(() => startAnimationDirectionRepairUnlocked(tournamentId, requestedDirections))
+  );
 }
 
 async function startAnimationDirectionRepairUnlocked(tournamentId: string, requestedDirections: unknown) {
@@ -1547,8 +2203,9 @@ async function startAnimationDirectionRepairUnlocked(tournamentId: string, reque
     candidate.state !== "failed" && candidate.state !== "cancelled"
   );
   if (existing?.jobId) {
-    return { reused: true, job: await codexJobResponse(existing.jobId, true), tournament: await refreshAnimationTournamentManifest(tournamentId) };
+    return { reused: true, job: await codexJobResponse(existing.jobId, true), tournament: await refreshAnimationTournamentManifestUnlocked(tournamentId) };
   }
+  await assertCodexRunnerSlotAvailable();
 
   const template = parseJsonText<CodexJobRequest>(await readFile(animationTournamentTemplatePath(tournamentId), "utf8"));
   const repairFrameCount = normalizeMotionFrameCount(template.framesPerDirection) ?? 8;
@@ -1592,8 +2249,8 @@ async function startAnimationDirectionRepairUnlocked(tournamentId: string, reque
       `Use the same source fingerprint, motion recipe or preset, ${repairFrameCount}-frame contract, cell size, chroma key, adjacent direction pose language, timing, palette, silhouette, and topology-specific contact line.`
     ].filter(Boolean).join("\n")
   };
-  const job = await createCodexJob(body);
-  return { reused: false, job, tournament: await refreshAnimationTournamentManifest(tournamentId) };
+  const job = await createCodexJob(body, { admissionLockHeld: true, skipSlotCheck: true });
+  return { reused: false, job, tournament: await refreshAnimationTournamentManifestUnlocked(tournamentId) };
 }
 
 async function acceptAnimationDirectionRepair(tournamentId: string, repairJobId: string) {
@@ -1703,6 +2360,10 @@ async function updateMotionPilotWinnerExpectedDirections(jobId: string, directio
 }
 
 async function refreshAnimationTournamentManifest(tournamentId: string) {
+  return withAnimationTournamentLock(tournamentId, () => refreshAnimationTournamentManifestUnlocked(tournamentId));
+}
+
+async function refreshAnimationTournamentManifestUnlocked(tournamentId: string) {
   const manifest = await readAnimationTournamentManifest(tournamentId);
   if (!manifest) return null;
   let changed = false;
@@ -1878,6 +2539,21 @@ async function withAnimationTournamentLock<T>(tournamentId: string, action: () =
   }
 }
 
+async function withCodexRunnerAdmissionLock<T>(action: () => Promise<T>) {
+  const previous = codexRunnerAdmissionTail;
+  let release = () => {};
+  const current = new Promise<void>((resolveLock) => {
+    release = resolveLock;
+  });
+  codexRunnerAdmissionTail = previous.then(() => current);
+  await previous;
+  try {
+    return await action();
+  } finally {
+    release();
+  }
+}
+
 function normalizeAnimationGenerationProfile(value: unknown): AnimationGenerationProfile {
   return value === "fast" || value === "balanced" || value === "best" ? value : "best";
 }
@@ -1888,10 +2564,85 @@ function animationGenerationProfilePlan(profile: AnimationGenerationProfile) {
   return { initialCandidates: 3, maximumCandidates: 3 };
 }
 
+function assertAnimationGenerationProfileRequestCounts(
+  registration: AnimationTournamentRegistrationRequest,
+  profile: AnimationGenerationProfile,
+  profilePlan = animationGenerationProfilePlan(profile)
+) {
+  if (
+    (registration.maximumCandidateCount !== undefined && registration.maximumCandidateCount !== profilePlan.maximumCandidates) ||
+    (registration.initialCandidateCount !== undefined && registration.initialCandidateCount !== profilePlan.initialCandidates)
+  ) {
+    throw new HttpError(
+      400,
+      `${profile} animation tournaments require exactly ${profilePlan.initialCandidates} initial and ${profilePlan.maximumCandidates} maximum candidates.`,
+      "animation_profile_candidate_count_mismatch",
+      {
+        generationProfile: profile,
+        requiredInitialCandidateCount: profilePlan.initialCandidates,
+        requiredMaximumCandidateCount: profilePlan.maximumCandidates,
+        retryable: false
+      }
+    );
+  }
+}
+
+function assertAnimationGenerationProfileManifestCounts(manifest: AnimationTournamentManifest) {
+  const profilePlan = animationGenerationProfilePlan(manifest.generationProfile);
+  const extraCandidates = manifest.candidates.slice(profilePlan.maximumCandidates);
+  const hasUnexpectedExtraCandidate = extraCandidates.some((candidate) => !candidate.repairDirections?.length);
+  if (
+    manifest.initialCandidateCount !== profilePlan.initialCandidates ||
+    manifest.maximumCandidateCount !== profilePlan.maximumCandidates ||
+    manifest.candidates.length < profilePlan.maximumCandidates ||
+    hasUnexpectedExtraCandidate
+  ) {
+    throw new HttpError(
+      409,
+      "The saved animation tournament candidate plan does not match its generation profile.",
+      "animation_profile_candidate_count_mismatch",
+      {
+        generationProfile: manifest.generationProfile,
+        requiredInitialCandidateCount: profilePlan.initialCandidates,
+        requiredMaximumCandidateCount: profilePlan.maximumCandidates,
+        retryable: false
+      }
+    );
+  }
+}
+
 function normalizeDirectionNames(value: unknown) {
   if (!Array.isArray(value)) return [];
   const allowed = new Set(directionSplitNames);
   return Array.from(new Set(value.filter((item): item is string => typeof item === "string" && allowed.has(item))));
+}
+
+function normalizeStandardSpriteJobDirections(
+  workflowMode: CodexWorkflowMode,
+  spriteVariant: string,
+  value: unknown,
+  repairDirections: string[],
+  tournamentId: string
+) {
+  if (workflowMode !== "sprite-generate" || spriteVariant !== "standard") return undefined;
+  const directions = normalizeDirectionNames(value);
+  const targetedSubset = Boolean(tournamentId && repairDirections.length > 0);
+  if (targetedSubset) {
+    if (
+      directions.length < 1 ||
+      directions.length > directionSplitNames.length ||
+      directions.length !== repairDirections.length ||
+      directions.some((direction) => !repairDirections.includes(direction))
+    ) {
+      throw new HttpError(400, "Direction Repair and Motion Pilot expansion directions must be the same canonical 1-5 direction subset.");
+    }
+    return directions;
+  }
+  const initialDirections = directions.length > 0 ? directions : [...directionSplitNames];
+  if (![1, 3, 5].includes(initialDirections.length)) {
+    throw new HttpError(400, "Standard animation generation requires 1, 3, or 5 unique canonical directions.");
+  }
+  return initialDirections;
 }
 
 function normalizeBoundedInteger(value: unknown, fallback: number, minimum: number, maximum: number) {
@@ -2210,6 +2961,16 @@ async function startCodexRunner(
       }
     );
 
+    if (typeof child.pid === "number" && Number.isSafeInteger(child.pid) && child.pid > 0) {
+      status.processId = child.pid;
+      runnerStatuses.set(job.id, status);
+      try {
+        writeFileSync(statusPath, JSON.stringify(status, null, 2), "utf8");
+      } catch (error) {
+        child.kill("SIGTERM");
+        throw error;
+      }
+    }
     runnerProcesses.set(job.id, child);
     child.stdout.pipe(logStream, { end: false });
     child.stderr.pipe(logStream, { end: false });
@@ -2572,6 +3333,12 @@ function buildCodexRunnerPrompt(job: { id: string; path: string; outboxDir: stri
     "For workflowMode=sprite-generate, inspect selectedImage.assetPath, then use imagegen / built-in image_gen when available to create the requested sprite sheet assets from the source character image. Never create a procedural, SVG, canvas, diagram, geometric, or placeholder image.",
     "For workflowMode=sprite-generate, follow spriteContext.grid, spriteContext.cell, spriteContext.directions, spriteContext.variant, and spriteContext.chromaKey exactly. Keep one full-body character centered inside each strict cell with padding, no cropping, no duplicated heads, and no body parts crossing cells.",
     "For workflowMode=sprite-generate with spriteContext.variant=standard, return exactly one separate direction PNG/WebP image per entry in spriteContext.directions, using the direction name with spaces replaced by dashes as the filename suffix (full set: front, front-three-quarter, side, back-three-quarter, back). If spriteContext.directions is empty, return all five. Follow spriteContext.framesPerDirection exactly: 4 frames use 4x1, 6 frames use 3x2, 8 frames use 4x2, 12 frames use 4x3, 16 frames use 4x4, and 20 frames use 4x5, with spriteContext.cell dimensions and no gutters. Do not return only one combined multi-direction sheet, and do not return directions that were not requested.",
+    "For workflowMode=sprite-generate with spriteContext.variant=standard, keep this candidate as one Codex job. In the first generation wave, submit one independent built-in image_gen tool call per requested direction in one assistant turn. A normal initial candidate requests 1, 3, or 5 directions, so its initial maximum internal fan-out is 1, 3, or 5; five requested directions means five concurrent image_gen calls inside this one candidate. A Direction Repair or Motion Pilot expansion may request any 1-5 direction subset, and its initial maximum internal fan-out equals that pending subset count. Do not spawn direction child jobs, extra Codex jobs, or extra agents.",
+    "For every standard direction call, reserve a unique job-local staging destination under outbox/.staging/<job-id>/<direction-slug>/attempt-<n>/. Capture the exact path returned by that call and bind it one-to-one to that direction before copying or normalizing it. Never share one returned path between directions, identify output by a globally newest-file heuristic, or borrow another candidate's output.",
+    "For standard direction attempts, maintain outbox/.staging/<job-id>/<job-id>-direction-attempts.json and copy a sanitized summary into the final manifest as directionAttempts keyed by canonical direction slug. Each attempt must record attempt number, status accepted/failed/timeout/capacity, and ISO-8601 start and finish timestamps. An accepted attempt must record its artifactPath in the exact job-relative form .staging/<job-id>/<direction-slug>/attempt-<n>/<file>; a failed/timeout/capacity attempt must instead use one failureKind from imagegen_capacity, imagegen_timeout, imagegen_failed, no_image_returned, policy_or_safety, quality_failed, normalization_failed, or unknown. Do not expose absolute paths, URI paths, or another job's staging path in the final manifest.",
+    "As soon as one standard direction passes normalization and QA, mark it accepted and freeze its artifact. Never submit image_gen for it again and never overwrite or regenerate it. Retry only directions whose own attempt failed, timed out, or returned a capacity error; regenerating the complete requested direction set because one direction failed is prohibited.",
+    "When multiple standard direction calls fail, time out, or hit capacity together, retry only those affected directions. Track a concurrency ceiling separately from the actual wave size: a normal initial request starts at ceiling 5, 3, or 1 for its 5, 3, or 1 directions, and a Direction Repair or Motion Pilot subset starts at its requested count from 1 through 5; each actual wave size is min(concurrency ceiling, pending direction count). On capacity, reduce ceiling 5 or 4 to 3, then reduce ceiling 3 or 2 to 1, while ceiling 1 stays at 1. Thus two pending failures after a five-direction wave run together under the reduced ceiling of 3, not as a new ceiling of 2. After the ceiling shrinks, leave pending directions beyond the current wave size for the next assistant-turn retry wave and never fan back out above the reduced ceiling. This fallback must remain inside the existing Codex candidate job and must not create more Codex jobs.",
+    "Standard direction fan-out is runner-only. Do not create direction child-job UI, partial direction previews, or cross-job generation caches; same-job staging used for freeze and resumable retry is allowed.",
     "For workflowMode=sprite-generate with spriteContext.variant=standard, every populated cell in each direction image must be a distinct animation frame for spriteContext.action, not a repeated still pose. Static or nearly static rows are failed material even when the directions, padding, and chroma key are otherwise correct.",
     "For workflowMode=sprite-generate with spriteContext.motionRecipe.bodyTopology, use its topology-specific contact and anchor contract. Never invent humanoid feet for quadruped, serpentine/body-contact, floating, winged-flying, or multi-leg characters; evaluate paw contact, body contact, hover height, wing beat, or multi-contact support instead.",
     "For idle breathing, the feet must stay planted but most of the requested direction sheets must show readable frame-to-frame breathing or secondary motion: 2-4px shoulder/chest/head change plus hair, scarf, cape, cloth, or equipment follow-through. Regenerate any direction whose frames look nearly identical before writing the final manifest.",
@@ -2697,37 +3464,110 @@ async function cancelCodexRunner(jobId: string) {
   const cancelledStatus: CodexRunnerStatus = {
     ...currentStatus,
     state: "failed",
+    cancellationPending: true,
     message: "Codex runner cancelled after an animation tournament winner was chosen.",
     finishedAt,
     exitCode: null,
     signal: "SIGTERM"
   };
   await writeRunnerStatus(cancelledStatus);
+  const closeConfirmation = new Promise<boolean>((resolveClose) => {
+    if (child.exitCode !== null || child.signalCode !== null) {
+      resolveClose(true);
+      return;
+    }
+    let settled = false;
+    const finish = (confirmed: boolean) => {
+      if (settled) return;
+      settled = true;
+      resolveClose(confirmed);
+    };
+    child.once("close", () => finish(true));
+    setTimeout(() => finish(false), 5500);
+  });
   child.kill("SIGTERM");
   setTimeout(() => {
     if (runnerProcesses.get(jobId) === child) child.kill("SIGKILL");
   }, 5000);
+  const stopped = await closeConfirmation;
+  const terminalStatus = await getRunnerStatus(jobId).catch(() => cancelledStatus);
   return {
-    ok: true,
+    ok: stopped,
     jobId,
-    status: cancelledStatus
+    status: terminalStatus,
+    ...(!stopped ? { message: "Runner termination is still unconfirmed after SIGTERM and SIGKILL requests." } : {})
   };
 }
 
 async function activeCodexRunnerCount() {
   const statusNames = await readdir(statusDir).catch(() => [] as string[]);
-  const jobIds = statusNames
-    .filter((name) => name.endsWith(".json"))
-    .map((name) => name.slice(0, -5))
-    .filter(isSafeJobId);
-  const statuses = await Promise.all(jobIds.map((jobId) => getRunnerStatus(jobId).catch(() => null)));
-  return statuses.filter((status) => status?.state === "running").length;
+  const persistedActiveJobIds = (
+    await Promise.all(
+      statusNames
+        .filter((name) => name.endsWith(".json"))
+        .map(async (name) => {
+          const jobId = name.slice(0, -5);
+          if (!isSafeJobId(jobId)) return null;
+          try {
+            const status = parseJsonText<CodexRunnerStatus>(await readFile(join(statusDir, name), "utf8"));
+            return status.state === "running" || status.cancellationPending ? jobId : null;
+          } catch {
+            return null;
+          }
+        })
+    )
+  ).filter((jobId): jobId is string => Boolean(jobId));
+  const statuses = await Promise.all(persistedActiveJobIds.map((jobId) => getRunnerStatus(jobId).catch(() => null)));
+  const activeJobIds = new Set(
+    statuses
+      .filter((status) => status?.state === "running" || status?.cancellationPending)
+      .map((status) => status?.jobId)
+      .filter((jobId): jobId is string => Boolean(jobId))
+  );
+  runnerProcesses.forEach((_child, jobId) => activeJobIds.add(jobId));
+  resumingRunnerJobs.forEach((_resume, jobId) => activeJobIds.add(jobId));
+  cancellingRunnerJobIds.forEach((jobId) => activeJobIds.add(jobId));
+  return activeJobIds.size;
 }
 
 async function assertCodexRunnerSlotAvailable() {
   const activeCount = await activeCodexRunnerCount();
   if (activeCount >= maxActiveCodexJobs) {
-    throw new Error(`Codex runner slots are full (${activeCount}/${maxActiveCodexJobs}). Wait for a job to finish before starting another.`);
+    throw new HttpError(
+      409,
+      `Codex runner slots are full (${activeCount}/${maxActiveCodexJobs}). Wait for a job to finish before starting another.`,
+      "runner_slots_full",
+      {
+        requiredSlots: 1,
+        capacity: {
+          limit: maxActiveCodexJobs,
+          active: activeCount,
+          available: Math.max(0, maxActiveCodexJobs - activeCount)
+        },
+        retryable: true
+      }
+    );
+  }
+}
+
+async function assertAnimationInitialBundleAdmissionAvailable(requiredSlots: number) {
+  const activeCount = await activeCodexRunnerCount();
+  const availableSlots = Math.max(0, maxActiveCodexJobs - activeCount);
+  if (activeCount > 0 || requiredSlots > availableSlots) {
+    throw new HttpError(
+      409,
+      `Animation generation requires an idle ${maxActiveCodexJobs}-slot runner pool before its ${requiredSlots} initial candidate${requiredSlots === 1 ? "" : "s"} can start.`,
+      "insufficient_runner_slots",
+      {
+        requiredSlots,
+        capacity: {
+          limit: maxActiveCodexJobs,
+          active: activeCount,
+          available: availableSlots
+        },
+        retryable: true
+      }
+    );
   }
 }
 
@@ -2749,9 +3589,21 @@ async function getRunnerStatus(jobId: string): Promise<CodexRunnerStatus> {
 }
 
 async function normalizeRunningStatus(status: CodexRunnerStatus): Promise<CodexRunnerStatus> {
+  if (status.cancellationPending) {
+    const reconciledCancellation = await persistedTournamentCancellationStatus(status);
+    if (reconciledCancellation) {
+      await writeRunnerStatus(reconciledCancellation);
+      return reconciledCancellation;
+    }
+  }
   if (status.state !== "running") return status;
 
   if (!runnerProcesses.has(status.jobId)) {
+    const acceptedLoserStatus = await persistedTournamentCancellationStatus(status);
+    if (acceptedLoserStatus) {
+      await writeRunnerStatus(acceptedLoserStatus);
+      return acceptedLoserStatus;
+    }
     const resultDir = await resolveJobOutboxDir(status.jobId);
     if (resultDir) {
       const artifact = await inspectDirectionSplitArtifact(status.jobId, resultDir).catch(() => null);
@@ -2791,6 +3643,237 @@ async function normalizeRunningStatus(status: CodexRunnerStatus): Promise<CodexR
     finishedAt: new Date().toISOString(),
     exitCode: null
   };
+}
+
+async function persistedTournamentCancellationStatus(status: CodexRunnerStatus): Promise<CodexRunnerStatus | null> {
+  try {
+    const job = parseJsonText<{ tournament?: { id?: unknown } }>(
+      await readFile(join(inboxDir, `${status.jobId}.json`), "utf8")
+    );
+    const tournamentId = typeof job.tournament?.id === "string" ? job.tournament.id : "";
+    if (!isSafeTournamentId(tournamentId)) return null;
+    const manifest = await readAnimationTournamentManifest(tournamentId);
+    const candidate = manifest?.candidates.find((item) => item.jobId === status.jobId);
+    const isAcceptedLoser = manifest?.state === "accepted" &&
+      Boolean(manifest.winnerCandidateId) &&
+      manifest.winnerCandidateId !== status.jobId &&
+      candidate?.state === "cancelled";
+    const isCancelledTournamentJob = manifest?.state === "cancelled" && candidate?.state === "cancelled";
+    if (!isAcceptedLoser && !isCancelledTournamentJob) return null;
+    const termination = await terminatePersistedRunnerProcess(status);
+    return {
+      ...status,
+      state: "failed",
+      message: termination.stopped
+        ? "Codex runner cancellation was recovered from the animation tournament manifest."
+        : `Codex runner restart was blocked by the animation tournament manifest, but process termination was not confirmed: ${termination.message}`,
+      cancellationPending: termination.stopped ? undefined : true,
+      finishedAt: termination.stopped ? new Date().toISOString() : undefined,
+      exitCode: null,
+      signal: termination.stopped ? "SIGTERM" : undefined
+    };
+  } catch {
+    return null;
+  }
+}
+
+type HiddenCommandResult = {
+  exitCode: number | null;
+  stdout: string;
+  stderr: string;
+  error?: string;
+  timedOut?: boolean;
+};
+
+type PersistedRunnerProcessIdentity = {
+  processId: number;
+  executablePath: string;
+  startedAt: string;
+};
+
+async function terminatePersistedRunnerProcess(status: CodexRunnerStatus) {
+  const processId = status.processId;
+  if (!Number.isSafeInteger(processId) || !processId || processId <= 0 || processId === process.pid) {
+    return { stopped: false, message: "No safe persisted runner process id was available." };
+  }
+  if (process.platform !== "win32") {
+    return { stopped: false, message: "Persisted runner process termination is currently verified only on Windows." };
+  }
+
+  const lookup = await readWindowsRunnerProcessIdentity(processId);
+  if (!lookup.checked) return { stopped: false, message: lookup.message };
+  if (!lookup.identity) return { stopped: true, message: "The persisted runner process had already exited." };
+
+  if (!persistedRunnerIdentityMatches(status, lookup.identity)) {
+    return {
+      stopped: false,
+      message: "The persisted process id no longer matched the original runner executable and start time."
+    };
+  }
+
+  const windowsRoot = process.env.SystemRoot ?? process.env.WINDIR ?? "C:\\Windows";
+  const taskkillPath = join(windowsRoot, "System32", "taskkill.exe");
+  const killed = await runHiddenCommand(taskkillPath, ["/PID", String(processId), "/T", "/F"], 5000);
+  const afterKill = await readWindowsRunnerProcessIdentity(processId);
+  if (afterKill.checked && !afterKill.identity) {
+    return {
+      stopped: true,
+      message: killed.exitCode === 0
+        ? "The persisted runner process tree was terminated."
+        : "The persisted runner process exited while cancellation was being reconciled."
+    };
+  }
+  if (!afterKill.checked || !afterKill.identity || !persistedRunnerIdentityMatches(status, afterKill.identity)) {
+    return {
+      stopped: false,
+      message: afterKill.checked
+        ? "The runner process identity changed while cancellation was being reconciled."
+        : afterKill.message
+    };
+  }
+  try {
+    process.kill(processId, "SIGTERM");
+    const afterNodeKill = await readWindowsRunnerProcessIdentity(processId);
+    if (afterNodeKill.checked && !afterNodeKill.identity) {
+      return {
+        stopped: true,
+        message: "The verified persisted runner process was terminated after process-tree termination was unavailable."
+      };
+    }
+    return {
+      stopped: false,
+      message: afterNodeKill.checked
+        ? "The verified runner process was still present after the fallback termination request."
+        : afterNodeKill.message
+    };
+  } catch (error) {
+    const nodeTerminationError = error instanceof Error ? error.message : "Node process termination failed.";
+    return {
+      stopped: false,
+      message: `${killed.error || killed.stderr.trim() || `taskkill exited with code ${killed.exitCode ?? "unknown"}`}; ${nodeTerminationError}`
+    };
+  }
+}
+
+function persistedRunnerIdentityMatches(
+  status: CodexRunnerStatus,
+  identity: PersistedRunnerProcessIdentity
+) {
+  const expectedCommand = status.command ?? "";
+  const expectedStartedAt = status.startedAt ? Date.parse(status.startedAt) : NaN;
+  const actualStartedAt = Date.parse(identity.startedAt);
+  const executableMatches = Boolean(
+    expectedCommand &&
+    identity.executablePath &&
+    resolve(expectedCommand).toLowerCase() === resolve(identity.executablePath).toLowerCase()
+  );
+  const startTimeMatches = Number.isFinite(expectedStartedAt) &&
+    Number.isFinite(actualStartedAt) &&
+    Math.abs(actualStartedAt - expectedStartedAt) <= 5_000;
+  return executableMatches && startTimeMatches;
+}
+
+async function readWindowsRunnerProcessIdentity(processId: number): Promise<{
+  checked: boolean;
+  identity: PersistedRunnerProcessIdentity | null;
+  message: string;
+}> {
+  const windowsRoot = process.env.SystemRoot ?? process.env.WINDIR ?? "C:\\Windows";
+  const powershellPath = join(windowsRoot, "System32", "WindowsPowerShell", "v1.0", "powershell.exe");
+  const script = [
+    "$process = $null",
+    `try { $process = [System.Diagnostics.Process]::GetProcessById(${processId}) } catch [System.ArgumentException] { [pscustomobject]@{ found = $false } | ConvertTo-Json -Compress; exit 0 } catch { [Console]::Error.WriteLine($_.Exception.Message); exit 2 }`,
+    "$executablePath = ''",
+    "$startedAt = ''",
+    "try { $executablePath = [string]$process.MainModule.FileName; $startedAt = $process.StartTime.ToUniversalTime().ToString('o') } catch { [Console]::Error.WriteLine($_.Exception.Message); exit 3 }",
+    "[pscustomobject]@{ found = $true; processId = [int]$process.Id; executablePath = $executablePath; startedAt = $startedAt } | ConvertTo-Json -Compress",
+    "exit 0"
+  ].join("; ");
+  const result = await runHiddenCommand(
+    powershellPath,
+    ["-NoLogo", "-NoProfile", "-NonInteractive", "-Command", script],
+    5000
+  );
+  if (result.exitCode !== 0) {
+    return {
+      checked: false,
+      identity: null,
+      message: result.error || result.stderr.trim() || `Could not inspect the persisted runner process (exit ${result.exitCode ?? "unknown"}).`
+    };
+  }
+  try {
+    if (!result.stdout.trim()) throw new Error("Process lookup returned no identity response.");
+    const parsed = JSON.parse(result.stdout) as Partial<PersistedRunnerProcessIdentity> & { found?: unknown };
+    if (parsed.found === false) {
+      return { checked: true, identity: null, message: "The persisted runner process was not found." };
+    }
+    if (
+      parsed.found !== true ||
+      parsed.processId !== processId ||
+      typeof parsed.executablePath !== "string" ||
+      typeof parsed.startedAt !== "string"
+    ) {
+      throw new Error("Process identity fields were incomplete.");
+    }
+    return {
+      checked: true,
+      identity: {
+        processId,
+        executablePath: parsed.executablePath,
+        startedAt: parsed.startedAt
+      },
+      message: "Persisted runner process identity matched the lookup response."
+    };
+  } catch (error) {
+    return {
+      checked: false,
+      identity: null,
+      message: `Could not parse the persisted runner process identity: ${error instanceof Error ? error.message : "unknown error"}`
+    };
+  }
+}
+
+function runHiddenCommand(command: string, args: string[], timeoutMs: number): Promise<HiddenCommandResult> {
+  return new Promise((resolveResult) => {
+    let settled = false;
+    let stdout = "";
+    let stderr = "";
+    let timeoutId: NodeJS.Timeout | undefined;
+    const finish = (result: Omit<HiddenCommandResult, "stdout" | "stderr">) => {
+      if (settled) return;
+      settled = true;
+      if (timeoutId) clearTimeout(timeoutId);
+      resolveResult({ ...result, stdout, stderr });
+    };
+    try {
+      const child = spawn(command, args, {
+        cwd: process.cwd(),
+        stdio: ["ignore", "pipe", "pipe"],
+        windowsHide: true
+      });
+      child.stdout?.on("data", (chunk: Buffer) => {
+        stdout = `${stdout}${chunk.toString("utf8")}`.slice(-16_384);
+      });
+      child.stderr?.on("data", (chunk: Buffer) => {
+        stderr = `${stderr}${chunk.toString("utf8")}`.slice(-16_384);
+      });
+      child.on("error", (error: NodeJS.ErrnoException) => {
+        finish({ exitCode: null, error: error.message });
+      });
+      child.on("close", (exitCode) => {
+        finish({ exitCode });
+      });
+      timeoutId = setTimeout(() => {
+        child.kill("SIGTERM");
+        finish({ exitCode: null, timedOut: true, error: `Command timed out after ${timeoutMs}ms.` });
+      }, timeoutMs);
+    } catch (error) {
+      finish({
+        exitCode: null,
+        error: error instanceof Error ? error.message : "Could not start the process inspection command."
+      });
+    }
+  });
 }
 
 async function isRunnerStatusStale(status: CodexRunnerStatus) {
@@ -3452,12 +4535,16 @@ async function publishVerifiedDirectionSplitArtifact(
   const manifestName = `${jobId}-manifest.json`;
   const manifestPath = join(targetDir, manifestName);
   const sourceManifestVerified = sourceManifest?.parsed?.serverVerified === true;
+  const normalizedDirectionAttempts = readManifestDirectionAttempts(sourceManifest?.parsed, jobId, expectedSlugs);
+  const directionAttemptsAreCurrent =
+    JSON.stringify(sourceManifest?.parsed?.directionAttempts ?? null) === JSON.stringify(normalizedDirectionAttempts ?? null);
   const manifestIsCurrent =
     sourceManifest &&
     !sourceManifest.fromStaging &&
     sourceManifest.name === manifestName &&
     resolve(sourceManifest.path) === resolve(manifestPath) &&
     sourceManifestVerified &&
+    directionAttemptsAreCurrent &&
     sourceManifest.mtimeMs >= Math.max(...candidates.map((candidate) => candidate.mtimeMs));
   if (!manifestIsCurrent) {
     const serverManifest = {
@@ -3483,6 +4570,7 @@ async function publishVerifiedDirectionSplitArtifact(
       grid: directionSplitGridForFrameCount(expectedFramesPerDirection),
       files: Object.fromEntries(expectedSlugs.map((slug, index) => [directionNameForSlug(slug), `${jobId}-${slug}${extname(candidates[index]?.finalName ?? ".png") || ".png"}`])),
       chromaKey: expectedChromaKey ? { name: expectedChromaKey } : undefined,
+      directionAttempts: normalizedDirectionAttempts,
       animationQuality: sourceManifest ? animationQualityFromManifest(sourceManifest.parsed) : undefined,
       animationQualityRecordedAt:
         sourceManifest && typeof sourceManifest.parsed.animationQualityRecordedAt === "string"
@@ -3499,6 +4587,94 @@ async function publishVerifiedDirectionSplitArtifact(
     await writeFile(manifestPath, JSON.stringify(serverManifest, null, 2), "utf8");
   }
   return manifestName;
+}
+
+function readManifestDirectionAttempts(
+  manifest: Record<string, unknown> | undefined,
+  jobId: string,
+  expectedSlugs: string[]
+) {
+  const source = manifest?.directionAttempts;
+  if (!source || typeof source !== "object" || Array.isArray(source)) return undefined;
+  const attemptsByDirection: Record<string, Array<Record<string, unknown>>> = {};
+  const allowedStatuses = new Set(["accepted", "failed", "timeout", "capacity"]);
+  for (const slug of expectedSlugs) {
+    const rawAttempts = (source as Record<string, unknown>)[slug];
+    if (!Array.isArray(rawAttempts)) continue;
+    const attempts = rawAttempts.slice(0, 32).flatMap((rawAttempt, index) => {
+      if (!rawAttempt || typeof rawAttempt !== "object" || Array.isArray(rawAttempt)) return [];
+      const attempt = rawAttempt as Record<string, unknown>;
+      const status = typeof attempt.status === "string" && allowedStatuses.has(attempt.status)
+        ? attempt.status
+        : undefined;
+      if (!status) return [];
+      const attemptNumber = normalizeBoundedInteger(attempt.attempt, index + 1, 1, 999);
+      const startedAt = normalizeDirectionAttemptTimestamp(attempt.startedAt);
+      const finishedAt = normalizeDirectionAttemptTimestamp(attempt.finishedAt);
+      if (!startedAt || !finishedAt || Date.parse(finishedAt) < Date.parse(startedAt)) return [];
+      const failureKind = normalizeDirectionAttemptFailureKind(attempt.failureKind);
+      const artifactPath = normalizeDirectionAttemptArtifactPath(attempt.artifactPath, jobId, slug, attemptNumber);
+      if (status === "accepted" ? !artifactPath : !failureKind) return [];
+      const normalized: Record<string, unknown> = {
+        attempt: attemptNumber,
+        status,
+        startedAt,
+        finishedAt
+      };
+      if (status === "accepted") normalized.artifactPath = artifactPath;
+      else normalized.failureKind = failureKind;
+      return [normalized];
+    });
+    if (attempts.length > 0) attemptsByDirection[slug] = attempts;
+  }
+  return Object.keys(attemptsByDirection).length > 0 ? attemptsByDirection : undefined;
+}
+
+function normalizeDirectionAttemptTimestamp(value: unknown) {
+  if (
+    typeof value !== "string" ||
+    !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,3})?(?:Z|[+-]\d{2}:\d{2})$/.test(value)
+  ) {
+    return undefined;
+  }
+  const timestamp = Date.parse(value);
+  return Number.isFinite(timestamp) ? new Date(timestamp).toISOString() : undefined;
+}
+
+function normalizeDirectionAttemptFailureKind(value: unknown) {
+  const allowedFailureKinds = new Set([
+    "imagegen_capacity",
+    "imagegen_timeout",
+    "imagegen_failed",
+    "no_image_returned",
+    "policy_or_safety",
+    "quality_failed",
+    "normalization_failed",
+    "unknown"
+  ]);
+  return typeof value === "string" && allowedFailureKinds.has(value) ? value : undefined;
+}
+
+function normalizeDirectionAttemptArtifactPath(value: unknown, jobId: string, slug: string, attemptNumber: number) {
+  if (typeof value !== "string") return undefined;
+  const normalized = value.trim().replace(/\\/g, "/");
+  const segments = normalized.split("/");
+  if (
+    !normalized ||
+    normalized.length > 320 ||
+    normalized.startsWith("/") ||
+    normalized.includes(":") ||
+    /^[a-z][a-z0-9+.-]*:/i.test(normalized) ||
+    segments.some((segment) => !segment || segment === "." || segment === "..") ||
+    segments.length < 5 ||
+    segments[0] !== ".staging" ||
+    segments[1] !== jobId ||
+    segments[2] !== slug ||
+    segments[3] !== `attempt-${attemptNumber}`
+  ) {
+    return undefined;
+  }
+  return normalized;
 }
 
 async function readJobExpectedSpriteContext(jobId: string): Promise<{
@@ -4033,6 +5209,16 @@ function resolveTournamentIdForJobRequest(workflowMode: CodexWorkflowMode, body:
     : "";
 }
 
+function hasTournamentScopedJobFields(body: CodexJobRequest) {
+  return (
+    body.tournamentId !== undefined ||
+    body.tournamentCandidateIndex !== undefined ||
+    body.tournamentCandidateCount !== undefined ||
+    body.repairDirections !== undefined ||
+    body.repairOfJobId !== undefined
+  );
+}
+
 function normalizeCandidateIndex(value: unknown) {
   return typeof value === "number" && Number.isFinite(value) && value >= 0 ? Math.floor(value) : 0;
 }
@@ -4068,13 +5254,144 @@ function resolveSafeOutboxSubdir(value: unknown) {
   return resolved === rootDir || resolved.startsWith(root) ? resolved : null;
 }
 
-async function publishAndAcceptTournamentWinner(tournamentId: string, jobId: string) {
+async function readRunnerStatusSnapshot(jobId: string): Promise<CodexRunnerStatus> {
+  const liveStatus = runnerStatuses.get(jobId);
+  if (liveStatus) return liveStatus;
+  const statusPath = join(statusDir, `${jobId}.json`);
+  try {
+    return parseJsonText<CodexRunnerStatus>(await readFile(statusPath, "utf8"));
+  } catch {
+    return {
+      jobId,
+      state: "unknown",
+      message: "No runner status has been recorded for this job.",
+      statusPath
+    };
+  }
+}
+
+async function cancelUntrackedRunnerStatus(
+  status: CodexRunnerStatus,
+  stoppedMessage: string,
+  pendingMessage: string
+) {
+  const termination = await terminatePersistedRunnerProcess(status);
+  const cancelledStatus: CodexRunnerStatus = {
+    ...status,
+    state: "failed",
+    message: termination.stopped
+      ? stoppedMessage
+      : `${pendingMessage}, but process termination was not confirmed: ${termination.message}`,
+    cancellationPending: termination.stopped ? undefined : true,
+    finishedAt: termination.stopped ? new Date().toISOString() : undefined,
+    exitCode: null,
+    signal: termination.stopped ? "SIGTERM" : undefined
+  };
+  await writeRunnerStatus(cancelledStatus);
+  return {
+    jobId: status.jobId,
+    ok: termination.stopped,
+    status: cancelledStatus,
+    message: termination.stopped
+      ? termination.message
+      : `Untracked running status was blocked from resuming; ${termination.message}`
+  };
+}
+
+async function cancelTournamentLoserRunners(
+  manifest: AnimationTournamentManifest,
+  winnerJobId: string
+): Promise<AnimationTournamentCancellationResult[]> {
+  const cancellationResults: AnimationTournamentCancellationResult[] = [];
+  for (const candidate of manifest.candidates) {
+    if (!candidate.jobId || candidate.jobId === winnerJobId) continue;
+    const status = await readRunnerStatusSnapshot(candidate.jobId);
+    if (status.state !== "running" && !status.cancellationPending) continue;
+    if (runnerProcesses.has(candidate.jobId)) {
+      const result = await cancelCodexRunner(candidate.jobId);
+      cancellationResults.push({
+        jobId: candidate.jobId,
+        ok: result.ok,
+        message: result.message
+      });
+      continue;
+    }
+    const result = await cancelUntrackedRunnerStatus(
+      status,
+      "Codex runner cancellation persisted after an animation tournament winner was chosen.",
+      "Codex runner restart was blocked after an animation tournament winner was chosen"
+    );
+    cancellationResults.push({ jobId: result.jobId, ok: result.ok, message: result.message });
+  }
+  return cancellationResults;
+}
+
+function mergeTournamentCancellationResults(
+  previous: AnimationTournamentCancellationResult[] = [],
+  current: AnimationTournamentCancellationResult[] = []
+) {
+  const merged = new Map(previous.map((result) => [result.jobId, result]));
+  current.forEach((result) => merged.set(result.jobId, result));
+  return [...merged.values()];
+}
+
+async function reusedPublishedTournamentWinnerResult(tournamentId: string, jobId: string) {
+  const publishedResults = (await listOutboxResults()).filter((result) => isJobOutboxFileName(jobId, result.name));
+  return {
+    ok: true,
+    reused: true,
+    tournamentId,
+    jobId,
+    outboxPath: outboxDir,
+    manifestName: publishedResults.find((result) => result.name === `${jobId}-manifest.json`)?.name,
+    results: publishedResults
+  };
+}
+
+async function publishAndAcceptTournamentWinner(
+  tournamentId: string,
+  jobId: string,
+  decisionRequest?: AnimationTournamentWinnerDecisionRequest
+) {
   return withAnimationTournamentLock(tournamentId, async () => {
+    let manifest = await readAnimationTournamentManifestRequired(tournamentId);
+    if (manifest.winnerCandidateId) {
+      if (manifest.winnerCandidateId !== jobId) {
+        const isManualOverride = !decisionRequest && manifest.humanReview?.manualWinnerJobId === jobId;
+        if (!isManualOverride) {
+          throw new HttpError(409, "Tournament already has a different accepted winner.");
+        }
+      } else {
+        const currentCancellations = await cancelTournamentLoserRunners(manifest, jobId);
+        const cancellationResults = mergeTournamentCancellationResults(
+          manifest.smartRaceDecision?.cancellationResults,
+          currentCancellations
+        );
+        if (manifest.smartRaceDecision && currentCancellations.length > 0) {
+          manifest.smartRaceDecision.cancellationResults = cancellationResults;
+          await writeAnimationTournamentManifest(manifest);
+        }
+        return {
+          result: await reusedPublishedTournamentWinnerResult(tournamentId, jobId),
+          tournament: manifest,
+          cancellationResults
+        };
+      }
+    }
+
+    const decision = await normalizeAnimationTournamentWinnerDecision(decisionRequest, manifest, jobId);
     const result = await publishTournamentWinnerUnlocked(tournamentId, jobId);
-    const tournament = await readAnimationTournamentManifest(tournamentId)
-      ? await acceptAnimationTournamentWinner(tournamentId, jobId)
-      : undefined;
-    return { result, tournament };
+    manifest = await acceptAnimationTournamentWinner(tournamentId, jobId, decision);
+    const currentCancellations = await cancelTournamentLoserRunners(manifest, jobId);
+    const cancellationResults = mergeTournamentCancellationResults(
+      manifest.smartRaceDecision?.cancellationResults,
+      currentCancellations
+    );
+    if (manifest.smartRaceDecision) {
+      manifest.smartRaceDecision.cancellationResults = cancellationResults;
+      await writeAnimationTournamentManifest(manifest);
+    }
+    return { result, tournament: manifest, cancellationResults };
   });
 }
 

@@ -4,6 +4,28 @@
 
 No unreleased changes yet.
 
+## v0.1.8 - 2026-07-24
+
+Safer and faster Best-profile animation tournaments after v0.1.7.
+
+### Added
+
+- Added First Qualified Wins for Best tournaments, allowing the first completed candidate to win only when every direction is verified, warnings are zero, score is at least 3300, identity is at least 85, and the shadow gate is clear.
+- Added server-side revalidation and a distinct persisted `first-qualified` decision mode.
+- Added unit and API smoke coverage for strict-gate rejection, immediate acceptance, and cancellation of both remaining candidates.
+
+### Changed
+
+- Runs requested animation directions concurrently inside each candidate, with capacity-aware wave reduction and failed-direction-only retry.
+- Keeps the existing two-candidate Smart Race and full three-candidate comparison as fallbacks when the strict solo gate does not pass.
+- Requires the global three-runner pool to be idle before atomically starting an animation tournament initial wave.
+
+### Fixed
+
+- Prevented restored queued tournaments from automatically starting without a current-session Generate action.
+- Deduplicated semantically identical unfinished tournament registrations even when clients submit different random IDs.
+- Prevented double-click Generate races and kept register-and-start admission failures from leaving phantom queued manifests.
+
 ## v0.1.7bugfix - 2026-07-24
 
 Maintenance update for the v0.1.7 code line. Package, App, and API versions remain `0.1.7`.

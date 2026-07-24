@@ -98,6 +98,31 @@ async function runManualHandoffSmoke() {
     await writeFile(join(handoffDir, "outbox", `${artifactJobId}-manifest.json`), JSON.stringify({
       schema: "image-cockpit.direction-split-animation.v1",
       jobId: artifactJobId,
+      directionAttempts: {
+        front: [{
+          attempt: 1,
+          status: "accepted",
+          startedAt: "2026-07-24T00:00:00.000Z",
+          finishedAt: "2026-07-24T00:01:00.000Z",
+          artifactPath: `.staging/${artifactJobId}/front/attempt-1/result.png`,
+          failureKind: "imagegen_failed"
+        }],
+        side: [{
+          attempt: 1,
+          status: "capacity",
+          startedAt: "2026-07-24T00:00:00.000Z",
+          finishedAt: "2026-07-24T00:00:05.000Z",
+          failureKind: "imagegen_capacity",
+          artifactPath: `.staging/${artifactJobId}/side/attempt-1/result.png`
+        }, {
+          attempt: 2,
+          status: "accepted",
+          startedAt: "2026-07-24T00:01:05.000Z",
+          finishedAt: "2026-07-24T00:02:00.000Z",
+          artifactPath: `.staging/${artifactJobId}/side/attempt-2/result.png`
+        }],
+        unexpected: [{ attempt: 1, status: "accepted", artifactPath: ".staging/unexpected/result.png" }]
+      },
       files: {
         front: `${artifactJobId}-front.png`,
         "front-three-quarter": `${artifactJobId}-front-three-quarter.png`,
@@ -125,6 +150,62 @@ async function runManualHandoffSmoke() {
     const verifiedManifestText = Buffer.from(verifiedManifest.dataUrl.split(",")[1], "base64").toString("utf8");
     assert(verifiedManifestText.includes('"serverVerified": true'), "server should rewrite the final direction split manifest");
     assert(verifiedManifestText.includes('"classification": "usable-final"'), "server manifest should include the quality gate classification");
+    const verifiedManifestObject = JSON.parse(verifiedManifestText);
+    assert(verifiedManifestObject.directionAttempts.front[0].artifactPath.includes("/front/attempt-1/"), "server manifest should preserve direction-bound attempt metadata");
+    assert(!verifiedManifestObject.directionAttempts.front[0].failureKind, "accepted attempts should retain only artifactPath");
+    assert(verifiedManifestObject.directionAttempts.side[0].status === "capacity" && verifiedManifestObject.directionAttempts.side[1].status === "accepted", "server manifest should preserve targeted retry history");
+    assert(!verifiedManifestObject.directionAttempts.side[0].artifactPath, "failed attempts should retain only failureKind");
+    assert(!verifiedManifestObject.directionAttempts.unexpected, "server manifest should discard attempt metadata for unrequested directions");
+    await writeFile(join(handoffDir, "outbox", `${artifactJobId}-manifest.json`), JSON.stringify({
+      ...verifiedManifestObject,
+      serverVerified: true,
+      directionAttempts: {
+        front: [
+          {
+            attempt: 2,
+            status: "accepted",
+            startedAt: "2026-07-24T00:00:00.000Z",
+            finishedAt: "2026-07-24T00:00:01.000Z",
+            artifactPath: "file:///C:/private/front/result.png"
+          },
+          {
+            attempt: 3,
+            status: "accepted",
+            startedAt: "2026-07-24T00:00:00.000Z",
+            finishedAt: "2026-07-24T00:00:01.000Z",
+            artifactPath: `.staging/codex-job-other/front/attempt-3/result.png`
+          },
+          {
+            attempt: 4,
+            status: "accepted",
+            startedAt: "2026-07-24T00:00:00.000Z",
+            finishedAt: "2026-07-24T00:00:01.000Z",
+            artifactPath: `.staging/${artifactJobId}/front/attempt-4/file:///C:/private.png`
+          },
+          {
+            attempt: 5,
+            status: "accepted",
+            startedAt: "2026-07-24T00:00:00.000Z",
+            finishedAt: "2026-07-24T00:00:01.000Z",
+            artifactPath: `.staging/${artifactJobId}/front/attempt-999/result.png`
+          },
+          {
+            attempt: 6,
+            status: "failed",
+            startedAt: "2026-07-24T00:00:00.000Z",
+            finishedAt: "2026-07-24T00:00:01.000Z",
+            failureKind: "C:\\Users\\private\\failure.txt"
+          }
+        ]
+      }
+    }, null, 2), "utf8");
+    await getJson(port, "/api/codex/results");
+    const resanitizedManifest = await getJson(port, `/api/codex/results/${artifactJobId}-manifest.json`);
+    const resanitizedManifestText = Buffer.from(resanitizedManifest.dataUrl.split(",")[1], "base64").toString("utf8");
+    assert(!resanitizedManifestText.includes("file:///"), "serverVerified manifests should not bypass absolute URI sanitization");
+    assert(!resanitizedManifestText.includes("codex-job-other"), "serverVerified manifests should not retain another job's staging path");
+    assert(!resanitizedManifestText.includes("attempt-999"), "attempt artifact paths should match their recorded attempt number");
+    assert(!resanitizedManifestText.includes("Users"), "failureKind should not expose a local path");
     const animationQualityReport = {
       metricVersion: "image-cockpit.animation-quality.v2",
       policyVersion: "shadow-v1",
@@ -483,7 +564,8 @@ async function runManualHandoffSmoke() {
       );
     }
 
-    const singleDirectionCandidate = await postJson(port, "/api/codex/tournaments/" + singleDirectionTournamentId + "/candidates", { candidateIndex: 0 });
+    const singleDirectionBundle = await postJson(port, "/api/codex/tournaments/" + singleDirectionTournamentId + "/initial-candidates", {});
+    const singleDirectionCandidate = { job: singleDirectionBundle.jobs[0], tournament: singleDirectionBundle.tournament };
     const singleDirectionJobJson = JSON.parse(await readFile(singleDirectionCandidate.job.path, "utf8"));
     assert(singleDirectionJobJson.spriteContext.directions.join(",") === singleDirection, "single-direction candidate should request only the selected non-side direction");
     assert(singleDirectionJobJson.spriteContext.grid.columns === 20 && singleDirectionJobJson.spriteContext.grid.rows === 1 && singleDirectionJobJson.spriteContext.frames === 20, "single-direction candidate should keep a 20x1 / 20-frame final sheet contract");
@@ -565,12 +647,50 @@ async function runManualHandoffSmoke() {
     assert(registeredTournament.tournament.candidates.length === 3, "Balanced should persist a 2+1 candidate plan");
     assert(registeredTournament.tournament.clientContext.batchMatrixRunId === "batch-matrix-smoke", "Batch Matrix run identity should persist across reloads");
     assert(registeredTournament.tournament.clientContext.batchMatrixCellKey === "hist-smoke-source:walk-cycle", "Batch Matrix cells should keep an exact persistent lookup key");
+    const undercutBestTournamentId = "smoke-best-candidate-count-undercut";
+    const undercutBestResponse = await fetch(`http://127.0.0.1:${port}/api/codex/tournaments`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        ...tournamentRegistration,
+        tournamentId: undercutBestTournamentId,
+        idempotencyKey: "smoke:best-candidate-count-undercut:v1",
+        generationProfile: "best",
+        maximumCandidateCount: 3,
+        initialCandidateCount: 2
+      })
+    });
+    const undercutBestPayload = await undercutBestResponse.json();
+    assert(undercutBestResponse.status === 400, "Best registration should reject a two-candidate initial wave");
+    assert(
+      undercutBestPayload.code === "animation_profile_candidate_count_mismatch",
+      "profile count undercuts should expose the fixed-profile error code"
+    );
+    assert(
+      (await fetch(`http://127.0.0.1:${port}/api/codex/tournaments/${undercutBestTournamentId}`)).status === 404,
+      "rejected profile count undercut should not leave a tournament manifest"
+    );
     const duplicateRegistration = await postJson(port, "/api/codex/tournaments", tournamentRegistration);
     assert(duplicateRegistration.created === false, "same tournament idempotency key should reuse the manifest");
-    const candidateA = await postJson(port, `/api/codex/tournaments/${persistentTournamentId}/candidates`, { candidateIndex: 0 });
+    const persistentInitialBundle = await postJson(port, `/api/codex/tournaments/${persistentTournamentId}/initial-candidates`, {});
+    const candidateA = { job: persistentInitialBundle.jobs[0], tournament: persistentInitialBundle.tournament };
+    const candidateB = { job: persistentInitialBundle.jobs[1], tournament: persistentInitialBundle.tournament };
     const duplicateCandidateA = await postJson(port, `/api/codex/tournaments/${persistentTournamentId}/candidates`, { candidateIndex: 0 });
     assert(candidateA.job.id === duplicateCandidateA.job.id, "duplicate tournament candidate POST should not start another job");
     assert(duplicateCandidateA.reused === true, "duplicate tournament candidate POST should report reused=true");
+    await postJson(port, `/api/codex/tournaments/${persistentTournamentId}/evaluation`, {
+      jobId: candidateA.job.id,
+      ready: true,
+      score: 3200,
+      warningCount: 0,
+      reason: "smoke initial candidate ready"
+    });
+    await postJson(port, `/api/codex/tournaments/${persistentTournamentId}/evaluation`, {
+      jobId: candidateB.job.id,
+      ready: false,
+      warningCount: 0,
+      reason: "smoke initial candidate failed"
+    });
     const candidateC = await postJson(port, `/api/codex/tournaments/${persistentTournamentId}/candidates`, {
       candidateIndex: 2,
       reason: "one initial candidate failed"
@@ -615,10 +735,10 @@ async function runManualHandoffSmoke() {
     });
     assert(motionPilotRegistration.tournament.pilotMode === true, "Motion Pilot should persist as an explicit experimental mode");
     assert(motionPilotRegistration.tournament.pilotDirection === "side", "Motion Pilot should persist the representative direction");
-    const pilotCandidates = [];
-    for (let index = 0; index < 3; index += 1) {
-      const candidate = await postJson(port, `/api/codex/tournaments/${motionPilotId}/candidates`, { candidateIndex: index });
-      pilotCandidates.push(candidate);
+    const motionPilotInitialBundle = await postJson(port, `/api/codex/tournaments/${motionPilotId}/initial-candidates`, {});
+    const pilotCandidates = motionPilotInitialBundle.jobs.map((job) => ({ job, tournament: motionPilotInitialBundle.tournament }));
+    for (let index = 0; index < pilotCandidates.length; index += 1) {
+      const candidate = pilotCandidates[index];
       const candidateJob = JSON.parse(await readFile(candidate.job.path, "utf8"));
       assert(candidateJob.spriteContext.directions.join(",") === "side", "pilot candidates should generate only the representative direction");
       assert(candidateJob.spriteContext.grid.rows === 1, "pilot candidate grid should have one direction row");
@@ -702,8 +822,9 @@ async function runManualHandoffSmoke() {
       pilotMode: true,
       pilotDirection: "side"
     });
-    for (let index = 0; index < 3; index += 1) {
-      const candidate = await postJson(port, `/api/codex/tournaments/${motionPilotFallbackId}/candidates`, { candidateIndex: index });
+    const motionPilotFallbackBundle = await postJson(port, `/api/codex/tournaments/${motionPilotFallbackId}/initial-candidates`, {});
+    for (let index = 0; index < motionPilotFallbackBundle.jobs.length; index += 1) {
+      const candidate = { job: motionPilotFallbackBundle.jobs[index], tournament: motionPilotFallbackBundle.tournament };
       await postJson(port, `/api/codex/tournaments/${motionPilotFallbackId}/evaluation`, { jobId: candidate.job.id, ready: true, score: 3000 - index, warningCount: 0 });
     }
     const pilotFallback = await postJson(port, `/api/codex/tournaments/${motionPilotFallbackId}/pilot/fallback`, { reason: "scores too close to call" });
@@ -762,6 +883,14 @@ async function runManualHandoffSmoke() {
     assert(transientRegression.tournament.candidates[0].warningCount === 2, "transient reread should preserve the evaluated warning count");
     const acceptedWinner = await postJson(port, `/api/codex/tournaments/${persistentTournamentId}/winner`, { jobId: candidateA.job.id });
     assert(acceptedWinner.tournament.state === "accepted", "verified candidate should become the persistent tournament winner");
+    const repeatedAcceptedWinner = await postJson(port, `/api/codex/tournaments/${persistentTournamentId}/winner`, { jobId: candidateA.job.id });
+    assert(repeatedAcceptedWinner.reused === true, "same accepted winner should be idempotent");
+    const rejectedDifferentWinner = await fetch(`http://127.0.0.1:${port}/api/codex/tournaments/${persistentTournamentId}/winner`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ jobId: candidateC.job.id })
+    });
+    assert(rejectedDifferentWinner.status === 409, "different winner should require an explicit saved manual override");
     const lateWinnerEvaluation = await postJson(port, `/api/codex/tournaments/${persistentTournamentId}/evaluation`, {
       jobId: candidateA.job.id,
       ready: true,
@@ -811,6 +940,42 @@ async function runManualHandoffSmoke() {
     assert(acceptedRepair.beforeHashes.back === acceptedRepair.afterHashes.back, "Direction Repair should preserve the back hash");
     assert(acceptedRepair.tournament.directionStates.side.jobId === repair.job.id, "accepted Direction Repair should attribute the repaired direction to the repair job");
     assert(acceptedRepair.tournament.directionStates.front.jobId === candidateA.job.id, "accepted Direction Repair should attribute untargeted directions to the preserved winner");
+    const reusedInitialBundleAfterRepair = await postJson(port, `/api/codex/tournaments/${persistentTournamentId}/initial-candidates`, {});
+    assert(
+      reusedInitialBundleAfterRepair.reused === true && reusedInitialBundleAfterRepair.jobs.length === 2,
+      "profile validation should allow persisted Direction Repair candidates beyond the fixed initial plan"
+    );
+    for (const slug of ["front", "side", "back"]) {
+      await writeFile(join(candidateC.job.outboxPath, `${candidateC.job.id}-${slug}.png`), tinyPngBytes);
+    }
+    await writeFile(join(candidateC.job.outboxPath, `${candidateC.job.id}-manifest.json`), JSON.stringify({
+      schema: "image-cockpit.direction-split-animation.v1",
+      jobId: candidateC.job.id,
+      action: "walk",
+      directions: ["front", "side", "back"],
+      files: {
+        front: `${candidateC.job.id}-front.png`,
+        side: `${candidateC.job.id}-side.png`,
+        back: `${candidateC.job.id}-back.png`
+      },
+      chromaKey: { name: "green" }
+    }, null, 2), "utf8");
+    await getJson(port, `/api/codex/jobs/${candidateC.job.id}/results`);
+    await postJson(port, `/api/codex/tournaments/${persistentTournamentId}/review`, {
+      review: {
+        manualWinnerJobId: candidateC.job.id,
+        decisions: [
+          { jobId: candidateA.job.id, decision: "reject", reasonTags: ["manual-override"], note: "replaced after review" },
+          { jobId: candidateC.job.id, decision: "winner", reasonTags: ["manual-override"], note: "explicit replacement" }
+        ]
+      }
+    });
+    const manualWinnerOverride = await postJson(
+      port,
+      `/api/codex/tournaments/${persistentTournamentId}/winner`,
+      { jobId: candidateC.job.id }
+    );
+    assert(manualWinnerOverride.tournament.winnerCandidateId === candidateC.job.id, "saved human review should still allow an explicit manual winner override");
     const cancelledTournament = await postJson(port, `/api/codex/tournaments/${persistentTournamentId}/cancel`, {});
     assert(cancelledTournament.tournament.state === "cancelled", "tournament cancel should persist a terminal cancelled state");
 
@@ -824,7 +989,8 @@ async function runManualHandoffSmoke() {
       initialCandidateCount: 1,
       clientContext: { ...tournamentRegistration.clientContext, label: "Smoke delayed artifact recovery" }
     });
-    const delayedRecoveryCandidate = await postJson(port, `/api/codex/tournaments/${delayedRecoveryTournamentId}/candidates`, { candidateIndex: 0 });
+    const delayedRecoveryBundle = await postJson(port, `/api/codex/tournaments/${delayedRecoveryTournamentId}/initial-candidates`, {});
+    const delayedRecoveryCandidate = { job: delayedRecoveryBundle.jobs[0], tournament: delayedRecoveryBundle.tournament };
     await postJson(port, `/api/codex/tournaments/${delayedRecoveryTournamentId}/evaluation`, {
       jobId: delayedRecoveryCandidate.job.id,
       ready: false,
@@ -843,7 +1009,8 @@ async function runManualHandoffSmoke() {
     assert(recoveredDelayedEvaluation.tournament.state === "running", "a delayed verified artifact evaluation should recover a failed tournament");
     assert(recoveredDelayedEvaluation.tournament.candidates[0].state === "quality-evaluated", "delayed verified artifacts should restore the candidate evaluation");
 
-    const tournamentJob = await postJson(port, "/api/codex/jobs", {
+    const qualityV2TournamentId = "smoke-quality-v2-tournament";
+    const qualityV2JobTemplate = {
       workflowMode: "sprite-generate",
       prompt: "Smoke test hidden tournament Quality v2 persistence",
       selectedImageName: "tiny.png",
@@ -856,11 +1023,20 @@ async function runManualHandoffSmoke() {
       cell: { width: 256, height: 256 },
       chromaKey: "green",
       spriteVariant: "standard",
-      directions: ["front", "side", "back"],
-      tournamentId: "smoke-quality-v2-tournament",
-      tournamentCandidateIndex: 0,
-      tournamentCandidateCount: 1
+      directions: ["front", "side", "back"]
+    };
+    const qualityV2Registration = await postJson(port, "/api/codex/tournaments", {
+      tournamentId: qualityV2TournamentId,
+      idempotencyKey: "smoke:quality-v2:v1",
+      sourceFingerprint: "smoke-quality-v2-source",
+      generationProfile: "fast",
+      requestedDirections: ["front", "side", "back"],
+      maximumCandidateCount: 1,
+      initialCandidateCount: 1,
+      startInitialCandidates: true,
+      jobTemplate: qualityV2JobTemplate
     });
+    const tournamentJob = qualityV2Registration.jobs[0];
     const hiddenManifestPath = join(tournamentJob.outboxPath, `${tournamentJob.id}-manifest.json`);
     await writeFile(hiddenManifestPath, JSON.stringify({
       schema: "image-cockpit.direction-split-animation.v1",
@@ -891,7 +1067,7 @@ async function runManualHandoffSmoke() {
       "generation job should forbid procedural placeholder images"
     );
 
-    const spriteGenerateJob = await postJson(port, "/api/codex/jobs", {
+    const spriteGenerateTemplate = {
       workflowMode: "sprite-generate",
       prompt: "Smoke test sprite sheet generation",
       negativePrompt: "text",
@@ -929,7 +1105,19 @@ async function runManualHandoffSmoke() {
         },
         experimental: true
       }
+    };
+    const spriteGenerateTournament = await postJson(port, "/api/codex/tournaments", {
+      tournamentId: "smoke-standard-sprite-job-shape",
+      idempotencyKey: "smoke:standard-sprite-job-shape:v1",
+      sourceFingerprint: "smoke-standard-sprite-job-shape-source",
+      generationProfile: "fast",
+      requestedDirections: spriteGenerateTemplate.directions,
+      maximumCandidateCount: 1,
+      initialCandidateCount: 1,
+      startInitialCandidates: true,
+      jobTemplate: spriteGenerateTemplate
     });
+    const spriteGenerateJob = spriteGenerateTournament.jobs[0];
     const spriteGenerateJobJson = JSON.parse(await readFile(spriteGenerateJob.path, "utf8"));
     assert(spriteGenerateJobJson.workflowMode === "sprite-generate", "sprite generation job should include workflowMode");
     assert(spriteGenerateJobJson.intent.includes("chroma-key animation sprite sheet"), "sprite generation job should include sprite intent");
@@ -948,6 +1136,46 @@ async function runManualHandoffSmoke() {
     assert(
       spriteGenerateJobJson.notes.some((note) => note.includes("built-in image_gen")),
       "sprite generation job should instruct Codex to use built-in image generation"
+    );
+    const duplicateDirectionTournament = await postJson(port, "/api/codex/tournaments", {
+      tournamentId: "smoke-standard-direction-normalization",
+      idempotencyKey: "smoke:standard-direction-normalization:v1",
+      sourceFingerprint: "smoke-standard-direction-normalization-source",
+      generationProfile: "fast",
+      requestedDirections: [...Array(20).fill("front"), "unknown-direction"],
+      maximumCandidateCount: 1,
+      initialCandidateCount: 1,
+      startInitialCandidates: true,
+      jobTemplate: {
+        workflowMode: "sprite-generate",
+        prompt: "Smoke test canonical direction normalization",
+        spriteVariant: "standard",
+        framesPerDirection: 8,
+        directions: [...Array(20).fill("front"), "unknown-direction"]
+      }
+    });
+    const duplicateDirectionJob = duplicateDirectionTournament.jobs[0];
+    const duplicateDirectionJobJson = JSON.parse(await readFile(duplicateDirectionJob.path, "utf8"));
+    assert(
+      duplicateDirectionJobJson.spriteContext.directions.join(",") === "front",
+      "standard sprite jobs should canonicalize and deduplicate directions before the runner sees them"
+    );
+    const directStandardAnimationResponse = await fetch(`http://127.0.0.1:${port}/api/codex/jobs`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        workflowMode: "sprite-generate",
+        prompt: "Smoke test direct standard animation bypass",
+        spriteVariant: "standard",
+        framesPerDirection: 8,
+        directions: ["front"]
+      })
+    });
+    const directStandardAnimationPayload = await directStandardAnimationResponse.json();
+    assert(directStandardAnimationResponse.status === 409, "standard animation jobs should reject the generic job endpoint");
+    assert(
+      directStandardAnimationPayload.code === "animation_tournament_endpoint_required",
+      "standard animation jobs should require the tournament endpoint"
     );
 
     const effectAnimationJob = await postJson(port, "/api/codex/jobs", {
@@ -1187,6 +1415,7 @@ async function runMockAutorunSmoke() {
     handoffDir,
     env: autorunEnv
   });
+  let simulatedOrphanRunner = null;
 
   try {
     await waitForServer(server, port);
@@ -1231,11 +1460,20 @@ async function runMockAutorunSmoke() {
       frames: 40,
       framesPerDirection: 8
     };
-    const capacityJobs = [];
-    for (let index = 0; index < 3; index += 1) capacityJobs.push(await postJson(port, "/api/codex/jobs", capacityHoldTemplate));
-    assert(capacityJobs.every((item) => item.runner?.state === "running"), "capacity fixture should occupy all three runner slots");
+    const genericCapacityHoldTemplate = {
+      workflowMode: "image-generate",
+      prompt: "Smoke test animation admission blocker long",
+      negativePrompt: "text",
+      jobNotes: "Keep one runner slot occupied for the tournament admission guard.",
+      annotations: [],
+      grid: { columns: 1, rows: 1, gutter: 0 },
+      action: "",
+      frames: 0
+    };
+    const capacityBlocker = await postJson(port, "/api/codex/jobs", genericCapacityHoldTemplate);
+    assert(capacityBlocker.runner?.state === "running", "capacity fixture should occupy one runner slot");
     const capacityTournamentId = "smoke-runner-cap-tournament";
-    await postJson(port, "/api/codex/tournaments", {
+    const capacityRegistration = {
       tournamentId: capacityTournamentId,
       idempotencyKey: "smoke:runner-cap:v1",
       sourceFingerprint: "smoke-runner-cap-source",
@@ -1243,20 +1481,622 @@ async function runMockAutorunSmoke() {
       motionRecipeVersion: 1,
       motionRecipeCompilerVersion: "1.1.0",
       presetId: "idle",
-      generationProfile: "fast",
+      generationProfile: "best",
       requestedDirections: capacityHoldTemplate.directions,
-      maximumCandidateCount: 1,
-      initialCandidateCount: 1,
+      maximumCandidateCount: 3,
+      initialCandidateCount: 3,
+      startInitialCandidates: true,
       jobTemplate: capacityHoldTemplate
-    });
-    const capacityResponse = await fetch(`http://127.0.0.1:${port}/api/codex/tournaments/${capacityTournamentId}/candidates`, {
+    };
+    const reportedCapacity = await getJson(port, "/api/codex/capacity");
+    assert(
+      reportedCapacity.capacity?.active === 1 && reportedCapacity.capacity?.available === 2,
+      "capacity endpoint should expose one active runner and two available slots"
+    );
+
+    const bypassResponse = await fetch(`http://127.0.0.1:${port}/api/codex/jobs`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ candidateIndex: 0 })
+      body: JSON.stringify({
+        ...capacityHoldTemplate,
+        tournamentId: "smoke-bypass-tournament",
+        tournamentCandidateIndex: 0,
+        tournamentCandidateCount: 3,
+        idempotencyKey: "smoke:bypass:candidate:0"
+      })
     });
-    const capacityText = await capacityResponse.text();
-    assert(capacityResponse.status === 500 && capacityText.includes("runner slots are full (3/3)"), `fourth tournament runner should be rejected before manifest mutation: ${capacityResponse.status} ${capacityText}`);
-    await Promise.all(capacityJobs.map((item) => waitForJobState(port, item.id, "completed")));
+    const bypassPayload = await bypassResponse.json();
+    assert(bypassResponse.status === 409, "public job endpoint should reject tournament-scoped jobs");
+    assert(bypassPayload.code === "tournament_job_endpoint_required", "public tournament bypass should return its explicit error code");
+
+    const semanticBypassResponse = await fetch(`http://127.0.0.1:${port}/api/codex/jobs`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(capacityHoldTemplate)
+    });
+    const semanticBypassPayload = await semanticBypassResponse.json();
+    assert(semanticBypassResponse.status === 409, "public job endpoint should reject standard animation jobs without tournament fields");
+    assert(
+      semanticBypassPayload.code === "animation_tournament_endpoint_required",
+      "semantic standard-animation bypass should require the tournament endpoint"
+    );
+    const caseVariantBypassResponse = await fetch(`http://127.0.0.1:${port}/api/codex/jobs`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ...capacityHoldTemplate, spriteVariant: "STANDARD" })
+    });
+    const caseVariantBypassPayload = await caseVariantBypassResponse.json();
+    assert(caseVariantBypassResponse.status === 409, "variant casing should not bypass the standard animation endpoint guard");
+    assert(
+      caseVariantBypassPayload.code === "animation_tournament_endpoint_required",
+      "unknown standard-animation variants should require the tournament endpoint"
+    );
+
+    const queuedAdaptiveTournamentId = "smoke-queued-adaptive-c-bypass";
+    await postJson(port, "/api/codex/tournaments", {
+      ...capacityRegistration,
+      tournamentId: queuedAdaptiveTournamentId,
+      idempotencyKey: "smoke:queued-adaptive-c-bypass:v1",
+      generationProfile: "balanced",
+      maximumCandidateCount: 3,
+      initialCandidateCount: 2,
+      startInitialCandidates: false
+    });
+    const inboxBeforeAdaptiveBypass = (await getJson(port, "/api/codex/jobs")).jobs.length;
+    const adaptiveBypassResponse = await fetch(
+      `http://127.0.0.1:${port}/api/codex/tournaments/${queuedAdaptiveTournamentId}/candidates`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ candidateIndex: 2, reason: "smoke queued adaptive bypass" })
+      }
+    );
+    const adaptiveBypassPayload = await adaptiveBypassResponse.json();
+    assert(adaptiveBypassResponse.status === 409, "queued Balanced candidate C should not start before its initial wave");
+    assert(
+      adaptiveBypassPayload.code === "adaptive_candidate_initial_wave_required",
+      "queued adaptive candidate bypass should expose the initial-wave guard"
+    );
+    const queuedAdaptiveManifest = await getJson(port, `/api/codex/tournaments/${queuedAdaptiveTournamentId}`);
+    assert(
+      queuedAdaptiveManifest.tournament.candidates.every((candidate) => !candidate.jobId),
+      "rejected adaptive bypass should leave every candidate unstarted"
+    );
+    assert(
+      (await getJson(port, "/api/codex/jobs")).jobs.length === inboxBeforeAdaptiveBypass,
+      "rejected adaptive bypass should not create an inbox job"
+    );
+    await postJson(port, `/api/codex/tournaments/${queuedAdaptiveTournamentId}/cancel`, {});
+
+    const queuedResumeTournamentId = "smoke-queued-bundle-capacity";
+    const queuedResumeRegistration = {
+      ...capacityRegistration,
+      tournamentId: queuedResumeTournamentId,
+      idempotencyKey: "smoke:queued-bundle-capacity:v1",
+      startInitialCandidates: false
+    };
+    await postJson(port, "/api/codex/tournaments", queuedResumeRegistration);
+    const inboxBeforeResumeRejections = (await getJson(port, "/api/codex/jobs")).jobs.length;
+    const individualInitialResponse = await fetch(
+      `http://127.0.0.1:${port}/api/codex/tournaments/${queuedResumeTournamentId}/candidates`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ candidateIndex: 0, reason: "smoke individual initial bypass" })
+      }
+    );
+    const individualInitialPayload = await individualInitialResponse.json();
+    assert(individualInitialResponse.status === 409, "individual initial candidate endpoint should reject candidate A");
+    assert(individualInitialPayload.code === "initial_batch_admission_required", "individual initial candidate rejection should require the bundle endpoint");
+    const queuedBundleResponse = await fetch(
+      `http://127.0.0.1:${port}/api/codex/tournaments/${queuedResumeTournamentId}/initial-candidates`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: "{}"
+      }
+    );
+    const queuedBundlePayload = await queuedBundleResponse.json();
+    assert(queuedBundleResponse.status === 409, "queued initial bundle should be rejected while one runner is active");
+    assert(queuedBundlePayload.code === "insufficient_runner_slots", "queued initial bundle rejection should expose the admission error code");
+    const queuedResumeManifest = await getJson(port, `/api/codex/tournaments/${queuedResumeTournamentId}`);
+    assert(
+      queuedResumeManifest.tournament.candidates.slice(0, 3).every((candidate) => !candidate.jobId),
+      "rejected queued bundle should leave every initial candidate unstarted"
+    );
+    assert(
+      (await getJson(port, "/api/codex/jobs")).jobs.length === inboxBeforeResumeRejections,
+      "individual and queued bundle rejections should not create inbox jobs"
+    );
+    await postJson(port, `/api/codex/tournaments/${queuedResumeTournamentId}/cancel`, {});
+
+    const inboxBeforeRejectedBundle = (await getJson(port, "/api/codex/jobs")).jobs.length;
+    const capacityResponse = await fetch(`http://127.0.0.1:${port}/api/codex/tournaments`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(capacityRegistration)
+    });
+    const capacityPayload = await capacityResponse.json();
+    assert(capacityResponse.status === 409, `Best initial bundle should be rejected while one runner is active: ${capacityResponse.status} ${JSON.stringify(capacityPayload)}`);
+    assert(capacityPayload.code === "insufficient_runner_slots", "Best initial bundle rejection should expose the admission error code");
+    assert(capacityPayload.requiredSlots === 3, "Best initial bundle rejection should require all three slots");
+    assert(capacityPayload.capacity?.active === 1 && capacityPayload.capacity?.available === 2, "Best initial bundle rejection should report 1 active and 2 available slots");
+    const rejectedTournament = await fetch(`http://127.0.0.1:${port}/api/codex/tournaments/${capacityTournamentId}`);
+    assert(rejectedTournament.status === 404, "rejected Best admission should not leave a tournament manifest");
+    const inboxAfterRejectedBundle = (await getJson(port, "/api/codex/jobs")).jobs.length;
+    assert(inboxAfterRejectedBundle === inboxBeforeRejectedBundle, "rejected Best admission should not create candidate inbox jobs");
+    await waitForJobState(port, capacityBlocker.id, "completed", 22000);
+
+    const admittedCapacityTournament = await postJson(port, "/api/codex/tournaments", capacityRegistration);
+    assert(admittedCapacityTournament.jobs.length === 3, "idle runner pool should atomically start all three Best candidates");
+    assert(new Set(admittedCapacityTournament.jobs.map((job) => job.id)).size === 3, "atomic Best admission should return three distinct job ids");
+    assert(admittedCapacityTournament.jobs.every((job) => job.runner?.state === "running"), "all three admitted Best candidates should be running in one response");
+    assert(
+      admittedCapacityTournament.tournament.candidates.slice(0, 3).every((candidate) => Boolean(candidate.jobId)),
+      "atomic Best admission should attach A/B/C before returning"
+    );
+    const duplicateCapacityTournament = await postJson(port, "/api/codex/tournaments", capacityRegistration);
+    assert(
+      duplicateCapacityTournament.jobs.map((job) => job.id).join(",") === admittedCapacityTournament.jobs.map((job) => job.id).join(","),
+      "duplicate atomic admission should reuse the same A/B/C jobs"
+    );
+    await Promise.all(admittedCapacityTournament.jobs.map((job) => waitForJobState(port, job.id, "completed")));
+
+    const raceTemplate = {
+      ...capacityHoldTemplate,
+      prompt: "Smoke test admission race hold"
+    };
+    const genericRaceTemplate = {
+      ...genericCapacityHoldTemplate,
+      prompt: "Smoke test admission race hold"
+    };
+    const raceTournamentId = "smoke-atomic-admission-race";
+    const [genericRaceResponse, tournamentRaceResponse] = await Promise.all([
+      fetch(`http://127.0.0.1:${port}/api/codex/jobs`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(genericRaceTemplate)
+      }),
+      fetch(`http://127.0.0.1:${port}/api/codex/tournaments`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...capacityRegistration,
+          tournamentId: raceTournamentId,
+          idempotencyKey: "smoke:atomic-admission-race:v1",
+          jobTemplate: raceTemplate
+        })
+      })
+    ]);
+    const [genericRacePayload, tournamentRacePayload] = await Promise.all([
+      genericRaceResponse.json(),
+      tournamentRaceResponse.json()
+    ]);
+    assert(
+      Number(genericRaceResponse.ok) + Number(tournamentRaceResponse.ok) === 1,
+      `concurrent generic and animation admission should have exactly one winner: generic=${genericRaceResponse.status}, tournament=${tournamentRaceResponse.status}`
+    );
+    const raceJobIds = [];
+    if (genericRaceResponse.ok) {
+      raceJobIds.push(genericRacePayload.id);
+      assert(tournamentRaceResponse.status === 409, "generic race winner should force the animation bundle to return 409");
+      assert(tournamentRacePayload.code === "insufficient_runner_slots", "animation race loser should report insufficient runner slots");
+    } else {
+      assert(genericRaceResponse.status === 409, "animation race winner should force the generic job to return 409");
+      assert(genericRacePayload.code === "runner_slots_full", "generic race loser should report full runner slots");
+      assert(tournamentRacePayload.jobs?.length === 3, "animation race winner should atomically start three candidates");
+      raceJobIds.push(...tournamentRacePayload.jobs.map((job) => job.id));
+    }
+    const raceCapacity = await getJson(port, "/api/codex/capacity");
+    assert(
+      raceCapacity.capacity.active === raceJobIds.length && [1, 3].includes(raceCapacity.capacity.active),
+      "concurrent admission should leave either one generic runner or exactly three animation runners"
+    );
+    await Promise.all(raceJobIds.map((jobId) => waitForJobState(port, jobId, "completed")));
+
+    const registrationRaceTournamentId = "smoke-registration-lock-race";
+    const registrationRaceBase = {
+      ...capacityRegistration,
+      tournamentId: registrationRaceTournamentId,
+      idempotencyKey: "smoke:registration-lock-race:v1",
+      startInitialCandidates: false,
+      jobTemplate: {
+        ...capacityHoldTemplate,
+        prompt: "Smoke test capacity hold registration lock race"
+      }
+    };
+    const [plainRegistrationRaceResponse, startRegistrationRaceResponse] = await Promise.all([
+      fetch(`http://127.0.0.1:${port}/api/codex/tournaments`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(registrationRaceBase)
+      }),
+      fetch(`http://127.0.0.1:${port}/api/codex/tournaments`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...registrationRaceBase, startInitialCandidates: true })
+      })
+    ]);
+    assert(
+      plainRegistrationRaceResponse.ok && startRegistrationRaceResponse.ok,
+      `plain registration and register+start should serialize without deadlock: plain=${plainRegistrationRaceResponse.status}, start=${startRegistrationRaceResponse.status}`
+    );
+    await Promise.all([plainRegistrationRaceResponse.json(), startRegistrationRaceResponse.json()]);
+    const registrationRaceManifest = await getJson(port, `/api/codex/tournaments/${registrationRaceTournamentId}`);
+    const registrationRaceJobIds = registrationRaceManifest.tournament.candidates
+      .slice(0, 3)
+      .map((candidate) => candidate.jobId)
+      .filter(Boolean);
+    assert(registrationRaceJobIds.length === 3, "registration lock race should leave exactly one attached A/B/C wave");
+    await Promise.all(registrationRaceJobIds.map((jobId) => waitForJobState(port, jobId, "completed")));
+
+    const firstQualifiedTournamentId = "smoke-first-qualified-cancellation";
+    const firstQualifiedRegistration = await postJson(port, "/api/codex/tournaments", {
+      tournamentId: firstQualifiedTournamentId,
+      idempotencyKey: "smoke:first-qualified:cancellation:v1",
+      sourceFingerprint: "smoke-first-qualified-source",
+      motionRecipeId: "walk-cycle",
+      motionRecipeVersion: 1,
+      motionRecipeCompilerVersion: "1.2.0",
+      presetId: "walk-cycle",
+      generationProfile: "best",
+      startInitialCandidates: true,
+      requestedDirections: ["front", "side", "back"],
+      maximumCandidateCount: 3,
+      initialCandidateCount: 3,
+      jobTemplate: {
+        workflowMode: "sprite-generate",
+        prompt: "First Qualified cancellation fixture",
+        negativePrompt: "text",
+        jobNotes: "Candidate A finishes first while B and C remain active.",
+        selectedImageName: "tiny.png",
+        selectedImageSize: "1x1",
+        selectedImageSource: "import",
+        selectedImageDataUrl: tinyPng,
+        grid: { columns: 8, rows: 3, gutter: 0 },
+        action: "walk",
+        frames: 24,
+        framesPerDirection: 8,
+        cell: { width: 256, height: 256 },
+        chromaKey: "green",
+        spriteVariant: "standard",
+        directions: ["front", "side", "back"]
+      }
+    });
+    const firstQualifiedA = firstQualifiedRegistration.jobs[0];
+    const firstQualifiedB = firstQualifiedRegistration.jobs[1];
+    const firstQualifiedC = firstQualifiedRegistration.jobs[2];
+    for (const slug of ["front", "side", "back"]) {
+      await writeFile(join(firstQualifiedA.outboxPath, `${firstQualifiedA.id}-${slug}.png`), tinyPngBytes);
+    }
+    await writeFile(join(firstQualifiedA.outboxPath, `${firstQualifiedA.id}-manifest.json`), JSON.stringify({
+      schema: "image-cockpit.direction-split-animation.v1",
+      jobId: firstQualifiedA.id,
+      action: "walk",
+      directions: ["front", "side", "back"],
+      framesPerDirection: 8,
+      files: {
+        front: `${firstQualifiedA.id}-front.png`,
+        side: `${firstQualifiedA.id}-side.png`,
+        back: `${firstQualifiedA.id}-back.png`
+      },
+      chromaKey: { name: "green" }
+    }, null, 2), "utf8");
+    await waitForJobState(port, firstQualifiedA.id, "completed");
+    for (const activeJob of [firstQualifiedB, firstQualifiedC]) {
+      const activeStatus = await getJson(port, `/api/codex/jobs/${activeJob.id}/status`);
+      assert(activeStatus.status.state === "running", "First Qualified fixture should keep both remaining candidates active");
+    }
+    await postJson(port, `/api/codex/tournaments/${firstQualifiedTournamentId}/evaluation`, {
+      jobId: firstQualifiedA.id,
+      ready: true,
+      score: 3400,
+      warningCount: 1,
+      identityScore: 90,
+      shadowWouldBlock: false,
+      reason: "warning rejection fixture"
+    });
+    const rejectedWarnedFirstQualified = await fetch(
+      `http://127.0.0.1:${port}/api/codex/tournaments/${firstQualifiedTournamentId}/winner`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          jobId: firstQualifiedA.id,
+          decision: {
+            mode: "first-qualified",
+            reason: "first completed Best candidate passed the strict solo gate",
+            comparedJobIds: [firstQualifiedA.id]
+          }
+        })
+      }
+    );
+    assert(rejectedWarnedFirstQualified.status === 409, "First Qualified should reject a candidate with any quality warning");
+    await postJson(port, `/api/codex/tournaments/${firstQualifiedTournamentId}/evaluation`, {
+      jobId: firstQualifiedA.id,
+      ready: true,
+      score: 3400,
+      warningCount: 0,
+      identityScore: 90,
+      shadowWouldBlock: false,
+      reason: "strict solo gate fixture"
+    });
+    const acceptedFirstQualified = await postJson(
+      port,
+      `/api/codex/tournaments/${firstQualifiedTournamentId}/winner`,
+      {
+        jobId: firstQualifiedA.id,
+        decision: {
+          mode: "first-qualified",
+          reason: "first completed Best candidate passed the strict solo gate",
+          comparedJobIds: [firstQualifiedA.id]
+        }
+      }
+    );
+    assert(acceptedFirstQualified.tournament.state === "accepted", "First Qualified winner should be durably accepted");
+    assert(
+      acceptedFirstQualified.tournament.smartRaceDecision.mode === "first-qualified",
+      "First Qualified decision should persist its distinct mode"
+    );
+    assert(
+      acceptedFirstQualified.cancellationResults.filter((result) => result.ok).length === 2,
+      "First Qualified acceptance should cancel both remaining candidates"
+    );
+    for (const cancelledJob of [firstQualifiedB, firstQualifiedC]) {
+      const cancelledStatus = await getJson(port, `/api/codex/jobs/${cancelledJob.id}/status`);
+      assert(
+        cancelledStatus.status.state === "failed" && cancelledStatus.status.message.includes("cancelled"),
+        "First Qualified loser runners should stop inside winner acceptance"
+      );
+    }
+
+    const smartRaceTournamentId = "smoke-smart-race-cancellation";
+    const smartRaceRegistration = await postJson(port, "/api/codex/tournaments", {
+      tournamentId: smartRaceTournamentId,
+      idempotencyKey: "smoke:smart-race:cancellation:v1",
+      sourceFingerprint: "smoke-smart-race-source",
+      motionRecipeId: "walk-cycle",
+      motionRecipeVersion: 1,
+      motionRecipeCompilerVersion: "1.2.0",
+      presetId: "walk-cycle",
+      generationProfile: "best",
+      startInitialCandidates: true,
+      requestedDirections: ["front", "side", "back"],
+      maximumCandidateCount: 3,
+      initialCandidateCount: 3,
+      jobTemplate: {
+        workflowMode: "sprite-generate",
+        prompt: "Smart Race cancellation fixture",
+        negativePrompt: "text",
+        jobNotes: "Candidate A stays active while B and C finish.",
+        selectedImageName: "tiny.png",
+        selectedImageSize: "1x1",
+        selectedImageSource: "import",
+        selectedImageDataUrl: tinyPng,
+        grid: { columns: 8, rows: 3, gutter: 0 },
+        action: "walk",
+        frames: 24,
+        framesPerDirection: 8,
+        cell: { width: 256, height: 256 },
+        chromaKey: "green",
+        spriteVariant: "standard",
+        directions: ["front", "side", "back"]
+      }
+    });
+    assert(smartRaceRegistration.tournament.selectionPolicy === "smart-race", "new non-Pilot Best tournaments should persist Smart Race");
+    const smartRaceCandidates = smartRaceRegistration.jobs.map((job) => ({ job, tournament: smartRaceRegistration.tournament }));
+    const smartRaceA = smartRaceCandidates[0];
+    const smartRaceB = smartRaceCandidates[1];
+    const smartRaceC = smartRaceCandidates[2];
+    for (const slug of ["front", "side", "back"]) {
+      await writeFile(join(smartRaceC.job.outboxPath, `${smartRaceC.job.id}-${slug}.png`), tinyPngBytes);
+    }
+    await writeFile(join(smartRaceC.job.outboxPath, `${smartRaceC.job.id}-manifest.json`), JSON.stringify({
+      schema: "image-cockpit.direction-split-animation.v1",
+      jobId: smartRaceC.job.id,
+      action: "walk",
+      directions: ["front", "side", "back"],
+      framesPerDirection: 8,
+      files: {
+        front: `${smartRaceC.job.id}-front.png`,
+        side: `${smartRaceC.job.id}-side.png`,
+        back: `${smartRaceC.job.id}-back.png`
+      },
+      chromaKey: { name: "green" }
+    }, null, 2), "utf8");
+    await Promise.all([
+      waitForJobState(port, smartRaceB.job.id, "completed"),
+      waitForJobState(port, smartRaceC.job.id, "completed")
+    ]);
+    const smartRaceAStatus = await getJson(port, `/api/codex/jobs/${smartRaceA.job.id}/status`);
+    assert(smartRaceAStatus.status.state === "running", "Smart Race fixture should keep candidate A active");
+    await postJson(port, `/api/codex/tournaments/${smartRaceTournamentId}/evaluation`, {
+      jobId: smartRaceB.job.id,
+      ready: true,
+      score: 3275,
+      warningCount: 5,
+      identityScore: 82.04,
+      shadowWouldBlock: true,
+      reason: "measured B fixture"
+    });
+    await postJson(port, `/api/codex/tournaments/${smartRaceTournamentId}/evaluation`, {
+      jobId: smartRaceC.job.id,
+      ready: true,
+      score: 3325,
+      warningCount: 3,
+      identityScore: 83.96,
+      shadowWouldBlock: false,
+      reason: "measured C fixture"
+    });
+    const smartRaceWinnerRequest = {
+      jobId: smartRaceC.job.id,
+      decision: {
+        mode: "early-accept",
+        reason: "two ready Best candidates have a clear Smart Race winner",
+        comparedJobIds: [smartRaceB.job.id, smartRaceC.job.id],
+        scoreGap: 50
+      }
+    };
+    const acceptedSmartRace = await postJson(
+      port,
+      `/api/codex/tournaments/${smartRaceTournamentId}/winner`,
+      smartRaceWinnerRequest
+    );
+    assert(acceptedSmartRace.tournament.state === "accepted", "Smart Race winner should be durably accepted");
+    assert(acceptedSmartRace.tournament.smartRaceDecision.winnerJobId === smartRaceC.job.id, "Smart Race decision should persist candidate C");
+    assert(acceptedSmartRace.tournament.smartRaceDecision.scoreGap === 50, "Smart Race should persist the server-calculated score gap");
+    assert(acceptedSmartRace.tournament.candidates[0].state === "cancelled", "unfinished candidate A should be marked cancelled");
+    assert(
+      acceptedSmartRace.cancellationResults.some((result) => result.jobId === smartRaceA.job.id && result.ok),
+      "winner response should include the server-side candidate A cancellation"
+    );
+    const cancelledSmartRaceA = await getJson(port, `/api/codex/jobs/${smartRaceA.job.id}/status`);
+    assert(cancelledSmartRaceA.status.state === "failed" && cancelledSmartRaceA.status.message.includes("cancelled"), "candidate A runner should stop inside winner acceptance");
+    const completedSmartRaceB = await getJson(port, `/api/codex/jobs/${smartRaceB.job.id}/status`);
+    assert(completedSmartRaceB.status.state === "completed", "candidate B should be terminal before crash-window simulation");
+    const firstDecisionTimestamp = acceptedSmartRace.tournament.smartRaceDecision.decidedAt;
+    const repeatedSmartRaceWinner = await postJson(
+      port,
+      `/api/codex/tournaments/${smartRaceTournamentId}/winner`,
+      smartRaceWinnerRequest
+    );
+    assert(repeatedSmartRaceWinner.reused === true, "same Smart Race winner POST should reuse the published result");
+    assert(repeatedSmartRaceWinner.tournament.smartRaceDecision.decidedAt === firstDecisionTimestamp, "same winner POST should preserve the first decision");
+    const rejectedDifferentSmartRaceWinner = await fetch(
+      `http://127.0.0.1:${port}/api/codex/tournaments/${smartRaceTournamentId}/winner`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...smartRaceWinnerRequest, jobId: smartRaceB.job.id })
+      }
+    );
+    assert(rejectedDifferentSmartRaceWinner.status === 409, "a different automatic winner should be rejected after acceptance");
+
+    const repairManifestBeforeCapacityBlock = await getJson(port, `/api/codex/tournaments/${smartRaceTournamentId}`);
+    const repairCapacityBlockers = await Promise.all(
+      [0, 1, 2].map((index) => postJson(port, "/api/codex/jobs", {
+        ...genericCapacityHoldTemplate,
+        prompt: `Smoke test admission race hold repair capacity ${index + 1}`
+      }))
+    );
+    assert(
+      repairCapacityBlockers.every((job) => job.runner?.state === "running"),
+      "repair capacity fixture should occupy all three runner slots"
+    );
+    const blockedRepairResponse = await fetch(
+      `http://127.0.0.1:${port}/api/codex/tournaments/${smartRaceTournamentId}/repairs`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ directions: ["side"] })
+      }
+    );
+    const blockedRepairPayload = await blockedRepairResponse.json();
+    assert(blockedRepairResponse.status === 409, "Direction Repair should reject while all runner slots are occupied");
+    assert(blockedRepairPayload.code === "runner_slots_full", "blocked Direction Repair should expose the runner capacity error");
+    const repairManifestAfterCapacityBlock = await getJson(port, `/api/codex/tournaments/${smartRaceTournamentId}`);
+    assert(
+      repairManifestAfterCapacityBlock.tournament.retryCount === repairManifestBeforeCapacityBlock.tournament.retryCount,
+      "capacity-blocked Direction Repair should not consume a retry"
+    );
+    assert(
+      repairManifestAfterCapacityBlock.tournament.candidates.length === repairManifestBeforeCapacityBlock.tournament.candidates.length,
+      "capacity-blocked Direction Repair should not append a candidate"
+    );
+    assert(
+      JSON.stringify(repairManifestAfterCapacityBlock.tournament.directionStates) ===
+        JSON.stringify(repairManifestBeforeCapacityBlock.tournament.directionStates),
+      "capacity-blocked Direction Repair should not mutate direction states"
+    );
+    await Promise.all(repairCapacityBlockers.map((job) => waitForJobState(port, job.id, "completed")));
+
+    await stopServer(server);
+    const simulatedOrphanStartedAt = new Date().toISOString();
+    simulatedOrphanRunner = spawn(nodeCommand, ["-e", "setTimeout(() => {}, 60000)"], {
+      stdio: "ignore",
+      windowsHide: true
+    });
+    const simulatedOrphanPid = simulatedOrphanRunner.pid;
+    assert(typeof simulatedOrphanPid === "number", "crash-window fixture should start a simulated orphan runner");
+    await Promise.all([
+      writeFile(cancelledSmartRaceA.status.statusPath, JSON.stringify({
+        ...cancelledSmartRaceA.status,
+        state: "running",
+        message: "Simulate API crash after accepted manifest persistence but before loser cancellation.",
+        command: nodeCommand,
+        processId: simulatedOrphanPid,
+        startedAt: "2000-01-01T00:00:00.000Z",
+        finishedAt: undefined,
+        exitCode: undefined,
+        signal: undefined,
+        diagnostic: undefined
+      }, null, 2), "utf8"),
+      writeFile(completedSmartRaceB.status.statusPath, JSON.stringify({
+        ...completedSmartRaceB.status,
+        state: "running",
+        message: "Simulate stale terminal candidate status after accepted manifest persistence.",
+        finishedAt: undefined,
+        exitCode: undefined,
+        signal: undefined,
+        diagnostic: undefined
+      }, null, 2), "utf8")
+    ]);
+    server = startServer({ port, handoffDir, env: autorunEnv });
+    await waitForServer(server, port);
+    const restoredSmartRace = await getJson(port, `/api/codex/tournaments/${smartRaceTournamentId}`);
+    assert(restoredSmartRace.tournament.selectionPolicy === "smart-race", "Smart Race policy should survive API restart");
+    assert(restoredSmartRace.tournament.candidates[1].identityScore === 82.04, "runner-up identity should survive API restart");
+    assert(restoredSmartRace.tournament.candidates[1].shadowWouldBlock === true, "runner-up shadow result should survive API restart");
+    assert(restoredSmartRace.tournament.candidates[2].identityScore === 83.96, "winner identity should survive API restart");
+    assert(restoredSmartRace.tournament.candidates[2].shadowWouldBlock === false, "winner shadow result should survive API restart");
+    assert(restoredSmartRace.tournament.smartRaceDecision.decidedAt === firstDecisionTimestamp, "Smart Race decision should survive API restart");
+    const restoredSmartRaceBStatus = await getJson(port, `/api/codex/jobs/${smartRaceB.job.id}/status`);
+    assert(restoredSmartRaceBStatus.status.state === "failed", "accepted terminal loser should be recovered as cancelled instead of resuming");
+    assert(
+      restoredSmartRaceBStatus.status.message.includes("recovered"),
+      `accepted loser guard should explain recovered cancellation: ${restoredSmartRaceBStatus.status.message}`
+    );
+    assert((restoredSmartRaceBStatus.status.resumeCount ?? 0) === (completedSmartRaceB.status.resumeCount ?? 0), "accepted terminal loser resume count should remain unchanged");
+    const unconfirmedSmartRaceWinner = await postJson(
+      port,
+      `/api/codex/tournaments/${smartRaceTournamentId}/winner`,
+      { jobId: smartRaceC.job.id }
+    );
+    assert(
+      unconfirmedSmartRaceWinner.cancellationResults.some((result) => result.jobId === smartRaceA.job.id && !result.ok),
+      `mismatched orphan identity should remain unconfirmed: ${JSON.stringify(unconfirmedSmartRaceWinner.cancellationResults)}`
+    );
+    const pendingSmartRaceAStatus = await getJson(port, `/api/codex/jobs/${smartRaceA.job.id}/status`);
+    assert(pendingSmartRaceAStatus.status.cancellationPending === true, "unconfirmed orphan cancellation should remain idempotently retryable");
+    assert(!(await waitForProcessExit(simulatedOrphanPid, 250)), "identity mismatch must not terminate the simulated orphan runner");
+    await stopServer(server);
+    await writeFile(pendingSmartRaceAStatus.status.statusPath, JSON.stringify({
+      ...pendingSmartRaceAStatus.status,
+      command: nodeCommand,
+      processId: simulatedOrphanPid,
+      startedAt: simulatedOrphanStartedAt,
+      cancellationPending: true,
+      finishedAt: undefined,
+      exitCode: undefined,
+      signal: undefined,
+      diagnostic: undefined
+    }, null, 2), "utf8");
+    server = startServer({ port, handoffDir, env: autorunEnv });
+    await waitForServer(server, port);
+    const reconciledSmartRaceWinner = await postJson(
+      port,
+      `/api/codex/tournaments/${smartRaceTournamentId}/winner`,
+      { jobId: smartRaceC.job.id }
+    );
+    assert(
+      reconciledSmartRaceWinner.cancellationResults.some((result) => result.jobId === smartRaceA.job.id && result.ok),
+      `same-winner recovery retry should reconcile a verified orphan: ${JSON.stringify(reconciledSmartRaceWinner.cancellationResults)}`
+    );
+    assert(await waitForProcessExit(simulatedOrphanPid), "same-winner recovery POST should terminate the verified orphan runner process tree");
+    const restoredSmartRaceAStatus = await getJson(port, `/api/codex/jobs/${smartRaceA.job.id}/status`);
+    assert(restoredSmartRaceAStatus.status.state === "failed", "accepted loser should not resume after API restart");
+    assert(!restoredSmartRaceAStatus.status.cancellationPending, "confirmed orphan cancellation should clear the pending retry flag");
+    assert((restoredSmartRaceAStatus.status.resumeCount ?? 0) === (cancelledSmartRaceA.status.resumeCount ?? 0), "accepted loser resume count should remain unchanged");
 
     const job = await postJson(port, "/api/codex/jobs", {
       workflowMode: "image-generate",
@@ -1366,6 +2206,7 @@ async function runMockAutorunSmoke() {
     assert(noImageStatus.status.diagnostic?.kind === "no_image_returned", "no-image job should return no_image_returned diagnostic");
   } finally {
     await stopServer(server);
+    if (simulatedOrphanRunner?.exitCode === null) simulatedOrphanRunner.kill("SIGTERM");
     await rm(handoffDir, { recursive: true, force: true });
   }
 }
@@ -1405,6 +2246,19 @@ async function stopServer(server) {
   });
 }
 
+async function waitForProcessExit(processId, timeoutMs = 3000) {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    try {
+      process.kill(processId, 0);
+    } catch {
+      return true;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 50));
+  }
+  return false;
+}
+
 async function waitForServer(server, apiPort) {
   const deadline = Date.now() + 8000;
   while (Date.now() < deadline) {
@@ -1418,8 +2272,8 @@ async function waitForServer(server, apiPort) {
   throw new Error(`API server did not become ready.\n${server.output}`);
 }
 
-async function waitForJobState(apiPort, jobId, expectedState) {
-  const deadline = Date.now() + 8000;
+async function waitForJobState(apiPort, jobId, expectedState, timeoutMs = 8000) {
+  const deadline = Date.now() + timeoutMs;
   let lastStatus;
   while (Date.now() < deadline) {
     lastStatus = await getJson(apiPort, `/api/codex/jobs/${encodeURIComponent(jobId)}/status`);
@@ -1494,6 +2348,24 @@ if (!stdin.includes("built-in imagegen / image_gen") || !stdin.includes("procedu
   process.exit(5);
 }
 
+const standardDirectionContract = [
+  "five requested directions means five concurrent image_gen calls inside this one candidate",
+  "Capture the exact path returned by that call and bind it one-to-one to that direction",
+  "directionAttempts keyed by canonical direction slug",
+  "Never submit image_gen for it again",
+  "regenerating the complete requested direction set because one direction failed is prohibited",
+  "Direction Repair or Motion Pilot expansion may request any 1-5 direction subset",
+  "Track a concurrency ceiling separately from the actual wave size",
+  "each actual wave size is min(concurrency ceiling, pending direction count)",
+  "reduce ceiling 5 or 4 to 3",
+  "must not create more Codex jobs",
+  "Do not create direction child-job UI, partial direction previews, or cross-job generation caches"
+];
+if (!standardDirectionContract.every((marker) => stdin.includes(marker))) {
+  console.error("missing standard direction parallel runner contract");
+  process.exit(6);
+}
+
 const jobId = process.env.IMAGE_COCKPIT_JOB_ID;
 const jobPath = process.env.IMAGE_COCKPIT_JOB_PATH;
 const outboxDir = process.env.IMAGE_COCKPIT_OUTBOX_DIR;
@@ -1514,6 +2386,22 @@ if (job.prompt.includes("API restart resume")) {
 
 if (job.prompt.includes("capacity hold")) {
   await new Promise((resolve) => setTimeout(resolve, 1800));
+}
+
+if (job.prompt.includes("animation admission blocker long")) {
+  await new Promise((resolve) => setTimeout(resolve, 15000));
+}
+
+if (job.prompt.includes("admission race hold")) {
+  await new Promise((resolve) => setTimeout(resolve, 5000));
+}
+
+if (job.prompt.includes("Smart Race cancellation fixture")) {
+  await new Promise((resolve) => setTimeout(resolve, job.tournament?.candidateIndex === 0 ? 6000 : 250));
+}
+
+if (job.prompt.includes("First Qualified cancellation fixture")) {
+  await new Promise((resolve) => setTimeout(resolve, job.tournament?.candidateIndex === 0 ? 250 : 6000));
 }
 
 if (job.prompt.includes("policy blocked sidecar")) {
