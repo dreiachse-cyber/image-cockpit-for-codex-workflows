@@ -46,13 +46,25 @@ const expandedPromptExampleChecks = [
   { title: "Auburn-Pigtail Farmer", promptText: "two high fluffy pigtails" },
   { title: "Wolf Beastfolk", promptText: "bipedal gray wolf warrior" }
 ];
+const simplePromptPresetChecks = [
+  { id: "quick-elder-man", titleEn: "Elderly Man", titleJa: "老人", promptEn: "A stylized 2D pixel-art elderly man", promptJa: "2Dのデフォルメされたピクセルアートの老人", child: "Elder Male Sage", relatedCount: 5 },
+  { id: "quick-elder-woman", titleEn: "Elderly Woman", titleJa: "老婆", promptEn: "A stylized 2D pixel-art elderly woman", promptJa: "2Dのデフォルメされたピクセルアートの老婆", child: "Elder Female Herbalist", relatedCount: 5 },
+  { id: "quick-man", titleEn: "Man", titleJa: "男性", promptEn: "A stylized 2D pixel-art man", promptJa: "2Dのデフォルメされたピクセルアートの男性", child: "Young Male Hero", relatedCount: 12 },
+  { id: "quick-woman", titleEn: "Woman", titleJa: "女性", promptEn: "A stylized 2D pixel-art woman", promptJa: "2Dのデフォルメされたピクセルアートの女性", child: "Young Female Hero", relatedCount: 11 },
+  { id: "quick-girl", titleEn: "Girl", titleJa: "女の子", promptEn: "A stylized 2D pixel-art girl", promptJa: "2Dのデフォルメされたピクセルアートの女の子", child: "Auburn-Pigtail Farmer", relatedCount: 8 },
+  { id: "quick-boy", titleEn: "Boy", titleJa: "男の子", promptEn: "A stylized 2D pixel-art boy", promptJa: "2Dのデフォルメされたピクセルアートの男の子", child: "Copper-Haired Scout", relatedCount: 8 },
+  { id: "quick-cat", titleEn: "Cat", titleJa: "猫", promptEn: "A stylized 2D pixel-art cat", promptJa: "2Dのデフォルメされたピクセルアートの猫", child: "Curious Cat", relatedCount: 1 },
+  { id: "quick-dog", titleEn: "Dog", titleJa: "犬", promptEn: "A stylized 2D pixel-art dog", promptJa: "2Dのデフォルメされたピクセルアートの犬", child: "Loyal Dog", relatedCount: 1 },
+  { id: "quick-monster", titleEn: "Monster", titleJa: "モンスター", promptEn: "A stylized 2D pixel-art monster", promptJa: "2Dのデフォルメされたピクセルアートのモンスター", child: "Classic Green Slime", relatedCount: 51 }
+];
 const expectedNewPromptCategoryCounts = {
   Animals: 10,
   "Chibi Boys": 5,
   "Chibi Girls": 5,
   Beastfolk: 10
 };
-const expectedPromptExampleCount = 137;
+const expectedSimplePromptPresetCount = 9;
+const expectedDetailedPromptExampleCount = 137;
 const expectedCodexLogHistoryLimit = 3;
 
 if (!browserCommand) {
@@ -538,20 +550,135 @@ async function assertPromptExamples() {
     return Boolean(trigger && promptField && promptField.nextElementSibling === trigger);
   })()`);
   assert(triggerPlacement, "Prompt Examples trigger should sit directly below the prompt field");
+
+  const quickFieldSentinels = {
+    negative: "keep-this-negative-sentinel",
+    notes: "keep-this-generation-notes-sentinel"
+  };
+  await evaluate(`(() => {
+    const setField = (labelText, value) => {
+      const label = Array.from(document.querySelectorAll(".source-panel label.field"))
+        .find((item) => item.querySelector("span")?.textContent.trim() === labelText);
+      const textarea = label?.querySelector("textarea");
+      if (!textarea) throw new Error("Field not found: " + labelText);
+      const setter = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value").set;
+      setter.call(textarea, value);
+      textarea.dispatchEvent(new Event("input", { bubbles: true }));
+      textarea.dispatchEvent(new Event("change", { bubbles: true }));
+    };
+    setField("Negative Prompt", ${JSON.stringify(quickFieldSentinels.negative)});
+    setField("Generation Notes", ${JSON.stringify(quickFieldSentinels.notes)});
+  })()`);
+
   await openPromptExamplesModal();
-  const snapshot = await pageSnapshot();
-  assert(snapshot.text.includes("Pick by preview image"), "Prompt Examples intro should be visible");
-  assert(snapshot.buttons.includes("Copy Prompt"), "Prompt Examples should expose copy buttons");
-  assert(snapshot.buttons.includes("Use Prompt"), "Prompt Examples should expose use buttons");
-  assert(
-    snapshot.promptPreviewImages >= expectedPromptExampleCount,
-    `Prompt Examples should show image previews with at least ${expectedPromptExampleCount} image previews, got ${snapshot.promptPreviewImages}`
+  const quickSnapshot = await pageSnapshot();
+  const quickLayer = await evaluate(`(() => ({
+    cards: Array.from(document.querySelectorAll(".quick-prompt-card")).map((card) => ({
+      id: card.dataset.quickPresetId,
+      title: card.querySelector("h2")?.textContent.trim() || "",
+      prompt: card.querySelector(".quick-prompt-text")?.textContent.trim() || ""
+    })),
+    images: document.querySelectorAll(".prompt-modal img").length,
+    categoryTabs: document.querySelectorAll(".prompt-category-tabs").length,
+    startButtons: Array.from(document.querySelectorAll(".quick-prompt-card button"))
+      .filter((button) => button.textContent.replace(/\\s+/g, " ").trim() === "Start with this").length,
+    detailButtons: Array.from(document.querySelectorAll(".quick-prompt-card button"))
+      .filter((button) => button.textContent.replace(/\\s+/g, " ").trim() === "View concrete examples").length
+  }))()`);
+  assert(quickSnapshot.text.includes("Start with a short prompt"), "Simple Prompt layer should explain that users can add their own details");
+  assert(quickLayer.cards.length === expectedSimplePromptPresetCount, `Simple Prompt layer should show exactly ${expectedSimplePromptPresetCount} cards, got ${quickLayer.cards.length}`);
+  assert(new Set(quickLayer.cards.map((card) => card.id)).size === expectedSimplePromptPresetCount, `Simple Prompt presets should expose ${expectedSimplePromptPresetCount} stable unique IDs`);
+  assert(quickLayer.images === 0, `Simple Prompt layer should avoid finished preview-image anchoring, got ${quickLayer.images} images`);
+  assert(quickLayer.categoryTabs === 0, "Simple Prompt layer should keep detailed category tabs one layer down");
+  assert(quickLayer.startButtons === expectedSimplePromptPresetCount, `Simple Prompt layer should expose ${expectedSimplePromptPresetCount} direct-use buttons`);
+  assert(quickLayer.detailButtons === expectedSimplePromptPresetCount, `Simple Prompt layer should expose ${expectedSimplePromptPresetCount} related-example buttons`);
+  for (const check of simplePromptPresetChecks) {
+    const card = quickLayer.cards.find((item) => item.id === check.id);
+    assert(Boolean(card), `Simple Prompt layer should include stable preset ${check.id}`);
+    assert(card.title === check.titleEn, `${check.id} should show exact English title ${check.titleEn}, got ${JSON.stringify(card.title)}`);
+    assert(card.prompt === check.promptEn, `${check.id} should show exact English prompt ${check.promptEn}, got ${JSON.stringify(card.prompt)}`);
+    assert(card.prompt.trim() === card.prompt && !card.prompt.includes("\n") && card.prompt.length < 80, `${check.id} should keep a non-empty, single-line English prompt under 80 characters`);
+  }
+  assert(quickSnapshot.buttons.includes("View all concrete examples 137"), "Simple Prompt layer should preserve access to all 137 detailed examples");
+  await maybeCapture("prompt-examples-modal");
+
+  await clickQuickPromptCardButton("Girl", "Start with this");
+  await waitForEval(
+    () => `document.body.innerText.includes("Prompt example loaded into Pixel Art Generation")`,
+    "Simple Girl prompt loaded"
   );
-  assert(snapshot.promptRawTextBlocks === 0, `Prompt Examples should hide raw prompt text, got ${snapshot.promptRawTextBlocks} raw blocks`);
+  const quickUseResult = await evaluate(`(() => {
+    const valueFor = (labelText) => {
+      const label = Array.from(document.querySelectorAll(".source-panel label.field"))
+        .find((item) => item.querySelector("span")?.textContent.trim() === labelText);
+      return label?.querySelector("textarea")?.value ?? "";
+    };
+    const prompt = document.querySelector(".source-panel textarea");
+    return {
+      prompt: prompt?.value ?? "",
+      readOnly: prompt?.readOnly ?? true,
+      negative: valueFor("Negative Prompt"),
+      notes: valueFor("Generation Notes")
+    };
+  })()`);
+  assert(quickUseResult.prompt === "A stylized 2D pixel-art girl", `Simple Prompt should load an exact short prompt, got ${JSON.stringify(quickUseResult.prompt)}`);
+  assert(!quickUseResult.prompt.includes("\n") && quickUseResult.prompt.length < 80, "Simple Prompt should stay short and on one editable line");
+  assert(quickUseResult.readOnly === false, "Simple Prompt should remain directly editable after loading");
+  assert(quickUseResult.negative === quickFieldSentinels.negative, "Simple Prompt should not overwrite the user's Negative Prompt");
+  assert(quickUseResult.notes === quickFieldSentinels.notes, "Simple Prompt should not overwrite the user's Generation Notes");
+  assert(await evaluate(`!document.querySelector(".prompt-modal")`), "Simple Prompt direct use should close the Prompt Examples modal");
+  await waitForEval(
+    () => `document.activeElement?.classList.contains("prompt-example-trigger") || false`,
+    "Simple Prompt direct use should return focus to the Prompt Examples trigger"
+  );
+
+  await openPromptExamplesModal();
+  for (const check of simplePromptPresetChecks) {
+    await clickQuickPromptCardButton(check.titleEn, "View concrete examples");
+    await waitForEval(
+      () => `document.querySelector(".prompt-modal")?.innerText.includes(${JSON.stringify(check.child)})`,
+      `${check.titleEn} related concrete examples`
+    );
+    const relatedLayer = await evaluate(`(() => ({
+      cards: document.querySelectorAll(".prompt-card").length,
+      categoryTabs: document.querySelectorAll(".prompt-category-tabs").length,
+      text: document.querySelector(".prompt-modal")?.innerText || ""
+    }))()`);
+    assert(relatedLayer.text.includes(check.child), `${check.titleEn} should link to ${check.child}`);
+    assert(
+      relatedLayer.cards === check.relatedCount,
+      `${check.titleEn} should show exactly ${check.relatedCount} related examples, got ${relatedLayer.cards}`
+    );
+    assert(relatedLayer.categoryTabs === 0, `${check.titleEn} related layer should not expose the full-catalog category tabs`);
+    await clickButtonByText("Back to simple prompts");
+    await waitForEval(
+      () => `document.querySelectorAll(".quick-prompt-card").length === ${expectedSimplePromptPresetCount}`,
+      `${check.titleEn} returns to Simple Prompt layer`
+    );
+    await waitForEval(
+      () => `document.activeElement === document.querySelector('[data-quick-preset-id="${check.id}"] .quick-details-button')`,
+      `${check.titleEn} related-example navigation should return focus to its trigger`
+    );
+  }
+
+  await clickSelector(".quick-view-all-button");
+  await waitForEval(
+    () => `document.querySelectorAll(".prompt-card").length === ${expectedDetailedPromptExampleCount}`,
+    "All detailed Prompt Examples layer"
+  );
+  const detailedSnapshot = await pageSnapshot();
+  assert(detailedSnapshot.text.includes("Browse all tuned prompts"), "Detailed Prompt Examples intro should be visible");
+  assert(detailedSnapshot.buttons.includes("Copy Prompt"), "Detailed Prompt Examples should expose copy buttons");
+  assert(detailedSnapshot.buttons.includes("Use Prompt"), "Detailed Prompt Examples should expose use buttons");
+  assert(
+    detailedSnapshot.promptPreviewImages === expectedDetailedPromptExampleCount,
+    `Detailed Prompt Examples should show exactly ${expectedDetailedPromptExampleCount} image previews, got ${detailedSnapshot.promptPreviewImages}`
+  );
+  assert(detailedSnapshot.promptRawTextBlocks === 0, `Detailed Prompt Examples should hide raw prompt text, got ${detailedSnapshot.promptRawTextBlocks} raw blocks`);
   await waitForEval(
     () => `Array.from(document.querySelectorAll(".prompt-card-preview img"))
-      .filter((image) => image.complete && image.naturalWidth > 0).length >= ${expectedPromptExampleCount}`,
-    "Prompt Examples preview images loaded",
+      .filter((image) => image.complete && image.naturalWidth > 0).length === ${expectedDetailedPromptExampleCount}`,
+    "Detailed Prompt Examples preview images loaded",
     60000
   );
   const promptExampleCounts = await evaluate(`(() => {
@@ -567,15 +694,15 @@ async function assertPromptExamples() {
         .map((node) => node.textContent?.trim() || "")
     };
   })()`);
-  assert(promptExampleCounts.hasCategoryTabs, "Prompt Examples should show prompt-category-tabs for large catalogs");
-  assert(promptExampleCounts.loadedImages >= expectedPromptExampleCount, `Prompt Examples preview images should load, got ${promptExampleCounts.loadedImages}`);
+  assert(promptExampleCounts.hasCategoryTabs, "Detailed Prompt Examples should show prompt-category-tabs for the full catalog");
+  assert(promptExampleCounts.loadedImages === expectedDetailedPromptExampleCount, `Detailed Prompt Examples preview images should load exactly ${expectedDetailedPromptExampleCount} images, got ${promptExampleCounts.loadedImages}`);
   assert(
-    promptExampleCounts.copyButtons >= expectedPromptExampleCount,
-    `Prompt Examples should expose copy buttons for every preview, got ${promptExampleCounts.copyButtons}`
+    promptExampleCounts.copyButtons === expectedDetailedPromptExampleCount,
+    `Detailed Prompt Examples should expose copy buttons for all ${expectedDetailedPromptExampleCount} previews, got ${promptExampleCounts.copyButtons}`
   );
   assert(
-    promptExampleCounts.useButtons >= expectedPromptExampleCount,
-    `Prompt Examples should expose use buttons for every preview, got ${promptExampleCounts.useButtons}`
+    promptExampleCounts.useButtons === expectedDetailedPromptExampleCount,
+    `Detailed Prompt Examples should expose use buttons for all ${expectedDetailedPromptExampleCount} previews, got ${promptExampleCounts.useButtons}`
   );
   assert(promptExampleCounts.categories.includes("Basic Character"), "Prompt Examples should include Basic Character category");
   assert(promptExampleCounts.categories.includes("Profession Character"), "Prompt Examples should include Profession Character category");
@@ -585,19 +712,18 @@ async function assertPromptExamples() {
     const actualCount = promptExampleCounts.categories.filter((value) => value === category).length;
     assert(actualCount === expectedCount, `Prompt Examples should include ${expectedCount} ${category} cards, got ${actualCount}`);
   }
-  assert(!snapshot.text.includes("Create one original pixel-art game asset"), "Prompt Examples should not display raw prompt contents");
-  assert(!snapshot.text.includes("Create a single full-body pixel-art character asset"), "Prompt Examples should not display raw basic character prompt contents");
-  assert(!snapshot.text.includes("Create a single full-body pixel-art monster asset"), "Prompt Examples should not display raw monster prompt contents");
+  assert(!detailedSnapshot.text.includes("Create one original pixel-art game asset"), "Detailed Prompt Examples should not display raw prompt contents");
+  assert(!detailedSnapshot.text.includes("Create a single full-body pixel-art character asset"), "Detailed Prompt Examples should not display raw basic character prompt contents");
+  assert(!detailedSnapshot.text.includes("Create a single full-body pixel-art monster asset"), "Detailed Prompt Examples should not display raw monster prompt contents");
   for (const check of basicCharacterPromptExampleChecks) {
-    assert(snapshot.text.includes(check.title), `Prompt Examples should include ${check.title}`);
+    assert(detailedSnapshot.text.includes(check.title), `Detailed Prompt Examples should include ${check.title}`);
   }
   for (const check of expandedPromptExampleChecks) {
-    assert(snapshot.text.includes(check.title), `Prompt Examples should include ${check.title}`);
+    assert(detailedSnapshot.text.includes(check.title), `Detailed Prompt Examples should include ${check.title}`);
   }
-  await maybeCapture("prompt-examples-modal");
 
   for (const check of basicCharacterPromptExampleChecks) {
-    await openPromptExamplesModal();
+    await openAllDetailedPromptExamples();
     await clickPromptExampleCardButton(check.title, "Use Prompt");
     await waitForEval(
       () => `document.body.innerText.includes("Prompt example loaded into Pixel Art Generation")`,
@@ -619,7 +745,7 @@ async function assertPromptExamples() {
   }
 
   for (const check of expandedPromptExampleChecks) {
-    await openPromptExamplesModal();
+    await openAllDetailedPromptExamples();
     await clickPromptExampleCardButton(check.title, "Use Prompt");
     await waitForEval(
       () => `document.body.innerText.includes("Prompt example loaded into Pixel Art Generation")`,
@@ -637,19 +763,64 @@ async function assertPromptExamples() {
     select.dispatchEvent(new Event("change", { bubbles: true }));
   })()`);
   await waitForEval(() => `document.body.innerText.includes("ピクセルアート生成")`, "Japanese Pixel Art Generation copy");
-  await openPromptExamplesModal("プロンプト例", "ぜんまい茸の配達人");
-  const japaneseSnapshot = await pageSnapshot();
+  await openPromptExamplesModal("プロンプト例", "ざっくり作る");
+  const japaneseQuickSnapshot = await pageSnapshot();
+  for (const text of ["この指示から始める", "具体例を見る", "すべての具体例を見る"]) {
+    assert(japaneseQuickSnapshot.text.includes(text), `Japanese Simple Prompt layer should include ${text}`);
+  }
+  const japaneseQuickCards = await evaluate(`Array.from(document.querySelectorAll(".quick-prompt-card")).map((card) => ({
+    id: card.dataset.quickPresetId,
+    title: card.querySelector("h2")?.textContent.trim() || "",
+    prompt: card.querySelector(".quick-prompt-text")?.textContent.trim() || ""
+  }))`);
+  for (const check of simplePromptPresetChecks) {
+    const card = japaneseQuickCards.find((item) => item.id === check.id);
+    assert(Boolean(card), `Japanese Simple Prompt layer should include stable preset ${check.id}`);
+    assert(card.title === check.titleJa, `${check.id} should show exact Japanese title ${check.titleJa}, got ${JSON.stringify(card.title)}`);
+    assert(card.prompt === check.promptJa, `${check.id} should show exact Japanese prompt ${check.promptJa}, got ${JSON.stringify(card.prompt)}`);
+    assert(card.prompt.trim() === card.prompt && !card.prompt.includes("\n") && card.prompt.length < 80, `${check.id} should keep a non-empty, single-line Japanese prompt under 80 characters`);
+  }
+  await clickQuickPromptCardButton("女の子", "この指示から始める");
+  await waitForEval(
+    () => `document.body.innerText.includes("プロンプト例をピクセルアート生成へ入れました")`,
+    "Japanese simple Girl prompt loaded"
+  );
+  const japaneseLoadedPrompt = await evaluate(`document.querySelector("textarea")?.value || ""`);
+  assert(japaneseLoadedPrompt === "2Dのデフォルメされたピクセルアートの女の子", "Japanese Simple Prompt should load the exact short Girl prompt");
+  assert(await evaluate(`!document.querySelector(".prompt-modal")`), "Japanese Simple Prompt should close the Prompt Examples modal");
+
+  await openAllDetailedPromptExamples("プロンプト例", "ぜんまい茸の配達人");
+  const japaneseDetailedSnapshot = await pageSnapshot();
   for (const text of ["動物", "犬", "デフォルメ男の子", "赤毛の斥候少年", "デフォルメ女の子", "赤茶ツインテールの農家少女", "獣人", "狼獣人"]) {
-    assert(japaneseSnapshot.text.includes(text), `Japanese Prompt Examples should include ${text}`);
+    assert(japaneseDetailedSnapshot.text.includes(text), `Japanese detailed Prompt Examples should include ${text}`);
   }
   await clickPromptExampleCardButton("犬", "この例を使う");
   await waitForEval(
     () => `document.body.innerText.includes("プロンプト例をピクセルアート生成へ入れました")`,
-    "Japanese animal prompt example loaded"
+    "Japanese detailed animal prompt example loaded"
   );
-  const japaneseLoadedPrompt = await evaluate(`document.querySelector("textarea")?.value || ""`);
-  assert(japaneseLoadedPrompt.includes("loyal small Shiba-like mixed-breed dog"), "Japanese Use Prompt should load Loyal Dog");
-  assert(await evaluate(`!document.querySelector(".prompt-modal")`), "Japanese Use Prompt should close the Prompt Examples modal");
+  const japaneseDetailedPrompt = await evaluate(`document.querySelector("textarea")?.value || ""`);
+  assert(japaneseDetailedPrompt.includes("loyal small Shiba-like mixed-breed dog"), "Japanese detailed Use Prompt should load Loyal Dog");
+  assert(await evaluate(`!document.querySelector(".prompt-modal")`), "Japanese detailed Use Prompt should close the Prompt Examples modal");
+
+  await evaluate(`(() => {
+    const select = document.querySelector(".language-control select");
+    select.value = "zh-CN";
+    select.dispatchEvent(new Event("change", { bubbles: true }));
+  })()`);
+  await waitForEval(() => `document.body.innerText.includes("像素艺术生成")`, "Simplified Chinese Pixel Art Generation copy");
+  await openPromptExamplesModal("提示词示例", "先简单开始");
+  const simplifiedChineseQuickSnapshot = await pageSnapshot();
+  for (const text of ["先用一句简短提示", "从这条指示开始", "查看具体示例", "查看所有具体示例"]) {
+    assert(simplifiedChineseQuickSnapshot.text.includes(text), `Simplified Chinese Simple Prompt layer should include ${text}`);
+  }
+  assert(
+    await evaluate(`document.querySelectorAll(".quick-prompt-card").length === ${expectedSimplePromptPresetCount}`),
+    "Simplified Chinese Simple Prompt layer should preserve all nine presets"
+  );
+  await clickButtonByAriaLabel("关闭");
+  await waitForEval(() => `!document.querySelector(".prompt-modal")`, "Simplified Chinese Simple Prompt layer closed");
+
   await evaluate(`(() => {
     const select = document.querySelector(".language-control select");
     select.value = "en";
@@ -1081,6 +1252,10 @@ async function assertAnimationPresetExamples() {
   assert(singleDirectionPilot.text.includes("unavailable for single-direction generation"), "Motion Pilot should explain why single-direction generation cannot use expansion");
   await clickSelector(".animation-utility-heading .icon-button");
   await waitForEval(() => '!document.querySelector(".animation-utility-modal")', "Single-direction advanced settings closed");
+  await waitForEval(
+    () => `document.activeElement?.classList.contains("animation-advanced-settings-trigger") || false`,
+    "Single-direction advanced settings should return focus before opening Motion Browser"
+  );
 
   await clickButtonByText("Choose Animation");
   await waitForEval(() => `document.querySelector(".animation-preset-modal")?.innerText.includes("Idle Breathing")`, "Choose Animation modal");
@@ -3144,13 +3319,41 @@ async function clickButtonByText(label) {
   })()`);
 }
 
-async function openPromptExamplesModal(triggerLabel = "Prompt Examples", expectedTitle = "Clockwork Mushroom Courier") {
+async function openPromptExamplesModal(triggerLabel = "Prompt Examples", expectedTitle = "Start broad") {
   const isOpen = await evaluate(`Boolean(document.querySelector(".prompt-modal"))`);
   if (!isOpen) await clickButtonByText(triggerLabel);
   await waitForEval(
     () => `document.querySelector(".prompt-modal")?.innerText.includes(${JSON.stringify(expectedTitle)})`,
     `${expectedTitle} Prompt Examples modal`
   );
+}
+
+async function openAllDetailedPromptExamples(
+  triggerLabel = "Prompt Examples",
+  expectedTitle = "Clockwork Mushroom Courier"
+) {
+  const isOpen = await evaluate(`Boolean(document.querySelector(".prompt-modal"))`);
+  if (!isOpen) {
+    await openPromptExamplesModal(triggerLabel, triggerLabel === "プロンプト例" ? "ざっくり作る" : "Start broad");
+  }
+  const isDetailed = await evaluate(`document.querySelector(".prompt-modal")?.innerText.includes(${JSON.stringify(expectedTitle)})`);
+  if (!isDetailed) await clickSelector(".quick-view-all-button");
+  await waitForEval(
+    () => `document.querySelector(".prompt-modal")?.innerText.includes(${JSON.stringify(expectedTitle)})`,
+    `${expectedTitle} detailed Prompt Examples layer`
+  );
+}
+
+async function clickQuickPromptCardButton(title, buttonLabel) {
+  await evaluate(`(() => {
+    const cards = Array.from(document.querySelectorAll(".quick-prompt-card"));
+    const card = cards.find((item) => item.querySelector("h2")?.textContent.trim() === ${JSON.stringify(title)});
+    if (!card) throw new Error("Simple Prompt card not found: ${title}");
+    const button = Array.from(card.querySelectorAll("button"))
+      .find((item) => item.innerText.replace(/\\s+/g, " ").trim() === ${JSON.stringify(buttonLabel)});
+    if (!button) throw new Error("Simple Prompt button not found: ${title} / ${buttonLabel}");
+    button.click();
+  })()`);
 }
 
 async function clickPromptExampleCardButton(title, buttonLabel) {

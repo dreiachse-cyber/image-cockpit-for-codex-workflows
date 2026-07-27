@@ -713,6 +713,27 @@ interface PromptExample {
   notes: string;
 }
 
+type QuickPromptPresetId =
+  | "quick-elder-man"
+  | "quick-elder-woman"
+  | "quick-man"
+  | "quick-woman"
+  | "quick-girl"
+  | "quick-boy"
+  | "quick-cat"
+  | "quick-dog"
+  | "quick-monster";
+
+interface QuickPromptPreset {
+  id: QuickPromptPresetId;
+  group: LocalizedText;
+  title: LocalizedText;
+  summary: LocalizedText;
+  prompt: LocalizedText;
+  relatedExampleIds: readonly string[];
+  relatedExamplePrefixes: readonly string[];
+}
+
 interface AnimationPresetExample {
   id: string;
   actionName: string;
@@ -3583,6 +3604,363 @@ const promptExamples: PromptExample[] = [
   }
 ];
 
+const quickPromptPresets: QuickPromptPreset[] = [
+  {
+    id: "quick-elder-man",
+    group: { en: "People", ja: "人物" },
+    title: { en: "Elderly Man", ja: "老人" },
+    summary: {
+      en: "Add any hairstyle, clothes, colors, or expression you like.",
+      ja: "髪型、服、色、表情などを自由に足せます。"
+    },
+    prompt: {
+      en: "A stylized 2D pixel-art elderly man",
+      ja: "2Dのデフォルメされたピクセルアートの老人"
+    },
+    relatedExampleIds: ["basic-elder-male-sage"],
+    relatedExamplePrefixes: ["profession-elder-male-"]
+  },
+  {
+    id: "quick-elder-woman",
+    group: { en: "People", ja: "人物" },
+    title: { en: "Elderly Woman", ja: "老婆" },
+    summary: {
+      en: "Add any hairstyle, clothes, colors, or expression you like.",
+      ja: "髪型、服、色、表情などを自由に足せます。"
+    },
+    prompt: {
+      en: "A stylized 2D pixel-art elderly woman",
+      ja: "2Dのデフォルメされたピクセルアートの老婆"
+    },
+    relatedExampleIds: ["basic-elder-female-herbalist"],
+    relatedExamplePrefixes: ["profession-elder-female-"]
+  },
+  {
+    id: "quick-man",
+    group: { en: "People", ja: "人物" },
+    title: { en: "Man", ja: "男性" },
+    summary: {
+      en: "Add any hairstyle, clothes, colors, or expression you like.",
+      ja: "髪型、服、色、表情などを自由に足せます。"
+    },
+    prompt: {
+      en: "A stylized 2D pixel-art man",
+      ja: "2Dのデフォルメされたピクセルアートの男性"
+    },
+    relatedExampleIds: ["basic-young-male-hero", "basic-middle-aged-male-mercenary", "basic-large-veteran-warrior"],
+    relatedExamplePrefixes: ["profession-young-male-", "profession-middle-aged-male-"]
+  },
+  {
+    id: "quick-woman",
+    group: { en: "People", ja: "人物" },
+    title: { en: "Woman", ja: "女性" },
+    summary: {
+      en: "Add any hairstyle, clothes, colors, or expression you like.",
+      ja: "髪型、服、色、表情などを自由に足せます。"
+    },
+    prompt: {
+      en: "A stylized 2D pixel-art woman",
+      ja: "2Dのデフォルメされたピクセルアートの女性"
+    },
+    relatedExampleIds: ["basic-young-female-hero", "basic-middle-aged-female-ranger"],
+    relatedExamplePrefixes: ["profession-young-female-", "profession-middle-aged-female-"]
+  },
+  {
+    id: "quick-girl",
+    group: { en: "People", ja: "人物" },
+    title: { en: "Girl", ja: "女の子" },
+    summary: {
+      en: "Add any hairstyle, clothes, colors, or expression you like.",
+      ja: "髪型、服、色、表情などを自由に足せます。"
+    },
+    prompt: {
+      en: "A stylized 2D pixel-art girl",
+      ja: "2Dのデフォルメされたピクセルアートの女の子"
+    },
+    relatedExampleIds: ["basic-girl-adventurer"],
+    relatedExamplePrefixes: ["profession-girl-", "chibi-girl-"]
+  },
+  {
+    id: "quick-boy",
+    group: { en: "People", ja: "人物" },
+    title: { en: "Boy", ja: "男の子" },
+    summary: {
+      en: "Add any hairstyle, clothes, colors, or expression you like.",
+      ja: "髪型、服、色、表情などを自由に足せます。"
+    },
+    prompt: {
+      en: "A stylized 2D pixel-art boy",
+      ja: "2Dのデフォルメされたピクセルアートの男の子"
+    },
+    relatedExampleIds: ["basic-boy-adventurer"],
+    relatedExamplePrefixes: ["profession-boy-", "chibi-boy-"]
+  },
+  {
+    id: "quick-cat",
+    group: { en: "Animals", ja: "動物" },
+    title: { en: "Cat", ja: "猫" },
+    summary: {
+      en: "Add any fur color, pattern, expression, or accessory you like.",
+      ja: "毛色、模様、表情、小物などを自由に足せます。"
+    },
+    prompt: {
+      en: "A stylized 2D pixel-art cat",
+      ja: "2Dのデフォルメされたピクセルアートの猫"
+    },
+    relatedExampleIds: ["animal-curious-cat"],
+    relatedExamplePrefixes: []
+  },
+  {
+    id: "quick-dog",
+    group: { en: "Animals", ja: "動物" },
+    title: { en: "Dog", ja: "犬" },
+    summary: {
+      en: "Add any fur color, breed, expression, or accessory you like.",
+      ja: "毛色、犬種、表情、小物などを自由に足せます。"
+    },
+    prompt: {
+      en: "A stylized 2D pixel-art dog",
+      ja: "2Dのデフォルメされたピクセルアートの犬"
+    },
+    relatedExampleIds: ["animal-loyal-dog"],
+    relatedExamplePrefixes: []
+  },
+  {
+    id: "quick-monster",
+    group: { en: "Monsters", ja: "モンスター" },
+    title: { en: "Monster", ja: "モンスター" },
+    summary: {
+      en: "Add any shape, color, element, or personality you like.",
+      ja: "形、色、属性、性格などを自由に足せます。"
+    },
+    prompt: {
+      en: "A stylized 2D pixel-art monster",
+      ja: "2Dのデフォルメされたピクセルアートのモンスター"
+    },
+    relatedExampleIds: ["ember-slime-companion"],
+    relatedExamplePrefixes: ["monster-"]
+  }
+];
+
+interface PromptExampleLayerUiCopy {
+  quickTitle: string;
+  quickIntro: string;
+  startWithThis: string;
+  viewExamples: string;
+  viewAllExamples: string;
+  backToQuick: string;
+  relatedTitle: string;
+  relatedIntro: string;
+  allTitle: string;
+  allIntro: string;
+  exampleCountSuffix: string;
+}
+
+const promptExampleLayerCopy = {
+  en: {
+    quickTitle: "Start broad",
+    quickIntro: "Start with a short prompt, then add hair, clothes, colors, or anything you want.",
+    startWithThis: "Start with this",
+    viewExamples: "View concrete examples",
+    viewAllExamples: "View all concrete examples",
+    backToQuick: "Back to simple prompts",
+    relatedTitle: "{title} examples",
+    relatedIntro: "Use a finished example as-is, or load it and change the details.",
+    allTitle: "All concrete examples",
+    allIntro: "Browse all tuned prompts by preview image and category.",
+    exampleCountSuffix: "examples"
+  },
+  ja: {
+    quickTitle: "ざっくり作る",
+    quickIntro: "短い指示から始めて、髪型や服、色などを好きに足していけます。",
+    startWithThis: "この指示から始める",
+    viewExamples: "具体例を見る",
+    viewAllExamples: "すべての具体例を見る",
+    backToQuick: "ざっくり作るに戻る",
+    relatedTitle: "{title}の具体例",
+    relatedIntro: "完成イメージから選び、そのまま使うか細部を変えられます。",
+    allTitle: "すべての具体例",
+    allIntro: "調整済みのプロンプトを仕上がり画像やカテゴリから選べます。",
+    exampleCountSuffix: "件"
+  },
+  "zh-CN": {
+    quickTitle: "先简单开始",
+    quickIntro: "先用一句简短提示，再自由添加发型、服装、颜色等细节。",
+    startWithThis: "从这条指示开始",
+    viewExamples: "查看具体示例",
+    viewAllExamples: "查看所有具体示例",
+    backToQuick: "返回简单提示",
+    relatedTitle: "{title}的具体示例",
+    relatedIntro: "可以直接使用成品示例，也可以载入后修改细节。",
+    allTitle: "所有具体示例",
+    allIntro: "按预览图和分类浏览所有已调好的提示词。",
+    exampleCountSuffix: "个示例"
+  },
+  "zh-TW": {
+    quickTitle: "先簡單開始",
+    quickIntro: "先用一句簡短提示，再自由加入髮型、服裝、顏色等細節。",
+    startWithThis: "從這個指示開始",
+    viewExamples: "查看具體範例",
+    viewAllExamples: "查看所有具體範例",
+    backToQuick: "返回簡單提示",
+    relatedTitle: "{title}的具體範例",
+    relatedIntro: "可以直接使用完成範例，也可以載入後修改細節。",
+    allTitle: "所有具體範例",
+    allIntro: "依預覽圖和分類瀏覽所有已調整的提示詞。",
+    exampleCountSuffix: "個範例"
+  },
+  ko: {
+    quickTitle: "간단하게 시작",
+    quickIntro: "짧은 프롬프트로 시작한 뒤 머리, 옷, 색상 등 원하는 세부 사항을 더하세요.",
+    startWithThis: "이 지시로 시작",
+    viewExamples: "구체적인 예 보기",
+    viewAllExamples: "모든 구체적인 예 보기",
+    backToQuick: "간단한 프롬프트로 돌아가기",
+    relatedTitle: "{title} 구체적인 예",
+    relatedIntro: "완성된 예를 그대로 사용하거나 불러온 뒤 세부 사항을 바꿀 수 있습니다.",
+    allTitle: "모든 구체적인 예",
+    allIntro: "미리보기 이미지와 카테고리로 조정된 프롬프트를 찾아보세요.",
+    exampleCountSuffix: "개"
+  },
+  ru: {
+    quickTitle: "Начать с простого",
+    quickIntro: "Начните с короткого промпта, а затем добавьте причёску, одежду, цвета и любые детали.",
+    startWithThis: "Начать с этого",
+    viewExamples: "Посмотреть примеры",
+    viewAllExamples: "Посмотреть все примеры",
+    backToQuick: "К простым промптам",
+    relatedTitle: "Подробные примеры: {title}",
+    relatedIntro: "Используйте готовый пример или загрузите его и измените детали.",
+    allTitle: "Все подробные примеры",
+    allIntro: "Просматривайте настроенные промпты по превью и категориям.",
+    exampleCountSuffix: "примеров"
+  },
+  es: {
+    quickTitle: "Empezar con algo simple",
+    quickIntro: "Empieza con un prompt corto y añade el peinado, la ropa, los colores o cualquier detalle.",
+    startWithThis: "Empezar con esto",
+    viewExamples: "Ver ejemplos concretos",
+    viewAllExamples: "Ver todos los ejemplos",
+    backToQuick: "Volver a prompts simples",
+    relatedTitle: "Ejemplos concretos: {title}",
+    relatedIntro: "Usa un ejemplo terminado tal cual o cárgalo y cambia los detalles.",
+    allTitle: "Todos los ejemplos concretos",
+    allIntro: "Explora todos los prompts ajustados por imagen y categoría.",
+    exampleCountSuffix: "ejemplos"
+  },
+  "pt-BR": {
+    quickTitle: "Começar de forma simples",
+    quickIntro: "Comece com um prompt curto e adicione cabelo, roupa, cores ou qualquer detalhe.",
+    startWithThis: "Começar com isto",
+    viewExamples: "Ver exemplos concretos",
+    viewAllExamples: "Ver todos os exemplos",
+    backToQuick: "Voltar aos prompts simples",
+    relatedTitle: "Exemplos concretos: {title}",
+    relatedIntro: "Use um exemplo pronto ou carregue-o e altere os detalhes.",
+    allTitle: "Todos os exemplos concretos",
+    allIntro: "Explore todos os prompts ajustados por imagem e categoria.",
+    exampleCountSuffix: "exemplos"
+  },
+  de: {
+    quickTitle: "Einfach anfangen",
+    quickIntro: "Beginne mit einem kurzen Prompt und ergänze Frisur, Kleidung, Farben oder andere Details.",
+    startWithThis: "Damit anfangen",
+    viewExamples: "Konkrete Beispiele ansehen",
+    viewAllExamples: "Alle Beispiele ansehen",
+    backToQuick: "Zurück zu einfachen Prompts",
+    relatedTitle: "Konkrete Beispiele: {title}",
+    relatedIntro: "Verwende ein fertiges Beispiel direkt oder lade es und ändere die Details.",
+    allTitle: "Alle konkreten Beispiele",
+    allIntro: "Durchsuche alle abgestimmten Prompts nach Vorschaubild und Kategorie.",
+    exampleCountSuffix: "Beispiele"
+  },
+  fr: {
+    quickTitle: "Commencer simplement",
+    quickIntro: "Commencez par un prompt court, puis ajoutez coiffure, vêtements, couleurs ou autres détails.",
+    startWithThis: "Commencer avec ceci",
+    viewExamples: "Voir des exemples concrets",
+    viewAllExamples: "Voir tous les exemples",
+    backToQuick: "Retour aux prompts simples",
+    relatedTitle: "Exemples concrets : {title}",
+    relatedIntro: "Utilisez un exemple finalisé tel quel ou chargez-le et modifiez les détails.",
+    allTitle: "Tous les exemples concrets",
+    allIntro: "Parcourez tous les prompts ajustés par aperçu et catégorie.",
+    exampleCountSuffix: "exemples"
+  },
+  id: {
+    quickTitle: "Mulai dari yang sederhana",
+    quickIntro: "Mulai dengan prompt singkat, lalu tambahkan rambut, pakaian, warna, atau detail apa pun.",
+    startWithThis: "Mulai dengan ini",
+    viewExamples: "Lihat contoh konkret",
+    viewAllExamples: "Lihat semua contoh",
+    backToQuick: "Kembali ke prompt sederhana",
+    relatedTitle: "Contoh konkret: {title}",
+    relatedIntro: "Gunakan contoh jadi apa adanya atau muat lalu ubah detailnya.",
+    allTitle: "Semua contoh konkret",
+    allIntro: "Telusuri semua prompt yang telah disetel berdasarkan pratinjau dan kategori.",
+    exampleCountSuffix: "contoh"
+  },
+  tr: {
+    quickTitle: "Basit başlayın",
+    quickIntro: "Kısa bir promptla başlayın; sonra saç, kıyafet, renk veya istediğiniz ayrıntıları ekleyin.",
+    startWithThis: "Bununla başla",
+    viewExamples: "Somut örnekleri gör",
+    viewAllExamples: "Tüm örnekleri gör",
+    backToQuick: "Basit promptlara dön",
+    relatedTitle: "{title} için somut örnekler",
+    relatedIntro: "Tamamlanmış bir örneği olduğu gibi kullanın veya yükleyip ayrıntıları değiştirin.",
+    allTitle: "Tüm somut örnekler",
+    allIntro: "Ayarlanmış tüm promptları önizleme ve kategoriye göre inceleyin.",
+    exampleCountSuffix: "örnek"
+  },
+  vi: {
+    quickTitle: "Bắt đầu đơn giản",
+    quickIntro: "Bắt đầu bằng prompt ngắn, rồi thêm tóc, trang phục, màu sắc hoặc bất kỳ chi tiết nào.",
+    startWithThis: "Bắt đầu với chỉ dẫn này",
+    viewExamples: "Xem ví dụ cụ thể",
+    viewAllExamples: "Xem tất cả ví dụ",
+    backToQuick: "Quay lại prompt đơn giản",
+    relatedTitle: "Ví dụ cụ thể: {title}",
+    relatedIntro: "Dùng nguyên một ví dụ hoàn chỉnh hoặc tải vào rồi thay đổi chi tiết.",
+    allTitle: "Tất cả ví dụ cụ thể",
+    allIntro: "Duyệt tất cả prompt đã tinh chỉnh theo ảnh xem trước và danh mục.",
+    exampleCountSuffix: "ví dụ"
+  },
+  pl: {
+    quickTitle: "Zacznij prosto",
+    quickIntro: "Zacznij od krótkiego promptu, a potem dodaj fryzurę, ubranie, kolory lub dowolne szczegóły.",
+    startWithThis: "Zacznij od tego",
+    viewExamples: "Zobacz konkretne przykłady",
+    viewAllExamples: "Zobacz wszystkie przykłady",
+    backToQuick: "Wróć do prostych promptów",
+    relatedTitle: "Konkretne przykłady: {title}",
+    relatedIntro: "Użyj gotowego przykładu albo wczytaj go i zmień szczegóły.",
+    allTitle: "Wszystkie konkretne przykłady",
+    allIntro: "Przeglądaj dostrojone prompty według podglądu i kategorii.",
+    exampleCountSuffix: "przykładów"
+  },
+  it: {
+    quickTitle: "Inizia in modo semplice",
+    quickIntro: "Inizia con un prompt breve, poi aggiungi capelli, abiti, colori o qualsiasi dettaglio.",
+    startWithThis: "Inizia da qui",
+    viewExamples: "Vedi esempi concreti",
+    viewAllExamples: "Vedi tutti gli esempi",
+    backToQuick: "Torna ai prompt semplici",
+    relatedTitle: "Esempi concreti: {title}",
+    relatedIntro: "Usa un esempio finito così com'è oppure caricalo e modifica i dettagli.",
+    allTitle: "Tutti gli esempi concreti",
+    allIntro: "Sfoglia tutti i prompt ottimizzati per anteprima e categoria.",
+    exampleCountSuffix: "esempi"
+  }
+} satisfies Record<Language, PromptExampleLayerUiCopy>;
+
+function relatedPromptExamplesForQuickPreset(preset: QuickPromptPreset) {
+  const relatedIdSet = new Set(preset.relatedExampleIds);
+  return promptExamples.filter(
+    (example) => relatedIdSet.has(example.id) || preset.relatedExamplePrefixes.some((prefix) => example.id.startsWith(prefix))
+  );
+}
+
 function normalizeAnimationActions(actions: SpriteAction[]) {
   const source = actions.length > 0 ? actions : defaultActions;
   return source.map((action) => normalizeAnimationAction(action));
@@ -4494,6 +4872,7 @@ function App() {
   const [imagegenSmokeState] = useState<ImagegenSmokeState>("not_run");
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const promptExamplesReturnFocusRef = useRef<HTMLElement | null>(null);
   const animationReviewReturnFocusRef = useRef<HTMLElement | null>(null);
   const animationPresetReturnFocusRef = useRef<HTMLElement | null>(null);
   const animationAdvancedReturnFocusRef = useRef<HTMLElement | null>(null);
@@ -9247,7 +9626,16 @@ function App() {
     setNegativePrompt(example.negativePrompt);
     setJobNotes(example.notes);
     setWorkflowMode("image-generate");
-    setShowPromptExamples(false);
+    closePromptExamples();
+    setProviderId("codex-handoff");
+    setTool("select");
+    setStatus(copy.promptExampleApplied);
+  }
+
+  function useQuickPrompt(promptText: string) {
+    setPrompt(promptText);
+    setWorkflowMode("image-generate");
+    closePromptExamples();
     setProviderId("codex-handoff");
     setTool("select");
     setStatus(copy.promptExampleApplied);
@@ -9307,6 +9695,11 @@ function App() {
   function closeAnimationPresetExamples() {
     setShowAnimationPresetExamples(false);
     window.requestAnimationFrame(() => animationPresetReturnFocusRef.current?.focus());
+  }
+
+  function closePromptExamples() {
+    setShowPromptExamples(false);
+    window.requestAnimationFrame(() => promptExamplesReturnFocusRef.current?.focus());
   }
 
   function closeAnimationAdvancedSettings() {
@@ -10787,7 +11180,13 @@ function App() {
                 <small>{prompt.length} / 1200</small>
               </label>
               {workflowMode === "image-generate" && (
-                <button className="prompt-example-trigger" onClick={() => setShowPromptExamples(true)}>
+                <button
+                  className="prompt-example-trigger"
+                  onClick={(event) => {
+                    promptExamplesReturnFocusRef.current = event.currentTarget;
+                    setShowPromptExamples(true);
+                  }}
+                >
                   <FileJson size={15} aria-hidden="true" />
                   {copy.promptExamples}
                 </button>
@@ -11520,8 +11919,9 @@ function App() {
       {showPromptExamples && (
         <PromptExamplesModal
           language={language}
-          onClose={() => setShowPromptExamples(false)}
+          onClose={closePromptExamples}
           onCopy={copyPromptExample}
+          onUseQuick={useQuickPrompt}
           onUse={usePromptExample}
         />
       )}
@@ -14427,15 +14827,29 @@ function PromptExamplesModal({
   language,
   onClose,
   onCopy,
+  onUseQuick,
   onUse
 }: {
   language: Language;
   onClose: () => void;
   onCopy: (example: PromptExample) => Promise<void>;
+  onUseQuick: (prompt: string) => void;
   onUse: (example: PromptExample) => void;
 }) {
   const copy = uiCopy[language];
+  const layerCopy = promptExampleLayerCopy[language];
   const [activeCategory, setActiveCategory] = useState("all");
+  const [detailPresetId, setDetailPresetId] = useState<QuickPromptPresetId | "all" | null>(null);
+  const modalRef = useRef<HTMLElement>(null);
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
+  const backButtonRef = useRef<HTMLButtonElement>(null);
+  const returnFocusTargetRef = useRef<QuickPromptPresetId | "all" | null>(null);
+  const selectedQuickPreset = detailPresetId && detailPresetId !== "all"
+    ? quickPromptPresets.find((preset) => preset.id === detailPresetId) ?? null
+    : null;
+  const detailPromptExamples = selectedQuickPreset
+    ? relatedPromptExamplesForQuickPreset(selectedQuickPreset)
+    : promptExamples;
   const categoryOptions = useMemo(() => {
     const categoryMap = new Map<string, { id: string; label: string; count: number }>();
     promptExamples.forEach((example) => {
@@ -14453,13 +14867,83 @@ function PromptExamplesModal({
     ];
   }, [language]);
   const visiblePromptExamples =
-    activeCategory === "all"
-      ? promptExamples
-      : promptExamples.filter((example) => localizedText(example.category, "en") === activeCategory);
+    detailPresetId !== "all" || activeCategory === "all"
+      ? detailPromptExamples
+      : detailPromptExamples.filter((example) => localizedText(example.category, "en") === activeCategory);
+
+  useEffect(() => {
+    closeButtonRef.current?.focus();
+    const onKeyDown = (event: KeyboardEvent) => {
+      const openDialogs = Array.from(document.querySelectorAll<HTMLElement>('[role="dialog"][aria-modal="true"]'));
+      if (openDialogs.length > 0 && openDialogs[openDialogs.length - 1] !== modalRef.current) return;
+      if (event.key === "Escape") {
+        event.preventDefault();
+        onClose();
+        return;
+      }
+      if (event.key !== "Tab") return;
+      const focusable = Array.from(
+        modalRef.current?.querySelectorAll<HTMLElement>(
+          'button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+        ) ?? []
+      );
+      if (focusable.length === 0) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, []);
+
+  useEffect(() => {
+    if (detailPresetId !== null) {
+      backButtonRef.current?.focus();
+      return;
+    }
+    const returnTarget = returnFocusTargetRef.current;
+    if (!returnTarget) return;
+    window.requestAnimationFrame(() => {
+      const selector = returnTarget === "all"
+        ? ".quick-view-all-button"
+        : `[data-quick-preset-id="${returnTarget}"] .quick-details-button`;
+      modalRef.current?.querySelector<HTMLButtonElement>(selector)?.focus();
+    });
+  }, [detailPresetId]);
+
+  function showRelatedExamples(presetId: QuickPromptPresetId) {
+    returnFocusTargetRef.current = presetId;
+    setActiveCategory("all");
+    setDetailPresetId(presetId);
+  }
+
+  function showAllExamples() {
+    returnFocusTargetRef.current = "all";
+    setActiveCategory("all");
+    setDetailPresetId("all");
+  }
+
+  const headingTitle = detailPresetId === null
+    ? layerCopy.quickTitle
+    : detailPresetId === "all"
+      ? layerCopy.allTitle
+      : layerCopy.relatedTitle.replace("{title}", localizedText(selectedQuickPreset!.title, language));
+  const headingIntro = detailPresetId === null
+    ? layerCopy.quickIntro
+    : detailPresetId === "all"
+      ? layerCopy.allIntro
+      : layerCopy.relatedIntro;
 
   return (
     <div className="prompt-modal-backdrop" role="presentation" onMouseDown={onClose}>
       <section
+        ref={modalRef}
         className="prompt-modal"
         role="dialog"
         aria-modal="true"
@@ -14468,53 +14952,121 @@ function PromptExamplesModal({
       >
         <div className="prompt-library-heading">
           <div>
-            <strong id="prompt-examples-title">{copy.promptExamplesTitle}</strong>
-            <span>{copy.promptExamplesIntro}</span>
+            <small className="prompt-library-kicker">{copy.promptExamplesTitle}</small>
+            <strong id="prompt-examples-title">{headingTitle}</strong>
+            <span>{headingIntro}</span>
           </div>
-          <button className="icon-button" title={copy.closePromptExamples} aria-label={copy.closePromptExamples} onClick={onClose}>
+          <button ref={closeButtonRef} className="icon-button" title={copy.closePromptExamples} aria-label={copy.closePromptExamples} onClick={onClose}>
             <X size={18} aria-hidden="true" />
           </button>
         </div>
 
-        <div className="prompt-category-tabs" role="tablist" aria-label="Prompt example categories">
-          {categoryOptions.map((category) => (
-            <button
-              key={category.id}
-              className={activeCategory === category.id ? "active" : ""}
-              role="tab"
-              aria-selected={activeCategory === category.id}
-              onClick={() => setActiveCategory(category.id)}
-            >
-              <span>{category.label}</span>
-              <small>{category.count}</small>
-            </button>
-          ))}
-        </div>
+        {detailPresetId === null ? (
+          <>
+            <div className="quick-prompt-grid" aria-label={layerCopy.quickTitle}>
+              {quickPromptPresets.map((preset) => (
+                <article key={preset.id} className="quick-prompt-card" data-quick-preset-id={preset.id}>
+                  <div className="quick-prompt-card-heading">
+                    <span className="quick-prompt-icon" aria-hidden="true">
+                      <Sparkles size={20} />
+                    </span>
+                    <div>
+                      <small>{localizedText(preset.group, language)}</small>
+                      <h2>{localizedText(preset.title, language)}</h2>
+                    </div>
+                  </div>
+                  <p className="quick-prompt-text">{localizedText(preset.prompt, language)}</p>
+                  <small className="prompt-card-note">{localizedText(preset.summary, language)}</small>
+                  <div className="prompt-actions quick-prompt-actions">
+                    <button
+                      className="quick-details-button"
+                      aria-label={`${layerCopy.viewExamples}: ${localizedText(preset.title, language)}`}
+                      onClick={() => showRelatedExamples(preset.id)}
+                    >
+                      <Layers3 size={15} aria-hidden="true" />
+                      {layerCopy.viewExamples}
+                    </button>
+                    <button
+                      className="primary-button"
+                      aria-label={`${layerCopy.startWithThis}: ${localizedText(preset.title, language)}`}
+                      onClick={() => onUseQuick(localizedText(preset.prompt, language))}
+                    >
+                      <ImagePlus size={15} aria-hidden="true" />
+                      {layerCopy.startWithThis}
+                    </button>
+                  </div>
+                </article>
+              ))}
+            </div>
+            <div className="prompt-library-footer">
+              <button className="quick-view-all-button" aria-label={layerCopy.viewAllExamples} onClick={showAllExamples}>
+                <Layers3 size={16} aria-hidden="true" />
+                {layerCopy.viewAllExamples}
+                <small>{promptExamples.length}</small>
+              </button>
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="prompt-detail-toolbar">
+              <button ref={backButtonRef} onClick={() => setDetailPresetId(null)}>
+                <ArrowLeft size={16} aria-hidden="true" />
+                {layerCopy.backToQuick}
+              </button>
+              {detailPresetId !== "all" && (
+                <button className="quick-view-all-button" aria-label={layerCopy.viewAllExamples} onClick={showAllExamples}>
+                  {layerCopy.viewAllExamples}
+                  <small>{promptExamples.length}</small>
+                </button>
+              )}
+              <span className="prompt-detail-count">
+                {visiblePromptExamples.length} {layerCopy.exampleCountSuffix}
+              </span>
+            </div>
 
-        <div className="prompt-grid">
-          {visiblePromptExamples.map((example) => (
-            <article key={example.id} className="prompt-card">
-              <div className="prompt-card-preview">
-                <img src={example.previewImage} alt={`${localizedText(example.title, language)} example`} />
+            {detailPresetId === "all" && (
+              <div className="prompt-category-tabs" role="tablist" aria-label="Prompt example categories">
+                {categoryOptions.map((category) => (
+                  <button
+                    key={category.id}
+                    className={activeCategory === category.id ? "active" : ""}
+                    role="tab"
+                    aria-selected={activeCategory === category.id}
+                    onClick={() => setActiveCategory(category.id)}
+                  >
+                    <span>{category.label}</span>
+                    <small>{category.count}</small>
+                  </button>
+                ))}
               </div>
-              <div className="prompt-card-meta">
-                <small>{localizedText(example.category, language)}</small>
-              </div>
-              <h2>{localizedText(example.title, language)}</h2>
-              <small className="prompt-card-note">{localizedText(example.summary, language)}</small>
-              <div className="prompt-actions">
-                <button onClick={() => void onCopy(example)}>
-                  <Copy size={15} aria-hidden="true" />
-                  {copy.copyPrompt}
-                </button>
-                <button className="primary-button" onClick={() => onUse(example)}>
-                  <ImagePlus size={15} aria-hidden="true" />
-                  {copy.usePrompt}
-                </button>
-              </div>
-            </article>
-          ))}
-        </div>
+            )}
+
+            <div className="prompt-grid">
+              {visiblePromptExamples.map((example) => (
+                <article key={example.id} className="prompt-card">
+                  <div className="prompt-card-preview">
+                    <img src={example.previewImage} alt={`${localizedText(example.title, language)} example`} />
+                  </div>
+                  <div className="prompt-card-meta">
+                    <small>{localizedText(example.category, language)}</small>
+                  </div>
+                  <h2>{localizedText(example.title, language)}</h2>
+                  <small className="prompt-card-note">{localizedText(example.summary, language)}</small>
+                  <div className="prompt-actions">
+                    <button onClick={() => void onCopy(example)}>
+                      <Copy size={15} aria-hidden="true" />
+                      {copy.copyPrompt}
+                    </button>
+                    <button className="primary-button" onClick={() => onUse(example)}>
+                      <ImagePlus size={15} aria-hidden="true" />
+                      {copy.usePrompt}
+                    </button>
+                  </div>
+                </article>
+              ))}
+            </div>
+          </>
+        )}
       </section>
     </div>
   );

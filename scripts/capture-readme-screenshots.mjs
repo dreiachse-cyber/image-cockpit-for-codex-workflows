@@ -22,6 +22,7 @@ const tempRoot = await mkdtempCompat(join(tmpdir(), "image-cockpit-readme-captur
 const handoffDir = join(tempRoot, "handoff");
 const chromeProfileDir = join(tempRoot, "chrome-profile");
 const apiPort = await getOpenPort();
+const supervisorPort = await getOpenPort();
 const vitePort = await getOpenPort();
 const debugPort = await getOpenPort();
 
@@ -40,7 +41,8 @@ try {
   await waitForHttp(`http://127.0.0.1:${apiPort}/api/providers`, "local API");
 
   viteServer = startProcess(nodeCommand, ["node_modules/vite/bin/vite.js", "--host", "127.0.0.1", "--port", String(vitePort), "--strictPort"], {
-    IMAGE_COCKPIT_API_TARGET: `http://127.0.0.1:${apiPort}`
+    IMAGE_COCKPIT_API_TARGET: `http://127.0.0.1:${apiPort}`,
+    VITE_IMAGE_COCKPIT_SUPERVISOR_PORT: String(supervisorPort)
   });
   await waitForHttp(`http://127.0.0.1:${vitePort}/`, "Vite app");
 
@@ -147,6 +149,11 @@ async function seedReadmeState(mode) {
 
 async function loadPromptExample(title) {
   await openPromptExamplesModal();
+  await clickButtonByText("View all concrete examples 137");
+  await waitForEval(
+    () => `document.querySelector(".prompt-modal")?.innerText.includes("Clockwork Mushroom Courier") && document.querySelectorAll(".prompt-card-preview img").length === 137`,
+    "All detailed Prompt Examples"
+  );
   await evaluate(`(() => {
     const cards = Array.from(document.querySelectorAll(".prompt-card"));
     const card = cards.find((item) => item.innerText.includes(${JSON.stringify(title)}));
@@ -164,8 +171,8 @@ async function openPromptExamplesModal() {
   await selectWorkflowTab("Pixel Art Generation");
   await clickButtonByText("Prompt Examples");
   await waitForEval(
-    () => `document.querySelector(".prompt-modal")?.innerText.includes("Boy Adventurer") && document.querySelectorAll(".prompt-card-preview img").length >= 18`,
-    "Prompt Examples modal"
+    () => `document.querySelector(".prompt-modal")?.innerText.includes("Start broad") && document.querySelectorAll(".quick-prompt-card").length === 9 && document.querySelectorAll(".prompt-modal img").length === 0`,
+    "Simple Prompt layer"
   );
   await evaluate(`(() => {
     const modal = document.querySelector(".prompt-modal");
@@ -199,9 +206,11 @@ async function drawReadmeAnnotation() {
   })()`);
   const start = { x: Math.round(rect.left + rect.width * 0.42), y: Math.round(rect.top + rect.height * 0.26) };
   const end = { x: Math.round(rect.left + rect.width * 0.62), y: Math.round(rect.top + rect.height * 0.70) };
-  await cdp.send("Input.dispatchMouseEvent", { type: "mousePressed", x: start.x, y: start.y, button: "left", clickCount: 1 });
-  await cdp.send("Input.dispatchMouseEvent", { type: "mouseMoved", x: end.x, y: end.y, button: "left" });
-  await cdp.send("Input.dispatchMouseEvent", { type: "mouseReleased", x: end.x, y: end.y, button: "left", clickCount: 1 });
+  await dispatchCanvasPointer("pointerdown", start.x, start.y, 1);
+  await delay(40);
+  await dispatchCanvasPointer("pointermove", end.x, end.y, 1);
+  await delay(40);
+  await dispatchCanvasPointer("pointerup", end.x, end.y, 0);
   await waitForEval(() => `document.querySelectorAll(".annotation-region-row").length === 1`, "readme annotation row");
   await evaluate(`(() => {
     const field = document.querySelector(".annotation-comment-field");
@@ -228,6 +237,24 @@ async function setPrimaryTextarea(value) {
     () => `document.querySelector(".source-panel textarea")?.value === ${JSON.stringify(value)}`,
     "primary textarea update"
   );
+}
+
+async function dispatchCanvasPointer(type, x, y, buttons) {
+  await evaluate(`(() => {
+    const canvas = document.querySelector("canvas");
+    if (!canvas) throw new Error("Canvas not found for pointer dispatch");
+    canvas.dispatchEvent(new PointerEvent(${JSON.stringify(type)}, {
+      bubbles: true,
+      cancelable: true,
+      pointerId: 1,
+      pointerType: "mouse",
+      isPrimary: true,
+      clientX: ${JSON.stringify(x)},
+      clientY: ${JSON.stringify(y)},
+      button: 0,
+      buttons: ${JSON.stringify(buttons)}
+    }));
+  })()`);
 }
 
 async function tidyWorkspaceScroll() {
