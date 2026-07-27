@@ -41,6 +41,10 @@ import type { CSSProperties, ReactNode, UIEvent } from "react";
 import { AnimationReviewCockpit } from "./AnimationReviewCockpit";
 import type { AnimationReviewCandidateView } from "./AnimationReviewCockpit";
 import { VfxCompositeStage } from "./VfxCompositeStage";
+import animalPromptsMarkdown from "../docs/prompt-examples/animal-prompts.md?raw";
+import beastfolkPromptsMarkdown from "../docs/prompt-examples/beastfolk-prompts.md?raw";
+import chibiBoyPromptsMarkdown from "../docs/prompt-examples/chibi-boy-prompts.md?raw";
+import chibiGirlPromptsMarkdown from "../docs/prompt-examples/chibi-girl-prompts.md?raw";
 import monsterGirlPromptsMarkdown from "../docs/prompt-examples/monster-girl-prompts.md?raw";
 import monsterPromptsMarkdown from "../docs/prompt-examples/monster-prompts.md?raw";
 import professionCharacterPromptsMarkdown from "../docs/prompt-examples/profession-character-prompts.md?raw";
@@ -3059,6 +3063,18 @@ const MONSTER_NOTES = `${MONSTER_PROMPT_SOURCE}: full-body animation-ready monst
 const MONSTER_GIRL_CATEGORY = { en: "Monster Girl Chibi", ja: "モンスター娘ちび" };
 const MONSTER_GIRL_PROMPT_SOURCE = "docs/prompt-examples/monster-girl-prompts.md";
 const MONSTER_GIRL_NOTES = `${MONSTER_GIRL_PROMPT_SOURCE}: cute two-head-tall monster girl source character for Image Cockpit animation testing.`;
+const ANIMAL_CATEGORY = { en: "Animals", ja: "動物" };
+const ANIMAL_PROMPT_SOURCE = "docs/prompt-examples/animal-prompts.md";
+const ANIMAL_NOTES = `${ANIMAL_PROMPT_SOURCE}: isolated full-body animal asset with a transparent background.`;
+const CHIBI_BOY_CATEGORY = { en: "Chibi Boys", ja: "デフォルメ男の子" };
+const CHIBI_BOY_PROMPT_SOURCE = "docs/prompt-examples/chibi-boy-prompts.md";
+const CHIBI_BOY_NOTES = `${CHIBI_BOY_PROMPT_SOURCE}: two-head-tall chibi boy appearance variant prepared for later animation.`;
+const CHIBI_GIRL_CATEGORY = { en: "Chibi Girls", ja: "デフォルメ女の子" };
+const CHIBI_GIRL_PROMPT_SOURCE = "docs/prompt-examples/chibi-girl-prompts.md";
+const CHIBI_GIRL_NOTES = `${CHIBI_GIRL_PROMPT_SOURCE}: two-head-tall chibi girl appearance variant prepared for later animation.`;
+const BEASTFOLK_CATEGORY = { en: "Beastfolk", ja: "獣人" };
+const BEASTFOLK_PROMPT_SOURCE = "docs/prompt-examples/beastfolk-prompts.md";
+const BEASTFOLK_NOTES = `${BEASTFOLK_PROMPT_SOURCE}: full-body beastfolk character asset prepared for later animation.`;
 
 interface PromptCatalogOptions {
   idPrefix: string;
@@ -3072,16 +3088,23 @@ function promptExampleSlug(value: string) {
   return value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 }
 
+function parsePromptCatalogTitle(value: string): LocalizedText {
+  const heading = value.trim();
+  const localizedTitle = heading.match(/^(.+?)\s+\/\s+(.+)$/);
+  if (!localizedTitle) return { en: heading, ja: heading };
+  return { en: localizedTitle[1].trim(), ja: localizedTitle[2].trim() };
+}
+
 function parsePromptCatalogMarkdown(markdown: string, options: PromptCatalogOptions): PromptExample[] {
   const text = markdown.replace(/\r\n/g, "\n");
   const negativePrompt = text.match(/## Common Negative Prompt[\s\S]*?```text\n([\s\S]*?)\n```/)?.[1]?.trim() ?? "";
   return [...text.matchAll(/###\s+\d+\.\s+([^\n]+)\n\n```text\n([\s\S]*?)\n```/g)].map((match) => {
-    const title = match[1].trim();
-    const id = `${options.idPrefix}-${promptExampleSlug(title)}`;
+    const title = parsePromptCatalogTitle(match[1]);
+    const id = `${options.idPrefix}-${promptExampleSlug(title.en)}`;
     return {
       id,
       category: options.category,
-      title: { en: title, ja: title },
+      title,
       previewImage: `/prompt-examples/${id}.png`,
       summary: options.summary,
       prompt: match[2].trim(),
@@ -3399,6 +3422,50 @@ const professionCharacterPromptExamples = parsePromptCatalogMarkdown(professionC
   notes: PROFESSION_CHARACTER_NOTES
 });
 
+const chibiBoyPromptExamples = parsePromptCatalogMarkdown(chibiBoyPromptsMarkdown, {
+  idPrefix: "chibi-boy",
+  category: CHIBI_BOY_CATEGORY,
+  sourcePath: CHIBI_BOY_PROMPT_SOURCE,
+  summary: {
+    en: "Two-head-tall chibi boy with a distinct hairstyle, outfit, and silhouette.",
+    ja: "髪型、衣装、シルエットに外見差を持たせた2頭身の男の子素材です。"
+  },
+  notes: CHIBI_BOY_NOTES
+});
+
+const chibiGirlPromptExamples = parsePromptCatalogMarkdown(chibiGirlPromptsMarkdown, {
+  idPrefix: "chibi-girl",
+  category: CHIBI_GIRL_CATEGORY,
+  sourcePath: CHIBI_GIRL_PROMPT_SOURCE,
+  summary: {
+    en: "Two-head-tall chibi girl with a distinct hairstyle, outfit, and silhouette.",
+    ja: "髪型、衣装、シルエットに外見差を持たせた2頭身の女の子素材です。"
+  },
+  notes: CHIBI_GIRL_NOTES
+});
+
+const animalPromptExamples = parsePromptCatalogMarkdown(animalPromptsMarkdown, {
+  idPrefix: "animal",
+  category: ANIMAL_CATEGORY,
+  sourcePath: ANIMAL_PROMPT_SOURCE,
+  summary: {
+    en: "Single full-body animal asset with a clean readable silhouette.",
+    ja: "読みやすいシルエットで単体化した全身の動物素材です。"
+  },
+  notes: ANIMAL_NOTES
+});
+
+const beastfolkPromptExamples = parsePromptCatalogMarkdown(beastfolkPromptsMarkdown, {
+  idPrefix: "beastfolk",
+  category: BEASTFOLK_CATEGORY,
+  sourcePath: BEASTFOLK_PROMPT_SOURCE,
+  summary: {
+    en: "Single full-body beastfolk character with a clean readable silhouette.",
+    ja: "読みやすいシルエットで単体化した全身の獣人キャラクター素材です。"
+  },
+  notes: BEASTFOLK_NOTES
+});
+
 const monsterPromptExamples = parsePromptCatalogMarkdown(monsterPromptsMarkdown, {
   idPrefix: "monster",
   category: MONSTER_CATEGORY,
@@ -3452,6 +3519,10 @@ const promptExamples: PromptExample[] = [
   },
   ...basicCharacterPromptExamples,
   ...professionCharacterPromptExamples,
+  ...chibiBoyPromptExamples,
+  ...chibiGirlPromptExamples,
+  ...animalPromptExamples,
+  ...beastfolkPromptExamples,
   ...monsterPromptExamples,
   ...monsterGirlPromptExamples,
   {

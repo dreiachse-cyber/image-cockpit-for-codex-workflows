@@ -1,4 +1,5 @@
 import { execFileSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
 import { extname, join } from "node:path";
 
@@ -7,8 +8,15 @@ const failures = [];
 const privacyTextExtensions = new Set(["", ".css", ".html", ".js", ".json", ".md", ".mjs", ".ts", ".tsx", ".txt", ".yaml", ".yml"]);
 const expectedPackageVersion = "0.1.8";
 
+function parsePromptExampleTitle(value) {
+  const heading = value.trim();
+  const localizedTitle = heading.match(/^(.+?)\s+\/\s+(.+)$/);
+  if (!localizedTitle) return { en: heading, ja: heading };
+  return { en: localizedTitle[1].trim(), ja: localizedTitle[2].trim() };
+}
+
 function slugPromptExampleTitle(value) {
-  return value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+  return parsePromptExampleTitle(value).en.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 }
 
 function promptPreviewFilesFromMarkdown(file, prefix) {
@@ -150,6 +158,12 @@ const requiredFiles = [
   "docs/prompt-examples/README.md",
   "docs/prompt-examples/basic-character-prompts.md",
   "docs/prompt-examples/profession-character-prompts.md",
+  "docs/prompt-examples/chibi-boy-prompts.md",
+  "docs/prompt-examples/chibi-girl-prompts.md",
+  "docs/prompt-examples/animal-prompts.md",
+  "docs/prompt-examples/beastfolk-prompts.md",
+  "docs/qa/prompt-examples/animal-chibi-beastfolk-presets/README.md",
+  "docs/qa/prompt-examples/animal-chibi-beastfolk-presets/asset-qc.json",
   "docs/prompt-examples/monster-prompts.md",
   "docs/prompt-examples/monster-girl-prompts.md",
   "public/prompt-examples/basic-boy-adventurer.png",
@@ -165,6 +179,10 @@ const requiredFiles = [
   "public/prompt-examples/basic-large-veteran-warrior.png",
   "public/prompt-examples/basic-hooded-mysterious-figure.png",
   ...promptPreviewFilesFromMarkdown("docs/prompt-examples/profession-character-prompts.md", "profession"),
+  ...promptPreviewFilesFromMarkdown("docs/prompt-examples/chibi-boy-prompts.md", "chibi-boy"),
+  ...promptPreviewFilesFromMarkdown("docs/prompt-examples/chibi-girl-prompts.md", "chibi-girl"),
+  ...promptPreviewFilesFromMarkdown("docs/prompt-examples/animal-prompts.md", "animal"),
+  ...promptPreviewFilesFromMarkdown("docs/prompt-examples/beastfolk-prompts.md", "beastfolk"),
   ...promptPreviewFilesFromMarkdown("docs/prompt-examples/monster-prompts.md", "monster"),
   ...promptPreviewFilesFromMarkdown("docs/prompt-examples/monster-girl-prompts.md", "monster-girl")
 ];
@@ -267,6 +285,7 @@ checkPendingJobCoverage();
 checkSimpleLocalInboxAction();
 checkCoreLocalization();
 checkPromptCatalogExamples();
+checkPromptPresetAssetQa();
 checkCiWorkflow();
 checkReleaseDocs();
 
@@ -552,6 +571,10 @@ function checkWorkflowIds() {
     "Clockwork Mushroom Courier",
     "Basic Character",
     "Profession Character",
+    "Animals",
+    "Chibi Boys",
+    "Chibi Girls",
+    "Beastfolk",
     "Monster",
     "basicCharacterPromptExampleChecks",
     "expandedPromptExampleChecks",
@@ -581,6 +604,11 @@ function checkWorkflowIds() {
     "Middle-Aged Female Captain",
     "Classic Green Slime",
     "Earth Spirit",
+    "Loyal Dog",
+    "Copper-Haired Scout",
+    "Auburn-Pigtail Farmer",
+    "Wolf Beastfolk",
+    "const expectedPromptExampleCount = 137",
     "at least ${expectedPromptExampleCount} image previews",
     "generated from prompt example",
     "Prompt example loaded into Pixel Art Generation",
@@ -1271,16 +1299,33 @@ function checkWorkflowIds() {
     "basic-two-head-chibi-robot",
     "basic-two-head-chibi-dragon-tamer",
     "PROFESSION_CHARACTER_CATEGORY",
+    "ANIMAL_CATEGORY",
+    "CHIBI_BOY_CATEGORY",
+    "CHIBI_GIRL_CATEGORY",
+    "BEASTFOLK_CATEGORY",
     "MONSTER_CATEGORY",
     "MONSTER_GIRL_CATEGORY",
+    "parsePromptCatalogTitle",
     "parsePromptCatalogMarkdown",
     "professionCharacterPromptsMarkdown",
+    "animalPromptsMarkdown",
+    "chibiBoyPromptsMarkdown",
+    "chibiGirlPromptsMarkdown",
+    "beastfolkPromptsMarkdown",
     "monsterPromptsMarkdown",
     "monsterGirlPromptsMarkdown",
     "professionCharacterPromptExamples",
+    "animalPromptExamples",
+    "chibiBoyPromptExamples",
+    "chibiGirlPromptExamples",
+    "beastfolkPromptExamples",
     "monsterPromptExamples",
     "monsterGirlPromptExamples",
     "docs/prompt-examples/profession-character-prompts.md",
+    "docs/prompt-examples/animal-prompts.md",
+    "docs/prompt-examples/chibi-boy-prompts.md",
+    "docs/prompt-examples/chibi-girl-prompts.md",
+    "docs/prompt-examples/beastfolk-prompts.md",
     "docs/prompt-examples/monster-prompts.md",
     "docs/prompt-examples/monster-girl-prompts.md"
   ].forEach((marker) => {
@@ -2040,6 +2085,34 @@ function checkPromptCatalogExamples() {
       sampleTitles: ["Boy Warrior Apprentice", "Middle-Aged Female Captain"]
     },
     {
+      file: "docs/prompt-examples/chibi-boy-prompts.md",
+      prefix: "chibi-boy",
+      expectedCount: 5,
+      sampleTitles: ["Copper-Haired Scout", "Blue-Curled Noble"],
+      requireLocalizedTitles: true
+    },
+    {
+      file: "docs/prompt-examples/chibi-girl-prompts.md",
+      prefix: "chibi-girl",
+      expectedCount: 5,
+      sampleTitles: ["Auburn-Pigtail Farmer", "Violet-Braided Alchemist"],
+      requireLocalizedTitles: true
+    },
+    {
+      file: "docs/prompt-examples/animal-prompts.md",
+      prefix: "animal",
+      expectedCount: 10,
+      sampleTitles: ["Loyal Dog", "Red Panda"],
+      requireLocalizedTitles: true
+    },
+    {
+      file: "docs/prompt-examples/beastfolk-prompts.md",
+      prefix: "beastfolk",
+      expectedCount: 10,
+      sampleTitles: ["Wolf Beastfolk", "Red Panda Beastfolk"],
+      requireLocalizedTitles: true
+    },
+    {
       file: "docs/prompt-examples/monster-prompts.md",
       prefix: "monster",
       expectedCount: 30,
@@ -2061,22 +2134,26 @@ function checkPromptCatalogExamples() {
       failures.push(`${catalog.file} should include a common negative prompt.`);
     }
     const examples = [...text.matchAll(/###\s+\d+\.\s+([^\n]+)\n\n```text\n([\s\S]*?)\n```/g)].map((match) => ({
-      title: match[1].trim(),
+      heading: match[1].trim(),
+      title: parsePromptExampleTitle(match[1]),
       prompt: match[2].trim()
     }));
     if (examples.length !== catalog.expectedCount) {
       failures.push(`${catalog.file} should include ${catalog.expectedCount} prompt examples, got ${examples.length}.`);
     }
     catalog.sampleTitles.forEach((title) => {
-      if (!examples.some((example) => example.title === title)) {
+      if (!examples.some((example) => example.title.en === title)) {
         failures.push(`${catalog.file} should include sample prompt: ${title}`);
       }
     });
     examples.forEach((example) => {
-      if (!example.prompt.includes("transparent background preferred")) {
-        failures.push(`${catalog.file} prompt should prefer transparent background: ${example.title}`);
+      if (catalog.requireLocalizedTitles && example.title.en === example.title.ja) {
+        failures.push(`${catalog.file} should use an English Title / 日本語名 heading: ${example.heading}`);
       }
-      const imageFile = `public/prompt-examples/${catalog.prefix}-${slugPromptExampleTitle(example.title)}.png`;
+      if (!example.prompt.includes("transparent background preferred")) {
+        failures.push(`${catalog.file} prompt should prefer transparent background: ${example.title.en}`);
+      }
+      const imageFile = `public/prompt-examples/${catalog.prefix}-${slugPromptExampleTitle(example.title.en)}.png`;
       const imagePath = join(root, imageFile);
       if (!existsSync(imagePath)) return;
       const image = readFileSync(imagePath);
@@ -2091,6 +2168,85 @@ function checkPromptCatalogExamples() {
         failures.push(`Prompt example preview should be at least 1024px in both dimensions: ${imageFile} is ${width}x${height}`);
       }
     });
+  });
+}
+
+function checkPromptPresetAssetQa() {
+  const qaFile = "docs/qa/prompt-examples/animal-chibi-beastfolk-presets/asset-qc.json";
+  const qaText = readText(qaFile);
+  if (!qaText) return;
+
+  let qa;
+  try {
+    qa = JSON.parse(qaText);
+  } catch {
+    failures.push(`${qaFile} should contain valid JSON.`);
+    return;
+  }
+
+  const expectedFiles = [
+    ...promptPreviewFilesFromMarkdown("docs/prompt-examples/animal-prompts.md", "animal"),
+    ...promptPreviewFilesFromMarkdown("docs/prompt-examples/chibi-boy-prompts.md", "chibi-boy"),
+    ...promptPreviewFilesFromMarkdown("docs/prompt-examples/chibi-girl-prompts.md", "chibi-girl"),
+    ...promptPreviewFilesFromMarkdown("docs/prompt-examples/beastfolk-prompts.md", "beastfolk")
+  ].sort();
+  const assets = Array.isArray(qa.assets) ? qa.assets : [];
+
+  if (qa.expectedCount !== expectedFiles.length || qa.actualCount !== expectedFiles.length || assets.length !== expectedFiles.length) {
+    failures.push(`${qaFile} should describe exactly ${expectedFiles.length} prompt preview assets.`);
+  }
+  if (qa.allChecksPass !== true) {
+    failures.push(`${qaFile} should report allChecksPass=true.`);
+  }
+
+  const seenFiles = new Set();
+  assets.forEach((asset) => {
+    const file = typeof asset.file === "string" ? asset.file.replace(/\\/g, "/") : "";
+    if (!file || seenFiles.has(file)) {
+      failures.push(`${qaFile} should contain one unique file entry per asset: ${file || "<missing>"}`);
+      return;
+    }
+    seenFiles.add(file);
+    if (!expectedFiles.includes(file)) {
+      failures.push(`${qaFile} contains an unexpected prompt preview: ${file}`);
+      return;
+    }
+
+    const checks = asset.checks && typeof asset.checks === "object" ? Object.values(asset.checks) : [];
+    const margins = asset.margins && typeof asset.margins === "object" ? Object.values(asset.margins) : [];
+    if (
+      asset.mode !== "RGBA" ||
+      asset.transparentPixels <= 0 ||
+      asset.edgeTouch !== false ||
+      asset.checks?.centered !== true ||
+      !Number.isFinite(asset.centerOffsetX) ||
+      !Number.isFinite(asset.centerOffsetY) ||
+      Math.abs(asset.centerOffsetX) > 1 ||
+      Math.abs(asset.centerOffsetY) > 1 ||
+      checks.length === 0 ||
+      checks.some((value) => value !== true) ||
+      margins.length !== 4 ||
+      margins.some((value) => !Number.isFinite(value) || value < 32) ||
+      !Array.isArray(asset.cornerAlpha) ||
+      asset.cornerAlpha.length !== 4 ||
+      asset.cornerAlpha.some((value) => value !== 0)
+    ) {
+      failures.push(`${qaFile} contains a failed transparency, padding, edge, or debris check: ${file}`);
+    }
+
+    const imagePath = join(root, file);
+    if (!existsSync(imagePath)) return;
+    const image = readFileSync(imagePath);
+    const width = image.length > 24 ? image.readUInt32BE(16) : 0;
+    const height = image.length > 24 ? image.readUInt32BE(20) : 0;
+    const sha256 = createHash("sha256").update(image).digest("hex");
+    if (asset.width !== width || asset.height !== height || asset.byteLength !== image.length || asset.sha256 !== sha256) {
+      failures.push(`${qaFile} is stale or does not match the current PNG bytes: ${file}`);
+    }
+  });
+
+  expectedFiles.forEach((file) => {
+    if (!seenFiles.has(file)) failures.push(`${qaFile} is missing prompt preview QA: ${file}`);
   });
 }
 

@@ -40,9 +40,19 @@ const expandedPromptExampleChecks = [
   { title: "Classic Green Slime", promptText: "classic small green slime" },
   { title: "Earth Spirit", promptText: "earth spirit" },
   { title: "Slime Scout Girl", promptText: "chibi slime scout girl" },
-  { title: "Shark Pirate Girl", promptText: "chibi shark pirate girl" }
+  { title: "Shark Pirate Girl", promptText: "chibi shark pirate girl" },
+  { title: "Loyal Dog", promptText: "loyal small Shiba-like mixed-breed dog" },
+  { title: "Copper-Haired Scout", promptText: "messy copper-red curls" },
+  { title: "Auburn-Pigtail Farmer", promptText: "two high fluffy pigtails" },
+  { title: "Wolf Beastfolk", promptText: "bipedal gray wolf warrior" }
 ];
-const expectedPromptExampleCount = 107;
+const expectedNewPromptCategoryCounts = {
+  Animals: 10,
+  "Chibi Boys": 5,
+  "Chibi Girls": 5,
+  Beastfolk: 10
+};
+const expectedPromptExampleCount = 137;
 const expectedCodexLogHistoryLimit = 3;
 
 if (!browserCommand) {
@@ -571,6 +581,10 @@ async function assertPromptExamples() {
   assert(promptExampleCounts.categories.includes("Profession Character"), "Prompt Examples should include Profession Character category");
   assert(promptExampleCounts.categories.includes("Monster"), "Prompt Examples should include Monster category");
   assert(promptExampleCounts.categories.includes("Monster Girl Chibi"), "Prompt Examples should include Monster Girl Chibi category");
+  for (const [category, expectedCount] of Object.entries(expectedNewPromptCategoryCounts)) {
+    const actualCount = promptExampleCounts.categories.filter((value) => value === category).length;
+    assert(actualCount === expectedCount, `Prompt Examples should include ${expectedCount} ${category} cards, got ${actualCount}`);
+  }
   assert(!snapshot.text.includes("Create one original pixel-art game asset"), "Prompt Examples should not display raw prompt contents");
   assert(!snapshot.text.includes("Create a single full-body pixel-art character asset"), "Prompt Examples should not display raw basic character prompt contents");
   assert(!snapshot.text.includes("Create a single full-body pixel-art monster asset"), "Prompt Examples should not display raw monster prompt contents");
@@ -616,6 +630,32 @@ async function assertPromptExamples() {
     const modalClosed = await evaluate(`!document.querySelector(".prompt-modal")`);
     assert(modalClosed, `${check.title} Use Prompt should close the Prompt Examples modal`);
   }
+
+  await evaluate(`(() => {
+    const select = document.querySelector(".language-control select");
+    select.value = "ja";
+    select.dispatchEvent(new Event("change", { bubbles: true }));
+  })()`);
+  await waitForEval(() => `document.body.innerText.includes("ピクセルアート生成")`, "Japanese Pixel Art Generation copy");
+  await openPromptExamplesModal("プロンプト例", "ぜんまい茸の配達人");
+  const japaneseSnapshot = await pageSnapshot();
+  for (const text of ["動物", "犬", "デフォルメ男の子", "赤毛の斥候少年", "デフォルメ女の子", "赤茶ツインテールの農家少女", "獣人", "狼獣人"]) {
+    assert(japaneseSnapshot.text.includes(text), `Japanese Prompt Examples should include ${text}`);
+  }
+  await clickPromptExampleCardButton("犬", "この例を使う");
+  await waitForEval(
+    () => `document.body.innerText.includes("プロンプト例をピクセルアート生成へ入れました")`,
+    "Japanese animal prompt example loaded"
+  );
+  const japaneseLoadedPrompt = await evaluate(`document.querySelector("textarea")?.value || ""`);
+  assert(japaneseLoadedPrompt.includes("loyal small Shiba-like mixed-breed dog"), "Japanese Use Prompt should load Loyal Dog");
+  assert(await evaluate(`!document.querySelector(".prompt-modal")`), "Japanese Use Prompt should close the Prompt Examples modal");
+  await evaluate(`(() => {
+    const select = document.querySelector(".language-control select");
+    select.value = "en";
+    select.dispatchEvent(new Event("change", { bubbles: true }));
+  })()`);
+  await waitForEval(() => `document.body.innerText.includes("Pixel Art Generation")`, "English workspace copy restored after Prompt Examples");
 
   await selectWorkflowTab("Pixel Art Generation");
 }
@@ -3104,10 +3144,13 @@ async function clickButtonByText(label) {
   })()`);
 }
 
-async function openPromptExamplesModal() {
+async function openPromptExamplesModal(triggerLabel = "Prompt Examples", expectedTitle = "Clockwork Mushroom Courier") {
   const isOpen = await evaluate(`Boolean(document.querySelector(".prompt-modal"))`);
-  if (!isOpen) await clickButtonByText("Prompt Examples");
-  await waitForEval(() => `document.querySelector(".prompt-modal")?.innerText.includes("Clockwork Mushroom Courier")`, "Prompt Examples modal");
+  if (!isOpen) await clickButtonByText(triggerLabel);
+  await waitForEval(
+    () => `document.querySelector(".prompt-modal")?.innerText.includes(${JSON.stringify(expectedTitle)})`,
+    `${expectedTitle} Prompt Examples modal`
+  );
 }
 
 async function clickPromptExampleCardButton(title, buttonLabel) {

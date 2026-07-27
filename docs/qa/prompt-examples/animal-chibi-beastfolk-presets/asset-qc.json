@@ -1,0 +1,1510 @@
+{
+  "generatedAt": "2026-07-28T00:48:45+09:00",
+  "expectedCount": 30,
+  "actualCount": 30,
+  "allChecksPass": true,
+  "assets": [
+    {
+      "prefix": "animal",
+      "titleEn": "Loyal Dog",
+      "titleJa": "犬",
+      "id": "animal-loyal-dog",
+      "file": "public/prompt-examples/animal-loyal-dog.png",
+      "width": 1254,
+      "height": 1254,
+      "mode": "RGBA",
+      "bbox": [
+        294,
+        223,
+        960,
+        1031
+      ],
+      "margins": {
+        "left": 294,
+        "top": 223,
+        "right": 294,
+        "bottom": 223
+      },
+      "transparentPixels": 1232242,
+      "partialAlphaPixels": 5473,
+      "opaquePixels": 334801,
+      "transparentRatio": 0.7836,
+      "components": 1,
+      "componentAreas": [
+        340274
+      ],
+      "cornerAlpha": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "edgeTouch": false,
+      "checks": {
+        "min1024": true,
+        "hasTransparency": true,
+        "transparentCorners": true,
+        "padded": true,
+        "noEdgeTouch": true,
+        "noTinyDebris": true,
+        "centered": true
+      },
+      "byteLength": 542961,
+      "sha256": "33ce2e538c6a5e0656da66ed57264007592b233837132767d5d4e292ac9baefc",
+      "centerOffsetX": 0.0,
+      "centerOffsetY": 0.0
+    },
+    {
+      "prefix": "animal",
+      "titleEn": "Curious Cat",
+      "titleJa": "猫",
+      "id": "animal-curious-cat",
+      "file": "public/prompt-examples/animal-curious-cat.png",
+      "width": 1254,
+      "height": 1254,
+      "mode": "RGBA",
+      "bbox": [
+        338,
+        325,
+        915,
+        928
+      ],
+      "margins": {
+        "left": 338,
+        "top": 325,
+        "right": 339,
+        "bottom": 326
+      },
+      "transparentPixels": 1372042,
+      "partialAlphaPixels": 4339,
+      "opaquePixels": 196135,
+      "transparentRatio": 0.8725,
+      "components": 1,
+      "componentAreas": [
+        200474
+      ],
+      "cornerAlpha": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "edgeTouch": false,
+      "checks": {
+        "min1024": true,
+        "hasTransparency": true,
+        "transparentCorners": true,
+        "padded": true,
+        "noEdgeTouch": true,
+        "noTinyDebris": true,
+        "centered": true
+      },
+      "byteLength": 366471,
+      "sha256": "2c090e1c395232908455bbfb9c8fb362c0749397846a53d07be2898117821548",
+      "centerOffsetX": -0.5,
+      "centerOffsetY": -0.5
+    },
+    {
+      "prefix": "animal",
+      "titleEn": "Red Panda",
+      "titleJa": "レッサーパンダ",
+      "id": "animal-red-panda",
+      "file": "public/prompt-examples/animal-red-panda.png",
+      "width": 1254,
+      "height": 1254,
+      "mode": "RGBA",
+      "bbox": [
+        259,
+        326,
+        995,
+        927
+      ],
+      "margins": {
+        "left": 259,
+        "top": 326,
+        "right": 259,
+        "bottom": 327
+      },
+      "transparentPixels": 1302566,
+      "partialAlphaPixels": 3680,
+      "opaquePixels": 266270,
+      "transparentRatio": 0.8283,
+      "components": 1,
+      "componentAreas": [
+        269950
+      ],
+      "cornerAlpha": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "edgeTouch": false,
+      "checks": {
+        "min1024": true,
+        "hasTransparency": true,
+        "transparentCorners": true,
+        "padded": true,
+        "noEdgeTouch": true,
+        "noTinyDebris": true,
+        "centered": true
+      },
+      "byteLength": 416661,
+      "sha256": "567e60c26a59a9e0eb9d0a1e737e00788ff87adb571a0855ac75a021a7cf427c",
+      "centerOffsetX": 0.0,
+      "centerOffsetY": -0.5
+    },
+    {
+      "prefix": "animal",
+      "titleEn": "Fox",
+      "titleJa": "狐",
+      "id": "animal-fox",
+      "file": "public/prompt-examples/animal-fox.png",
+      "width": 1254,
+      "height": 1254,
+      "mode": "RGBA",
+      "bbox": [
+        229,
+        253,
+        1024,
+        1000
+      ],
+      "margins": {
+        "left": 229,
+        "top": 253,
+        "right": 230,
+        "bottom": 254
+      },
+      "transparentPixels": 1278011,
+      "partialAlphaPixels": 4858,
+      "opaquePixels": 289647,
+      "transparentRatio": 0.8127,
+      "components": 1,
+      "componentAreas": [
+        294505
+      ],
+      "cornerAlpha": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "edgeTouch": false,
+      "checks": {
+        "min1024": true,
+        "hasTransparency": true,
+        "transparentCorners": true,
+        "padded": true,
+        "noEdgeTouch": true,
+        "noTinyDebris": true,
+        "centered": true
+      },
+      "byteLength": 482705,
+      "sha256": "cde1d36e1ae692a7fbaaeb6573be9a2d4df93e20ba5763c41bb42ccc36f03ce9",
+      "centerOffsetX": -0.5,
+      "centerOffsetY": -0.5
+    },
+    {
+      "prefix": "animal",
+      "titleEn": "Rabbit",
+      "titleJa": "うさぎ",
+      "id": "animal-rabbit",
+      "file": "public/prompt-examples/animal-rabbit.png",
+      "width": 1254,
+      "height": 1254,
+      "mode": "RGBA",
+      "bbox": [
+        290,
+        163,
+        964,
+        1090
+      ],
+      "margins": {
+        "left": 290,
+        "top": 163,
+        "right": 290,
+        "bottom": 164
+      },
+      "transparentPixels": 1221228,
+      "partialAlphaPixels": 0,
+      "opaquePixels": 351288,
+      "transparentRatio": 0.7766,
+      "components": 1,
+      "componentAreas": [
+        351288
+      ],
+      "cornerAlpha": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "edgeTouch": false,
+      "checks": {
+        "min1024": true,
+        "hasTransparency": true,
+        "transparentCorners": true,
+        "padded": true,
+        "noEdgeTouch": true,
+        "noTinyDebris": true,
+        "centered": true
+      },
+      "byteLength": 526743,
+      "sha256": "b932001bdf4c5ef2d6da985337fe9a1dcb6a72bb485064cd535711e39498ce0a",
+      "centerOffsetX": 0.0,
+      "centerOffsetY": -0.5
+    },
+    {
+      "prefix": "animal",
+      "titleEn": "Giant Panda",
+      "titleJa": "パンダ",
+      "id": "animal-giant-panda",
+      "file": "public/prompt-examples/animal-giant-panda.png",
+      "width": 1254,
+      "height": 1254,
+      "mode": "RGBA",
+      "bbox": [
+        223,
+        257,
+        1030,
+        997
+      ],
+      "margins": {
+        "left": 223,
+        "top": 257,
+        "right": 224,
+        "bottom": 257
+      },
+      "transparentPixels": 1141898,
+      "partialAlphaPixels": 5636,
+      "opaquePixels": 424982,
+      "transparentRatio": 0.7262,
+      "components": 1,
+      "componentAreas": [
+        430618
+      ],
+      "cornerAlpha": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "edgeTouch": false,
+      "checks": {
+        "min1024": true,
+        "hasTransparency": true,
+        "transparentCorners": true,
+        "padded": true,
+        "noEdgeTouch": true,
+        "noTinyDebris": true,
+        "centered": true
+      },
+      "byteLength": 723145,
+      "sha256": "4aeb90cad0dbb07ec9e4311077994df546d754bc2a9814f131fc9617fe961e80",
+      "centerOffsetX": -0.5,
+      "centerOffsetY": 0.0
+    },
+    {
+      "prefix": "animal",
+      "titleEn": "Lion",
+      "titleJa": "ライオン",
+      "id": "animal-lion",
+      "file": "public/prompt-examples/animal-lion.png",
+      "width": 1254,
+      "height": 1254,
+      "mode": "RGBA",
+      "bbox": [
+        290,
+        258,
+        964,
+        995
+      ],
+      "margins": {
+        "left": 290,
+        "top": 258,
+        "right": 290,
+        "bottom": 259
+      },
+      "transparentPixels": 1252002,
+      "partialAlphaPixels": 3980,
+      "opaquePixels": 316534,
+      "transparentRatio": 0.7962,
+      "components": 1,
+      "componentAreas": [
+        320514
+      ],
+      "cornerAlpha": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "edgeTouch": false,
+      "checks": {
+        "min1024": true,
+        "hasTransparency": true,
+        "transparentCorners": true,
+        "padded": true,
+        "noEdgeTouch": true,
+        "noTinyDebris": true,
+        "centered": true
+      },
+      "byteLength": 545500,
+      "sha256": "44b94e34dd8072c8a5488c85ea39c31de08921ed4308679eae816bc1077e150c",
+      "centerOffsetX": 0.0,
+      "centerOffsetY": -0.5
+    },
+    {
+      "prefix": "animal",
+      "titleEn": "Tiger",
+      "titleJa": "虎",
+      "id": "animal-tiger",
+      "file": "public/prompt-examples/animal-tiger.png",
+      "width": 1254,
+      "height": 1254,
+      "mode": "RGBA",
+      "bbox": [
+        221,
+        264,
+        1033,
+        990
+      ],
+      "margins": {
+        "left": 221,
+        "top": 264,
+        "right": 221,
+        "bottom": 264
+      },
+      "transparentPixels": 1243981,
+      "partialAlphaPixels": 5704,
+      "opaquePixels": 322831,
+      "transparentRatio": 0.7911,
+      "components": 1,
+      "componentAreas": [
+        328535
+      ],
+      "cornerAlpha": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "edgeTouch": false,
+      "checks": {
+        "min1024": true,
+        "hasTransparency": true,
+        "transparentCorners": true,
+        "padded": true,
+        "noEdgeTouch": true,
+        "noTinyDebris": true,
+        "centered": true
+      },
+      "byteLength": 621709,
+      "sha256": "d05091f1b5d9ac4ee05d230567cf20256a0c34928de3e67855baa6ba112d30c5",
+      "centerOffsetX": 0.0,
+      "centerOffsetY": 0.0
+    },
+    {
+      "prefix": "animal",
+      "titleEn": "Wolf",
+      "titleJa": "狼",
+      "id": "animal-wolf",
+      "file": "public/prompt-examples/animal-wolf.png",
+      "width": 1254,
+      "height": 1254,
+      "mode": "RGBA",
+      "bbox": [
+        127,
+        187,
+        1126,
+        1067
+      ],
+      "margins": {
+        "left": 127,
+        "top": 187,
+        "right": 128,
+        "bottom": 187
+      },
+      "transparentPixels": 1156409,
+      "partialAlphaPixels": 7890,
+      "opaquePixels": 408217,
+      "transparentRatio": 0.7354,
+      "components": 1,
+      "componentAreas": [
+        416107
+      ],
+      "cornerAlpha": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "edgeTouch": false,
+      "checks": {
+        "min1024": true,
+        "hasTransparency": true,
+        "transparentCorners": true,
+        "padded": true,
+        "noEdgeTouch": true,
+        "noTinyDebris": true,
+        "centered": true
+      },
+      "byteLength": 633445,
+      "sha256": "d3e1364ecc8fea1aeba1e0fce10d3dd01819962ef490702d502d8b0d1fb11ef6",
+      "centerOffsetX": -0.5,
+      "centerOffsetY": 0.0
+    },
+    {
+      "prefix": "animal",
+      "titleEn": "Brown Bear",
+      "titleJa": "熊",
+      "id": "animal-brown-bear",
+      "file": "public/prompt-examples/animal-brown-bear.png",
+      "width": 1254,
+      "height": 1254,
+      "mode": "RGBA",
+      "bbox": [
+        243,
+        243,
+        1010,
+        1010
+      ],
+      "margins": {
+        "left": 243,
+        "top": 243,
+        "right": 244,
+        "bottom": 244
+      },
+      "transparentPixels": 1170434,
+      "partialAlphaPixels": 4709,
+      "opaquePixels": 397373,
+      "transparentRatio": 0.7443,
+      "components": 1,
+      "componentAreas": [
+        402082
+      ],
+      "cornerAlpha": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "edgeTouch": false,
+      "checks": {
+        "min1024": true,
+        "hasTransparency": true,
+        "transparentCorners": true,
+        "padded": true,
+        "noEdgeTouch": true,
+        "noTinyDebris": true,
+        "centered": true
+      },
+      "byteLength": 566967,
+      "sha256": "5c9dd157979ab8c87dc7be3fe1bebef3f46a2e04e5cc8f32cfa1328926abe629",
+      "centerOffsetX": -0.5,
+      "centerOffsetY": -0.5
+    },
+    {
+      "prefix": "chibi-boy",
+      "titleEn": "Copper-Haired Scout",
+      "titleJa": "赤毛の斥候少年",
+      "id": "chibi-boy-copper-haired-scout",
+      "file": "public/prompt-examples/chibi-boy-copper-haired-scout.png",
+      "width": 1254,
+      "height": 1254,
+      "mode": "RGBA",
+      "bbox": [
+        443,
+        258,
+        810,
+        995
+      ],
+      "margins": {
+        "left": 443,
+        "top": 258,
+        "right": 444,
+        "bottom": 259
+      },
+      "transparentPixels": 1396270,
+      "partialAlphaPixels": 3268,
+      "opaquePixels": 172978,
+      "transparentRatio": 0.8879,
+      "components": 1,
+      "componentAreas": [
+        176246
+      ],
+      "cornerAlpha": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "edgeTouch": false,
+      "checks": {
+        "min1024": true,
+        "hasTransparency": true,
+        "transparentCorners": true,
+        "padded": true,
+        "noEdgeTouch": true,
+        "noTinyDebris": true,
+        "centered": true
+      },
+      "byteLength": 337757,
+      "sha256": "585f12923b2a68f8c36ce49c992e20cfe6ba192dfb70c9dec2616422e2f75eae",
+      "centerOffsetX": -0.5,
+      "centerOffsetY": -0.5
+    },
+    {
+      "prefix": "chibi-boy",
+      "titleEn": "Silver-Braided Mage",
+      "titleJa": "銀髪編みの魔術少年",
+      "id": "chibi-boy-silver-braided-mage",
+      "file": "public/prompt-examples/chibi-boy-silver-braided-mage.png",
+      "width": 1254,
+      "height": 1254,
+      "mode": "RGBA",
+      "bbox": [
+        396,
+        127,
+        858,
+        1127
+      ],
+      "margins": {
+        "left": 396,
+        "top": 127,
+        "right": 396,
+        "bottom": 127
+      },
+      "transparentPixels": 1254859,
+      "partialAlphaPixels": 7232,
+      "opaquePixels": 310425,
+      "transparentRatio": 0.798,
+      "components": 1,
+      "componentAreas": [
+        317657
+      ],
+      "cornerAlpha": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "edgeTouch": false,
+      "checks": {
+        "min1024": true,
+        "hasTransparency": true,
+        "transparentCorners": true,
+        "padded": true,
+        "noEdgeTouch": true,
+        "noTinyDebris": true,
+        "centered": true
+      },
+      "byteLength": 551093,
+      "sha256": "71b7deae0fa26f0772b11531e3308974c7c0a6962ea12ced4e8b82e335bb6e99",
+      "centerOffsetX": 0.0,
+      "centerOffsetY": 0.0
+    },
+    {
+      "prefix": "chibi-boy",
+      "titleEn": "Black-Bobbed Scholar",
+      "titleJa": "黒髪ボブの学者少年",
+      "id": "chibi-boy-black-bobbed-scholar",
+      "file": "public/prompt-examples/chibi-boy-black-bobbed-scholar.png",
+      "width": 1254,
+      "height": 1254,
+      "mode": "RGBA",
+      "bbox": [
+        410,
+        147,
+        844,
+        1106
+      ],
+      "margins": {
+        "left": 410,
+        "top": 147,
+        "right": 410,
+        "bottom": 148
+      },
+      "transparentPixels": 1291216,
+      "partialAlphaPixels": 6262,
+      "opaquePixels": 275038,
+      "transparentRatio": 0.8211,
+      "components": 1,
+      "componentAreas": [
+        281300
+      ],
+      "cornerAlpha": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "edgeTouch": false,
+      "checks": {
+        "min1024": true,
+        "hasTransparency": true,
+        "transparentCorners": true,
+        "padded": true,
+        "noEdgeTouch": true,
+        "noTinyDebris": true,
+        "centered": true
+      },
+      "byteLength": 489440,
+      "sha256": "f28881b5aa5df77b4363be311b3bdd628b57b43dd80117c116892180790bd679",
+      "centerOffsetX": 0.0,
+      "centerOffsetY": -0.5
+    },
+    {
+      "prefix": "chibi-boy",
+      "titleEn": "Sandy-Undercut Mechanic",
+      "titleJa": "砂色アンダーカットの整備少年",
+      "id": "chibi-boy-sandy-undercut-mechanic",
+      "file": "public/prompt-examples/chibi-boy-sandy-undercut-mechanic.png",
+      "width": 1254,
+      "height": 1254,
+      "mode": "RGBA",
+      "bbox": [
+        367,
+        144,
+        886,
+        1110
+      ],
+      "margins": {
+        "left": 367,
+        "top": 144,
+        "right": 368,
+        "bottom": 144
+      },
+      "transparentPixels": 1284233,
+      "partialAlphaPixels": 7132,
+      "opaquePixels": 281151,
+      "transparentRatio": 0.8167,
+      "components": 1,
+      "componentAreas": [
+        288283
+      ],
+      "cornerAlpha": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "edgeTouch": false,
+      "checks": {
+        "min1024": true,
+        "hasTransparency": true,
+        "transparentCorners": true,
+        "padded": true,
+        "noEdgeTouch": true,
+        "noTinyDebris": true,
+        "centered": true
+      },
+      "byteLength": 528583,
+      "sha256": "15c15e00aebeee40fac8d226cfdd0f909a8450787f672aaccc9fdb28ed408899",
+      "centerOffsetX": -0.5,
+      "centerOffsetY": 0.0
+    },
+    {
+      "prefix": "chibi-boy",
+      "titleEn": "Blue-Curled Noble",
+      "titleJa": "青巻き髪の貴族少年",
+      "id": "chibi-boy-blue-curled-noble",
+      "file": "public/prompt-examples/chibi-boy-blue-curled-noble.png",
+      "width": 1254,
+      "height": 1254,
+      "mode": "RGBA",
+      "bbox": [
+        412,
+        127,
+        842,
+        1127
+      ],
+      "margins": {
+        "left": 412,
+        "top": 127,
+        "right": 412,
+        "bottom": 127
+      },
+      "transparentPixels": 1294534,
+      "partialAlphaPixels": 6860,
+      "opaquePixels": 271122,
+      "transparentRatio": 0.8232,
+      "components": 1,
+      "componentAreas": [
+        277982
+      ],
+      "cornerAlpha": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "edgeTouch": false,
+      "checks": {
+        "min1024": true,
+        "hasTransparency": true,
+        "transparentCorners": true,
+        "padded": true,
+        "noEdgeTouch": true,
+        "noTinyDebris": true,
+        "centered": true
+      },
+      "byteLength": 528297,
+      "sha256": "2a76538794b4c2b5814f30034ff2661f3232b0640aa3983bc5bbee9eb48c42fb",
+      "centerOffsetX": 0.0,
+      "centerOffsetY": 0.0
+    },
+    {
+      "prefix": "chibi-girl",
+      "titleEn": "Auburn-Pigtail Farmer",
+      "titleJa": "赤茶ツインテールの農家少女",
+      "id": "chibi-girl-auburn-pigtail-farmer",
+      "file": "public/prompt-examples/chibi-girl-auburn-pigtail-farmer.png",
+      "width": 1254,
+      "height": 1254,
+      "mode": "RGBA",
+      "bbox": [
+        365,
+        219,
+        889,
+        1034
+      ],
+      "margins": {
+        "left": 365,
+        "top": 219,
+        "right": 365,
+        "bottom": 220
+      },
+      "transparentPixels": 1333898,
+      "partialAlphaPixels": 5920,
+      "opaquePixels": 232698,
+      "transparentRatio": 0.8483,
+      "components": 1,
+      "componentAreas": [
+        238618
+      ],
+      "cornerAlpha": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "edgeTouch": false,
+      "checks": {
+        "min1024": true,
+        "hasTransparency": true,
+        "transparentCorners": true,
+        "padded": true,
+        "noEdgeTouch": true,
+        "noTinyDebris": true,
+        "centered": true
+      },
+      "byteLength": 489296,
+      "sha256": "bad7b6459b6e4787b2bbadcc2f7dbeb4a47329f902f305497a14be57e55bbf09",
+      "centerOffsetX": 0.0,
+      "centerOffsetY": -0.5
+    },
+    {
+      "prefix": "chibi-girl",
+      "titleEn": "Pink-Afro Dancer",
+      "titleJa": "桃色アフロの踊り子少女",
+      "id": "chibi-girl-pink-afro-dancer",
+      "file": "public/prompt-examples/chibi-girl-pink-afro-dancer.png",
+      "width": 1254,
+      "height": 1254,
+      "mode": "RGBA",
+      "bbox": [
+        352,
+        127,
+        902,
+        1127
+      ],
+      "margins": {
+        "left": 352,
+        "top": 127,
+        "right": 352,
+        "bottom": 127
+      },
+      "transparentPixels": 1233654,
+      "partialAlphaPixels": 0,
+      "opaquePixels": 338862,
+      "transparentRatio": 0.7845,
+      "components": 1,
+      "componentAreas": [
+        338862
+      ],
+      "cornerAlpha": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "edgeTouch": false,
+      "checks": {
+        "min1024": true,
+        "hasTransparency": true,
+        "transparentCorners": true,
+        "padded": true,
+        "noEdgeTouch": true,
+        "noTinyDebris": true,
+        "centered": true
+      },
+      "byteLength": 649577,
+      "sha256": "47ac15d857b7507f7cdb09a12bfb2cd655d0cab28fe095da40d05d2190703d0f",
+      "centerOffsetX": 0.0,
+      "centerOffsetY": 0.0
+    },
+    {
+      "prefix": "chibi-girl",
+      "titleEn": "Platinum-Bobbed Winter Girl",
+      "titleJa": "白金ボブの冬服少女",
+      "id": "chibi-girl-platinum-bobbed-winter-girl",
+      "file": "public/prompt-examples/chibi-girl-platinum-bobbed-winter-girl.png",
+      "width": 1254,
+      "height": 1254,
+      "mode": "RGBA",
+      "bbox": [
+        349,
+        127,
+        904,
+        1127
+      ],
+      "margins": {
+        "left": 349,
+        "top": 127,
+        "right": 350,
+        "bottom": 127
+      },
+      "transparentPixels": 1231376,
+      "partialAlphaPixels": 6604,
+      "opaquePixels": 334536,
+      "transparentRatio": 0.7831,
+      "components": 1,
+      "componentAreas": [
+        341140
+      ],
+      "cornerAlpha": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "edgeTouch": false,
+      "checks": {
+        "min1024": true,
+        "hasTransparency": true,
+        "transparentCorners": true,
+        "padded": true,
+        "noEdgeTouch": true,
+        "noTinyDebris": true,
+        "centered": true
+      },
+      "byteLength": 641319,
+      "sha256": "8d8e5f62e1ef4948e6f03402959f421f0485801db86898119d430296c23f2b7c",
+      "centerOffsetX": -0.5,
+      "centerOffsetY": 0.0
+    },
+    {
+      "prefix": "chibi-girl",
+      "titleEn": "Black-Ponytail Athlete",
+      "titleJa": "黒髪ポニーテールの運動少女",
+      "id": "chibi-girl-black-ponytail-athlete",
+      "file": "public/prompt-examples/chibi-girl-black-ponytail-athlete.png",
+      "width": 1254,
+      "height": 1254,
+      "mode": "RGBA",
+      "bbox": [
+        379,
+        165,
+        875,
+        1089
+      ],
+      "margins": {
+        "left": 379,
+        "top": 165,
+        "right": 379,
+        "bottom": 165
+      },
+      "transparentPixels": 1323181,
+      "partialAlphaPixels": 7258,
+      "opaquePixels": 242077,
+      "transparentRatio": 0.8414,
+      "components": 1,
+      "componentAreas": [
+        249335
+      ],
+      "cornerAlpha": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "edgeTouch": false,
+      "checks": {
+        "min1024": true,
+        "hasTransparency": true,
+        "transparentCorners": true,
+        "padded": true,
+        "noEdgeTouch": true,
+        "noTinyDebris": true,
+        "centered": true
+      },
+      "byteLength": 404133,
+      "sha256": "db96681c0bfbe8b4824768a83ca813c4d48b05dfa0d839b986cf3b212b5858cd",
+      "centerOffsetX": 0.0,
+      "centerOffsetY": 0.0
+    },
+    {
+      "prefix": "chibi-girl",
+      "titleEn": "Violet-Braided Alchemist",
+      "titleJa": "紫編み髪の錬金少女",
+      "id": "chibi-girl-violet-braided-alchemist",
+      "file": "public/prompt-examples/chibi-girl-violet-braided-alchemist.png",
+      "width": 1254,
+      "height": 1254,
+      "mode": "RGBA",
+      "bbox": [
+        349,
+        127,
+        904,
+        1127
+      ],
+      "margins": {
+        "left": 349,
+        "top": 127,
+        "right": 350,
+        "bottom": 127
+      },
+      "transparentPixels": 1238018,
+      "partialAlphaPixels": 9075,
+      "opaquePixels": 325423,
+      "transparentRatio": 0.7873,
+      "components": 1,
+      "componentAreas": [
+        334498
+      ],
+      "cornerAlpha": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "edgeTouch": false,
+      "checks": {
+        "min1024": true,
+        "hasTransparency": true,
+        "transparentCorners": true,
+        "padded": true,
+        "noEdgeTouch": true,
+        "noTinyDebris": true,
+        "centered": true
+      },
+      "byteLength": 642033,
+      "sha256": "56d295183df3c5a753f7272eb74fea0f4615a508c0e33332daab172218cb6189",
+      "centerOffsetX": -0.5,
+      "centerOffsetY": 0.0
+    },
+    {
+      "prefix": "beastfolk",
+      "titleEn": "Wolf Beastfolk",
+      "titleJa": "狼獣人",
+      "id": "beastfolk-wolf-beastfolk",
+      "file": "public/prompt-examples/beastfolk-wolf-beastfolk.png",
+      "width": 1254,
+      "height": 1254,
+      "mode": "RGBA",
+      "bbox": [
+        327,
+        127,
+        926,
+        1127
+      ],
+      "margins": {
+        "left": 327,
+        "top": 127,
+        "right": 328,
+        "bottom": 127
+      },
+      "transparentPixels": 1233388,
+      "partialAlphaPixels": 8530,
+      "opaquePixels": 330598,
+      "transparentRatio": 0.7843,
+      "components": 1,
+      "componentAreas": [
+        339128
+      ],
+      "cornerAlpha": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "edgeTouch": false,
+      "checks": {
+        "min1024": true,
+        "hasTransparency": true,
+        "transparentCorners": true,
+        "padded": true,
+        "noEdgeTouch": true,
+        "noTinyDebris": true,
+        "centered": true
+      },
+      "byteLength": 679540,
+      "sha256": "7ed63a3e540365d398fa65579a7608fe61c18a882dc1eaf920abf2e6d5975274",
+      "centerOffsetX": -0.5,
+      "centerOffsetY": 0.0
+    },
+    {
+      "prefix": "beastfolk",
+      "titleEn": "Cat Beastfolk",
+      "titleJa": "猫獣人",
+      "id": "beastfolk-cat-beastfolk",
+      "file": "public/prompt-examples/beastfolk-cat-beastfolk.png",
+      "width": 1254,
+      "height": 1254,
+      "mode": "RGBA",
+      "bbox": [
+        403,
+        198,
+        851,
+        1055
+      ],
+      "margins": {
+        "left": 403,
+        "top": 198,
+        "right": 403,
+        "bottom": 199
+      },
+      "transparentPixels": 1383417,
+      "partialAlphaPixels": 6677,
+      "opaquePixels": 182422,
+      "transparentRatio": 0.8797,
+      "components": 3,
+      "componentAreas": [
+        189057,
+        22,
+        20
+      ],
+      "cornerAlpha": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "edgeTouch": false,
+      "checks": {
+        "min1024": true,
+        "hasTransparency": true,
+        "transparentCorners": true,
+        "padded": true,
+        "noEdgeTouch": true,
+        "noTinyDebris": true,
+        "centered": true
+      },
+      "byteLength": 406192,
+      "sha256": "05f161225a3d7984aeaaf9ce5e202d7646ddccaf0b5e419efe6c7a5efca358d8",
+      "centerOffsetX": 0.0,
+      "centerOffsetY": -0.5
+    },
+    {
+      "prefix": "beastfolk",
+      "titleEn": "Fox Beastfolk",
+      "titleJa": "狐獣人",
+      "id": "beastfolk-fox-beastfolk",
+      "file": "public/prompt-examples/beastfolk-fox-beastfolk.png",
+      "width": 1254,
+      "height": 1254,
+      "mode": "RGBA",
+      "bbox": [
+        353,
+        168,
+        901,
+        1086
+      ],
+      "margins": {
+        "left": 353,
+        "top": 168,
+        "right": 353,
+        "bottom": 168
+      },
+      "transparentPixels": 1324530,
+      "partialAlphaPixels": 6623,
+      "opaquePixels": 241363,
+      "transparentRatio": 0.8423,
+      "components": 1,
+      "componentAreas": [
+        247986
+      ],
+      "cornerAlpha": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "edgeTouch": false,
+      "checks": {
+        "min1024": true,
+        "hasTransparency": true,
+        "transparentCorners": true,
+        "padded": true,
+        "noEdgeTouch": true,
+        "noTinyDebris": true,
+        "centered": true
+      },
+      "byteLength": 516957,
+      "sha256": "5ce43ae3fb8a59eb5a855eb6c1be7cc35fc7260843b0011719349c59b921f099",
+      "centerOffsetX": 0.0,
+      "centerOffsetY": 0.0
+    },
+    {
+      "prefix": "beastfolk",
+      "titleEn": "Rabbit Beastfolk",
+      "titleJa": "兎獣人",
+      "id": "beastfolk-rabbit-beastfolk",
+      "file": "public/prompt-examples/beastfolk-rabbit-beastfolk.png",
+      "width": 1254,
+      "height": 1254,
+      "mode": "RGBA",
+      "bbox": [
+        390,
+        127,
+        863,
+        1127
+      ],
+      "margins": {
+        "left": 390,
+        "top": 127,
+        "right": 391,
+        "bottom": 127
+      },
+      "transparentPixels": 1327705,
+      "partialAlphaPixels": 7642,
+      "opaquePixels": 237169,
+      "transparentRatio": 0.8443,
+      "components": 1,
+      "componentAreas": [
+        244811
+      ],
+      "cornerAlpha": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "edgeTouch": false,
+      "checks": {
+        "min1024": true,
+        "hasTransparency": true,
+        "transparentCorners": true,
+        "padded": true,
+        "noEdgeTouch": true,
+        "noTinyDebris": true,
+        "centered": true
+      },
+      "byteLength": 555329,
+      "sha256": "5cc154387cb7bddf8cc16ea2385665352fc03aa1dfb2968bd8056df7eedf1eab",
+      "centerOffsetX": -0.5,
+      "centerOffsetY": 0.0
+    },
+    {
+      "prefix": "beastfolk",
+      "titleEn": "Tiger Beastfolk",
+      "titleJa": "虎獣人",
+      "id": "beastfolk-tiger-beastfolk",
+      "file": "public/prompt-examples/beastfolk-tiger-beastfolk.png",
+      "width": 1254,
+      "height": 1254,
+      "mode": "RGBA",
+      "bbox": [
+        313,
+        127,
+        940,
+        1127
+      ],
+      "margins": {
+        "left": 313,
+        "top": 127,
+        "right": 314,
+        "bottom": 127
+      },
+      "transparentPixels": 1238426,
+      "partialAlphaPixels": 8526,
+      "opaquePixels": 325564,
+      "transparentRatio": 0.7875,
+      "components": 1,
+      "componentAreas": [
+        334090
+      ],
+      "cornerAlpha": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "edgeTouch": false,
+      "checks": {
+        "min1024": true,
+        "hasTransparency": true,
+        "transparentCorners": true,
+        "padded": true,
+        "noEdgeTouch": true,
+        "noTinyDebris": true,
+        "centered": true
+      },
+      "byteLength": 695531,
+      "sha256": "9755849db7ebcfad19835d8cbf89423b28d9559006a8ee93e4a2aa339d40cdc5",
+      "centerOffsetX": -0.5,
+      "centerOffsetY": 0.0
+    },
+    {
+      "prefix": "beastfolk",
+      "titleEn": "Lion Beastfolk",
+      "titleJa": "獅子獣人",
+      "id": "beastfolk-lion-beastfolk",
+      "file": "public/prompt-examples/beastfolk-lion-beastfolk.png",
+      "width": 1254,
+      "height": 1254,
+      "mode": "RGBA",
+      "bbox": [
+        326,
+        127,
+        928,
+        1127
+      ],
+      "margins": {
+        "left": 326,
+        "top": 127,
+        "right": 326,
+        "bottom": 127
+      },
+      "transparentPixels": 1227122,
+      "partialAlphaPixels": 8857,
+      "opaquePixels": 336537,
+      "transparentRatio": 0.7804,
+      "components": 1,
+      "componentAreas": [
+        345394
+      ],
+      "cornerAlpha": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "edgeTouch": false,
+      "checks": {
+        "min1024": true,
+        "hasTransparency": true,
+        "transparentCorners": true,
+        "padded": true,
+        "noEdgeTouch": true,
+        "noTinyDebris": true,
+        "centered": true
+      },
+      "byteLength": 732088,
+      "sha256": "064aa968ffd59aea33caac9b1df6a902876bb734adc0d633d0dbedefa3479916",
+      "centerOffsetX": 0.0,
+      "centerOffsetY": 0.0
+    },
+    {
+      "prefix": "beastfolk",
+      "titleEn": "Bear Beastfolk",
+      "titleJa": "熊獣人",
+      "id": "beastfolk-bear-beastfolk",
+      "file": "public/prompt-examples/beastfolk-bear-beastfolk.png",
+      "width": 1254,
+      "height": 1254,
+      "mode": "RGBA",
+      "bbox": [
+        280,
+        127,
+        974,
+        1127
+      ],
+      "margins": {
+        "left": 280,
+        "top": 127,
+        "right": 280,
+        "bottom": 127
+      },
+      "transparentPixels": 1126760,
+      "partialAlphaPixels": 8157,
+      "opaquePixels": 437599,
+      "transparentRatio": 0.7165,
+      "components": 1,
+      "componentAreas": [
+        445756
+      ],
+      "cornerAlpha": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "edgeTouch": false,
+      "checks": {
+        "min1024": true,
+        "hasTransparency": true,
+        "transparentCorners": true,
+        "padded": true,
+        "noEdgeTouch": true,
+        "noTinyDebris": true,
+        "centered": true
+      },
+      "byteLength": 882202,
+      "sha256": "beef498019b2877033d7dcadb9e3d69628b25b250201b70b22db88d58440b3d5",
+      "centerOffsetX": 0.0,
+      "centerOffsetY": 0.0
+    },
+    {
+      "prefix": "beastfolk",
+      "titleEn": "Red Panda Beastfolk",
+      "titleJa": "レッサーパンダ獣人",
+      "id": "beastfolk-red-panda-beastfolk",
+      "file": "public/prompt-examples/beastfolk-red-panda-beastfolk.png",
+      "width": 1254,
+      "height": 1254,
+      "mode": "RGBA",
+      "bbox": [
+        279,
+        127,
+        975,
+        1127
+      ],
+      "margins": {
+        "left": 279,
+        "top": 127,
+        "right": 279,
+        "bottom": 127
+      },
+      "transparentPixels": 1215477,
+      "partialAlphaPixels": 0,
+      "opaquePixels": 357039,
+      "transparentRatio": 0.773,
+      "components": 1,
+      "componentAreas": [
+        357039
+      ],
+      "cornerAlpha": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "edgeTouch": false,
+      "checks": {
+        "min1024": true,
+        "hasTransparency": true,
+        "transparentCorners": true,
+        "padded": true,
+        "noEdgeTouch": true,
+        "noTinyDebris": true,
+        "centered": true
+      },
+      "byteLength": 637989,
+      "sha256": "52964b5fd2431af1d2523895ee9a657677db54cd30c09d841ec163465bc8aed1",
+      "centerOffsetX": 0.0,
+      "centerOffsetY": 0.0
+    },
+    {
+      "prefix": "beastfolk",
+      "titleEn": "Deer Beastfolk",
+      "titleJa": "鹿獣人",
+      "id": "beastfolk-deer-beastfolk",
+      "file": "public/prompt-examples/beastfolk-deer-beastfolk.png",
+      "width": 1254,
+      "height": 1254,
+      "mode": "RGBA",
+      "bbox": [
+        434,
+        166,
+        819,
+        1087
+      ],
+      "margins": {
+        "left": 434,
+        "top": 166,
+        "right": 435,
+        "bottom": 167
+      },
+      "transparentPixels": 1391152,
+      "partialAlphaPixels": 6849,
+      "opaquePixels": 174515,
+      "transparentRatio": 0.8847,
+      "components": 1,
+      "componentAreas": [
+        181364
+      ],
+      "cornerAlpha": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "edgeTouch": false,
+      "checks": {
+        "min1024": true,
+        "hasTransparency": true,
+        "transparentCorners": true,
+        "padded": true,
+        "noEdgeTouch": true,
+        "noTinyDebris": true,
+        "centered": true
+      },
+      "byteLength": 411520,
+      "sha256": "5bf34d5bf26f8c05d22078a4610dffda6bbff6804c3a8f8c43ae31628110d693",
+      "centerOffsetX": -0.5,
+      "centerOffsetY": -0.5
+    },
+    {
+      "prefix": "beastfolk",
+      "titleEn": "Goat Beastfolk",
+      "titleJa": "山羊獣人",
+      "id": "beastfolk-goat-beastfolk",
+      "file": "public/prompt-examples/beastfolk-goat-beastfolk.png",
+      "width": 1254,
+      "height": 1254,
+      "mode": "RGBA",
+      "bbox": [
+        366,
+        127,
+        888,
+        1127
+      ],
+      "margins": {
+        "left": 366,
+        "top": 127,
+        "right": 366,
+        "bottom": 127
+      },
+      "transparentPixels": 1275730,
+      "partialAlphaPixels": 8930,
+      "opaquePixels": 287856,
+      "transparentRatio": 0.8113,
+      "components": 1,
+      "componentAreas": [
+        296786
+      ],
+      "cornerAlpha": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "edgeTouch": false,
+      "checks": {
+        "min1024": true,
+        "hasTransparency": true,
+        "transparentCorners": true,
+        "padded": true,
+        "noEdgeTouch": true,
+        "noTinyDebris": true,
+        "centered": true
+      },
+      "byteLength": 648189,
+      "sha256": "2696cc1e003061a1693c931b0dec053281860615731cda13c026388abee93e19",
+      "centerOffsetX": 0.0,
+      "centerOffsetY": 0.0
+    }
+  ]
+}
