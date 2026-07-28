@@ -2052,10 +2052,21 @@ async function runMockAutorunSmoke() {
     assert(restoredSmartRace.tournament.smartRaceDecision.decidedAt === firstDecisionTimestamp, "Smart Race decision should survive API restart");
     const restoredSmartRaceBStatus = await getJson(port, `/api/codex/jobs/${smartRaceB.job.id}/status`);
     assert(restoredSmartRaceBStatus.status.state === "failed", "accepted terminal loser should be recovered as cancelled instead of resuming");
-    assert(
-      restoredSmartRaceBStatus.status.message.includes("recovered"),
-      `accepted loser guard should explain recovered cancellation: ${restoredSmartRaceBStatus.status.message}`
-    );
+    if (process.platform === "win32") {
+      assert(
+        restoredSmartRaceBStatus.status.message.includes("recovered"),
+        `accepted loser guard should explain recovered cancellation: ${restoredSmartRaceBStatus.status.message}`
+      );
+    } else {
+      assert(
+        restoredSmartRaceBStatus.status.message.includes("process termination was not confirmed"),
+        `accepted loser guard should explain pending safe cancellation: ${restoredSmartRaceBStatus.status.message}`
+      );
+      assert(
+        restoredSmartRaceBStatus.status.cancellationPending === true,
+        "non-Windows accepted loser recovery should remain pending when persisted process identity cannot be verified"
+      );
+    }
     assert((restoredSmartRaceBStatus.status.resumeCount ?? 0) === (completedSmartRaceB.status.resumeCount ?? 0), "accepted terminal loser resume count should remain unchanged");
     const unconfirmedSmartRaceWinner = await postJson(
       port,
@@ -2088,14 +2099,23 @@ async function runMockAutorunSmoke() {
       `/api/codex/tournaments/${smartRaceTournamentId}/winner`,
       { jobId: smartRaceC.job.id }
     );
-    assert(
-      reconciledSmartRaceWinner.cancellationResults.some((result) => result.jobId === smartRaceA.job.id && result.ok),
-      `same-winner recovery retry should reconcile a verified orphan: ${JSON.stringify(reconciledSmartRaceWinner.cancellationResults)}`
-    );
-    assert(await waitForProcessExit(simulatedOrphanPid), "same-winner recovery POST should terminate the verified orphan runner process tree");
     const restoredSmartRaceAStatus = await getJson(port, `/api/codex/jobs/${smartRaceA.job.id}/status`);
+    if (process.platform === "win32") {
+      assert(
+        reconciledSmartRaceWinner.cancellationResults.some((result) => result.jobId === smartRaceA.job.id && result.ok),
+        `same-winner recovery retry should reconcile a verified orphan: ${JSON.stringify(reconciledSmartRaceWinner.cancellationResults)}`
+      );
+      assert(await waitForProcessExit(simulatedOrphanPid), "same-winner recovery POST should terminate the verified orphan runner process tree");
+      assert(!restoredSmartRaceAStatus.status.cancellationPending, "confirmed orphan cancellation should clear the pending retry flag");
+    } else {
+      assert(
+        reconciledSmartRaceWinner.cancellationResults.some((result) => result.jobId === smartRaceA.job.id && !result.ok),
+        `non-Windows recovery retry should preserve the unconfirmed cancellation: ${JSON.stringify(reconciledSmartRaceWinner.cancellationResults)}`
+      );
+      assert(!(await waitForProcessExit(simulatedOrphanPid, 250)), "non-Windows recovery must not terminate a persisted runner without verified identity support");
+      assert(restoredSmartRaceAStatus.status.cancellationPending === true, "non-Windows recovery should keep the pending retry flag");
+    }
     assert(restoredSmartRaceAStatus.status.state === "failed", "accepted loser should not resume after API restart");
-    assert(!restoredSmartRaceAStatus.status.cancellationPending, "confirmed orphan cancellation should clear the pending retry flag");
     assert((restoredSmartRaceAStatus.status.resumeCount ?? 0) === (cancelledSmartRaceA.status.resumeCount ?? 0), "accepted loser resume count should remain unchanged");
 
     const job = await postJson(port, "/api/codex/jobs", {
