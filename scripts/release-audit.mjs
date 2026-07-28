@@ -6,7 +6,7 @@ import { extname, join } from "node:path";
 const root = process.cwd();
 const failures = [];
 const privacyTextExtensions = new Set(["", ".css", ".html", ".js", ".json", ".md", ".mjs", ".ts", ".tsx", ".txt", ".yaml", ".yml"]);
-const expectedPackageVersion = "0.1.8";
+const expectedPackageVersion = "0.2.1";
 
 function parsePromptExampleTitle(value) {
   const heading = value.trim();
@@ -45,6 +45,7 @@ const requiredFiles = [
   "scripts/capture-readme-screenshots.mjs",
   "docs/qa/completed-codex-job-import-storage-quota.md",
   "docs/qa/local-state-oom-safe-mode-retention.md",
+  "docs/qa/v0.2.1-release-prep.md",
   "docs/qa/v0.1.8-release-prep.md",
   "docs/qa/v0.1.7-release-prep.md",
   "docs/qa/v0.1.6-release-prep.md",
@@ -103,6 +104,7 @@ const requiredFiles = [
   "docs/release/v0.1.0-checklist.md",
   "docs/release/v0.1.0-runbook.md",
   "docs/release/v0.1.0-release-notes.md",
+  "docs/release/v0.2.1-release-notes.md",
   "docs/release/v0.1.8-release-notes.md",
   "docs/release/v0.1.7bugfix-release-notes.md",
   "docs/release/v0.1.7-release-notes.md",
@@ -240,6 +242,8 @@ const requiredVerifyCommands = [
 const requiredReviewLocalCommands = ["npm run verify", "npm run ui:smoke", "npm run codex:smoke"];
 const requiredReadmeLinks = [
   "CHANGELOG.md",
+  "docs/release/v0.2.1-release-notes.md",
+  "docs/qa/v0.2.1-release-prep.md",
   "docs/release/v0.1.8-release-notes.md",
   "docs/qa/v0.1.8-release-prep.md",
   "docs/release/v0.1.7bugfix-release-notes.md",
@@ -340,6 +344,13 @@ function checkPackageJson() {
   if (!serverText.includes(`version: "${expectedPackageVersion}"`)) {
     failures.push(`API health version should report ${expectedPackageVersion}.`);
   }
+
+  const readmeCaptureText = readText("scripts/capture-readme-screenshots.mjs");
+  ["VITE_IMAGE_COCKPIT_SUPERVISOR_PORT", ".cockpit-health-panel.state-ok"].forEach((marker) => {
+    if (!readmeCaptureText.includes(marker)) {
+      failures.push(`README screenshot capture should include the stable health marker: ${marker}`);
+    }
+  });
 
   const packageLock = readJson("package-lock.json");
   if (packageLock) {
@@ -2299,9 +2310,11 @@ function checkCiWorkflow() {
 
 function checkReleaseDocs() {
   const readme = readText("README.md");
+  const changelog = readText("CHANGELOG.md");
   const checklist = readText("docs/release/v0.1.0-checklist.md");
   const runbook = readText("docs/release/v0.1.0-runbook.md");
   const releaseNotes = readText("docs/release/v0.1.0-release-notes.md");
+  const releaseNotes021 = readText("docs/release/v0.2.1-release-notes.md");
   const releaseNotes018 = readText("docs/release/v0.1.8-release-notes.md");
   const releaseNotes017Bugfix = readText("docs/release/v0.1.7bugfix-release-notes.md");
   const releaseNotes017 = readText("docs/release/v0.1.7-release-notes.md");
@@ -2311,6 +2324,7 @@ function checkReleaseDocs() {
   const releaseNotes013 = readText("docs/release/v0.1.3-release-notes.md");
   const releaseNotes012 = readText("docs/release/v0.1.2-release-notes.md");
   const releaseNotes011 = readText("docs/release/v0.1.1-release-notes.md");
+  const releasePrepQa021 = readText("docs/qa/v0.2.1-release-prep.md");
   const releasePrepQa018 = readText("docs/qa/v0.1.8-release-prep.md");
   const releasePrepQa017 = readText("docs/qa/v0.1.7-release-prep.md");
   const releasePrepQa016 = readText("docs/qa/v0.1.6-release-prep.md");
@@ -2324,11 +2338,17 @@ function checkReleaseDocs() {
   const acceptanceEvidence = readText("docs/release/v0.1.0-acceptance-evidence.md");
   const ownerDecision = readText("docs/release/v0.1.0-owner-decision.md");
   const manualHandoff = readText("docs/usage/manual-handoff.md");
-  if (!readme || !checklist || !runbook || !releaseNotes || !releaseNotes018 || !releaseNotes017Bugfix || !releaseNotes017 || !releaseNotes016 || !releaseNotes015 || !releaseNotes014 || !releaseNotes013 || !releaseNotes012 || !releaseNotes011 || !releasePrepQa018 || !releasePrepQa017 || !releasePrepQa016 || !releasePrepQa015 || !releasePrepQa014 || !releasePrepQa013 || !releasePrepQa012 || !releasePrepQa || !ownerReview || !finalAudit || !acceptanceEvidence || !ownerDecision || !manualHandoff) return;
+  if (!readme || !changelog || !checklist || !runbook || !releaseNotes || !releaseNotes021 || !releaseNotes018 || !releaseNotes017Bugfix || !releaseNotes017 || !releaseNotes016 || !releaseNotes015 || !releaseNotes014 || !releaseNotes013 || !releaseNotes012 || !releaseNotes011 || !releasePrepQa021 || !releasePrepQa018 || !releasePrepQa017 || !releasePrepQa016 || !releasePrepQa015 || !releasePrepQa014 || !releasePrepQa013 || !releasePrepQa012 || !releasePrepQa || !ownerReview || !finalAudit || !acceptanceEvidence || !ownerDecision || !manualHandoff) return;
 
   requiredReadmeLinks.forEach((link) => {
     if (!readme.includes(link)) {
       failures.push(`README is missing release link: ${link}`);
+    }
+  });
+
+  ["## v0.2.1 - 2026-07-28", "30 detailed prompt presets", "nine short starting prompts", "227 Vitest tests"].forEach((line) => {
+    if (!changelog.includes(line)) {
+      failures.push(`CHANGELOG is missing v0.2.1 release content: ${line}`);
     }
   });
 
@@ -2348,6 +2368,57 @@ function checkReleaseDocs() {
   ].forEach((line) => {
     if (!runbook.includes(line)) {
       failures.push(`Release runbook is missing safety line: ${line}`);
+    }
+  });
+
+  [
+    "v0.2.1",
+    "nine short starting points",
+    "existing 137 detailed prompts",
+    "30 new detailed presets",
+    "Negative Prompt",
+    "Generation Notes",
+    "all 15 supported interface languages",
+    "1254 x 1254 RGBA PNG",
+    "approximately 16.1 MiB",
+    "do not guarantee faster image generation",
+    "The app still does not call OpenAI APIs directly",
+    "No API keys, tokens, model weights",
+    "npm run verify",
+    "npm run ui:smoke",
+    "npm run capture:readme"
+  ].forEach((line) => {
+    if (!releaseNotes021.includes(line)) {
+      failures.push(`v0.2.1 release notes are missing expected content: ${line}`);
+    }
+  });
+
+  [
+    "v0.2.1 Release Prep QA",
+    "Feature source branch: `codex/animal-chibi-beastfolk-presets`",
+    "Source branch: `codex/v0.2.1-release`",
+    "package.json version: `0.2.1`",
+    "package-lock.json root version: `0.2.1`",
+    "App visible version badges: `v0.2.1`",
+    "API health version: `0.2.1`",
+    "docs/release/v0.2.1-release-notes.md",
+    "Added presets: 30 total",
+    "exactly 9 short prompts",
+    "exactly 137 existing examples",
+    "docs/qa/prompt-examples/animal-chibi-beastfolk-presets/asset-qc.json",
+    "owner confirmed the generated results",
+    "npm run doctor",
+    "npm run typecheck",
+    "npm test",
+    "npm run build",
+    "npm run smoke",
+    "npm run release:audit",
+    "npm run ui:smoke",
+    "npm run capture:readme",
+    "git diff --check"
+  ].forEach((line) => {
+    if (!releasePrepQa021.includes(line)) {
+      failures.push(`v0.2.1 release prep QA is missing expected content: ${line}`);
     }
   });
 

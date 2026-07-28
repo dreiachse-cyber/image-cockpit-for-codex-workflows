@@ -268,6 +268,10 @@ async function tidyWorkspaceScroll() {
 }
 
 async function capture(name) {
+  await waitForEval(
+    () => `Boolean(document.querySelector(".cockpit-health-panel.state-ok"))`,
+    `${name} Cockpit health`
+  );
   await assertNoLocalPrivateText(name);
   const screenshot = await cdp.send("Page.captureScreenshot", { format: "png", captureBeyondViewport: false });
   await writeFile(join(outputDir, name), Buffer.from(screenshot.data, "base64"));

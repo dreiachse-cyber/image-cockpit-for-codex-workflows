@@ -4,6 +4,29 @@
 
 No unreleased changes yet.
 
+## v0.2.1 - 2026-07-28
+
+Approachable prompt discovery and a broader production-ready pixel-art preset catalog after v0.1.8.
+
+### Added
+
+- Added 30 detailed prompt presets with transparent preview assets: 10 animals, 5 chibi boys, 5 chibi girls, and 10 beastfolk.
+- Added nine short starting prompts for an elderly man, elderly woman, man, woman, girl, boy, cat, dog, and monster.
+- Added related-example navigation, full-catalog access, 15-language layer UI copy, responsive layouts, focus trapping, Escape handling, and focus return.
+- Added machine-readable QA for all 30 generated preview assets, including dimensions, transparency, padding, centering, edge contact, debris, and SHA-256 checks.
+
+### Changed
+
+- Moved the existing 137 detailed Prompt Examples behind a lighter first layer so users can begin with a short editable idea instead of a nearly finished prompt.
+- Short-prompt use now updates only the main prompt and preserves the user's Negative Prompt and Generation Notes.
+- Refreshed the four README workflow screenshots and isolated screenshot capture from unrelated local Supervisor instances.
+
+### Verification
+
+- The owner reviewed and accepted the generated preset results before authorizing this release.
+- All 30 preview assets are 1254 x 1254 RGBA PNGs and pass the checked transparency, padding, centering, edge, and debris contracts.
+- Release validation covers syntax, doctor, typecheck, 227 Vitest tests, production build, API smoke, release audit, full browser UI smoke, README capture, and Git diff checks.
+
 ## v0.1.8 - 2026-07-24
 
 Safer and faster Best-profile animation tournaments after v0.1.7.
