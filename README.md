@@ -6,6 +6,16 @@ This project is unofficial and not affiliated with OpenAI. It is a local workspa
 
 ![Image Cockpit demo](docs/demo/mvp-demo.gif)
 
+## Production Context
+
+The maintainer is also developing [**DemonBlade Pixel: Hyakki Senkou**](https://store.steampowered.com/app/4927090/DemonBlade_Pixel_Hyakki_Senkou/?utm_source=github&utm_medium=oss_repo&utm_campaign=youtou_launch_2026&utm_content=production_context) (妖刀ピクセル：百鬼潜行), a 2D bullet-hell action roguelite with pixel-art characters, bosses, and effects. It launches on Steam on November 12, 2026.
+
+[![DemonBlade Pixel: Hyakki Senkou](https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/4927090/header.jpg)](https://store.steampowered.com/app/4927090/DemonBlade_Pixel_Hyakki_Senkou/?utm_source=github&utm_medium=oss_repo&utm_campaign=youtou_launch_2026&utm_content=production_context)
+
+[Wishlist on Steam →](https://store.steampowered.com/app/4927090/DemonBlade_Pixel_Hyakki_Senkou/?utm_source=github&utm_medium=oss_repo&utm_campaign=youtou_launch_2026&utm_content=production_context)
+
+_Game artwork in this section belongs to DemonBlade Pixel: Hyakki Senkou and is not covered by this repository's MIT license._
+
 ## Product Boundary
 
 Image Cockpit is designed to run on a local machine where Codex is installed. The app itself does not call OpenAI APIs and does not require an API key.
